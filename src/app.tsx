@@ -45,6 +45,7 @@ export async function createApp() {
 
   await Neutralino.events.on("windowClose", async () => {
     if (await GLOBAL_onClose(false)) {
+      await Neutralino.window.hide();
       exit(0);
     }
   });
