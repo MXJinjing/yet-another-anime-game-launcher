@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/neutralinojs/neutralinojs/main/schemas/neutralino.config.schema.json",
   "applicationId": "com.3shain.yaagl",
-  "version": "1.0.0",
+  "version": "0.3.19-20260702",
   "defaultMode": "window",
   "port": 0,
   "documentRoot": "/dist",
