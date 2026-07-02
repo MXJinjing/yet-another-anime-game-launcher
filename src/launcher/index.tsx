@@ -18,7 +18,7 @@ import {
   ProgressIndicator,
 } from "@hope-ui/solid";
 import { createIcon } from "@hope-ui/solid";
-import { Show, createSignal } from "solid-js";
+import { Show, createSignal, onCleanup } from "solid-js";
 import { Locale } from "@locale";
 import { createConfiguration } from "@config";
 import { Github } from "../github";
@@ -122,6 +122,8 @@ export async function createLauncher({
       }
     }
     checkGameRunning();
+    const checkTimer = setInterval(checkGameRunning, 3000);
+    onCleanup(() => clearInterval(checkTimer));
 
     async function onButtonClick() {
       if (programBusy()) return; // ignore
@@ -258,7 +260,7 @@ export async function createLauncher({
                 >
                   <Button
                     mr="-1px"
-                    disabled={programBusy()}
+                    disabled={programBusy() && !gameRunning()}
                     onClick={() => {
                       if (gameRunning()) {
                         exec2(
