@@ -1,4 +1,4 @@
-import { openDir, fatal, open } from "@utils";
+import { exec2, openDir, fatal, open } from "@utils";
 import {
   Box,
   Button,
@@ -111,6 +111,17 @@ export async function createLauncher({
     const { isOpen, onOpen, onClose } = createDisclosure();
 
     const [videoLoaded, setVideoLoaded] = createSignal(false);
+    const [gameRunning, setGameRunning] = createSignal(false);
+
+    async function checkGameRunning() {
+      try {
+        await exec2(["pgrep", "-f", "YuanShen"], {}, false, "/dev/null");
+        setGameRunning(true);
+      } catch {
+        setGameRunning(false);
+      }
+    }
+    checkGameRunning();
 
     async function onButtonClick() {
       if (programBusy()) return; // ignore
@@ -248,9 +259,34 @@ export async function createLauncher({
                   <Button
                     mr="-1px"
                     disabled={programBusy()}
-                    onClick={() => onButtonClick().catch(fatal)}
+                    onClick={() => {
+                      if (gameRunning()) {
+                        exec2(
+                          [
+                            "pkill",
+                            "-9",
+                            "-f",
+                            "wineserver|winedevice|YuanShen|steam.exe",
+                          ],
+                          {},
+                          false,
+                          "/dev/null"
+                        );
+                        exec2(
+                          ["pkill", "-9", "-f", "aria2c.*Yaagl"],
+                          {},
+                          false,
+                          "/dev/null"
+                        );
+                        setGameRunning(false);
+                      } else {
+                        onButtonClick().catch(fatal);
+                      }
+                    }}
                   >
-                    {installState() == "INSTALLED"
+                    {gameRunning()
+                      ? "强制退出"
+                      : installState() == "INSTALLED"
                       ? updateRequired()
                         ? locale.get("UPDATE")
                         : locale.get("LAUNCH")

@@ -31,7 +31,7 @@ import { createLeftCmdConfig } from "./left-cmd";
 import { createWineDistroConfig } from "./wine-distribution";
 import createLocaleConfig from "./ui-locale";
 import createFPSUnlock from "./fps-unlock";
-import { exec, exec2, getKeyOrDefault, resolve, setKey } from "../utils";
+import { exec2, getKeyOrDefault, resolve, setKey } from "../utils";
 import { createSignal, JSXElement, Show } from "solid-js";
 import createReShade from "./reshade";
 import { createProxyEnabledConfig } from "@config/proxy-enabled";
@@ -81,17 +81,6 @@ export async function createConfiguration({
     (await getKeyOrDefault("config_advanced", "false")) == "true";
 
   const [advanceSetting, setAdvancedSetting] = createSignal(_advancedSetting);
-  const [gameRunning, setGameRunning] = createSignal(false);
-
-  async function checkGameRunning() {
-    try {
-      await exec(["pgrep", "-f", "YuanShen"]);
-      setGameRunning(true);
-    } catch {
-      setGameRunning(false);
-    }
-  }
-  checkGameRunning();
 
   const clickTimestamp: number[] = [];
   async function onClickVersion() {
@@ -187,35 +176,6 @@ export async function createConfiguration({
                     >
                       {locale.get("SETTING_CHECK_INTEGRITY")}
                     </Button>
-                    <Show when={gameRunning()}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        colorScheme="danger"
-                        onClick={async () => {
-                          await exec2(
-                            [
-                              "pkill",
-                              "-9",
-                              "-f",
-                              "wineserver|winedevice|YuanShen|steam.exe",
-                            ],
-                            {},
-                            false,
-                            "/dev/null"
-                          );
-                          await exec2(
-                            ["pkill", "-9", "-f", "aria2c.*Yaagl"],
-                            {},
-                            false,
-                            "/dev/null"
-                          );
-                          setGameRunning(false);
-                        }}
-                      >
-                        强制退出游戏
-                      </Button>
-                    </Show>
                     <Divider />
                     <Button variant="ghost" size="sm" onClick={onCheckUpdate}>
                       {locale.get("SETTING_CHECK_UPDATE")}
