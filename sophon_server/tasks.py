@@ -4,7 +4,7 @@ from typing import Dict, Optional, Literal
 from progress_handlers import InstallProgressHandler, RepairProgressHandler, UpdateProgressHandler
 from models import InstallRequest, RepairRequest, UpdateRequest, TaskStatus, OnlineGameInfo
 from utils import ConnectionManager
-from sophon_api import Options, SophonClient, force_memory_release, RUN_MEMORY_HACK, WORKER_CNT
+from sophon_api import Options, SophonClient, force_memory_release, RUN_MEMORY_HACK, WORKER_CNT, warnlog
 
 
 def update_config_ini_version(gamedir: pathlib.Path, version: str):
@@ -194,14 +194,21 @@ def fetch_online_game_info(reltype: str, game: Literal["nap", "hk4e"]) -> Online
             cli = SophonClient()
             cli.initialize(options)
             cli.retrieve_API_keys()
-            cli.load_manifest("game")
 
+            # Extract version info from API keys before loading manifest
+            # Manifest loading may fail for new game versions (protobuf format changes)
             online_info = {
                 "version": cli.branches_json["tag"],
-                "install_size": int(cli.get_chunk_download_size(False)),
-                "updatable_versions": cli.branches_json["diff_tags"],
+                "install_size": 0,
+                "updatable_versions": cli.branches_json.get("diff_tags", []),
                 "release_type": reltype,
             }
+
+            try:
+                cli.load_manifest("game")
+                online_info["install_size"] = int(cli.get_chunk_download_size(False))
+            except Exception as manifest_err:
+                warnlog(f"Manifest loading failed (version detection still works): {manifest_err}")
 
             del cli
 
