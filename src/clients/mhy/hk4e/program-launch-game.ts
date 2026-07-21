@@ -90,36 +90,59 @@ async function applyResolutionRegistry(
 }
 
 const BLOCK_ALL_NET_MARKER_KEY = "block_all_net_active";
-
-const PF_ANCHOR = "com.yaagl.block_all";
+const PF_STATE_MARKER_KEY = "pf_was_enabled";
 const PF_RULES_FILE = "/tmp/yaagl_block_all.pf";
 const PF_WATCHER_SCRIPT = "/tmp/yaagl_block_all_watcher.sh";
+// Seconds of game-runtime after which to release the pf block.
+const PF_RELEASE_AFTER_SECONDS = 25;
 
 async function isPfCleanupNeeded(): Promise<boolean> {
   const marker = await getKeyOrDefault(BLOCK_ALL_NET_MARKER_KEY, "NOTFOUND");
   return marker === "1";
 }
 
+// Wraps a string in single quotes for safe shell interpolation.
+function shellSingleQuote(s: string): string {
+  return `'${s.replace(/'/g, "'\\''")}'`;
+}
+
 async function disableAllNetBlock(): Promise<void> {
+  // Best-effort restore of original pf state. Each sudo call is independent
+  // and tolerates failure (e.g. user denied the password prompt).
   try {
-    const disableScript = `#!/bin/sh
-pfctl -a ${PF_ANCHOR} -F all 2>/dev/null
-pfctl -a ${PF_ANCHOR} -F all 2>/dev/null
-rm -f ${PF_RULES_FILE}
-`;
-    await writeFile(PF_RULES_FILE + ".disable", disableScript);
-    // Silent attempt via osascript in background (no password prompt expected if anchor is empty)
-    await exec(
-      [
-        "osascript",
-        "-e",
-        `do shell script "sh ${PF_RULES_FILE}.disable > /dev/null 2>&1" with administrator privileges`,
-      ],
-      {},
-      false
-    );
+    await exec(["sudo", "pfctl", "-d"], {}, false);
   } catch {
-    // Best-effort cleanup
+    // ignore — pf may already be disabled, or sudo failed
+  }
+  try {
+    await exec(["sudo", "pfctl", "-F", "all"], {}, false);
+  } catch {
+    // ignore
+  }
+  try {
+    await exec(["sudo", "pfctl", "-f", "/etc/pf.conf"], {}, false);
+  } catch {
+    // ignore — user's /etc/pf.conf may be unreadable; rules remain flushed
+  }
+  try {
+    const wasEnabled = await getKeyOrDefault(PF_STATE_MARKER_KEY, "0");
+    if (wasEnabled === "1") {
+      await exec(["sudo", "pfctl", "-e"], {}, false);
+    }
+  } catch {
+    // ignore
+  }
+  // Clear the saved state so a stale "1" can never cause us to re-enable pf
+  // on a future launch where pf was never enabled by the user in the first place.
+  try {
+    await setKey(PF_STATE_MARKER_KEY, null);
+  } catch {
+    // ignore
+  }
+  try {
+    await removeFile(PF_RULES_FILE);
+  } catch {
+    // ignore
   }
 }
 
@@ -127,58 +150,127 @@ export async function disableAllNetBlockExternal(): Promise<void> {
   return disableAllNetBlock();
 }
 
-async function enableAllNetBlockAutoRelease(): Promise<boolean> {
-  const commands = [
-    `#!/bin/sh`,
-    `PF_ANCHOR="${PF_ANCHOR}"`,
-    `PF_FILE="${PF_RULES_FILE}"`,
-    `echo "block drop out all" > "$PF_FILE"`,
-    `pfctl -a "$PF_ANCHOR" -f "$PF_FILE" -e 2>/dev/null`,
-    ``,
-    `MAX_POLLS=30`,
-    `i=0`,
-    `while [ $i -lt $MAX_POLLS ]; do`,
-    `  sleep 2`,
-    `  GAME_PID=$(pgrep -f "YuanShen.exe" 2>/dev/null | head -1)`,
-    `  if [ -n "$GAME_PID" ]; then`,
-    `    ELAPSED=$(ps -o etime= -p "$GAME_PID" 2>/dev/null | tr -d ' ')`,
-    `    case "$ELAPSED" in`,
-    `      *-*|*:*)`,
-    `        pfctl -a "$PF_ANCHOR" -F all 2>/dev/null`,
-    `        rm -f "$PF_FILE"`,
-    `        exit 0`,
-    `        ;;`,
-    `      *)`,
-    `        SECS=$(echo "$ELAPSED" | sed 's/^0*//')`,
-    `        [ -z "$SECS" ] && SECS=0`,
-    `        [ "$SECS" -ge 25 ] 2>/dev/null && pfctl -a "$PF_ANCHOR" -F all 2>/dev/null && rm -f "$PF_FILE" && exit 0`,
-    `        ;;`,
-    `    esac`,
-    `  fi`,
-    `  i=$((i + 1))`,
-    `done`,
-    ``,
-    `# Timeout fallback: disable after ~60s anyway`,
-    `pfctl -a "$PF_ANCHOR" -F all 2>/dev/null`,
-    `rm -f "$PF_FILE"`,
-  ];
+// Builds the auto-release watcher shell script.
+//
+// The watcher polls every 2 seconds (up to 30 iterations = ~60s) for the game
+// process. Once the game has been running for >= PF_RELEASE_AFTER_SECONDS,
+// it releases the pf block. If the game never starts / never reaches the
+// threshold, the watcher falls back to releasing after the polling budget
+// is exhausted.
+//
+// `ps -o etime=` on macOS emits one of:
+//   `mm:ss`           — elapsed <  1 hour
+//   `hh:mm:ss`        — elapsed <  1 day
+//   `dd-hh:mm:ss`    — elapsed >= 1 day
+// We use awk with field separators `[-:]` and switch on field count so we
+// correctly compute total elapsed seconds in every case. The previous
+// implementation used a `case` whose first pattern `*-*|*:*` matched every
+// non-trivial etime string (because every mm:ss contains `:`), making the
+// 25-second threshold branch unreachable.
+function buildWatcherScript(gameExecutable: string): string {
+  return (
+    [
+      `#!/bin/sh`,
+      `PF_RULES_FILE=${shellSingleQuote(PF_RULES_FILE)}`,
+      `GAME_EXE=${shellSingleQuote(gameExecutable)}`,
+      `MIN_SECS=${PF_RELEASE_AFTER_SECONDS}`,
+      `MAX_POLLS=30`,
+      `RELEASED=0`,
+      `i=0`,
+      `while [ "$i" -lt "$MAX_POLLS" ]; do`,
+      `  sleep 2`,
+      `  GAME_PID=$(pgrep -f "$GAME_EXE" 2>/dev/null | head -1)`,
+      `  if [ -n "$GAME_PID" ]; then`,
+      `    ELAPSED=$(ps -o etime= -p "$GAME_PID" 2>/dev/null | tr -d ' ')`,
+      `    [ -z "$ELAPSED" ] && ELAPSED="0"`,
+      `    SECS=$(echo "$ELAPSED" | awk -F'[-:]' '{ n=NF; if(n==0){print 0} else if(n==1){print $1+0} else if(n==2){print $1*60+$2} else if(n==3){print $1*3600+$2*60+$3} else if(n==4){print $1*86400+$2*3600+$3*60+$4} else {print 0} }')`,
+      `    SECS=$(echo "$SECS" | tr -d ' \\n')`,
+      `    [ -z "$SECS" ] && SECS=0`,
+      `    if [ "$SECS" -ge "$MIN_SECS" ] 2>/dev/null; then`,
+      `      sudo pfctl -d 2>/dev/null`,
+      `      sudo pfctl -F all 2>/dev/null`,
+      `      sudo pfctl -f /etc/pf.conf 2>/dev/null`,
+      `      rm -f "$PF_RULES_FILE" 2>/dev/null`,
+      `      RELEASED=1`,
+      `      exit 0`,
+      `    fi`,
+      `  fi`,
+      `  i=$((i + 1))`,
+      `done`,
+      `# Timeout fallback: release after polling budget exhausted`,
+      `if [ "$RELEASED" -eq 0 ]; then`,
+      `  sudo pfctl -d 2>/dev/null`,
+      `  sudo pfctl -F all 2>/dev/null`,
+      `  sudo pfctl -f /etc/pf.conf 2>/dev/null`,
+      `  rm -f "$PF_RULES_FILE" 2>/dev/null`,
+      `fi`,
+    ].join("\n") + "\n"
+  );
+}
 
-  await writeFile(PF_WATCHER_SCRIPT, commands.join("\n"));
+async function enableAllNetBlockAutoRelease(
+  gameExecutable: string
+): Promise<boolean> {
+  // The pf rules file we load as the MAIN ruleset (not an anchor), plus
+  // a pass-through for loopback so unrelated localhost traffic keeps working
+  // during the brief block window.
+  await writeFile(
+    PF_RULES_FILE,
+    "pass out quick on lo0 all\nblock drop out all\n"
+  );
+
+  // Detect whether pf was originally enabled by the user so cleanup can
+  // restore that state. If our previous block is still active (e.g. crashed
+  // launch), we must NOT trust the "Enabled" status we see — it was set by us.
+  const previousMarker = await getKeyOrDefault(
+    BLOCK_ALL_NET_MARKER_KEY,
+    "NOTFOUND"
+  );
+  let wasEnabled = false;
+  if (previousMarker !== "1") {
+    try {
+      const st = await exec(["sudo", "pfctl", "-s", "info"], {}, false);
+      const out = `${st.stdOut || ""}\n${st.stdErr || ""}`;
+      if (/^Status:\s+Enabled/im.test(out)) {
+        wasEnabled = true;
+      }
+    } catch {
+      // pf status check failed (sudo denied / not in sudoers): assume pf was
+      // disabled. This is the macOS default, so we won't try to re-enable on
+      // cleanup.
+    }
+  }
+  await setKey(PF_STATE_MARKER_KEY, wasEnabled ? "1" : "0");
+
+  // Load our rules into the MAIN pf ruleset and enable pf.
+  //
+  // We deliberately do NOT use a pf anchor here. Anchor rules are only
+  // evaluated when the main ruleset references the anchor (e.g. via an
+  // `anchor "com.yaagl.block_all"` line in /etc/pf.conf). The default macOS
+  // pf.conf has no such reference, so anchor-based blocking would silently
+  // be a no-op — the game would still reach its servers and the user would
+  // assume the block was working when it was not. Loading directly into the
+  // main ruleset works regardless of the user's existing pf.conf.
   try {
-    await exec(
-      [
-        "osascript",
-        "-e",
-        `do shell script "source ${PF_WATCHER_SCRIPT} > /dev/null 2>&1 &" with administrator privileges`,
-      ],
-      {},
-      false
-    );
-    return true;
+    await exec(["sudo", "pfctl", "-f", PF_RULES_FILE, "-e"], {}, false);
   } catch {
-    // User cancelled osascript authorization — pf block not enabled
+    // sudo failed (user denied, no TTY, or sudoers not configured)
     return false;
   }
+
+  // Spawn the auto-release watcher detached so it survives a launcher exit
+  // and can still release the block if Yaagl is closed mid-launch.
+  await writeFile(PF_WATCHER_SCRIPT, buildWatcherScript(gameExecutable));
+  await exec(
+    [
+      "bash",
+      "-c",
+      `nohup sh ${shellSingleQuote(PF_WATCHER_SCRIPT)} >/dev/null 2>&1 &`,
+    ],
+    {},
+    false
+  );
+  return true;
 }
 
 export async function* launchGameProgram({
@@ -223,7 +315,7 @@ cd /d "${wine.toWinePath(gameDir)}"
 
   // Enable pf block-all-net before launching the game
   if (config.blockAllNet) {
-    const pfOk = await enableAllNetBlockAutoRelease();
+    const pfOk = await enableAllNetBlockAutoRelease(gameExecutable);
     if (!pfOk) {
       yield ["setStateText", "REVERT_PATCHING"];
       await removeFile(resolve("config.bat"));
