@@ -109,6 +109,15 @@ export async function* launchGameProgram({
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "PATCHING"];
 
+  // Kill any stale wineserver / services.exe / winedevice.exe from a
+  // previous launch that exited abnormally. If not cleaned up,
+  // `wineserver -w` (inside setProps) waits forever for the ghost
+  // wineserver to exit — and it never does, because it's waiting on
+  // a dead client. Running this at the start of every launch is a
+  // belt-and-braces complement to the termination hook in app.tsx
+  // (which runs on Yaagl close but not on re-launch without close).
+  await wine.killAll();
+
   await wine.setProps(config);
   if (config.hk4eEnableHDR) {
     await applyHDRRegistry({ wine, server });
