@@ -166,15 +166,39 @@ cd /d "${wine.toWinePath(gameDir)}"
       ];
 
       await writeFile(helperPath, commands.join("\n"));
+      // Two-tier escalation for the hosts helper:
+      //   1. `sudo -n` (non-interactive) — works silently if the user
+      //      has already set up NOPASSWD via the Quick Actions panel.
+      //   2. `osascript … with administrator privileges` — macOS GUI
+      //      password dialog; the fallback for users who haven't
+      //      configured sudoers yet. This pops a dialog on every
+      //      launch until the one-time sudoers setup is done.
+      // Both paths background the helper via `&` so the game launch
+      // continues immediately.
+      let ran = false;
       try {
-        // Background the helper via `bash -c "... &"` so the launch
-        // flow continues immediately — the helper sleeps and then
-        // removes the block on its own timer.
-        await exec(["bash", "-c", `sudo sh "${helperPath}" &`], {}, false);
+        await exec(["bash", "-c", `sudo -n sh "${helperPath}" &`], {}, false);
+        ran = true;
       } catch {
-        // sudo failed (no TTY or sudoers not configured) — the hosts
-        // block will simply not take effect this launch. The user can
-        // set up NOPASSWD via the Quick Actions panel to fix this.
+        // sudo -n failed → try osascript
+      }
+      if (!ran) {
+        try {
+          await exec(
+            [
+              "osascript",
+              "-e",
+              `do shell script "sh '${helperPath.replace(
+                /'/g,
+                "'\\''"
+              )}' > /dev/null 2>&1 &" with administrator privileges`,
+            ],
+            {},
+            false
+          );
+        } catch {
+          // User cancelled the osascript dialog — no blocking this launch
+        }
       }
     }
 
