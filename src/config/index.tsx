@@ -31,7 +31,7 @@ import { createLeftCmdConfig } from "./left-cmd";
 import { createWineDistroConfig } from "./wine-distribution";
 import createLocaleConfig from "./ui-locale";
 import createFPSUnlock from "./fps-unlock";
-import { exec, exec2, getKeyOrDefault, resolve, setKey } from "../utils";
+import { exec2, getKeyOrDefault, resolve, setKey } from "../utils";
 import { createSignal, JSXElement, Show } from "solid-js";
 import createReShade from "./reshade";
 import { createProxyEnabledConfig } from "@config/proxy-enabled";
@@ -107,41 +107,6 @@ export async function createConfiguration({
       }
     }
   }
-
-  // ── sudoers check (for block-net hosts helper) ──
-  const SUDOERS_FILE = "/etc/sudoers.d/yaagl-block-net";
-  let sudoersConfigured = false;
-  try {
-    await exec(["ls", SUDOERS_FILE], {}, false);
-    sudoersConfigured = true;
-  } catch {
-    sudoersConfigured = false;
-  }
-  const [hostsSudoersOn, setHostsSudoersOn] = createSignal(sudoersConfigured);
-
-  const SUDOERS_SETUP_SCRIPT = "/tmp/yaagl-sudoers-setup.sh";
-  const SUDOERS_REMOVE_SCRIPT = "/tmp/yaagl-sudoers-remove.sh";
-
-  // Pre-write the helper scripts so the osascript calls are trivially
-  // `do shell script "sh /tmp/yaagl-sudoers-setup.sh"` — no escaping.
-  await exec(
-    [
-      "bash",
-      "-c",
-      `printf '#!/bin/sh\necho "$USER ALL=(ALL) NOPASSWD: /bin/sh /Users/Shared/yaagl-block-net-helper.sh" > /etc/sudoers.d/yaagl-block-net\nchmod 0440 /etc/sudoers.d/yaagl-block-net\n' > "${SUDOERS_SETUP_SCRIPT}"`,
-    ],
-    {},
-    false
-  );
-  await exec(
-    [
-      "bash",
-      "-c",
-      `echo '#!/bin/sh\nrm -f /etc/sudoers.d/yaagl-block-net' > "${SUDOERS_REMOVE_SCRIPT}"`,
-    ],
-    {},
-    false
-  );
 
   return {
     UI: function (props: {
@@ -255,59 +220,6 @@ export async function createConfiguration({
                     <Button variant="ghost" size="sm" onClick={onCheckUpdate}>
                       {locale.get("SETTING_CHECK_UPDATE")}
                     </Button>
-                    <Divider />
-                    <Show
-                      when={!hostsSudoersOn()}
-                      fallback={
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={async () => {
-                            await exec(
-                              [
-                                "osascript",
-                                "-e",
-                                `do shell script "sh ${SUDOERS_REMOVE_SCRIPT}" with administrator privileges`,
-                              ],
-                              {},
-                              false
-                            );
-                            try {
-                              await exec(["ls", SUDOERS_FILE], {}, false);
-                              setHostsSudoersOn(true);
-                            } catch {
-                              setHostsSudoersOn(false);
-                            }
-                          }}
-                        >
-                          {locale.get("SETTING_REMOVE_SUDOERS_HOSTS")}
-                        </Button>
-                      }
-                    >
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={async () => {
-                          await exec(
-                            [
-                              "osascript",
-                              "-e",
-                              `do shell script "sh ${SUDOERS_SETUP_SCRIPT}" with administrator privileges`,
-                            ],
-                            {},
-                            false
-                          );
-                          try {
-                            await exec(["ls", SUDOERS_FILE], {}, false);
-                            setHostsSudoersOn(true);
-                          } catch {
-                            setHostsSudoersOn(false);
-                          }
-                        }}
-                      >
-                        {locale.get("SETTING_SETUP_SUDOERS_HOSTS")}
-                      </Button>
-                    </Show>
                   </VStack>
                 </HStack>
               </TabPanel>
