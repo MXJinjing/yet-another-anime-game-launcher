@@ -80,7 +80,6 @@ export const zh_CN = {
   SETTING_UI_LOCALE: "启动器界面语言",
   SETTING_RESTART_TO_TAKE_EFFECT: "此设置将从下次启动生效",
   SETTING_OPEN_CMD: "打开Wine命令行工具",
-  SETTING_OPEN_WINECFG: "打开 Wine 配置",
   SETTING_OPEN_GAME_INSTALL_DIR: "打开游戏安装目录",
   SETTING_OPEN_YAAGL_DIR: "打开YAAGL数据目录",
   SETTING_YAAGL_VERSION: "YAAGL版本",
@@ -107,6 +106,10 @@ export const zh_CN = {
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
   SETTING_BLOCK_ALL_NET: "启动时阻断全部网络",
+  SETTING_SUDOERS_SETUP: "配置免密码 pfctl",
+  SETTING_SUDOERS_DESC: "执行以下命令一次（需输入密码），之后不再弹窗：",
+  SETTING_COPY: "复制",
+  SETTING_COPIED: "已复制！",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_LICENSES: "Licenses", // TODO: Translate
   SETTING_ENABLE_HDR: "启用 HDR",
