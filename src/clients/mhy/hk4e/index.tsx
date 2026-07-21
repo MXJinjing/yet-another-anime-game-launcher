@@ -43,6 +43,7 @@ import { createWorkaround3Config } from "./config/workaround-3";
 import createPatchOff from "./config/patch-off";
 import createSteamPatch from "./config/steam-patch";
 import createBlockNet from "./config/block-net";
+import createBlockAllNet from "./config/block-all-net";
 import createResolution from "./config/resolution";
 import createTimeoutFix from "./config/timeout-fix";
 import { createEnableHDRConfig } from "./config/enable-hdr";
@@ -95,7 +96,7 @@ export async function createHK4EChannelClient({
 
   const gameInfo = await sophon.getLatestOnlineGameInfo(releaseType, "hk4e");
   log(`Game info: ${JSON.stringify(gameInfo)}`);
-  const LATEST_GAME_VERSION: string = gameInfo.version || "0.0.0";
+  const LATEST_GAME_VERSION: string = gameInfo.version;
   const UPDATABLE_VERSIONS: string[] = gameInfo.updatable_versions;
   const PRE_DOWNLOAD_VERSION: string = gameInfo.pre_download_version || "0.0.0";
   const PRE_DOWNLOAD_AVAILABLE: boolean = gameInfo.pre_download;
@@ -300,6 +301,7 @@ export async function createHK4EChannelClient({
       const [PO] = await createPatchOff({ locale, config });
       const [SP] = await createSteamPatch({ locale, config });
       const [BN] = await createBlockNet({ locale, config });
+      const [BAN] = await createBlockAllNet({ locale, config });
       const [HDR] = await createEnableHDRConfig({ locale, config });
       const [RES] = await createResolution({ locale, config });
       const [TF] = await createTimeoutFix({ locale, config });
@@ -313,6 +315,7 @@ export async function createHK4EChannelClient({
           <PO />,
           <SP />,
           <BN />,
+          <BAN />,
           <RES />,
           <TF />,
         ];

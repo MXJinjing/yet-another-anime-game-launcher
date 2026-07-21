@@ -83,6 +83,7 @@ export const en: typeof zh_CN = {
   SETTING_UI_LOCALE: "Launcher UI Language",
   SETTING_RESTART_TO_TAKE_EFFECT: "This will take effect after restart.",
   SETTING_OPEN_CMD: "Launch Wine Command Line Tool",
+  SETTING_OPEN_WINECFG: "Open Wine Config",
   SETTING_OPEN_GAME_INSTALL_DIR: "Open Game Install Directory",
   SETTING_OPEN_YAAGL_DIR: "Open YAAGL Data Directory",
   SETTING_YAAGL_VERSION: "YAAGL Version",
@@ -110,6 +111,7 @@ export const en: typeof zh_CN = {
     "The current selection is the Community version, this version is not officially supported, please do not report any issues",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_ALL_NET: "Auto Block All Net",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_LICENSES: "Licenses",
   SETTING_ENABLE_HDR: "Enable HDR",
