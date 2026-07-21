@@ -84,7 +84,6 @@ export const ko_KR: typeof zh_CN = {
   SETTING_RESTART_TO_TAKE_EFFECT:
     "이 설정은 런처를 재시작한 이후에 적용됩니다.",
   SETTING_OPEN_CMD: "Wine 명령줄 도구 실행",
-  SETTING_OPEN_WINECFG: "Wine 설정 열기",
   SETTING_OPEN_GAME_INSTALL_DIR: "게임 설치 경로 열기",
   SETTING_OPEN_YAAGL_DIR: " YAAGL 데이터 경로 열기",
   SETTING_YAAGL_VERSION: "YAAGL 버전",
@@ -113,6 +112,10 @@ export const ko_KR: typeof zh_CN = {
 
   SETTING_BLOCK_NET: "게임실행 문제해결(hosts 수정)",
   SETTING_BLOCK_ALL_NET: "Auto Block All Net",
+  SETTING_SUDOERS_SETUP: "Configure Passwordless pfctl",
+  SETTING_SUDOERS_DESC: "Run this command once (requires sudo):",
+  SETTING_COPY: "Copy",
+  SETTING_COPIED: "Copied!",
   SETTING_TIMEOUT_FIX: "타임아웃 문제 해결",
   SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
   SETTING_ENABLE_HDR: "HDR 활성화",

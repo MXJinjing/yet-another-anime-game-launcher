@@ -191,6 +191,13 @@ export async function createConfiguration({
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => wine.openWineCfg()}
+                    >
+                      {locale.get("SETTING_OPEN_WINECFG")}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() =>
                         exec2(
                           ["open", gameInstallDir()],
