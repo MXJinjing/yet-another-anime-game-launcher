@@ -111,9 +111,6 @@ export const ja_JP: typeof zh_CN = {
     "現在選択されているのはコミュニティ版です。このバージョンは公式にサポートされていませんので、不具合の報告はご遠慮ください。",
 
   SETTING_BLOCK_NET: "起動修正（ホストのブロック）",
-  SETTING_BLOCK_ALL_NET: "Auto Block All Net",
-  SETTING_COPIED: "Copied!",
-  SETTING_COPY_SUDOERS: "Copy pfctl Sudoers Command",
   SETTING_TIMEOUT_FIX: "タイムアウト修正",
   SETTING_LICENSES: "ライセンス",
   SETTING_ENABLE_HDR: "HDR有効",
