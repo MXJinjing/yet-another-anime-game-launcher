@@ -14,7 +14,13 @@ import {
 } from "../../../utils";
 import { Wine } from "../../../wine";
 import { Config } from "@config";
-import { putLocal, patchProgram, patchRevertProgram } from "../patch";
+import {
+  putLocal,
+  patchProgram,
+  patchRevertProgram,
+  applyMhypBaseReplacement,
+  revertMhypBaseReplacement,
+} from "../patch";
 import { CN_BLOCK_URL, OS_BLOCK_URL } from "../../secret";
 import hk4eHDRGlobalReg from "../../../constants/hk4e_hdr_os.reg?raw";
 import hk4eHDRCnReg from "../../../constants/hk4e_hdr_cn.reg?raw";
@@ -124,6 +130,11 @@ cd /d "${wine.toWinePath(gameDir)}"
   )}" -platform_type CLOUD_THIRD_PARTY_PC -is_cloud 1`;
   await writeFile(resolve("config.bat"), cmd);
   yield* patchProgram(gameDir, wine, server, config);
+  // Workaround #4: replace mhypbase.dll with user-supplied older version.
+  // Runs every launch (outside the `patched` storage gate) so users can
+  // change the path in Settings and have it take effect on the next launch
+  // without resetting the one-time patch state.
+  await applyMhypBaseReplacement(gameDir, config);
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
   try {

@@ -106,6 +106,11 @@ export const zh_CN = {
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
+  SETTING_WORKAROUND4: "启动修复 #4（替换 mhypbase.dll）",
+  SETTING_WORKAROUND4_DESC:
+    "6.7 在离线启动时会因 mhypbase.dll 版本不匹配而闪退。请在此填写您手动下载的旧版 mhypbase.dll 的完整路径，启动器会自动比对并在不一致时复制到游戏目录。",
+  SETTING_WORKAROUND4_PICK: "选择文件 …",
+  SETTING_WORKAROUND4_REVERT_BTN: "还原原始文件",
   SETTING_LICENSES: "Licenses", // TODO: Translate
   SETTING_ENABLE_HDR: "启用 HDR",
 
