@@ -106,9 +106,6 @@ export const zh_CN = {
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
   SETTING_BLOCK_ALL_NET: "启动时阻断全部网络",
-  SETTING_SUDOERS_SETUP: "配置免密码 pfctl",
-  SETTING_SUDOERS_DESC: "执行以下命令一次（需输入密码），之后不再弹窗：",
-  SETTING_COPY: "复制",
   SETTING_COPIED: "已复制！",
   SETTING_COPY_SUDOERS: "复制 pfctl 免密码命令",
   SETTING_TIMEOUT_FIX: "Timeout Fix",

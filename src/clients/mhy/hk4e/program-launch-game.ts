@@ -11,7 +11,6 @@ import {
   utf16le,
   writeBinary,
   getKeyOrDefault,
-  rawString,
   setKey,
 } from "../../../utils";
 import { Wine } from "../../../wine";
@@ -20,7 +19,6 @@ import { putLocal, patchProgram, patchRevertProgram } from "../patch";
 import { CN_BLOCK_URL, OS_BLOCK_URL } from "../../secret";
 import hk4eHDRGlobalReg from "../../../constants/hk4e_hdr_os.reg?raw";
 import hk4eHDRCnReg from "../../../constants/hk4e_hdr_cn.reg?raw";
-import { gt } from "semver";
 
 const HDR_REGISTRY_FILES = {
   hk4e_global: hk4eHDRGlobalReg,
