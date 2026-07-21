@@ -85,7 +85,6 @@ export const de_DE: typeof zh_CN = {
   SETTING_UI_LOCALE: "Launcher UI-Sprache",
   SETTING_RESTART_TO_TAKE_EFFECT: "Dies wird nach dem Neustart wirksam.",
   SETTING_OPEN_CMD: "Wine-Kommandozeilenwerkzeug starten",
-  SETTING_OPEN_WINECFG: "Wine-Konfiguration öffnen",
   SETTING_OPEN_GAME_INSTALL_DIR: "Spiel-Installationsverzeichnis öffnen",
   SETTING_OPEN_YAAGL_DIR: "YAAGL-Datenverzeichnis öffnen",
   SETTING_YAAGL_VERSION: "YAAGL-Version",
@@ -115,6 +114,10 @@ export const de_DE: typeof zh_CN = {
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
   SETTING_BLOCK_ALL_NET: "Auto Block All Net",
+  SETTING_SUDOERS_SETUP: "Configure Passwordless pfctl",
+  SETTING_SUDOERS_DESC: "Run this command once (requires sudo):",
+  SETTING_COPY: "Copy",
+  SETTING_COPIED: "Copied!",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
   SETTING_ENABLE_HDR: "HDR aktivieren",

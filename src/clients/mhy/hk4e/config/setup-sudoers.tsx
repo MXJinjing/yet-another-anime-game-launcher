@@ -1,17 +1,16 @@
 import { createSignal } from "solid-js";
 import { Box, Text } from "@hope-ui/solid";
 import { Locale } from "@locale";
+import { Config } from "@config/config-def";
 
 const SUDOERS_CMD =
   'echo "$USER ALL=(ALL) NOPASSWD: /sbin/pfctl" | sudo tee /etc/sudoers.d/yaagl-pf';
 
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
-    // Neutralino WebView supports navigator.clipboard
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    // Fallback: use osascript
     try {
       const { exec } = await import("@utils");
       await exec(
@@ -34,7 +33,7 @@ export default async function ({
   locale,
 }: {
   locale: Locale;
-  config: Partial<never>;
+  config: Partial<Config>;
 }) {
   const [copied, setCopied] = createSignal(false);
 
@@ -48,22 +47,11 @@ export default async function ({
           <Text fontSize="$xs" mb="$2" color="#aaa">
             {locale.get("SETTING_SUDOERS_DESC")}
           </Text>
-          <Box
-            as="pre"
-            p="$2"
-            bg="#0d0d1a"
-            borderRadius="$sm"
-            fontSize="$xs"
-            fontFamily="monospace"
-            color="#7ec8e3"
-            overflowX="auto"
-            whiteSpace="pre-wrap"
-            wordBreak="break-all"
-            userSelect="all"
-            mb="$2"
+          <pre
+            style="margin:0 0 8px 0;padding:8px;background:#0d0d1a;border-radius:4px;font-size:12px;font-family:monospace;color:#7ec8e3;overflow-x:auto;white-space:pre-wrap;word-break:break-all;user-select:all"
           >
             {SUDOERS_CMD}
-          </Box>
+          </pre>
           <Box
             as="button"
             px="$3"

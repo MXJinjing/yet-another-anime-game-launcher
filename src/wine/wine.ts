@@ -108,6 +108,10 @@ export async function createWine(options: {
     );
   }
 
+  async function openWineCfg() {
+    return await exec2("winecfg", [], {}, "/dev/null");
+  }
+
   let netbiosname: string;
   try {
     netbiosname = await getKey("wine_netbiosname");
@@ -161,6 +165,7 @@ reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v F
     toWinePath,
     prefix: options.prefix,
     openCmdWindow,
+    openWineCfg,
     setProps,
     setNVExtension,
     attributes: {

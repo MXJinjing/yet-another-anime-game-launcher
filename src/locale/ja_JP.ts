@@ -84,7 +84,6 @@ export const ja_JP: typeof zh_CN = {
   SETTING_UI_LOCALE: "ランチャー言語",
   SETTING_RESTART_TO_TAKE_EFFECT: "再起動後に有効になります。",
   SETTING_OPEN_CMD: "Wineコマンドラインツールを起動",
-  SETTING_OPEN_WINECFG: "Wine設定を開く",
   SETTING_OPEN_GAME_INSTALL_DIR: "ゲームインストールディレクトリを開く",
   SETTING_OPEN_YAAGL_DIR: "YAAGLデータディレクトリを開く",
   SETTING_YAAGL_VERSION: "YAAGLバージョン",
@@ -113,6 +112,10 @@ export const ja_JP: typeof zh_CN = {
 
   SETTING_BLOCK_NET: "起動修正（ホストのブロック）",
   SETTING_BLOCK_ALL_NET: "Auto Block All Net",
+  SETTING_SUDOERS_SETUP: "Configure Passwordless pfctl",
+  SETTING_SUDOERS_DESC: "Run this command once (requires sudo):",
+  SETTING_COPY: "Copy",
+  SETTING_COPIED: "Copied!",
   SETTING_TIMEOUT_FIX: "タイムアウト修正",
   SETTING_LICENSES: "ライセンス",
   SETTING_ENABLE_HDR: "HDR有効",
