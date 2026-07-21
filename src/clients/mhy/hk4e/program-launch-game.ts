@@ -149,12 +149,13 @@ cd /d "${wine.toWinePath(gameDir)}"
         `#!/bin/sh`,
 
         `HOSTS_FILE="/etc/hosts"`,
-        `ENTRY="0.0.0.0 ${blockUrl}"`,
+        `ENTRY4="0.0.0.0 ${blockUrl}"`,
+        `ENTRY6="::1 ${blockUrl}"`,
         `PAD_START="# Temporarily Added by Yaagl"`,
         `PAD_END="# End of section"`,
 
-        `if ! grep -qF "$ENTRY" "$HOSTS_FILE"; then`,
-        `sudo bash -c "echo -e '$PAD_START\n$ENTRY\n$PAD_END' >> '/etc/hosts'"`,
+        `if ! grep -qF "$ENTRY4" "$HOSTS_FILE"; then`,
+        `sudo bash -c "echo -e '$PAD_START\n$ENTRY4\n$ENTRY6\n$PAD_END' >> '$HOSTS_FILE'"`,
         `fi`,
         `sleep ${config.blockNetDuration}`,
         `sudo sed -i.bak "/$PAD_START/,/$PAD_END/d" "$HOSTS_FILE"`,
