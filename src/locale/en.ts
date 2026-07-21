@@ -129,8 +129,6 @@ export const en: typeof zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "Ignore Update",
   SETTING_CHECK_UPDATE: "Check for YAAGL Updates",
-  SETTING_SETUP_SUDOERS_HOSTS: "Setup hosts-block sudoers",
-  SETTING_REMOVE_SUDOERS_HOSTS: "Remove hosts-block sudoers",
   ALREADY_LATEST_VERSION: "You are already using the latest version.",
   UPDATE_LAUNCHER: "Update Launcher",
 };

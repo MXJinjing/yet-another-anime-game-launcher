@@ -142,59 +142,37 @@ cd /d "${wine.toWinePath(gameDir)}"
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
 
     if (config.blockNet) {
+      const tmpScriptPath = "/tmp/yaagl_network_block_script.sh";
       const blockUrl = server.id == "hk4e_global" ? OS_BLOCK_URL : CN_BLOCK_URL;
-      const helperPath = "/Users/Shared/yaagl-block-net-helper.sh";
 
-      // Self-contained helper — no internal sudo calls: it is designed to
-      // be invoked AS root (via sudo or osascript). The helper:
-      //   1. Adds IPv4 + IPv6 hosts entries
-      //   2. Sleeps for the configured duration
-      //   3. Removes the entries
-      //   4. Deletes itself
       const commands = [
         `#!/bin/sh`,
+
         `HOSTS_FILE="/etc/hosts"`,
         `ENTRY4="0.0.0.0 ${blockUrl}"`,
         `ENTRY6="::1 ${blockUrl}"`,
         `PAD_START="# Temporarily Added by Yaagl"`,
         `PAD_END="# End of section"`,
-        ``,
+
         `if ! grep -qF "$ENTRY4" "$HOSTS_FILE"; then`,
-        `  printf '%s\\n' "$PAD_START" "$ENTRY4" "$ENTRY6" "$PAD_END" >> "$HOSTS_FILE"`,
+        `sudo bash -c "echo -e '$PAD_START\n$ENTRY4\n$ENTRY6\n$PAD_END' >> '$HOSTS_FILE'"`,
         `fi`,
         `sleep ${config.blockNetDuration}`,
-        `sed -i.bak "/$PAD_START/,/$PAD_END/d" "$HOSTS_FILE"`,
-        `rm -f "$0"`,
+        `sudo sed -i.bak "/$PAD_START/,/$PAD_END/d" "$HOSTS_FILE"`,
+
+        `rm ${tmpScriptPath}`,
       ];
 
-      await writeFile(helperPath, commands.join("\n"));
-
-      // Tier 1: try passwordless sudo (requires one-time NOPASSWD setup).
-      // `sudo -n` = non-interactive → fails immediately if no NOPASSWD.
-      let ran = false;
-      try {
-        await exec(["bash", "-c", `sudo -n sh '${helperPath}' &`], {}, false);
-        ran = true;
-      } catch {
-        // sudo -n failed — fall back to osascript
-      }
-
-      // Tier 2: osascript GUI password dialog (always works, no setup).
-      if (!ran) {
-        try {
-          await exec(
-            [
-              "osascript",
-              "-e",
-              `do shell script "sh '${helperPath}' > /dev/null 2>&1 &" with administrator privileges`,
-            ],
-            {},
-            false
-          );
-        } catch {
-          // User cancelled the dialog — no blocking this launch
-        }
-      }
+      await writeFile(tmpScriptPath, commands.join("\n"));
+      await exec(
+        [
+          "osascript",
+          "-e",
+          `do shell script "source ${tmpScriptPath} > /dev/null 2>&1 &" with administrator privileges`,
+        ],
+        {},
+        false
+      );
     }
 
     await wine.exec2(
