@@ -69,6 +69,36 @@ export async function createWine(options: {
     });
   }
 
+  // Kill every wine process attached to this prefix. This is invoked on
+  // launcher close to guarantee no leftover services.exe / winedevice.exe /
+  // rpcss.exe processes outlive the launcher — otherwise the next launch
+  // hangs at 'PATCHING' because wineserver refuses to enter the prefix
+  // while these ghosts are still attached.
+  //
+  // Implementation notes:
+  //  - `wineserver -k` sends SIGKILL to every wine process in the prefix;
+  //    this is the canonical way to tear down a wine tree cleanly. We add
+  //    `|| true` so the call never throws on the cleanup path.
+  //  - The preceding `wineserver -w` (with a 0-timeout-ish pragma) is not
+  //    required; `wineserver -k` is itself synchronous enough for our purpose.
+  //  - We deliberately do NOT pkill by name (`services.exe`, `winedevice.exe`)
+  //    because other wine applications on the host (e.g. Parallels,
+  //    com.tencent.yybmac) would be caught by such a broad pattern.
+  //    Scoping by WINEPREFIX is the safe way.
+  async function killAll() {
+    const wineserver = join(dirname(loaderBin), "wineserver");
+    try {
+      await unixExec(
+        [wineserver, "-k", "-9"],
+        { ...getEnvironmentVariables() },
+        false,
+        "/dev/null"
+      );
+    } catch {
+      // ignore — best-effort cleanup; wineserver may be gone already
+    }
+  }
+
   function toWinePath(absPath: string) {
     return "Z:" + `${absPath}`.replaceAll("/", "\\");
   }
@@ -157,6 +187,7 @@ reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v F
     exec,
     exec2,
     waitUntilServerOff,
+    killAll,
     cmd,
     toWinePath,
     prefix: options.prefix,
