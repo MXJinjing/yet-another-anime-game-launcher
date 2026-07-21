@@ -1,5 +1,12 @@
-import { Box, Button, FormControl, FormLabel, Input } from "@hope-ui/solid";
-import { createEffect, createSignal } from "solid-js";
+import {
+  Box,
+  Button,
+  Checkbox,
+  FormControl,
+  FormLabel,
+  Input,
+} from "@hope-ui/solid";
+import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey, log } from "@utils";
 import { Config, NOOP } from "@config/config-def";
@@ -8,10 +15,12 @@ import { revertMhypBaseReplacement } from "../../../mhy/patch";
 declare module "@config/config-def" {
   interface Config {
     mhypBaseReplacementPath: string;
+    workaround4: boolean;
   }
 }
 
-const CONFIG_KEY = "config_mhypbase_replacement_path";
+const PATH_KEY = "config_mhypbase_replacement_path";
+const TOGGLE_KEY = "config_workaround4";
 
 export default async function ({
   locale,
@@ -22,31 +31,48 @@ export default async function ({
   config: Partial<Config>;
   gameInstallDir?: () => string;
 }) {
-  let stored = "";
+  let storedPath = "";
+  let storedToggle = false;
   try {
-    stored = await getKey(CONFIG_KEY);
+    storedPath = await getKey(PATH_KEY);
   } catch {
-    stored = "";
+    storedPath = "";
   }
-  config.mhypBaseReplacementPath = stored;
+  try {
+    storedToggle = (await getKey(TOGGLE_KEY)) == "true";
+  } catch {
+    storedToggle = false;
+  }
+  config.mhypBaseReplacementPath = storedPath;
+  config.workaround4 = storedToggle;
 
-  const [value, setValue] = createSignal(stored);
+  const [pathValue, setPathValue] = createSignal(storedPath);
+  const [enabled, setEnabled] = createSignal(storedToggle);
 
   async function onSave(apply: boolean) {
     assertValueDefined(config.mhypBaseReplacementPath);
-    const v = value().trim();
+    assertValueDefined(config.workaround4);
+    const v = pathValue().trim();
+    const e = enabled();
     if (!apply) {
-      setValue(config.mhypBaseReplacementPath);
+      setPathValue(config.mhypBaseReplacementPath);
+      setEnabled(config.workaround4);
       return NOOP;
     }
-    if (config.mhypBaseReplacementPath == v) return NOOP;
-    config.mhypBaseReplacementPath = v;
-    await setKey(CONFIG_KEY, v);
+    if (config.mhypBaseReplacementPath !== v) {
+      config.mhypBaseReplacementPath = v;
+      await setKey(PATH_KEY, v);
+    }
+    if (config.workaround4 !== e) {
+      config.workaround4 = e;
+      await setKey(TOGGLE_KEY, e ? "true" : "false");
+    }
     return NOOP;
   }
 
   createEffect(() => {
-    value();
+    pathValue();
+    enabled();
     onSave(true);
   });
 
@@ -55,47 +81,55 @@ export default async function ({
       return (
         <FormControl id="workaround4">
           <FormLabel>{locale.get("SETTING_WORKAROUND4")}</FormLabel>
-          <Box mb={"$2"}>
-            <small style={{ color: "#aaa" }}>
-              {locale.get("SETTING_WORKAROUND4_DESC")}
-            </small>
-          </Box>
-          <Input
-            value={value()}
-            placeholder="/Users/you/Downloads/old_mhypbase.dll"
-            onChange={e => setValue(e.currentTarget.value)}
-            size="sm"
-          />
-          <Box mt={"$2"}>
-            <Button
-              variant="ghost"
+          <Checkbox
+            checked={enabled()}
+            onChange={() => setEnabled(x => !x)}
+            size="md"
+            mb={"$2"}
+          >
+            {locale.get("SETTING_ENABLED")}
+          </Checkbox>
+          <Show when={enabled()}>
+            <Input
+              value={pathValue()}
+              placeholder="/Users/you/Downloads/old_mhypbase.dll"
+              onChange={e => setPathValue(e.currentTarget.value)}
               size="sm"
-              onClick={async () => {
-                const picked = await Neutralino.os.showOpenDialog(
-                  locale.get("SETTING_WORKAROUND4_PICK"),
-                  {
-                    filter: [
-                      { name: "DLL", extensions: ["dll"] },
-                      { name: "All files", extensions: ["*"] },
-                    ],
+            />
+            <Box mt={"$2"}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  const picked = await Neutralino.os.showOpenDialog(
+                    locale.get("SETTING_WORKAROUND4_PICK"),
+                    {
+                      filter: [
+                        { name: "DLL", extensions: ["dll"] },
+                        { name: "All files", extensions: ["*"] },
+                      ],
+                    }
+                  );
+                  if (Array.isArray(picked) && picked.length > 0) {
+                    setPathValue(picked[0]);
                   }
-                );
-                if (Array.isArray(picked) && picked.length > 0) {
-                  setValue(picked[0]);
-                }
-              }}
-            >
-              {locale.get("SETTING_WORKAROUND4_PICK")}
-            </Button>
-          </Box>
+                }}
+              >
+                {locale.get("SETTING_WORKAROUND4_PICK")}
+              </Button>
+            </Box>
+          </Show>
           <Box mt={"$3"}>
             <Button
               variant="ghost"
               size="sm"
               onClick={async () => {
-                await setKey(CONFIG_KEY, "");
-                setValue("");
+                setEnabled(false);
+                await setKey(PATH_KEY, "");
+                await setKey(TOGGLE_KEY, "false");
+                setPathValue("");
                 config.mhypBaseReplacementPath = "";
+                config.workaround4 = false;
                 if (gameInstallDir) {
                   try {
                     await revertMhypBaseReplacement(gameInstallDir());
