@@ -11,6 +11,8 @@ import {
   utf16le,
   writeBinary,
   getKeyOrDefault,
+  rawString,
+  setKey,
 } from "../../../utils";
 import { Wine } from "../../../wine";
 import { Config } from "@config";
@@ -87,6 +89,92 @@ async function applyResolutionRegistry(
   }
 }
 
+const BLOCK_ALL_NET_MARKER_KEY = "block_all_net_active";
+
+const PF_ANCHOR = "com.yaagl.block_all";
+const PF_RULES_FILE = "/tmp/yaagl_block_all.pf";
+const PF_WATCHER_SCRIPT = "/tmp/yaagl_block_all_watcher.sh";
+
+async function isPfCleanupNeeded(): Promise<boolean> {
+  const marker = await getKeyOrDefault(BLOCK_ALL_NET_MARKER_KEY, "NOTFOUND");
+  return marker === "1";
+}
+
+async function disableAllNetBlock(): Promise<void> {
+  try {
+    const disableScript = `#!/bin/sh
+pfctl -a ${PF_ANCHOR} -F all 2>/dev/null
+pfctl -a ${PF_ANCHOR} -F all 2>/dev/null
+rm -f ${PF_RULES_FILE}
+`;
+    await writeFile(PF_RULES_FILE + ".disable", disableScript);
+    // Silent attempt via osascript in background (no password prompt expected if anchor is empty)
+    await exec(
+      [
+        "osascript",
+        "-e",
+        `do shell script "sh ${PF_RULES_FILE}.disable > /dev/null 2>&1" with administrator privileges`,
+      ],
+      {},
+      false
+    );
+  } catch {
+    // Best-effort cleanup
+  }
+}
+
+export async function disableAllNetBlockExternal(): Promise<void> {
+  return disableAllNetBlock();
+}
+
+async function enableAllNetBlockAutoRelease(): Promise<void> {
+  const commands = [
+    `#!/bin/sh`,
+    `PF_ANCHOR="${PF_ANCHOR}"`,
+    `PF_FILE="${PF_RULES_FILE}"`,
+    `echo "block drop out all" > "$PF_FILE"`,
+    `pfctl -a "$PF_ANCHOR" -f "$PF_FILE" -e 2>/dev/null`,
+    ``,
+    `MAX_POLLS=30`,
+    `i=0`,
+    `while [ $i -lt $MAX_POLLS ]; do`,
+    `  sleep 2`,
+    `  GAME_PID=$(pgrep -f "YuanShen.exe" 2>/dev/null | head -1)`,
+    `  if [ -n "$GAME_PID" ]; then`,
+    `    ELAPSED=$(ps -o etime= -p "$GAME_PID" 2>/dev/null | tr -d ' ')`,
+    `    case "$ELAPSED" in`,
+    `      *-*|*:*)`,
+    `        pfctl -a "$PF_ANCHOR" -F all 2>/dev/null`,
+    `        rm -f "$PF_FILE"`,
+    `        exit 0`,
+    `        ;;`,
+    `      *)`,
+    `        SECS=$(echo "$ELAPSED" | sed 's/^0*//')`,
+    `        [ -z "$SECS" ] && SECS=0`,
+    `        [ "$SECS" -ge 25 ] 2>/dev/null && pfctl -a "$PF_ANCHOR" -F all 2>/dev/null && rm -f "$PF_FILE" && exit 0`,
+    `        ;;`,
+    `    esac`,
+    `  fi`,
+    `  i=$((i + 1))`,
+    `done`,
+    ``,
+    `# Timeout fallback: disable after ~60s anyway`,
+    `pfctl -a "$PF_ANCHOR" -F all 2>/dev/null`,
+    `rm -f "$PF_FILE"`,
+  ];
+
+  await writeFile(PF_WATCHER_SCRIPT, commands.join("\n"));
+  await exec(
+    [
+      "osascript",
+      "-e",
+      `do shell script "source ${PF_WATCHER_SCRIPT} > /dev/null 2>&1 &" with administrator privileges`,
+    ],
+    {},
+    false
+  );
+}
+
 export async function* launchGameProgram({
   gameDir,
   gameExecutable,
@@ -126,6 +214,13 @@ cd /d "${wine.toWinePath(gameDir)}"
   yield* patchProgram(gameDir, wine, server, config);
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
+
+  // Enable pf block-all-net before launching the game
+  if (config.blockAllNet) {
+    await enableAllNetBlockAutoRelease();
+    await setKey(BLOCK_ALL_NET_MARKER_KEY, "1");
+  }
+
   try {
     yield ["setStateText", "GAME_RUNNING"];
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
@@ -206,6 +301,13 @@ cd /d "${wine.toWinePath(gameDir)}"
 
   // await removeFile(resolve("bWh5cHJvdDJfcnVubmluZy5yZWcK.reg"));
   await removeFile(resolve("config.bat"));
+
+  // Safety cleanup: disable pf block if still active
+  if (config.blockAllNet && (await isPfCleanupNeeded())) {
+    await disableAllNetBlock();
+    await setKey(BLOCK_ALL_NET_MARKER_KEY, null);
+  }
+
   yield ["setStateText", "REVERT_PATCHING"];
   yield* patchRevertProgram(gameDir, wine, server, config);
 }

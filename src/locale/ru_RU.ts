@@ -84,6 +84,7 @@ export const ru_RU: typeof zh_CN = {
   SETTING_RESTART_TO_TAKE_EFFECT:
     "Настройка вступит в силу после перезагрузки.",
   SETTING_OPEN_CMD: "Открыть командную строку Wine",
+  SETTING_OPEN_WINECFG: "Открыть настройки Wine",
   SETTING_OPEN_GAME_INSTALL_DIR: "Открыть каталог игры",
   SETTING_OPEN_YAAGL_DIR: "Открыть каталог YAAGL",
   SETTING_YAAGL_VERSION: "Версия YAAGL",
@@ -111,6 +112,7 @@ export const ru_RU: typeof zh_CN = {
     "Выбрана версия сообщества. Она не поддерживается официально. Пожалуйста, не сообщайте о проблемах, связанных с этой версией.",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_ALL_NET: "Auto Block All Net",
   SETTING_TIMEOUT_FIX: "Timeout Fix (Исправление тайм-аута)",
   SETTING_LICENSES: "Лицензии",
 

@@ -86,6 +86,7 @@ export const vi_VN: typeof zh_CN = {
   SETTING_RESTART_TO_TAKE_EFFECT:
     "Cài đặt sẽ có hiệu lực sau khi khởi động lại",
   SETTING_OPEN_CMD: "Mở command line (cmd) của wine",
+  SETTING_OPEN_WINECFG: "Mở cấu hình Wine",
   SETTING_OPEN_GAME_INSTALL_DIR: "Mở thư mục cài đặt trò chơi",
   SETTING_OPEN_YAAGL_DIR: "Mở thư mục dữ liệu của YAAGL",
   SETTING_YAAGL_VERSION: "Phiên bản YAAGL",
@@ -111,6 +112,7 @@ export const vi_VN: typeof zh_CN = {
     "Hiện tại được chọn là phiên bản cộng đồng, phiên bản này không được hỗ trợ chính thức, vui lòng không báo cáo bất kỳ vấn đề nào",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_ALL_NET: "Auto Block All Net",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
   SETTING_ENABLE_HDR: "Bật HDR",

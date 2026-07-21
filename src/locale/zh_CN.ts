@@ -80,6 +80,7 @@ export const zh_CN = {
   SETTING_UI_LOCALE: "启动器界面语言",
   SETTING_RESTART_TO_TAKE_EFFECT: "此设置将从下次启动生效",
   SETTING_OPEN_CMD: "打开Wine命令行工具",
+  SETTING_OPEN_WINECFG: "打开 Wine 配置",
   SETTING_OPEN_GAME_INSTALL_DIR: "打开游戏安装目录",
   SETTING_OPEN_YAAGL_DIR: "打开YAAGL数据目录",
   SETTING_YAAGL_VERSION: "YAAGL版本",
@@ -105,6 +106,7 @@ export const zh_CN = {
     "当前选择为社区版本，此版本不受官方支持，请不要报告任何问题",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_ALL_NET: "启动时阻断全部网络",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_LICENSES: "Licenses", // TODO: Translate
   SETTING_ENABLE_HDR: "启用 HDR",

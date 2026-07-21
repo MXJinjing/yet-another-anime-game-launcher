@@ -87,6 +87,7 @@ export const fr_FR: typeof zh_CN = {
   SETTING_RESTART_TO_TAKE_EFFECT:
     "Cette action prendra effet après le redémarrage.",
   SETTING_OPEN_CMD: "Lancer l’outil de ligne de commande Wine",
+  SETTING_OPEN_WINECFG: "Ouvrir la configuration Wine",
   SETTING_OPEN_GAME_INSTALL_DIR: "Ouvrir le répertoire d’installation du jeu",
   SETTING_OPEN_YAAGL_DIR: "Ouvrir le répertoire de données de YAAGL",
   SETTING_YAAGL_VERSION: "Version de YAAGL",
@@ -115,6 +116,7 @@ export const fr_FR: typeof zh_CN = {
     "La sélection actuelle est la version communautaire, cette version n’est pas officiellement prise en charge, veuillez ne pas signaler de problèmes",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_ALL_NET: "Auto Block All Net",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
   SETTING_ENABLE_HDR: "Activer le HDR",

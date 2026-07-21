@@ -83,6 +83,7 @@ export const th_TH: typeof zh_CN = {
   SETTING_UI_LOCALE: "ภาษาของลันเชอร์",
   SETTING_RESTART_TO_TAKE_EFFECT: "การตั้งค่านี้จะมีผลหลังจากรีสตาร์ท",
   SETTING_OPEN_CMD: "เปิด Wine Command Line Tool",
+  SETTING_OPEN_WINECFG: en.SETTING_OPEN_WINECFG,
   SETTING_OPEN_GAME_INSTALL_DIR: "เปิดไดเรกทอรีติดตั้งเกม",
   SETTING_OPEN_YAAGL_DIR: "เปิดไดเรกทอรีข้อมูล YAAGL",
   SETTING_YAAGL_VERSION: "เวอร์ชัน YAAGL",
@@ -109,6 +110,7 @@ export const th_TH: typeof zh_CN = {
     "เวอร์ชันที่เลือกคือเวอร์ชันจากชุมชน ซึ่งไม่ได้รับการสนับสนุนอย่างเป็นทางการ กรุณาอย่ารายงานปัญหาใดๆ มา",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_ALL_NET: "Auto Block All Net",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
   SETTING_ENABLE_HDR: "เปิดใช้ HDR",
