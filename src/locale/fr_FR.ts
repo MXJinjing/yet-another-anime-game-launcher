@@ -132,7 +132,6 @@ export const fr_FR: typeof zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "Ignorer la mise à jour",
   SETTING_CHECK_UPDATE: "Rechercher des mises à jour YAAGL",
-  SETTING_COPY_SUDOERS_HOSTS: en.SETTING_COPY_SUDOERS_HOSTS,
   ALREADY_LATEST_VERSION: "Vous utilisez déjà la dernière version.",
   UPDATE_LAUNCHER: "Mettre à jour le lanceur",
 };
