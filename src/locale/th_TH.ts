@@ -109,6 +109,7 @@ export const th_TH: typeof zh_CN = {
     "เวอร์ชันที่เลือกคือเวอร์ชันจากชุมชน ซึ่งไม่ได้รับการสนับสนุนอย่างเป็นทางการ กรุณาอย่ารายงานปัญหาใดๆ มา",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
   SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,

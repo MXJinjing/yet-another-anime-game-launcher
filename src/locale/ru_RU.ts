@@ -111,6 +111,7 @@ export const ru_RU: typeof zh_CN = {
     "Выбрана версия сообщества. Она не поддерживается официально. Пожалуйста, не сообщайте о проблемах, связанных с этой версией.",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
   SETTING_TIMEOUT_FIX: "Timeout Fix (Исправление тайм-аута)",
   SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
   SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,

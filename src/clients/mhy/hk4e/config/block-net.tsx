@@ -1,5 +1,5 @@
-import { FormControl, FormLabel, Box, Checkbox } from "@hope-ui/solid";
-import { createEffect, createSignal } from "solid-js";
+import { FormControl, FormLabel, Box, Checkbox, Input } from "@hope-ui/solid";
+import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey } from "@utils";
 import { Config, NOOP } from "@config/config-def";
@@ -7,10 +7,12 @@ import { Config, NOOP } from "@config/config-def";
 declare module "@config/config-def" {
   interface Config {
     blockNet: boolean;
+    blockNetDuration: number;
   }
 }
 
-const CONFIG_KEY = "config_block_net";
+const TOGGLE_KEY = "config_block_net";
+const DURATION_KEY = "config_block_net_duration";
 
 export default async function ({
   locale,
@@ -19,28 +21,47 @@ export default async function ({
   config: Partial<Config>;
   locale: Locale;
 }) {
+  let storedDuration = 10;
   try {
-    config.blockNet = (await getKey(CONFIG_KEY)) == "true";
+    config.blockNet = (await getKey(TOGGLE_KEY)) == "true";
   } catch {
-    config.blockNet = false; // default value
+    config.blockNet = false;
   }
+  try {
+    storedDuration = Number(await getKey(DURATION_KEY));
+    if (isNaN(storedDuration) || storedDuration < 5 || storedDuration > 60) {
+      storedDuration = 10;
+    }
+  } catch {
+    storedDuration = 10;
+  }
+  config.blockNetDuration = storedDuration;
 
-  const [value, setValue] = createSignal(config.blockNet);
+  const [on, setOn] = createSignal(config.blockNet);
+  const [duration, setDuration] = createSignal(storedDuration);
 
   async function onSave(apply: boolean) {
     assertValueDefined(config.blockNet);
+    assertValueDefined(config.blockNetDuration);
     if (!apply) {
-      setValue(config.blockNet);
+      setOn(config.blockNet);
+      setDuration(config.blockNetDuration);
       return NOOP;
     }
-    if (config.blockNet == value()) return NOOP;
-    config.blockNet = value();
-    await setKey(CONFIG_KEY, config.blockNet ? "true" : "false");
+    if (config.blockNet != on()) {
+      config.blockNet = on();
+      await setKey(TOGGLE_KEY, on() ? "true" : "false");
+    }
+    if (config.blockNetDuration != duration()) {
+      config.blockNetDuration = duration();
+      await setKey(DURATION_KEY, String(duration()));
+    }
     return NOOP;
   }
 
   createEffect(() => {
-    value();
+    on();
+    duration();
     onSave(true);
   });
 
@@ -49,15 +70,29 @@ export default async function ({
       return (
         <FormControl id="blockNet">
           <FormLabel>{locale.get("SETTING_BLOCK_NET")}</FormLabel>
-          <Box>
-            <Checkbox
-              checked={value()}
-              onChange={() => setValue(x => !x)}
-              size="md"
-            >
-              {locale.get("SETTING_ENABLED")}
-            </Checkbox>
-          </Box>
+          <Checkbox checked={on()} onChange={() => setOn(x => !x)} size="md">
+            {locale.get("SETTING_ENABLED")}
+          </Checkbox>
+          <Show when={on()}>
+            <Box mt={"$1"} display="flex" alignItems="center" gap={"$2"}>
+              <span style="font-size:12px;color:#aaa">
+                {locale.get("SETTING_BLOCK_NET_DURATION")}
+              </span>
+              <Input
+                type="number"
+                value={String(duration())}
+                min={5}
+                max={60}
+                width="60px"
+                size="sm"
+                onChange={e => {
+                  const v = Number(e.currentTarget.value);
+                  if (!isNaN(v)) setDuration(Math.max(5, Math.min(60, v)));
+                }}
+              />
+              <span style="font-size:12px;color:#aaa">s</span>
+            </Box>
+          </Show>
         </FormControl>
       );
     },

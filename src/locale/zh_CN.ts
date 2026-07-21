@@ -105,6 +105,7 @@ export const zh_CN = {
     "当前选择为社区版本，此版本不受官方支持，请不要报告任何问题",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_NET_DURATION: "阻断持续时间（秒）",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_WORKAROUND4: "启动修复 #4（替换 mhypbase.dll）",
   SETTING_WORKAROUND4_DESC:

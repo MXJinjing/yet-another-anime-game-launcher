@@ -115,6 +115,7 @@ export const fr_FR: typeof zh_CN = {
     "La sélection actuelle est la version communautaire, cette version n’est pas officiellement prise en charge, veuillez ne pas signaler de problèmes",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
   SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,
