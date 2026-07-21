@@ -110,6 +110,7 @@ export const zh_CN = {
   SETTING_SUDOERS_DESC: "执行以下命令一次（需输入密码），之后不再弹窗：",
   SETTING_COPY: "复制",
   SETTING_COPIED: "已复制！",
+  SETTING_COPY_SUDOERS: "复制 pfctl 免密码命令",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_LICENSES: "Licenses", // TODO: Translate
   SETTING_ENABLE_HDR: "启用 HDR",

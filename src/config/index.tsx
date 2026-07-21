@@ -108,6 +108,9 @@ export async function createConfiguration({
     }
   }
 
+  const SUDOERS_CMD =
+    'echo "$USER ALL=(ALL) NOPASSWD: /sbin/pfctl" | sudo tee /etc/sudoers.d/yaagl-pf';
+
   return {
     UI: function (props: {
       onClose: (action: "check-integrity" | "close") => void;
@@ -191,13 +194,6 @@ export async function createConfiguration({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => wine.openWineCfg()}
-                    >
-                      {locale.get("SETTING_OPEN_WINECFG")}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
                       onClick={() =>
                         exec2(
                           ["open", gameInstallDir()],
@@ -226,6 +222,21 @@ export async function createConfiguration({
                     <Divider />
                     <Button variant="ghost" size="sm" onClick={onCheckUpdate}>
                       {locale.get("SETTING_CHECK_UPDATE")}
+                    </Button>
+                    <Divider />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(SUDOERS_CMD);
+                        notificationService.show({
+                          status: "success",
+                          title: locale.get("SETTING_COPIED"),
+                          description: "",
+                        });
+                      }}
+                    >
+                      {locale.get("SETTING_COPY_SUDOERS")}
                     </Button>
                   </VStack>
                 </HStack>
