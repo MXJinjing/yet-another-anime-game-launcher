@@ -112,6 +112,7 @@ export const ja_JP: typeof zh_CN = {
     "現在選択されているのはコミュニティ版です。このバージョンは公式にサポートされていませんので、不具合の報告はご遠慮ください。",
 
   SETTING_BLOCK_NET: "起動修正（ホストのブロック）",
+  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
   SETTING_TIMEOUT_FIX: "タイムアウト修正",
   SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
   SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,

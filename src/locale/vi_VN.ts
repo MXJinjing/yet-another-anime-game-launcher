@@ -111,6 +111,7 @@ export const vi_VN: typeof zh_CN = {
     "Hiện tại được chọn là phiên bản cộng đồng, phiên bản này không được hỗ trợ chính thức, vui lòng không báo cáo bất kỳ vấn đề nào",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
   SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,

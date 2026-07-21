@@ -110,6 +110,7 @@ export const en: typeof zh_CN = {
     "The current selection is the Community version, this version is not officially supported, please do not report any issues",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_NET_DURATION: "Block duration (seconds)",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_WORKAROUND4: "Launch Fix #4 (replace mhypbase.dll)",
   SETTING_WORKAROUND4_DESC:
