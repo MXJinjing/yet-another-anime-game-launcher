@@ -1,3 +1,4 @@
+import { en } from "./en";
 import { zh_CN } from "./zh_CN";
 
 export const ja_JP: typeof zh_CN = {
@@ -112,6 +113,10 @@ export const ja_JP: typeof zh_CN = {
 
   SETTING_BLOCK_NET: "起動修正（ホストのブロック）",
   SETTING_TIMEOUT_FIX: "タイムアウト修正",
+  SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
+  SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,
+  SETTING_WORKAROUND4_PICK: en.SETTING_WORKAROUND4_PICK,
+  SETTING_WORKAROUND4_REVERT_BTN: en.SETTING_WORKAROUND4_REVERT_BTN,
   SETTING_LICENSES: "ライセンス",
   SETTING_ENABLE_HDR: "HDR有効",
 

@@ -40,6 +40,7 @@ import {
   checkAndDownloadReshade,
 } from "../../../downloadable-resource";
 import { createWorkaround3Config } from "./config/workaround-3";
+import createMhypBaseReplacement from "./config/mhypbase-replacement";
 import createPatchOff from "./config/patch-off";
 import createSteamPatch from "./config/steam-patch";
 import createBlockNet from "./config/block-net";
@@ -312,6 +313,11 @@ export async function createHK4EChannelClient({
     },
     async createConfig(locale: Locale, config: Partial<Config>) {
       const [W3] = await createWorkaround3Config({ locale, config });
+      const [W4] = await createMhypBaseReplacement({
+        locale,
+        config,
+        gameInstallDir: _gameInstallDir,
+      });
       const [PO] = await createPatchOff({ locale, config });
       const [SP] = await createSteamPatch({ locale, config });
       const [BN] = await createBlockNet({ locale, config });
@@ -325,6 +331,7 @@ export async function createHK4EChannelClient({
           gameCurrentVersion(),
           <HDR />,
           <W3 />,
+          <W4 />,
           <PO />,
           <SP />,
           <BN />,

@@ -111,6 +111,11 @@ export const en: typeof zh_CN = {
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
+  SETTING_WORKAROUND4: "Launch Fix #4 (replace mhypbase.dll)",
+  SETTING_WORKAROUND4_DESC:
+    "6.7 may crash on offline launch due to a mhypbase.dll version mismatch. Provide the absolute path of a known-good older mhypbase.dll; the launcher will copy it into the game directory when it differs from the game's current one.",
+  SETTING_WORKAROUND4_PICK: "Pick file…",
+  SETTING_WORKAROUND4_REVERT_BTN: "Restore original mhypbase.dll",
   SETTING_LICENSES: "Licenses",
   SETTING_ENABLE_HDR: "Enable HDR",
 
