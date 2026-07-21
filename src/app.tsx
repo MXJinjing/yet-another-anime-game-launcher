@@ -126,6 +126,25 @@ export async function createApp() {
       prefix: prefixPath,
       distro: wineStatus.wineDistribution,
     });
+    // Teardown safety net: when the launcher closes (window close button,
+    // Cmd-Q, or kill) we must tear down the wine prefix's process tree.
+    // Without this, a hung game launch or force-kill can leave
+    // services.exe / winedevice.exe / rpcss.exe attached to the prefix,
+    // which causes the NEXT launch to hang indefinitely at "PATCHING"
+    // because wineserver refuses to enter the prefix while ghosts are alive.
+    // Must run BEFORE the aria2 termination hook (hooks fire in reverse
+    // LIFO order; we push this hook AFTER aria2's, so it fires first
+    // while aria2 is still available — though wine.killAll does not
+    // require aria2, ordering is safest this way).
+    addTerminationHook(async () => {
+      await log("Termination hook: killing wine processes");
+      try {
+        await wine.killAll();
+      } catch (e) {
+        await log(`wine.killAll failed during shutdown: ${String(e)}`);
+      }
+      return true;
+    });
     MainApp = await createLauncher({
       wine,
       locale,
