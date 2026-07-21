@@ -90,14 +90,13 @@ async function applyResolutionRegistry(
 const BLOCK_ALL_NET_MARKER_KEY = "block_all_net_active";
 const PF_STATE_MARKER_KEY = "pf_was_enabled";
 const PF_RULES_FILE = "/tmp/yaagl_block_all.pf";
-const PF_WATCHER_SCRIPT = "/tmp/yaagl_block_all_watcher.sh";
-// Seconds of game-runtime after which to release the pf block.
-const PF_RELEASE_AFTER_SECONDS = 25;
-
-async function isPfCleanupNeeded(): Promise<boolean> {
-  const marker = await getKeyOrDefault(BLOCK_ALL_NET_MARKER_KEY, "NOTFOUND");
-  return marker === "1";
-}
+const PF_RELEASE_SCRIPT = "/tmp/yaagl_block_all_release.sh";
+// Hard deadline after which the pf block is released regardless of game
+// state. The block is intended to suppress the game's cloud-session check
+// during early boot (~25 s); a fixed-time release is far more reliable than
+// polling for the game process, and avoids leaving pf in a state that
+// breaks the whole system's network if the launcher or the game misbehave.
+const PF_RELEASE_AFTER_MS = 30_000;
 
 // Wraps a string in single quotes for safe shell interpolation.
 function shellSingleQuote(s: string): string {
@@ -142,73 +141,18 @@ async function disableAllNetBlock(): Promise<void> {
   } catch {
     // ignore
   }
+  try {
+    await removeFile(PF_RELEASE_SCRIPT);
+  } catch {
+    // ignore
+  }
 }
 
 export async function disableAllNetBlockExternal(): Promise<void> {
   return disableAllNetBlock();
 }
 
-// Builds the auto-release watcher shell script.
-//
-// The watcher polls every 2 seconds (up to 30 iterations = ~60s) for the game
-// process. Once the game has been running for >= PF_RELEASE_AFTER_SECONDS,
-// it releases the pf block. If the game never starts / never reaches the
-// threshold, the watcher falls back to releasing after the polling budget
-// is exhausted.
-//
-// `ps -o etime=` on macOS emits one of:
-//   `mm:ss`           — elapsed <  1 hour
-//   `hh:mm:ss`        — elapsed <  1 day
-//   `dd-hh:mm:ss`    — elapsed >= 1 day
-// We use awk with field separators `[-:]` and switch on field count so we
-// correctly compute total elapsed seconds in every case. The previous
-// implementation used a `case` whose first pattern `*-*|*:*` matched every
-// non-trivial etime string (because every mm:ss contains `:`), making the
-// 25-second threshold branch unreachable.
-function buildWatcherScript(gameExecutable: string): string {
-  return (
-    [
-      `#!/bin/sh`,
-      `PF_RULES_FILE=${shellSingleQuote(PF_RULES_FILE)}`,
-      `GAME_EXE=${shellSingleQuote(gameExecutable)}`,
-      `MIN_SECS=${PF_RELEASE_AFTER_SECONDS}`,
-      `MAX_POLLS=30`,
-      `RELEASED=0`,
-      `i=0`,
-      `while [ "$i" -lt "$MAX_POLLS" ]; do`,
-      `  sleep 2`,
-      `  GAME_PID=$(pgrep -f "$GAME_EXE" 2>/dev/null | head -1)`,
-      `  if [ -n "$GAME_PID" ]; then`,
-      `    ELAPSED=$(ps -o etime= -p "$GAME_PID" 2>/dev/null | tr -d ' ')`,
-      `    [ -z "$ELAPSED" ] && ELAPSED="0"`,
-      `    SECS=$(echo "$ELAPSED" | awk -F'[-:]' '{ n=NF; if(n==0){print 0} else if(n==1){print $1+0} else if(n==2){print $1*60+$2} else if(n==3){print $1*3600+$2*60+$3} else if(n==4){print $1*86400+$2*3600+$3*60+$4} else {print 0} }')`,
-      `    SECS=$(echo "$SECS" | tr -d ' \\n')`,
-      `    [ -z "$SECS" ] && SECS=0`,
-      `    if [ "$SECS" -ge "$MIN_SECS" ] 2>/dev/null; then`,
-      `      sudo pfctl -d 2>/dev/null`,
-      `      sudo pfctl -F all 2>/dev/null`,
-      `      sudo pfctl -f /etc/pf.conf 2>/dev/null`,
-      `      rm -f "$PF_RULES_FILE" 2>/dev/null`,
-      `      RELEASED=1`,
-      `      exit 0`,
-      `    fi`,
-      `  fi`,
-      `  i=$((i + 1))`,
-      `done`,
-      `# Timeout fallback: release after polling budget exhausted`,
-      `if [ "$RELEASED" -eq 0 ]; then`,
-      `  sudo pfctl -d 2>/dev/null`,
-      `  sudo pfctl -F all 2>/dev/null`,
-      `  sudo pfctl -f /etc/pf.conf 2>/dev/null`,
-      `  rm -f "$PF_RULES_FILE" 2>/dev/null`,
-      `fi`,
-    ].join("\n") + "\n"
-  );
-}
-
-async function enableAllNetBlockAutoRelease(
-  gameExecutable: string
-): Promise<boolean> {
+async function enableAllNetBlock(): Promise<boolean> {
   // The pf rules file we load as the MAIN ruleset (not an anchor), plus
   // a pass-through for loopback so unrelated localhost traffic keeps working
   // during the brief block window.
@@ -256,18 +200,54 @@ async function enableAllNetBlockAutoRelease(
     return false;
   }
 
-  // Spawn the auto-release watcher detached so it survives a launcher exit
-  // and can still release the block if Yaagl is closed mid-launch.
-  await writeFile(PF_WATCHER_SCRIPT, buildWatcherScript(gameExecutable));
-  await exec(
-    [
-      "bash",
-      "-c",
-      `nohup sh ${shellSingleQuote(PF_WATCHER_SCRIPT)} >/dev/null 2>&1 &`,
-    ],
-    {},
-    false
-  );
+  // Out-of-process insurance: a detached `nohup`'d shell that sleeps
+  // PF_RELEASE_AFTER_MS, then unconditionally disables + flushes pf and
+  // reloads /etc/pf.conf. This runs regardless of whether the launcher
+  // process is still alive (nohup detaches it from the launcher's session
+  // so a SIGHUP/SIGTERM on the launcher does not propagate). The launcher
+  // ALSO schedules an in-process cleanup below as the primary path; this
+  // shell timer is the backup that guarantees recovery in pathological cases.
+  //
+  // We use the user's sudoers NOPASSWD rule (same one the launcher uses to
+  // enable pf), so sudo calls inside the released shell succeed with no
+  // password prompt. (If sudoers is not configured the release may also fail,
+  // but then `pfctl -f <rules> -e` above would have failed too and we never
+  // reach this point.)
+  //
+  // NOTE: macOS does not ship `setsid` (a Linux util-linux tool), so we rely
+  // on nohup alone. Verified on macOS that `nohup sh ... >/dev/null 2>&1
+  // </dev/null &` correctly detaches: the parent shell can exit and the
+  // child continues to run independently.
+  const releaseScript =
+    "#!/bin/sh\n" +
+    `PF_RULES_FILE=${shellSingleQuote(PF_RULES_FILE)}\n` +
+    `sleep ${Math.floor(PF_RELEASE_AFTER_MS / 1000)}\n` +
+    "sudo pfctl -d 2>/dev/null\n" +
+    "sudo pfctl -F all 2>/dev/null\n" +
+    "sudo pfctl -f /etc/pf.conf 2>/dev/null\n" +
+    'rm -f "$PF_RULES_FILE" 2>/dev/null\n';
+  try {
+    await writeFile(PF_RELEASE_SCRIPT, releaseScript);
+    // nohup: detach SIGHUP from parent process tree.
+    // < /dev/null: detach stdin so no dependency on (closing) parent tty.
+    // > /dev/null 2>&1: discard output (we don't read it anyway).
+    // trailing &: return immediately so exec() doesn't block on the helper.
+    await exec(
+      [
+        "bash",
+        "-c",
+        `nohup sh ${shellSingleQuote(
+          PF_RELEASE_SCRIPT
+        )} < /dev/null > /dev/null 2>&1 &`,
+      ],
+      {},
+      false
+    );
+  } catch {
+    // Best-effort insurance — if launching the helper fails, the in-process
+    // setTimeout cleanup is still our primary path.
+  }
+
   return true;
 }
 
@@ -311,9 +291,36 @@ cd /d "${wine.toWinePath(gameDir)}"
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
 
-  // Enable pf block-all-net before launching the game
+  // Enable pf block-all-net before launching the game.
+  //
+  // Cleanup is layered:
+  //   1. Primary — an in-process setTimeout(`PF_RELEASE_AFTER_MS`) that
+  //      fires even while the launcher is `await`-ing `wine.exec2`. This
+  //      runs while the launcher is alive.
+  //   2. Backup — a detached `setsid` shell script (launched inside
+  //      enableAllNetBlock) that sleeps the same duration and then
+  //      disables pf. Survives launcher crash / quit.
+  //   3. Synchronous — try/finally block below ensures cleanup runs when
+  //      the game exits or any part of the launch flow throws.
+  let pfCleanupTimer: ReturnType<typeof setTimeout> | null = null;
+  let pfCleanupDone = false;
+  async function runPfCleanup() {
+    if (pfCleanupDone) return;
+    pfCleanupDone = true;
+    if (pfCleanupTimer) {
+      clearTimeout(pfCleanupTimer);
+      pfCleanupTimer = null;
+    }
+    try {
+      await disableAllNetBlock();
+      await setKey(BLOCK_ALL_NET_MARKER_KEY, null);
+    } catch {
+      // best-effort — ignore
+    }
+  }
+
   if (config.blockAllNet) {
-    const pfOk = await enableAllNetBlockAutoRelease(gameExecutable);
+    const pfOk = await enableAllNetBlock();
     if (!pfOk) {
       yield ["setStateText", "REVERT_PATCHING"];
       await removeFile(resolve("config.bat"));
@@ -321,6 +328,11 @@ cd /d "${wine.toWinePath(gameDir)}"
       return;
     }
     await setKey(BLOCK_ALL_NET_MARKER_KEY, "1");
+    // Primary (in-process) auto-release. The launcher's JS event loop keeps
+    // firing timers even while we are parked on `await wine.exec2(...)`.
+    pfCleanupTimer = setTimeout(() => {
+      void runPfCleanup();
+    }, PF_RELEASE_AFTER_MS);
   }
 
   try {
@@ -399,15 +411,18 @@ cd /d "${wine.toWinePath(gameDir)}"
   } catch (e: unknown) {
     // it seems game crashed?
     await log(String(e));
-  }
+  } finally {
+    // await removeFile(resolve("bWh5cHJvdDJfcnVubmluZy5yZWcK.reg"));
+    await removeFile(resolve("config.bat"));
 
-  // await removeFile(resolve("bWh5cHJvdDJfcnVubmluZy5yZWcK.reg"));
-  await removeFile(resolve("config.bat"));
-
-  // Safety cleanup: disable pf block if still active
-  if (config.blockAllNet && (await isPfCleanupNeeded())) {
-    await disableAllNetBlock();
-    await setKey(BLOCK_ALL_NET_MARKER_KEY, null);
+    // PF cleanup runs on every exit path: normal completion, game crash,
+    // wine.exec2 throwing mid-launch, or the setTimeout timer already
+    // having fired. runPfCleanup is idempotent — subsequent calls are
+    // no-ops — so the finally block and the setTimeout timer will
+    // never race or double-disable.
+    if (config.blockAllNet) {
+      await runPfCleanup();
+    }
   }
 
   yield ["setStateText", "REVERT_PATCHING"];
