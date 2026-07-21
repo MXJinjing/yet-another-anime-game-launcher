@@ -126,6 +126,8 @@ export const th_TH: typeof zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "ละเว้นการอัปเดต",
   SETTING_CHECK_UPDATE: "ตรวจสอบการอัปเดต YAAGL",
+  SETTING_SETUP_SUDOERS_HOSTS: en.SETTING_SETUP_SUDOERS_HOSTS,
+  SETTING_REMOVE_SUDOERS_HOSTS: en.SETTING_REMOVE_SUDOERS_HOSTS,
   ALREADY_LATEST_VERSION: "คุณใช้เวอร์ชันล่าสุดอยู่แล้ว",
   UPDATE_LAUNCHER: "อัปเดต Launcher",
 };
