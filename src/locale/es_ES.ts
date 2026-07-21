@@ -128,6 +128,7 @@ export const es_ES: typeof zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "Ignorar actualización",
   SETTING_CHECK_UPDATE: "Buscar actualizaciones de YAAGL",
+  SETTING_COPY_SUDOERS_HOSTS: en.SETTING_COPY_SUDOERS_HOSTS,
   ALREADY_LATEST_VERSION: "Ya estás utilizando la última versión.",
   UPDATE_LAUNCHER: "Actualizar Launcher",
 };

@@ -142,37 +142,40 @@ cd /d "${wine.toWinePath(gameDir)}"
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
 
     if (config.blockNet) {
-      const tmpScriptPath = "/tmp/yaagl_network_block_script.sh";
       const blockUrl = server.id == "hk4e_global" ? OS_BLOCK_URL : CN_BLOCK_URL;
 
+      // Write a self-contained helper script (no internal sudo — it is
+      // invoked via `sudo sh <script> &`, so it already runs as root).
+      // Fixed path under /Users/Shared so the sudoers NOPASSWD entry
+      // can authorise a known, non-world-writable location.
+      const helperPath = "/Users/Shared/yaagl-block-net-helper.sh";
       const commands = [
         `#!/bin/sh`,
-
         `HOSTS_FILE="/etc/hosts"`,
         `ENTRY4="0.0.0.0 ${blockUrl}"`,
         `ENTRY6="::1 ${blockUrl}"`,
         `PAD_START="# Temporarily Added by Yaagl"`,
         `PAD_END="# End of section"`,
-
+        ``,
         `if ! grep -qF "$ENTRY4" "$HOSTS_FILE"; then`,
-        `sudo bash -c "echo -e '$PAD_START\n$ENTRY4\n$ENTRY6\n$PAD_END' >> '$HOSTS_FILE'"`,
+        `  printf '%s\\n' "$PAD_START" "$ENTRY4" "$ENTRY6" "$PAD_END" >> "$HOSTS_FILE"`,
         `fi`,
         `sleep ${config.blockNetDuration}`,
-        `sudo sed -i.bak "/$PAD_START/,/$PAD_END/d" "$HOSTS_FILE"`,
-
-        `rm ${tmpScriptPath}`,
+        `sed -i.bak "/$PAD_START/,/$PAD_END/d" "$HOSTS_FILE"`,
+        `rm -f "$0"`,
       ];
 
-      await writeFile(tmpScriptPath, commands.join("\n"));
-      await exec(
-        [
-          "osascript",
-          "-e",
-          `do shell script "source ${tmpScriptPath} > /dev/null 2>&1 &" with administrator privileges`,
-        ],
-        {},
-        false
-      );
+      await writeFile(helperPath, commands.join("\n"));
+      try {
+        // Background the helper via `bash -c "... &"` so the launch
+        // flow continues immediately — the helper sleeps and then
+        // removes the block on its own timer.
+        await exec(["bash", "-c", `sudo sh "${helperPath}" &`], {}, false);
+      } catch {
+        // sudo failed (no TTY or sudoers not configured) — the hosts
+        // block will simply not take effect this launch. The user can
+        // set up NOPASSWD via the Quick Actions panel to fix this.
+      }
     }
 
     await wine.exec2(

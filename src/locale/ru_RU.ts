@@ -129,6 +129,7 @@ export const ru_RU: typeof zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "Пропустить обновление",
   SETTING_CHECK_UPDATE: "Проверить обновления YAAGL",
+  SETTING_COPY_SUDOERS_HOSTS: en.SETTING_COPY_SUDOERS_HOSTS,
   ALREADY_LATEST_VERSION: "Вы уже используете последнюю версию.",
   UPDATE_LAUNCHER: "Обновить лаунчер",
 };

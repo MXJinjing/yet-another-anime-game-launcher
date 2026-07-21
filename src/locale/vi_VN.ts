@@ -128,6 +128,7 @@ export const vi_VN: typeof zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "Bỏ qua cập nhật",
   SETTING_CHECK_UPDATE: "Kiểm tra cập nhật YAAGL",
+  SETTING_COPY_SUDOERS_HOSTS: en.SETTING_COPY_SUDOERS_HOSTS,
   ALREADY_LATEST_VERSION: "Bạn đang sử dụng phiên bản mới nhất.",
   UPDATE_LAUNCHER: "Cập nhật Launcher",
 };
