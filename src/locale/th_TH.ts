@@ -110,9 +110,6 @@ export const th_TH: typeof zh_CN = {
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
   SETTING_BLOCK_ALL_NET: "Auto Block All Net",
-  SETTING_SUDOERS_SETUP: "Configure Passwordless pfctl",
-  SETTING_SUDOERS_DESC: "Run this command once (requires sudo):",
-  SETTING_COPY: "Copy",
   SETTING_COPIED: "Copied!",
   SETTING_COPY_SUDOERS: "Copy pfctl Sudoers Command",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
