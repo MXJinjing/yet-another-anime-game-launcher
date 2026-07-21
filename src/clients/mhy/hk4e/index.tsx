@@ -96,7 +96,11 @@ export async function createHK4EChannelClient({
 
   const gameInfo = await sophon.getLatestOnlineGameInfo(releaseType, "hk4e");
   log(`Game info: ${JSON.stringify(gameInfo)}`);
-  const LATEST_GAME_VERSION: string = gameInfo.version;
+  // Fallback to "0.0.0" when the backend could not determine the version.
+  // Without this, `lt(gameCurrentVersion(), "")` / `gt(prev, "")` throw
+  // "Invalid Version" and crash the launcher whenever the sophon backend
+  // returns an empty version (e.g. on network failure or API key parse error).
+  const LATEST_GAME_VERSION: string = gameInfo.version || "0.0.0";
   const UPDATABLE_VERSIONS: string[] = gameInfo.updatable_versions;
   const PRE_DOWNLOAD_VERSION: string = gameInfo.pre_download_version || "0.0.0";
   const PRE_DOWNLOAD_AVAILABLE: boolean = gameInfo.pre_download;
@@ -150,13 +154,24 @@ export async function createHK4EChannelClient({
         const freeSpaceGB = await getFreeSpace(selection, "g");
         const requiredSpaceGB =
           Math.ceil(INSTALL_SIZE_BYTES / Math.pow(1024, 3)) * 1.2;
-        if (freeSpaceGB < requiredSpaceGB) {
+        // Only enforce the disk-space requirement when the backend actually
+        // returned a valid install size. When the manifest load failed the
+        // backend returns install_size=0, which would make requiredSpaceGB=0
+        // and silently bypass the check; the explicit INSTALL_SIZE_BYTES > 0
+        // guard makes that intent clear so a future change to the formula
+        // can't accidentally turn "unknown size" into a hard block.
+        if (INSTALL_SIZE_BYTES > 0 && freeSpaceGB < requiredSpaceGB) {
           await locale.alert(
             "NO_ENOUGH_DISKSPACE",
             "NO_ENOUGH_DISKSPACE_DESC",
             [requiredSpaceGB + "", (requiredSpaceGB * 1.074).toFixed(1)]
           );
           return;
+        }
+        if (INSTALL_SIZE_BYTES <= 0) {
+          log(
+            "install_size unknown (sophon manifest load failed); skipping disk-space check"
+          );
         }
 
         yield* downloadAndInstallGameProgram({
