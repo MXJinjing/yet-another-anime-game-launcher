@@ -116,6 +116,7 @@ export const ko_KR: typeof zh_CN = {
   SETTING_SUDOERS_DESC: "Run this command once (requires sudo):",
   SETTING_COPY: "Copy",
   SETTING_COPIED: "Copied!",
+  SETTING_COPY_SUDOERS: "Copy pfctl Sudoers Command",
   SETTING_TIMEOUT_FIX: "타임아웃 문제 해결",
   SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
   SETTING_ENABLE_HDR: "HDR 활성화",

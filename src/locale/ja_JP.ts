@@ -116,6 +116,7 @@ export const ja_JP: typeof zh_CN = {
   SETTING_SUDOERS_DESC: "Run this command once (requires sudo):",
   SETTING_COPY: "Copy",
   SETTING_COPIED: "Copied!",
+  SETTING_COPY_SUDOERS: "Copy pfctl Sudoers Command",
   SETTING_TIMEOUT_FIX: "タイムアウト修正",
   SETTING_LICENSES: "ライセンス",
   SETTING_ENABLE_HDR: "HDR有効",
