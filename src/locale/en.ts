@@ -115,6 +115,7 @@ export const en: typeof zh_CN = {
   SETTING_SUDOERS_DESC: "Run this command once (requires sudo):",
   SETTING_COPY: "Copy",
   SETTING_COPIED: "Copied!",
+  SETTING_COPY_SUDOERS: "Copy pfctl Sudoers Command",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_LICENSES: "Licenses",
   SETTING_ENABLE_HDR: "Enable HDR",
