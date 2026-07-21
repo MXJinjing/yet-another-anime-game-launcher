@@ -127,7 +127,7 @@ export async function disableAllNetBlockExternal(): Promise<void> {
   return disableAllNetBlock();
 }
 
-async function enableAllNetBlockAutoRelease(): Promise<void> {
+async function enableAllNetBlockAutoRelease(): Promise<boolean> {
   const commands = [
     `#!/bin/sh`,
     `PF_ANCHOR="${PF_ANCHOR}"`,
@@ -164,15 +164,21 @@ async function enableAllNetBlockAutoRelease(): Promise<void> {
   ];
 
   await writeFile(PF_WATCHER_SCRIPT, commands.join("\n"));
-  await exec(
-    [
-      "osascript",
-      "-e",
-      `do shell script "source ${PF_WATCHER_SCRIPT} > /dev/null 2>&1 &" with administrator privileges`,
-    ],
-    {},
-    false
-  );
+  try {
+    await exec(
+      [
+        "osascript",
+        "-e",
+        `do shell script "source ${PF_WATCHER_SCRIPT} > /dev/null 2>&1 &" with administrator privileges`,
+      ],
+      {},
+      false
+    );
+    return true;
+  } catch {
+    // User cancelled osascript authorization — pf block not enabled
+    return false;
+  }
 }
 
 export async function* launchGameProgram({
@@ -217,7 +223,13 @@ cd /d "${wine.toWinePath(gameDir)}"
 
   // Enable pf block-all-net before launching the game
   if (config.blockAllNet) {
-    await enableAllNetBlockAutoRelease();
+    const pfOk = await enableAllNetBlockAutoRelease();
+    if (!pfOk) {
+      yield ["setStateText", "REVERT_PATCHING"];
+      await removeFile(resolve("config.bat"));
+      yield* patchRevertProgram(gameDir, wine, server, config);
+      return;
+    }
     await setKey(BLOCK_ALL_NET_MARKER_KEY, "1");
   }
 
