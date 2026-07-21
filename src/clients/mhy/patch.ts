@@ -218,16 +218,27 @@ export async function applyMhypBaseReplacement(
   gameDir: string,
   config: Config
 ): Promise<void> {
-  const source = config.mhypBaseReplacementPath?.trim();
   const target = join(gameDir, MHYPBASE_FILE);
   const backup = join(gameDir, MHYPBASE_FILE + MHYPBASE_BAK_SUFFIX);
 
-  if (!source) {
-    // User has cleared the path (or never set one). Restore the original
-    // from the backup so the game is back to its factory state.
+  // Toggle off or no path set → restore original so the game boots clean.
+  if (!config.workaround4) {
     if (await fileOrDirExists(backup)) {
       await forceMove(backup, target);
-      await log(`applyMhypBaseReplacement: restored original from ${backup}`);
+      await log(
+        `applyMhypBaseReplacement: workaround4 disabled, restored original from ${backup}`
+      );
+    }
+    return;
+  }
+
+  const source = config.mhypBaseReplacementPath?.trim();
+  if (!source) {
+    if (await fileOrDirExists(backup)) {
+      await forceMove(backup, target);
+      await log(
+        `applyMhypBaseReplacement: no source path set, restored original from ${backup}`
+      );
     }
     return;
   }
