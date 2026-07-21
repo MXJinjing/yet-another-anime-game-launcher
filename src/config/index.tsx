@@ -220,6 +220,18 @@ export async function createConfiguration({
                     <Button variant="ghost" size="sm" onClick={onCheckUpdate}>
                       {locale.get("SETTING_CHECK_UPDATE")}
                     </Button>
+                    <Divider />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        const cmd =
+                          'echo "$USER ALL=(ALL) NOPASSWD: /bin/sh /Users/Shared/yaagl-block-net-helper.sh" | sudo tee /etc/sudoers.d/yaagl-block-net';
+                        await navigator.clipboard.writeText(cmd);
+                      }}
+                    >
+                      {locale.get("SETTING_COPY_SUDOERS_HOSTS")}
+                    </Button>
                   </VStack>
                 </HStack>
               </TabPanel>

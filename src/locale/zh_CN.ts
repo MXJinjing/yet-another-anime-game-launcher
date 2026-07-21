@@ -124,6 +124,7 @@ export const zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "忽略此更新",
   SETTING_CHECK_UPDATE: "检查 YAAGL 更新",
+  SETTING_COPY_SUDOERS_HOSTS: "复制 hosts 屏蔽免密命令",
   ALREADY_LATEST_VERSION: "您已在使用最新版本。",
   UPDATE_LAUNCHER: "更新启动器",
 };

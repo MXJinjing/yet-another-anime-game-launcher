@@ -130,6 +130,7 @@ export const ja_JP: typeof zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "更新無視",
   SETTING_CHECK_UPDATE: "YAAGL更新を確認する",
+  SETTING_COPY_SUDOERS_HOSTS: en.SETTING_COPY_SUDOERS_HOSTS,
   ALREADY_LATEST_VERSION: "既に最新バージョンを使用しています。",
   UPDATE_LAUNCHER: "ランチャー更新",
 };
