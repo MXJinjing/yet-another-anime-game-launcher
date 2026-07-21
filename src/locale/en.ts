@@ -110,9 +110,6 @@ export const en: typeof zh_CN = {
     "The current selection is the Community version, this version is not officially supported, please do not report any issues",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
-  SETTING_BLOCK_ALL_NET: "Auto Block All Net",
-  SETTING_COPIED: "Copied!",
-  SETTING_COPY_SUDOERS: "Copy pfctl Sudoers Command",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_LICENSES: "Licenses",
   SETTING_ENABLE_HDR: "Enable HDR",

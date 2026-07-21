@@ -108,9 +108,6 @@ export async function createConfiguration({
     }
   }
 
-  const SUDOERS_CMD =
-    'echo "$USER ALL=(ALL) NOPASSWD: /sbin/pfctl" | sudo tee /etc/sudoers.d/yaagl-pf';
-
   return {
     UI: function (props: {
       onClose: (action: "check-integrity" | "close") => void;
@@ -130,7 +127,7 @@ export async function createConfiguration({
                 </Show>
                 <Tab>{locale.get("SETTING_LICENSES")}</Tab>
               </TabList>
-              <TabPanel flex={1} pt={0} pb={0}>
+              <TabPanel flex={1} pt={0} pb={0} overflowY="auto">
                 <HStack spacing={"$4"} h="100%">
                   <Box
                     width="40%"
@@ -223,36 +220,21 @@ export async function createConfiguration({
                     <Button variant="ghost" size="sm" onClick={onCheckUpdate}>
                       {locale.get("SETTING_CHECK_UPDATE")}
                     </Button>
-                    <Divider />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={async () => {
-                        await navigator.clipboard.writeText(SUDOERS_CMD);
-                        notificationService.show({
-                          status: "success",
-                          title: locale.get("SETTING_COPIED"),
-                          description: "",
-                        });
-                      }}
-                    >
-                      {locale.get("SETTING_COPY_SUDOERS")}
-                    </Button>
                   </VStack>
                 </HStack>
               </TabPanel>
-              <TabPanel flex={1} pt={0} pb={0} h="100%">
+              <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
                 <VStack spacing={"$4"} w="40%" alignItems="start">
                   <ChannelClientConfig />
                 </VStack>
               </TabPanel>
-              <TabPanel flex={1} pt={0} pb={0} h="100%">
+              <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
                 <VStack spacing={"$4"} w="40%" alignItems="start">
                   <WD />
                 </VStack>
               </TabPanel>
               <Show when={advanceSetting()}>
-                <TabPanel flex={1} pt={0} pb={0} h="100%">
+                <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
                   <VStack spacing={"$4"} w="40%" alignItems="start">
                     <Alert status="warning" variant="left-accent">
                       <AlertIcon mr="$2_5" />
@@ -263,7 +245,7 @@ export async function createConfiguration({
                   </VStack>
                 </TabPanel>
               </Show>
-              <TabPanel flex={1} pt={0} pb={0} h="100%">
+              <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
                 <VStack spacing={"$4"} w="100%" alignItems="start">
                   <Heading>
                     Copyright Notice: steam.exe and lsteamclient.dll (in the

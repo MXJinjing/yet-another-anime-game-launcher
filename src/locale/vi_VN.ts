@@ -111,9 +111,6 @@ export const vi_VN: typeof zh_CN = {
     "Hiện tại được chọn là phiên bản cộng đồng, phiên bản này không được hỗ trợ chính thức, vui lòng không báo cáo bất kỳ vấn đề nào",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
-  SETTING_BLOCK_ALL_NET: "Auto Block All Net",
-  SETTING_COPIED: "Copied!",
-  SETTING_COPY_SUDOERS: "Copy pfctl Sudoers Command",
   SETTING_TIMEOUT_FIX: "Timeout Fix",
   SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
   SETTING_ENABLE_HDR: "Bật HDR",

@@ -111,9 +111,6 @@ export const ru_RU: typeof zh_CN = {
     "Выбрана версия сообщества. Она не поддерживается официально. Пожалуйста, не сообщайте о проблемах, связанных с этой версией.",
 
   SETTING_BLOCK_NET: "Launch Fix(block hosts)",
-  SETTING_BLOCK_ALL_NET: "Auto Block All Net",
-  SETTING_COPIED: "Copied!",
-  SETTING_COPY_SUDOERS: "Copy pfctl Sudoers Command",
   SETTING_TIMEOUT_FIX: "Timeout Fix (Исправление тайм-аута)",
   SETTING_LICENSES: "Лицензии",
 
