@@ -21,6 +21,7 @@ node_modules
 /external
 
 .vscode
+.idea/
 
 server_secret.ts
 **/*.secret.ts

@@ -7,14 +7,22 @@ export const es_ES: typeof zh_CN = {
   INSTALL: "Instalar el juego",
   UPDATING: "Actualizando",
   DOWNLOADING: "Descargando",
+  PAUSE_DOWNLOAD: "Pausar descarga",
+  RESUME_DOWNLOAD: "Continuar descarga",
+  CANCEL_DOWNLOAD: "Cancelar descarga",
+  FORCE_QUIT_GAME: "Forzar cierre del juego",
   FIXING_FILES: "Arreglando archivos del juego {0}/{1}",
   PATCHING: "Parchando archivos del juego",
   GAME_RUNNING: "El juego se está ejecutando (NO CIERRE LA APLICACIÓN)",
+  GAME_RUNNING_CLOSE_TITLE: "El juego sigue ejecutándose",
+  GAME_RUNNING_CLOSE_DESC:
+    'El juego aún no se ha cerrado. ¿Quieres cerrar también el proceso del juego al salir de YAAgl?\n\nElige "Sí" para cerrar el juego y salir del launcher.\nElige "No" para salir solo del launcher y dejar el juego en ejecución si es posible.\nElige "Cancelar" para volver al launcher.',
   REVERT_PATCHING: "Revirtiendo parches",
   SCANNING_FILES:
     "Verificando integridad de archivos. Archivos revisados {0}/{1}",
   DOWNLOADING_ENVIRONMENT: "Descargando archivos de entorno",
-  DOWNLOADING_ENVIRONMENT_SPEED: "Descargando archivos de entorno ({0}/s)",
+  DOWNLOADING_ENVIRONMENT_SPEED:
+    "Descargando archivos de entorno ({1}/{2}, {3}, {0})",
   EXTRACT_ENVIRONMENT: "Extrayendo entorno",
   CONFIGURING_ENVIRONMENT: "Configurando entorno",
   RESTART_TO_INSTALL: "Reinicie el programa",
@@ -36,7 +44,7 @@ export const es_ES: typeof zh_CN = {
   GAME_DIR_CHANGED: "La ruta al directorio ha cambiado",
   GAME_DIR_CHANGED_DESC:
     "Parece que ha seleccionado una ruta que difiere de la escogida anteriormente. Esta operación es inválida, pero puede seleccionar nuevamente",
-  GAME_VERSION: "Versión del juego: ",
+  GAME_VERSION: "Versión del juego",
 
   NEW_VERSION_AVAILABLE: "Nueva versión disponible",
   NEW_VERSION_AVAILABLE_DESC:
@@ -49,7 +57,7 @@ export const es_ES: typeof zh_CN = {
 
   DECOMPRESS_FILE_PROGRESS: "Descomprimiendo archivos",
   ALLOCATING_FILE: "Asignando archivos en disco",
-  DOWNLOADING_FILE_PROGRESS: "Descargando archivos: {0} ({2}/{3}) {1}/s",
+  DOWNLOADING_FILE_PROGRESS: "Descargando archivos: {0} ({2}/{3}, {4}) {1}",
 
   BACKUP_USER_DATA: "Respaldando datos de usuario",
   RECOVER_BACKUP_USER_DATA: "Recuperando respaldo",
@@ -125,9 +133,10 @@ export const es_ES: typeof zh_CN = {
   SETTING_BLOCK_NET: "Bloquear temporalmente la red mediante hosts",
   SETTING_BLOCK_NET_DURATION: "Duración del bloqueo (segundos)",
   SETTING_TIMEOUT_FIX: "Activar ajuste de timeout de Wine",
-  SETTING_WORKAROUND4: "Reemplazar temporalmente mhypbase.dll al iniciar",
+  SETTING_WORKAROUND4:
+    "Reemplazar temporalmente mhypbase.dll mientras el juego se ejecuta",
   SETTING_WORKAROUND4_DESC:
-    "Antes de iniciar, la mhypbase.dll antigua seleccionada se copia temporalmente en la carpeta del juego. El archivo original se restaura cuando se cierra el juego. El launcher no incluye ni distribuye esta DLL.",
+    "Antes de iniciar, la mhypbase.dll antigua seleccionada se copia en la carpeta del juego y se mantiene mientras el juego se ejecuta. El archivo original se restaura cuando se cierra el juego. El launcher no incluye ni distribuye esta DLL.",
   SETTING_WORKAROUND4_PICK: "Elegir archivo...",
   SETTING_WORKAROUND4_REVERT_BTN: "Restaurar ahora la mhypbase.dll original",
   SETTING_LICENSES: "Licencias",
@@ -143,6 +152,32 @@ export const es_ES: typeof zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "Ignorar actualización",
   SETTING_CHECK_UPDATE: "Buscar actualizaciones de YAAGL",
+  SETTING_CHECK_GAME_UPDATE: "Buscar actualizaciones del juego",
   ALREADY_LATEST_VERSION: "Ya estás utilizando la última versión.",
   UPDATE_LAUNCHER: "Actualizar Launcher",
+  INIT_ENVIRONMENT: "Initialize Environment",
+  INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
+  INIT_ENVIRONMENT_DESC:
+    "The Wine runtime environment must be initialized before installing or launching the game. You can skip this now and initialize it later.",
+  SKIP: "Skip",
+  DONT_REMIND_AGAIN: "Don't remind again",
+  SETTING_WINE_STATUS: "Wine Status",
+  SETTING_WINE_STATUS_INSTALLED: "Installed",
+  SETTING_WINE_STATUS_NOT_INSTALLED: "Not installed",
+  SETTING_WINE_PREFIX_PATH: "Ruta de Wine Prefix",
+  SETTING_OPEN: "Abrir",
+  LOG_VIEWER_TITLE: "Live Logs",
+  LOG_VIEWER_EMPTY: "No logs yet",
+  LOG_VIEWER_OPEN_HINT: "Click to view live logs",
+  LOG_VIEWER_OPEN_ACTION: "Ver logs en vivo",
+  LOG_VIEWER_OPEN_FILE: "Open Log File",
+  LOG_VIEWER_FOLLOW_SCROLL: "Seguir desplazamiento",
+  SETTING_DOWNLOAD_SERVER: "Download Server",
+  SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
+  SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",
+  SETTING_DOWNLOAD_PROXY_DESC:
+    "Used for launcher downloads such as Wine, environment components, game files, and updates. http:// is used when no protocol is provided.",
+  SETTING_DOWNLOAD_SPEED_LIMIT: "Download speed limit",
+  SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
+  SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
 };

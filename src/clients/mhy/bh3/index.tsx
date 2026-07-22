@@ -114,6 +114,7 @@ export async function createBH3ChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameVersion: gameCurrentVersion,
     updateRequired,
     uiContent: {
       background,

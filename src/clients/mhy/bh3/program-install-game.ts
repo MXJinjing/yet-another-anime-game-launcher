@@ -5,6 +5,8 @@ import { Server } from "@constants";
 import {
   mkdirp,
   humanFileSize,
+  formatDownloadSpeed,
+  downloadPercent,
   doStreamUnzip,
   removeFile,
   writeFile,
@@ -44,9 +46,10 @@ export async function* downloadAndInstallGameProgram({
       "setStateText",
       "DOWNLOADING_FILE_PROGRESS",
       basename(gameFileZip),
-      humanFileSize(Number(progress.downloadSpeed)),
+      formatDownloadSpeed(Number(progress.downloadSpeed)),
       humanFileSize(Number(progress.completedLength)),
       humanFileSize(Number(progress.totalLength)),
+      downloadPercent(progress.completedLength, progress.totalLength),
     ];
     yield [
       "setProgress",

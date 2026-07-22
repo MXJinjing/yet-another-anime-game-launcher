@@ -28,11 +28,15 @@ declare module "./config-def" {
 export async function createWineDistroConfig({
   locale,
   config,
+  wineInstalled,
+  wineDistroId,
 }: {
   locale: Locale;
   config: Partial<Config>;
+  wineInstalled: () => boolean;
+  wineDistroId: string;
 }) {
-  config.wineDistro = await getKey("wine_tag");
+  config.wineDistro = wineInstalled() ? await getKey("wine_tag") : wineDistroId;
 
   const versions = await getWineDistributions();
 

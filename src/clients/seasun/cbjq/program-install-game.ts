@@ -4,6 +4,8 @@ import { CommonUpdateProgram } from "@common-update-ui";
 import { Server } from "../server";
 import {
   humanFileSize,
+  formatDownloadSpeed,
+  downloadPercent,
   log,
   mkdirp,
   removeFile,
@@ -65,9 +67,10 @@ async function* downloadOrRecover(
         "setStateText",
         "DOWNLOADING_FILE_PROGRESS",
         basename(remoteUrl) + `(${fileIndex}/${totalFileCount})`,
-        humanFileSize(Number(progress.downloadSpeed)),
+        formatDownloadSpeed(Number(progress.downloadSpeed)),
         humanFileSize(Number(progress.completedLength)),
         humanFileSize(Number(progress.totalLength)),
+        downloadPercent(progress.completedLength, progress.totalLength),
       ];
       yield [
         "setProgress",

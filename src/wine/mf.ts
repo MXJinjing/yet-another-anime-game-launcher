@@ -4,6 +4,8 @@ import { Aria2 } from "@aria2";
 import { CommonUpdateProgram } from "@common-update-ui";
 import {
   humanFileSize,
+  formatDownloadSpeed,
+  downloadPercent,
   forceMove,
   removeFile,
   writeFile,
@@ -49,7 +51,10 @@ export async function* installMediaFoundation(
       yield [
         "setStateText",
         "DOWNLOADING_ENVIRONMENT_SPEED",
-        `${humanFileSize(Number(progress.downloadSpeed))}`,
+        formatDownloadSpeed(Number(progress.downloadSpeed)),
+        `${humanFileSize(Number(progress.completedLength))}`,
+        `${humanFileSize(Number(progress.totalLength))}`,
+        downloadPercent(progress.completedLength, progress.totalLength),
       ];
     }
     await forceMove(

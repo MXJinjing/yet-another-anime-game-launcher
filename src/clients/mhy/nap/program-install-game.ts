@@ -5,6 +5,8 @@ import { Server } from "@constants";
 import {
   mkdirp,
   humanFileSize,
+  formatDownloadSpeed,
+  downloadPercent,
   doStreamUnzip,
   removeFile,
   writeFile,
@@ -102,9 +104,10 @@ async function* downloadOrRecover(
         "setStateText",
         "DOWNLOADING_FILE_PROGRESS",
         basename(remoteUrl),
-        humanFileSize(Number(progress.downloadSpeed)),
+        formatDownloadSpeed(Number(progress.downloadSpeed)),
         humanFileSize(Number(progress.completedLength)),
         humanFileSize(Number(progress.totalLength)),
+        downloadPercent(progress.completedLength, progress.totalLength),
       ];
       yield [
         "setProgress",

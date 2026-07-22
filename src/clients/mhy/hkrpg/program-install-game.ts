@@ -5,6 +5,8 @@ import { Server } from "@constants";
 import {
   mkdirp,
   humanFileSize,
+  formatDownloadSpeed,
+  downloadPercent,
   doStreamUn7z,
   removeFile,
   writeFile,
@@ -41,9 +43,10 @@ export async function* downloadAndInstallGameProgram({
         "setStateText",
         "DOWNLOADING_FILE_PROGRESS",
         basename(gameFile7z),
-        humanFileSize(Number(progress.downloadSpeed)),
+        formatDownloadSpeed(Number(progress.downloadSpeed)),
         humanFileSize(Number(progress.completedLength)),
         humanFileSize(Number(progress.totalLength)),
+        downloadPercent(progress.completedLength, progress.totalLength),
       ];
       yield [
         "setProgress",

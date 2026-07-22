@@ -1,7 +1,16 @@
 import { basename, join } from "path-browserify";
 import { Sophon } from "@sophon";
 import { CommonUpdateProgram } from "@common-update-ui";
-import { log, md5, stats, readAllLines, setKey, humanFileSize } from "@utils";
+import {
+  downloadPercent,
+  formatDownloadSpeed,
+  log,
+  md5,
+  stats,
+  readAllLines,
+  setKey,
+  humanFileSize,
+} from "@utils";
 
 export async function* checkIntegrityProgram({
   sophon,
@@ -39,9 +48,13 @@ export async function* checkIntegrityProgram({
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           basename(progress.filename),
-          humanFileSize(progress.overall_progress.download_speed),
+          formatDownloadSpeed(progress.overall_progress.download_speed),
           humanFileSize(progress.overall_progress.downloaded_size),
           humanFileSize(progress.overall_progress.total_size),
+          downloadPercent(
+            progress.overall_progress.downloaded_size,
+            progress.overall_progress.total_size
+          ),
         ];
 
         yield [

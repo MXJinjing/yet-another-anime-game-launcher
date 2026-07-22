@@ -16,8 +16,16 @@ import { CommonUpdateProgram } from "./common-update-ui";
 
 const owner = "3shain";
 const repo = "yet-another-anime-game-launcher";
+const DISABLE_LAUNCHER_UPDATE_CHECK = true;
 
 export async function createUpdater(deps: { github: Github; aria2: Aria2 }) {
+  // Fork build: do not check upstream launcher releases.
+  if (DISABLE_LAUNCHER_UPDATE_CHECK) {
+    return {
+      latest: true,
+    } as const;
+  }
+
   if (CURRENT_YAAGL_VERSION === "development") {
     return {
       latest: true,

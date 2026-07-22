@@ -93,6 +93,7 @@ export async function createCBJQChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameVersion: gameCurrentVersion,
     updateRequired,
     uiContent: {
       background: server.background_url,
@@ -223,7 +224,7 @@ export async function createCBJQChannelClient({
     },
     async createConfig() {
       return function () {
-        return [locale.get("GAME_VERSION"), gameCurrentVersion()];
+        return [];
       };
     },
   };

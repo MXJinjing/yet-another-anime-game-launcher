@@ -120,6 +120,7 @@ export async function createNAPChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameVersion: gameCurrentVersion,
     updateRequired,
     uiContent: {
       background: background, // Always show image
@@ -367,15 +368,7 @@ export async function createNAPChannelClient({
       const [TF] = await createTimeoutFix({ locale, config });
 
       return function () {
-        return [
-          locale.get("GAME_VERSION"),
-          gameCurrentVersion(),
-          <PO />,
-          <RES />,
-          <BN />,
-          <SP />,
-          <TF />,
-        ];
+        return [<PO />, <RES />, <BN />, <SP />, <TF />];
       };
     },
   };

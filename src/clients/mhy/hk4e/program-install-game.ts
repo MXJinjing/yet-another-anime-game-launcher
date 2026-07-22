@@ -2,7 +2,12 @@ import { join, basename } from "path-browserify";
 import { SophonClient } from "@sophon";
 import { CommonUpdateProgram } from "@common-update-ui";
 import { Server } from "@constants";
-import { humanFileSize, log } from "@utils";
+import {
+  downloadPercent,
+  formatDownloadSpeed,
+  humanFileSize,
+  log,
+} from "@utils";
 
 export async function* downloadAndInstallGameProgram({
   sophonClient,
@@ -36,9 +41,13 @@ export async function* downloadAndInstallGameProgram({
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           basename(progress.filename),
-          humanFileSize(progress.overall_progress.download_speed),
+          formatDownloadSpeed(progress.overall_progress.download_speed),
           humanFileSize(progress.overall_progress.downloaded_size),
           humanFileSize(progress.overall_progress.total_size),
+          downloadPercent(
+            progress.overall_progress.downloaded_size,
+            progress.overall_progress.total_size
+          ),
         ];
 
         yield [

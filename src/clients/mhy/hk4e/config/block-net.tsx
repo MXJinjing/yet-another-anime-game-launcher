@@ -70,27 +70,33 @@ export default async function ({
       return (
         <FormControl id="blockNet">
           <FormLabel>{locale.get("SETTING_BLOCK_NET")}</FormLabel>
-          <Checkbox checked={on()} onChange={() => setOn(x => !x)} size="md">
-            {locale.get("SETTING_ENABLED")}
-          </Checkbox>
+          <Box mt={"$1"}>
+            <Checkbox checked={on()} onChange={() => setOn(x => !x)} size="md">
+              {locale.get("SETTING_ENABLED")}
+            </Checkbox>
+          </Box>
           <Show when={on()}>
-            <Box mt={"$1"} display="flex" alignItems="center" gap={"$2"}>
-              <span style="font-size:12px;color:#aaa">
-                {locale.get("SETTING_BLOCK_NET_DURATION")}
-              </span>
-              <Input
-                type="number"
-                value={String(duration())}
-                min={5}
-                max={60}
-                width="60px"
-                size="sm"
-                onChange={e => {
-                  const v = Number(e.currentTarget.value);
-                  if (!isNaN(v)) setDuration(Math.max(5, Math.min(60, v)));
-                }}
-              />
-              <span style="font-size:12px;color:#aaa">s</span>
+            <Box mt={"$2"}>
+              <Box mb={"$1"}>
+                <span style="font-size:12px;color:#aaa">
+                  {locale.get("SETTING_BLOCK_NET_DURATION")}
+                </span>
+              </Box>
+              <Box display="flex" alignItems="center" gap={"$2"}>
+                <Input
+                  type="number"
+                  value={String(duration())}
+                  min={5}
+                  max={60}
+                  width="60px"
+                  size="sm"
+                  onChange={e => {
+                    const v = Number(e.currentTarget.value);
+                    if (!isNaN(v)) setDuration(Math.max(5, Math.min(60, v)));
+                  }}
+                />
+                <span style="font-size:12px;color:#aaa">s</span>
+              </Box>
             </Box>
           </Show>
         </FormControl>

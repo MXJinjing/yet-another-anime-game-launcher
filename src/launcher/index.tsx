@@ -1,4 +1,4 @@
-import { openDir, fatal, open } from "@utils";
+import { openDir, fatal, open, log, getKeyOrDefault, setKey } from "@utils";
 import {
   Box,
   Button,
@@ -7,6 +7,10 @@ import {
   Flex,
   IconButton,
   Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
   ModalOverlay,
   Popover,
   PopoverArrow,
@@ -16,9 +20,10 @@ import {
   PopoverTrigger,
   Progress,
   ProgressIndicator,
+  Text,
 } from "@hope-ui/solid";
 import { createIcon } from "@hope-ui/solid";
-import { Show, createSignal } from "solid-js";
+import { Show, createSignal, onCleanup } from "solid-js";
 import { Locale } from "@locale";
 import { createConfiguration } from "@config";
 import { Github } from "../github";
@@ -26,6 +31,17 @@ import { createGameInstallationDirectorySanitizer } from "../accidental-complexi
 import { ChannelClient } from "../channel-client";
 import { createTaskQueueState } from "./task-queue";
 import { Wine } from "@wine";
+import { CommonUpdateProgram } from "../common-update-ui";
+import { createLogViewer } from "../log-viewer";
+import {
+  cancelControlledDownload,
+  getDownloadControlState,
+  pauseControlledDownload,
+  resumeControlledDownload,
+  subscribeDownloadControl,
+} from "../download-control";
+
+const SKIP_INITIAL_WINE_GUIDE_KEY = "skip_initial_wine_guide";
 
 const IconSetting = createIcon({
   viewBox: "0 0 1024 1024",
@@ -42,11 +58,15 @@ const IconSetting = createIcon({
 
 export async function createLauncher({
   wine,
+  wineDistroId,
+  wineInstalled,
+  initializeWine,
   locale,
   github,
   channelClient: {
     installDir,
     installState,
+    gameVersion,
     showPredownloadPrompt,
     updateRequired,
     install,
@@ -70,15 +90,27 @@ export async function createLauncher({
     changeInstallDir,
   },
   onCheckUpdate,
+  onGameRunningChange,
 }: {
   wine: Wine;
+  wineDistroId: string;
+  wineInstalled: () => boolean;
+  initializeWine: () => CommonUpdateProgram;
   locale: Locale;
   github: Github;
   channelClient: ChannelClient;
   onCheckUpdate: () => void;
+  onGameRunningChange?: (running: boolean) => void;
 }) {
+  const showInitialWineGuideByDefault =
+    !wineInstalled() &&
+    (await getKeyOrDefault(SKIP_INITIAL_WINE_GUIDE_KEY, "false")) != "true";
   const { UI: ConfigurationUI, config } = await createConfiguration({
     wine,
+    wineDistroId,
+    wineInstalled,
+    gameInstalled: () => installState() == "INSTALLED",
+    gameVersion,
     locale,
     gameInstallDir: installDir,
     onGameInstallDirChange: changeInstallDir,
@@ -97,11 +129,21 @@ export async function createLauncher({
     // const bw = 136 / window.devicePixelRatio;
     const bh = 40;
     const bw = 136;
+    const [gameRunning, setGameRunning] = createSignal(false);
 
     const [statusText, progress, programBusy, taskQueue] = createTaskQueueState(
-      { locale }
+      {
+        locale,
+        onStateKey: key => {
+          const running = key == "GAME_RUNNING";
+          setGameRunning(running);
+          onGameRunningChange?.(running);
+        },
+      }
     );
-    taskQueue.next(() => init(config));
+    if (wineInstalled()) {
+      taskQueue.next(() => init(config));
+    }
 
     const [
       nonUrgentStatusText,
@@ -111,20 +153,57 @@ export async function createLauncher({
     ] = createTaskQueueState({ locale });
 
     const { isOpen, onOpen, onClose } = createDisclosure();
+    const [showInitialWineGuide, setShowInitialWineGuide] = createSignal(
+      showInitialWineGuideByDefault
+    );
+    const { LogViewer, openLogs } = createLogViewer(locale);
 
     const [videoLoaded, setVideoLoaded] = createSignal(false);
+    const [downloadControl, setDownloadControl] = createSignal(
+      getDownloadControlState()
+    );
+    onCleanup(subscribeDownloadControl(setDownloadControl));
+
+    function gameUpdateCheckDisabled() {
+      const download = downloadControl();
+      return (
+        programBusy() ||
+        nonUrgentProgramBusy() ||
+        download.active ||
+        download.actionPending ||
+        gameRunning()
+      );
+    }
 
     async function onButtonClick() {
+      const download = downloadControl();
+      if (download.active) {
+        if (!download.canPause) return;
+        if (download.pauseRequested) {
+          await resumeControlledDownload();
+        } else {
+          await pauseControlledDownload();
+        }
+        return;
+      }
       if (programBusy()) return; // ignore
+      if (!wineInstalled()) {
+        await log("Initialize Wine environment requested");
+        taskQueue.next(initializeWine);
+        return;
+      }
       if (installState() == "INSTALLED") {
         if (updateRequired() == true) {
+          await log("Game update requested");
           taskQueue.next(update);
         } else {
+          await log("Game launch requested");
           taskQueue.next(() => launch(config));
         }
       } else {
         const selection = await selectPath();
         if (!selection) return;
+        await log(`Game installation requested: ${selection}`);
         taskQueue.next(() => install(selection));
       }
     }
@@ -195,43 +274,59 @@ export async function createLauncher({
             <Box flex={1}>
               <Show when={nonUrgentProgramBusy()}>
                 <h3
+                  onClick={openLogs}
+                  title={locale.get("LOG_VIEWER_OPEN_HINT")}
                   style={
-                    "text-shadow: 1px 1px 2px #333;color:white;margin-bottom:5px;margin-top:8px"
+                    "text-shadow: 1px 1px 2px #333;color:white;margin-bottom:5px;margin-top:8px;cursor:pointer"
                   }
                 >
                   {nonUrgentStatusText()}
                 </h3>
-                <Progress
-                  value={nonUrgentProgress()}
-                  indeterminate={nonUrgentProgress() == 0}
-                  size="sm"
-                  borderRadius={8}
+                <Box
+                  role="button"
+                  title={locale.get("LOG_VIEWER_OPEN_HINT")}
+                  onClick={openLogs}
                 >
-                  <ProgressIndicator
-                    style={"transition: none;"}
+                  <Progress
+                    value={nonUrgentProgress()}
+                    indeterminate={nonUrgentProgress() == 0}
+                    size="sm"
                     borderRadius={8}
-                  ></ProgressIndicator>
-                </Progress>
+                  >
+                    <ProgressIndicator
+                      style={"transition: none;"}
+                      borderRadius={8}
+                    ></ProgressIndicator>
+                  </Progress>
+                </Box>
               </Show>
               <Show when={programBusy()}>
                 <h3
+                  onClick={openLogs}
+                  title={locale.get("LOG_VIEWER_OPEN_HINT")}
                   style={
-                    "text-shadow: 1px 1px 2px #333;color:white;margin-bottom:5px;margin-top:8px;"
+                    "text-shadow: 1px 1px 2px #333;color:white;margin-bottom:5px;margin-top:8px;cursor:pointer;"
                   }
                 >
                   {statusText()}
                 </h3>
-                <Progress
-                  value={progress()}
-                  indeterminate={progress() == 0}
-                  size="sm"
-                  borderRadius={8}
+                <Box
+                  role="button"
+                  title={locale.get("LOG_VIEWER_OPEN_HINT")}
+                  onClick={openLogs}
                 >
-                  <ProgressIndicator
-                    style={"transition: none;"}
+                  <Progress
+                    value={progress()}
+                    indeterminate={progress() == 0}
+                    size="sm"
                     borderRadius={8}
-                  ></ProgressIndicator>
-                </Progress>
+                  >
+                    <ProgressIndicator
+                      style={"transition: none;"}
+                      borderRadius={8}
+                    ></ProgressIndicator>
+                  </Progress>
+                </Box>
               </Show>
             </Box>
             <Popover
@@ -241,33 +336,81 @@ export async function createLauncher({
               closeOnBlur={true}
             >
               <PopoverTrigger as={Box}>
-                <ButtonGroup
-                  class="launch-button"
-                  size="xl"
-                  attached
-                  minWidth={150}
-                >
-                  <Button
-                    mr="-1px"
-                    disabled={programBusy()}
-                    onClick={() => onButtonClick().catch(fatal)}
+                <Box class="launch-actions">
+                  <ButtonGroup
+                    class="launch-button"
+                    size="xl"
+                    attached
+                    minWidth={150}
                   >
-                    {installState() == "INSTALLED"
-                      ? updateRequired()
-                        ? locale.get("UPDATE")
-                        : locale.get("LAUNCH")
-                      : locale.get("INSTALL")}
-                  </Button>
-                  <Show when={installState() == "INSTALLED"}>
-                    <IconButton
-                      onClick={onOpen}
-                      disabled={programBusy()}
-                      fontSize={30}
-                      aria-label="Settings"
-                      icon={<IconSetting />}
-                    />
-                  </Show>
-                </ButtonGroup>
+                    <Button
+                      mr="-1px"
+                      disabled={
+                        downloadControl().active
+                          ? !downloadControl().canPause ||
+                            downloadControl().actionPending
+                          : programBusy()
+                      }
+                      onClick={() => onButtonClick().catch(fatal)}
+                    >
+                      {downloadControl().active
+                        ? downloadControl().pauseRequested
+                          ? locale.get("RESUME_DOWNLOAD")
+                          : locale.get("PAUSE_DOWNLOAD")
+                        : !wineInstalled()
+                        ? locale.get("INIT_ENVIRONMENT")
+                        : installState() == "INSTALLED"
+                        ? updateRequired()
+                          ? locale.get("UPDATE")
+                          : locale.get("LAUNCH")
+                        : locale.get("INSTALL")}
+                    </Button>
+                    <Show
+                      when={installState() == "INSTALLED" || !wineInstalled()}
+                    >
+                      <IconButton
+                        onClick={onOpen}
+                        disabled={programBusy() && !downloadControl().active}
+                        fontSize={30}
+                        aria-label="Settings"
+                        icon={<IconSetting />}
+                      />
+                    </Show>
+                  </ButtonGroup>
+                  <Box class="download-cancel-slot">
+                    <Show
+                      when={downloadControl().active}
+                      fallback={
+                        <Show when={gameRunning()}>
+                          <Box
+                            class="download-cancel-action"
+                            onClick={() =>
+                              (async () => {
+                                await log("Force quit game requested");
+                                await wine.killAll();
+                              })().catch(e =>
+                                log(`Force quit game failed: ${String(e)}`)
+                              )
+                            }
+                          >
+                            {locale.get("FORCE_QUIT_GAME")}
+                          </Box>
+                        </Show>
+                      }
+                    >
+                      <Box
+                        class="download-cancel-action"
+                        onClick={() =>
+                          cancelControlledDownload().catch(e =>
+                            log(`Cancel download failed: ${String(e)}`)
+                          )
+                        }
+                      >
+                        {locale.get("CANCEL_DOWNLOAD")}
+                      </Box>
+                    </Show>
+                  </Box>
+                </Box>
               </PopoverTrigger>
               <PopoverContent
                 borderColor="$success3"
@@ -283,7 +426,10 @@ export async function createLauncher({
                     colorScheme="success"
                     size="sm"
                     variant="ghost"
-                    onClick={() => nonUrgentTaskQueue.next(predownload)}
+                    onClick={async () => {
+                      await log("Game predownload requested");
+                      nonUrgentTaskQueue.next(predownload);
+                    }}
                   >
                     {locale.format("PREDOWNLOAD_READY", [predownloadVersion()])}
                   </Button>
@@ -293,6 +439,21 @@ export async function createLauncher({
             <Modal opened={isOpen()} onClose={onClose} scrollBehavior="inside">
               <ModalOverlay />
               <ConfigurationUI
+                onOpenLogs={openLogs}
+                gameUpdateCheckDisabled={gameUpdateCheckDisabled}
+                onCheckGameUpdate={async () => {
+                  if (gameUpdateCheckDisabled()) return;
+                  onClose();
+                  await log("Game update check requested");
+                  if (updateRequired()) {
+                    taskQueue.next(update);
+                  } else {
+                    await locale.alert(
+                      "GAME_VERSION",
+                      "ALREADY_LATEST_VERSION"
+                    );
+                  }
+                }}
                 onClose={action => {
                   onClose();
                   if (action == "check-integrity") {
@@ -303,6 +464,50 @@ export async function createLauncher({
             </Modal>
           </Flex>
         </Flex>
+        <Modal
+          opened={showInitialWineGuide() && !wineInstalled()}
+          onClose={() => setShowInitialWineGuide(true)}
+        >
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>{locale.get("INIT_ENVIRONMENT_TITLE")}</ModalHeader>
+            <ModalBody>
+              <Text>{locale.get("INIT_ENVIRONMENT_DESC")}</Text>
+            </ModalBody>
+            <ModalFooter justifyContent="space-between">
+              <Button
+                variant="ghost"
+                size="xs"
+                colorScheme="neutral"
+                onClick={async () => {
+                  await setKey(SKIP_INITIAL_WINE_GUIDE_KEY, "true");
+                  setShowInitialWineGuide(false);
+                }}
+              >
+                {locale.get("DONT_REMIND_AGAIN")}
+              </Button>
+              <Box>
+                <Button
+                  variant="ghost"
+                  mr="$3"
+                  onClick={() => setShowInitialWineGuide(false)}
+                >
+                  {locale.get("SKIP")}
+                </Button>
+                <Button
+                  onClick={() => {
+                    log("Initialize Wine environment requested");
+                    setShowInitialWineGuide(false);
+                    taskQueue.next(initializeWine);
+                  }}
+                >
+                  {locale.get("INIT_ENVIRONMENT")}
+                </Button>
+              </Box>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+        <LogViewer />
       </div>
     );
   };

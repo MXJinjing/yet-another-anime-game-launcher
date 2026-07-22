@@ -5,6 +5,7 @@ import {
   FormControl,
   FormLabel,
   Input,
+  Text,
 } from "@hope-ui/solid";
 import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "@locale";
@@ -81,14 +82,18 @@ export default async function ({
       return (
         <FormControl id="workaround4">
           <FormLabel>{locale.get("SETTING_WORKAROUND4")}</FormLabel>
-          <Checkbox
-            checked={enabled()}
-            onChange={() => setEnabled(x => !x)}
-            size="md"
-            mb={"$2"}
-          >
-            {locale.get("SETTING_ENABLED")}
-          </Checkbox>
+          <Text userSelect={"none"} size="xs" mb={"$2"}>
+            {locale.get("SETTING_WORKAROUND4_DESC")}
+          </Text>
+          <Box mb={"$2"}>
+            <Checkbox
+              checked={enabled()}
+              onChange={() => setEnabled(x => !x)}
+              size="md"
+            >
+              {locale.get("SETTING_ENABLED")}
+            </Checkbox>
+          </Box>
           <Show when={enabled()}>
             <Input
               value={pathValue()}

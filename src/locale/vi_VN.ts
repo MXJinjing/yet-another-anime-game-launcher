@@ -7,14 +7,22 @@ export const vi_VN: typeof zh_CN = {
   INSTALL: "Cài đặt trò chơi",
   UPDATING: "Đang cập nhật",
   DOWNLOADING: "Đang tải",
+  PAUSE_DOWNLOAD: "Tạm dừng tải xuống",
+  RESUME_DOWNLOAD: "Tiếp tục tải xuống",
+  CANCEL_DOWNLOAD: "Hủy tải xuống",
+  FORCE_QUIT_GAME: "Buộc thoát trò chơi",
   FIXING_FILES: "Đang sửa tệp trò chơi {0}/{1}",
   PATCHING: "Đang vá tệp trò chơi",
   GAME_RUNNING: "Đang chạy trò choi (VUI LÒNG KHÔNG ĐÓNG TRÌNH KHỞI ĐỘNG)",
+  GAME_RUNNING_CLOSE_TITLE: "Trò chơi vẫn đang chạy",
+  GAME_RUNNING_CLOSE_DESC:
+    'Trò chơi chưa thoát. Bạn có muốn đóng cả tiến trình trò chơi khi thoát YAAgl không?\n\nChọn "Có" để đóng trò chơi và thoát launcher.\nChọn "Không" để chỉ thoát launcher và giữ trò chơi chạy nếu có thể.\nChọn "Hủy" để quay lại launcher.',
   REVERT_PATCHING: "Đang hoàn tác bản vá",
   SCANNING_FILES:
     "Kiểm tra tính toàn vẹn của tệp. {0}/{1} tệp đã được hoàn thành ",
   DOWNLOADING_ENVIRONMENT: "Đang tải tệp môi trường",
-  DOWNLOADING_ENVIRONMENT_SPEED: "Đang tải xuống tệp môi trường ({0}/s)",
+  DOWNLOADING_ENVIRONMENT_SPEED:
+    "Đang tải xuống tệp môi trường ({1}/{2}, {3}, {0})",
   EXTRACT_ENVIRONMENT: "Đang giải nén môi trường",
   CONFIGURING_ENVIRONMENT: "Đang tuỳ chỉnh môi trường",
   RESTART_TO_INSTALL: "Khởi động lại chương trình",
@@ -36,7 +44,7 @@ export const vi_VN: typeof zh_CN = {
   GAME_DIR_CHANGED: "Đường dẫn thư mục đã được thay đổi",
   GAME_DIR_CHANGED_DESC:
     "Dường như như bạn đã chọn một thư mục khác với thư mục đã được chọn trước đó. Tiến trình không hợp lệ, nhưng bạn có thể chọn lại sau",
-  GAME_VERSION: "Phiên bản trò chơi: ",
+  GAME_VERSION: "Phiên bản trò chơi",
 
   NEW_VERSION_AVAILABLE: "Phiên bản mới khả dụng",
   NEW_VERSION_AVAILABLE_DESC:
@@ -48,7 +56,7 @@ export const vi_VN: typeof zh_CN = {
 
   DECOMPRESS_FILE_PROGRESS: "Đang giải nén tệp",
   ALLOCATING_FILE: "Đang phân bổ tệp trên ổ đĩa",
-  DOWNLOADING_FILE_PROGRESS: "Đang tải tệp: {0} ({2}/{3}) {1}/s",
+  DOWNLOADING_FILE_PROGRESS: "Đang tải tệp: {0} ({2}/{3}, {4}) {1}",
 
   BACKUP_USER_DATA: "Đang sao lưu dữ liệu người dùng",
   RECOVER_BACKUP_USER_DATA: "Đang khôi phục sao lưu",
@@ -127,9 +135,9 @@ export const vi_VN: typeof zh_CN = {
   SETTING_BLOCK_NET: "Tạm chặn mạng qua hosts",
   SETTING_BLOCK_NET_DURATION: "Thời lượng chặn (giây)",
   SETTING_TIMEOUT_FIX: "Bật khắc phục timeout của Wine",
-  SETTING_WORKAROUND4: "Tạm thay mhypbase.dll khi khởi chạy",
+  SETTING_WORKAROUND4: "Tạm thay mhypbase.dll khi trò chơi đang chạy",
   SETTING_WORKAROUND4_DESC:
-    "Trước khi khởi chạy, mhypbase.dll phiên bản cũ đã chọn sẽ được tạm sao chép vào thư mục trò chơi. Tệp gốc sẽ được khôi phục sau khi thoát trò chơi. Launcher không tích hợp hoặc phân phối DLL này.",
+    "Trước khi khởi chạy, mhypbase.dll phiên bản cũ đã chọn sẽ được sao chép vào thư mục trò chơi và giữ nguyên khi trò chơi đang chạy. Tệp gốc sẽ được khôi phục sau khi thoát trò chơi. Launcher không tích hợp hoặc phân phối DLL này.",
   SETTING_WORKAROUND4_PICK: "Chọn tệp...",
   SETTING_WORKAROUND4_REVERT_BTN: "Khôi phục mhypbase.dll gốc ngay",
   SETTING_LICENSES: "Giấy phép",
@@ -144,6 +152,32 @@ export const vi_VN: typeof zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "Bỏ qua cập nhật",
   SETTING_CHECK_UPDATE: "Kiểm tra cập nhật YAAGL",
+  SETTING_CHECK_GAME_UPDATE: "Kiểm tra cập nhật trò chơi",
   ALREADY_LATEST_VERSION: "Bạn đang sử dụng phiên bản mới nhất.",
   UPDATE_LAUNCHER: "Cập nhật Launcher",
+  INIT_ENVIRONMENT: "Initialize Environment",
+  INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
+  INIT_ENVIRONMENT_DESC:
+    "The Wine runtime environment must be initialized before installing or launching the game. You can skip this now and initialize it later.",
+  SKIP: "Skip",
+  DONT_REMIND_AGAIN: "Don't remind again",
+  SETTING_WINE_STATUS: "Wine Status",
+  SETTING_WINE_STATUS_INSTALLED: "Installed",
+  SETTING_WINE_STATUS_NOT_INSTALLED: "Not installed",
+  SETTING_WINE_PREFIX_PATH: "Đường dẫn Wine Prefix",
+  SETTING_OPEN: "Mở",
+  LOG_VIEWER_TITLE: "Live Logs",
+  LOG_VIEWER_EMPTY: "No logs yet",
+  LOG_VIEWER_OPEN_HINT: "Click to view live logs",
+  LOG_VIEWER_OPEN_ACTION: "Xem log trực tiếp",
+  LOG_VIEWER_OPEN_FILE: "Open Log File",
+  LOG_VIEWER_FOLLOW_SCROLL: "Tự cuộn theo",
+  SETTING_DOWNLOAD_SERVER: "Download Server",
+  SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
+  SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",
+  SETTING_DOWNLOAD_PROXY_DESC:
+    "Used for launcher downloads such as Wine, environment components, game files, and updates. http:// is used when no protocol is provided.",
+  SETTING_DOWNLOAD_SPEED_LIMIT: "Download speed limit",
+  SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
+  SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
 };

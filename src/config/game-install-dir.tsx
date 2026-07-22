@@ -16,7 +16,15 @@ import {
 import { createEffect, createSignal } from "solid-js";
 import { createGameInstallationDirectorySanitizer } from "../accidental-complexity";
 import { Locale } from "../locale";
-import { exec, env, openDir, rawString, setKey } from "../utils";
+import {
+  exec,
+  exec2,
+  env,
+  humanFileSize,
+  openDir,
+  rawString,
+  setKey,
+} from "../utils";
 import { Config, NOOP } from "./config-def";
 
 export async function createGameInstallDirConfig({
@@ -55,8 +63,13 @@ export async function createGameInstallDirConfig({
       return;
     }
     try {
-      const ret = await exec(["du", "-sh", path], {}, false);
-      setDiskUsage(ret.stdOut.trim().split(/\s+/)[0] || "-");
+      const ret = await exec(["du", "-sk", path], {}, false);
+      const sizeInKiB = Number(ret.stdOut.trim().split(/\s+/)[0]);
+      setDiskUsage(
+        Number.isFinite(sizeInKiB)
+          ? humanFileSize(sizeInKiB * 1024, false, 2)
+          : "-"
+      );
     } catch {
       setDiskUsage("-");
     }
@@ -105,14 +118,17 @@ export async function createGameInstallDirConfig({
             <FormLabel>{locale.get("SETTING_GAME_INSTALL_DIR")}</FormLabel>
             <VStack spacing={"$3"} alignItems="stretch">
               <HStack spacing={"$2"} alignItems="center">
-                <Input disabled readOnly value={gameInstallDir()} />
-                <Text
+                <Input disabled readOnly value={gameInstallDir()} flex={1} />
+                <Button
                   size="sm"
-                  userSelect="none"
-                  style={{ "white-space": "nowrap" }}
+                  variant="ghost"
+                  disabled={!gameInstallDir()}
+                  onClick={() =>
+                    exec2(["open", gameInstallDir()], {}, false, "/dev/null")
+                  }
                 >
-                  {locale.format("SETTING_GAME_DIR_SIZE", [diskUsage()])}
-                </Text>
+                  {locale.get("SETTING_OPEN")}
+                </Button>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -131,6 +147,9 @@ export async function createGameInstallDirConfig({
                   {locale.get("SETTING_CHANGE_GAME_INSTALL_DIR")}
                 </Button>
               </HStack>
+              <Text size="sm" userSelect="none" color="$neutral11">
+                {locale.format("SETTING_GAME_DIR_SIZE", [diskUsage()])}
+              </Text>
               <Button
                 size="sm"
                 variant="ghost"
