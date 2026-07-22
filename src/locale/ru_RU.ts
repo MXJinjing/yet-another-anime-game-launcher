@@ -34,6 +34,7 @@ export const ru_RU: typeof zh_CN = {
   GAME_DIR_CHANGED: "Путь к каталогу изменен",
   GAME_DIR_CHANGED_DESC:
     "Похоже, вы выбрали другой путь, который отличается от ранее выбранного. Эта операция недопустима, но вы можете выбрать ее позже",
+  GAME_VERSION: "Версия игры: ",
 
   NEW_VERSION_AVAILABLE: "Доступна новая версия",
   NEW_VERSION_AVAILABLE_DESC:
@@ -123,13 +124,14 @@ export const ru_RU: typeof zh_CN = {
   COMMUNITY_WINE_ALERT:
     "Выбрана версия сообщества. Она не поддерживается официально. Пожалуйста, не сообщайте о проблемах, связанных с этой версией.",
 
-  SETTING_BLOCK_NET: "Launch Fix(block hosts)",
-  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
-  SETTING_TIMEOUT_FIX: "Timeout Fix (Исправление тайм-аута)",
-  SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
-  SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,
-  SETTING_WORKAROUND4_PICK: en.SETTING_WORKAROUND4_PICK,
-  SETTING_WORKAROUND4_REVERT_BTN: en.SETTING_WORKAROUND4_REVERT_BTN,
+  SETTING_BLOCK_NET: "Временно блокировать сеть через hosts",
+  SETTING_BLOCK_NET_DURATION: "Длительность блокировки (секунды)",
+  SETTING_TIMEOUT_FIX: "Включить обход тайм-аутов Wine",
+  SETTING_WORKAROUND4: "Временно заменять mhypbase.dll при запуске",
+  SETTING_WORKAROUND4_DESC:
+    "Перед запуском выбранная старая mhypbase.dll временно копируется в папку игры. После выхода из игры исходный файл восстанавливается. Лаунчер не включает и не распространяет эту DLL.",
+  SETTING_WORKAROUND4_PICK: "Выбрать файл...",
+  SETTING_WORKAROUND4_REVERT_BTN: "Восстановить исходный mhypbase.dll сейчас",
   SETTING_LICENSES: "Лицензии",
 
   SETTING_ENABLE_HDR: "Включить HDR",

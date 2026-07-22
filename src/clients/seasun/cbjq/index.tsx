@@ -223,7 +223,7 @@ export async function createCBJQChannelClient({
     },
     async createConfig() {
       return function () {
-        return ["Game Version: ", gameCurrentVersion()];
+        return [locale.get("GAME_VERSION"), gameCurrentVersion()];
       };
     },
   };

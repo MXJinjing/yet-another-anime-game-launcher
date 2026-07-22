@@ -34,6 +34,7 @@ export const ko_KR: typeof zh_CN = {
   GAME_DIR_CHANGED: "게임 설치 경로가 변경되었습니다.",
   GAME_DIR_CHANGED_DESC:
     "이전에 선택한 것과 다른 경로를 선택한 것 같습니다. 이 작업은 유효하지 않지만, 나중에 다시 선택할 수 있습니다.",
+  GAME_VERSION: "게임 버전: ",
 
   NEW_VERSION_AVAILABLE: "새로운 업데이트 사용 가능",
   NEW_VERSION_AVAILABLE_DESC:
@@ -123,21 +124,23 @@ export const ko_KR: typeof zh_CN = {
   COMMUNITY_WINE_ALERT:
     "현재 커뮤니티 버전이 선택되었습니다.이 버전은 공식적으로 지원되지 않습니다. 보고하지 마십시오",
 
-  SETTING_BLOCK_NET: "게임실행 문제해결(hosts 수정)",
-  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
-  SETTING_TIMEOUT_FIX: "타임아웃 문제 해결",
-  SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
-  SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,
-  SETTING_WORKAROUND4_PICK: en.SETTING_WORKAROUND4_PICK,
-  SETTING_WORKAROUND4_REVERT_BTN: en.SETTING_WORKAROUND4_REVERT_BTN,
-  SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
+  SETTING_BLOCK_NET: "hosts로 네트워크 임시 차단",
+  SETTING_BLOCK_NET_DURATION: "차단 시간(초)",
+  SETTING_TIMEOUT_FIX: "Wine 타임아웃 우회 활성화",
+  SETTING_WORKAROUND4: "실행 시 mhypbase.dll 임시 교체",
+  SETTING_WORKAROUND4_DESC:
+    "실행 전에 선택한 이전 버전의 mhypbase.dll을 게임 폴더에 임시로 복사합니다. 게임이 종료되면 원본 파일을 복원합니다. 런처는 이 DLL을 포함하거나 배포하지 않습니다.",
+  SETTING_WORKAROUND4_PICK: "파일 선택...",
+  SETTING_WORKAROUND4_REVERT_BTN: "원본 mhypbase.dll 지금 복원",
+  SETTING_LICENSES: "라이선스",
   SETTING_ENABLE_HDR: "HDR 활성화",
 
-  SETTING_PROXY_ENABLED: en.SETTING_PROXY_ENABLED, // TODO: Translate
-  SETTING_PROXY_HOST: en.SETTING_PROXY_HOST, // TODO: Translate
-  SETTING_PROXY_DESC: en.SETTING_PROXY_DESC, // TODO: Translate
+  SETTING_PROXY_ENABLED: "HTTP 프록시 활성화",
+  SETTING_PROXY_HOST: "HTTP 프록시 호스트",
+  SETTING_PROXY_DESC:
+    "프록시는 게임에만 적용되며 런처 전체에는 적용되지 않습니다.",
 
-  SETTING_TURN_ON_STEAM_PATCH: en.SETTING_TURN_ON_STEAM_PATCH, // TODO: Translate
+  SETTING_TURN_ON_STEAM_PATCH: "Steam 패치 활성화",
 
   UPDATE_PROMPT_IGNORE: "업데이트 무시",
   SETTING_CHECK_UPDATE: "YAAGL 업데이트 확인",

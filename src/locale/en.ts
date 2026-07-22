@@ -34,6 +34,7 @@ export const en: typeof zh_CN = {
   GAME_DIR_CHANGED: "The path to the game directory has changed.",
   GAME_DIR_CHANGED_DESC:
     "You have changed your game path. This operation is unsupported, but you can adjust this later.",
+  GAME_VERSION: "Game Version: ",
 
   NEW_VERSION_AVAILABLE: "A new update is available",
   NEW_VERSION_AVAILABLE_DESC:
@@ -122,14 +123,14 @@ export const en: typeof zh_CN = {
   COMMUNITY_WINE_ALERT:
     "The current selection is the Community version, this version is not officially supported, please do not report any issues",
 
-  SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_NET: "Temporarily block network via hosts",
   SETTING_BLOCK_NET_DURATION: "Block duration (seconds)",
-  SETTING_TIMEOUT_FIX: "Timeout Fix",
-  SETTING_WORKAROUND4: "Launch Fix #4 (replace mhypbase.dll)",
+  SETTING_TIMEOUT_FIX: "Enable Wine timeout workaround",
+  SETTING_WORKAROUND4: "Temporarily replace mhypbase.dll on launch",
   SETTING_WORKAROUND4_DESC:
-    "6.7 may crash on offline launch due to a mhypbase.dll version mismatch. Provide the absolute path of a known-good older mhypbase.dll; the launcher will copy it into the game directory when it differs from the game's current one.",
-  SETTING_WORKAROUND4_PICK: "Pick file…",
-  SETTING_WORKAROUND4_REVERT_BTN: "Restore original mhypbase.dll",
+    "Before launch, the selected older mhypbase.dll is temporarily copied into the game folder. The original file is restored after the game exits. The launcher does not bundle or distribute this DLL.",
+  SETTING_WORKAROUND4_PICK: "Choose file...",
+  SETTING_WORKAROUND4_REVERT_BTN: "Restore original mhypbase.dll now",
   SETTING_LICENSES: "Licenses",
   SETTING_ENABLE_HDR: "Enable HDR",
 

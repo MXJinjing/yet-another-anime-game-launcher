@@ -350,7 +350,12 @@ export async function createHKRPGChannelClient({
       const [BN] = await createBlockNet({ locale, config });
 
       return function () {
-        return ["Game Version: ", gameCurrentVersion(), <PO />, <BN />];
+        return [
+          locale.get("GAME_VERSION"),
+          gameCurrentVersion(),
+          <PO />,
+          <BN />,
+        ];
       };
     },
   };

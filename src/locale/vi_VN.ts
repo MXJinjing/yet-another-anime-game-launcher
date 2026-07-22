@@ -36,6 +36,7 @@ export const vi_VN: typeof zh_CN = {
   GAME_DIR_CHANGED: "Đường dẫn thư mục đã được thay đổi",
   GAME_DIR_CHANGED_DESC:
     "Dường như như bạn đã chọn một thư mục khác với thư mục đã được chọn trước đó. Tiến trình không hợp lệ, nhưng bạn có thể chọn lại sau",
+  GAME_VERSION: "Phiên bản trò chơi: ",
 
   NEW_VERSION_AVAILABLE: "Phiên bản mới khả dụng",
   NEW_VERSION_AVAILABLE_DESC:
@@ -103,7 +104,7 @@ export const vi_VN: typeof zh_CN = {
   SETTING_OPEN_YAAGL_DIR: "Mở thư mục dữ liệu của YAAGL",
   SETTING_YAAGL_VERSION: "Phiên bản YAAGL",
 
-  SETTING_FPS_UNLOCK: "Mở khoá giới hạn FPSUnlock FPS Limit",
+  SETTING_FPS_UNLOCK: "Mở khóa giới hạn FPS",
   SETTING_FPS_UNLOCK_DEFAULT: "Tắt",
 
   SETTING_ADVANCED: "Nâng cao",
@@ -123,21 +124,23 @@ export const vi_VN: typeof zh_CN = {
   COMMUNITY_WINE_ALERT:
     "Hiện tại được chọn là phiên bản cộng đồng, phiên bản này không được hỗ trợ chính thức, vui lòng không báo cáo bất kỳ vấn đề nào",
 
-  SETTING_BLOCK_NET: "Launch Fix(block hosts)",
-  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
-  SETTING_TIMEOUT_FIX: "Timeout Fix",
-  SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
-  SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,
-  SETTING_WORKAROUND4_PICK: en.SETTING_WORKAROUND4_PICK,
-  SETTING_WORKAROUND4_REVERT_BTN: en.SETTING_WORKAROUND4_REVERT_BTN,
-  SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
+  SETTING_BLOCK_NET: "Tạm chặn mạng qua hosts",
+  SETTING_BLOCK_NET_DURATION: "Thời lượng chặn (giây)",
+  SETTING_TIMEOUT_FIX: "Bật khắc phục timeout của Wine",
+  SETTING_WORKAROUND4: "Tạm thay mhypbase.dll khi khởi chạy",
+  SETTING_WORKAROUND4_DESC:
+    "Trước khi khởi chạy, mhypbase.dll phiên bản cũ đã chọn sẽ được tạm sao chép vào thư mục trò chơi. Tệp gốc sẽ được khôi phục sau khi thoát trò chơi. Launcher không tích hợp hoặc phân phối DLL này.",
+  SETTING_WORKAROUND4_PICK: "Chọn tệp...",
+  SETTING_WORKAROUND4_REVERT_BTN: "Khôi phục mhypbase.dll gốc ngay",
+  SETTING_LICENSES: "Giấy phép",
   SETTING_ENABLE_HDR: "Bật HDR",
 
-  SETTING_PROXY_ENABLED: en.SETTING_PROXY_ENABLED, // TODO: Translate
-  SETTING_PROXY_HOST: en.SETTING_PROXY_HOST, // TODO: Translate
-  SETTING_PROXY_DESC: en.SETTING_PROXY_DESC, // TODO: Translate
+  SETTING_PROXY_ENABLED: "Bật HTTP Proxy",
+  SETTING_PROXY_HOST: "Máy chủ HTTP Proxy",
+  SETTING_PROXY_DESC:
+    "Proxy chỉ áp dụng cho trò chơi, không áp dụng cho toàn bộ launcher.",
 
-  SETTING_TURN_ON_STEAM_PATCH: en.SETTING_TURN_ON_STEAM_PATCH, // TODO: Translate
+  SETTING_TURN_ON_STEAM_PATCH: "Bật bản vá Steam",
 
   UPDATE_PROMPT_IGNORE: "Bỏ qua cập nhật",
   SETTING_CHECK_UPDATE: "Kiểm tra cập nhật YAAGL",

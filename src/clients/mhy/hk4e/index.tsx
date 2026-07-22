@@ -350,7 +350,7 @@ export async function createHK4EChannelClient({
       return {
         game() {
           return [
-            "Game Version: ",
+            locale.get("GAME_VERSION"),
             gameCurrentVersion(),
             <W4 />,
             <PO />,

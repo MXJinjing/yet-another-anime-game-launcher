@@ -368,7 +368,7 @@ export async function createNAPChannelClient({
 
       return function () {
         return [
-          "Game Version: ",
+          locale.get("GAME_VERSION"),
           gameCurrentVersion(),
           <PO />,
           <RES />,

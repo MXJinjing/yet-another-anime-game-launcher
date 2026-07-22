@@ -36,6 +36,7 @@ export const de_DE: typeof zh_CN = {
   GAME_DIR_CHANGED: "Der Pfad zum Spielverzeichnis wurde geändert.",
   GAME_DIR_CHANGED_DESC:
     "Sie haben Ihren Spielpfad geändert. Diese Operation wird nicht unterstützt, kann jedoch später angepasst werden.",
+  GAME_VERSION: "Spielversion: ",
 
   NEW_VERSION_AVAILABLE: "Ein neues Update ist verfügbar",
   NEW_VERSION_AVAILABLE_DESC:
@@ -125,21 +126,24 @@ export const de_DE: typeof zh_CN = {
   COMMUNITY_WINE_ALERT:
     "Aktuelle version als gemeindeversion, die nicht offiziell unterstützt wird. Bitte berichten sie nicht über Fragen.",
 
-  SETTING_BLOCK_NET: "Launch Fix(block hosts)",
-  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
-  SETTING_TIMEOUT_FIX: "Timeout Fix",
-  SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
-  SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,
-  SETTING_WORKAROUND4_PICK: en.SETTING_WORKAROUND4_PICK,
-  SETTING_WORKAROUND4_REVERT_BTN: en.SETTING_WORKAROUND4_REVERT_BTN,
-  SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
+  SETTING_BLOCK_NET: "Netzwerk temporär über hosts blockieren",
+  SETTING_BLOCK_NET_DURATION: "Blockierdauer (Sekunden)",
+  SETTING_TIMEOUT_FIX: "Wine-Timeout-Workaround aktivieren",
+  SETTING_WORKAROUND4: "mhypbase.dll beim Start temporär ersetzen",
+  SETTING_WORKAROUND4_DESC:
+    "Vor dem Start wird die ausgewählte ältere mhypbase.dll temporär in den Spielordner kopiert. Nach dem Beenden des Spiels wird die Originaldatei wiederhergestellt. Der Launcher enthält oder verteilt diese DLL nicht.",
+  SETTING_WORKAROUND4_PICK: "Datei auswählen ...",
+  SETTING_WORKAROUND4_REVERT_BTN:
+    "Originale mhypbase.dll jetzt wiederherstellen",
+  SETTING_LICENSES: "Lizenzen",
   SETTING_ENABLE_HDR: "HDR aktivieren",
 
-  SETTING_PROXY_ENABLED: en.SETTING_PROXY_ENABLED, // TODO: Translate
-  SETTING_PROXY_HOST: en.SETTING_PROXY_HOST, // TODO: Translate
-  SETTING_PROXY_DESC: en.SETTING_PROXY_DESC, // TODO: Translate
+  SETTING_PROXY_ENABLED: "HTTP-Proxy aktivieren",
+  SETTING_PROXY_HOST: "HTTP-Proxy-Host",
+  SETTING_PROXY_DESC:
+    "Der Proxy gilt nur für das Spiel, nicht für den gesamten Launcher.",
 
-  SETTING_TURN_ON_STEAM_PATCH: en.SETTING_TURN_ON_STEAM_PATCH, // TODO: Translate
+  SETTING_TURN_ON_STEAM_PATCH: "Steam-Patch aktivieren",
 
   UPDATE_PROMPT_IGNORE: "Update ignorieren",
   SETTING_CHECK_UPDATE: "Nach YAAGL-Updates suchen",

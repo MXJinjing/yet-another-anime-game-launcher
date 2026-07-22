@@ -37,6 +37,7 @@ export const fr_FR: typeof zh_CN = {
   GAME_DIR_CHANGED: "Le chemin d’accès au répertoire de jeu a changé.",
   GAME_DIR_CHANGED_DESC:
     "Vous avez modifié le chemin d’accès de votre jeu. Cette opération n’est pas prise en charge, mais vous pouvez modifier cela plus tard.",
+  GAME_VERSION: "Version du jeu : ",
 
   NEW_VERSION_AVAILABLE: "Une nouvelle mise à jour est disponible",
   NEW_VERSION_AVAILABLE_DESC:
@@ -127,21 +128,24 @@ export const fr_FR: typeof zh_CN = {
   COMMUNITY_WINE_ALERT:
     "La sélection actuelle est la version communautaire, cette version n’est pas officiellement prise en charge, veuillez ne pas signaler de problèmes",
 
-  SETTING_BLOCK_NET: "Launch Fix(block hosts)",
-  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
-  SETTING_TIMEOUT_FIX: "Timeout Fix",
-  SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
-  SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,
-  SETTING_WORKAROUND4_PICK: en.SETTING_WORKAROUND4_PICK,
-  SETTING_WORKAROUND4_REVERT_BTN: en.SETTING_WORKAROUND4_REVERT_BTN,
-  SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
+  SETTING_BLOCK_NET: "Bloquer temporairement le réseau via hosts",
+  SETTING_BLOCK_NET_DURATION: "Durée du blocage (secondes)",
+  SETTING_TIMEOUT_FIX: "Activer le contournement des délais Wine",
+  SETTING_WORKAROUND4: "Remplacer temporairement mhypbase.dll au lancement",
+  SETTING_WORKAROUND4_DESC:
+    "Avant le lancement, l’ancienne mhypbase.dll sélectionnée est copiée temporairement dans le dossier du jeu. Le fichier d’origine est restauré après la fermeture du jeu. Le lanceur n’intègre ni ne distribue cette DLL.",
+  SETTING_WORKAROUND4_PICK: "Choisir un fichier...",
+  SETTING_WORKAROUND4_REVERT_BTN:
+    "Restaurer maintenant la mhypbase.dll d’origine",
+  SETTING_LICENSES: "Licences",
   SETTING_ENABLE_HDR: "Activer le HDR",
 
-  SETTING_PROXY_ENABLED: en.SETTING_PROXY_ENABLED, // TODO: Translate
-  SETTING_PROXY_HOST: en.SETTING_PROXY_HOST, // TODO: Translate
-  SETTING_PROXY_DESC: en.SETTING_PROXY_DESC, // TODO: Translate
+  SETTING_PROXY_ENABLED: "Activer le proxy HTTP",
+  SETTING_PROXY_HOST: "Hôte du proxy HTTP",
+  SETTING_PROXY_DESC:
+    "Le proxy ne s’applique qu’au jeu, pas à tout le lanceur.",
 
-  SETTING_TURN_ON_STEAM_PATCH: en.SETTING_TURN_ON_STEAM_PATCH, // TODO: Translate
+  SETTING_TURN_ON_STEAM_PATCH: "Activer le patch Steam",
 
   UPDATE_PROMPT_IGNORE: "Ignorer la mise à jour",
   SETTING_CHECK_UPDATE: "Rechercher des mises à jour YAAGL",
