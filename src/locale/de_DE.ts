@@ -86,7 +86,8 @@ export const de_DE: typeof zh_CN = {
   SETTING_UNINSTALL_GAME: "Spiel deinstallieren",
   SETTING_UNINSTALL_GAME_CONFIRM:
     "Der folgende Spielordner wird geleert. Dies kann nicht rückgängig gemacht werden:\n{0}\n\nFortfahren?",
-  SETTING_UNINSTALL_DELETE_SCREENSHOTS: "Auch alle Spiel-Screenshots löschen",
+  SETTING_UNINSTALL_SCREENSHOTS_NOTICE:
+    "Hinweis: Beim Deinstallieren werden auch alle Spiel-Screenshots gelöscht.",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "Hier klicken, um die Änderung zu bestätigen.",
   SETTING_QUICK_ACTIONS: "Schnellaktionen",

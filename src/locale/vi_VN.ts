@@ -86,8 +86,8 @@ export const vi_VN: typeof zh_CN = {
   SETTING_UNINSTALL_GAME: "Gỡ cài đặt trò chơi",
   SETTING_UNINSTALL_GAME_CONFIRM:
     "Thao tác này sẽ xoá sạch thư mục trò chơi sau và không thể hoàn tác:\n{0}\n\nTiếp tục?",
-  SETTING_UNINSTALL_DELETE_SCREENSHOTS:
-    "Đồng thời xoá tất cả ảnh chụp trò chơi",
+  SETTING_UNINSTALL_SCREENSHOTS_NOTICE:
+    "Lưu ý: quá trình gỡ cài đặt cũng sẽ xoá tất cả ảnh chụp trò chơi.",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "Ấn vào để xác nhận thay đổi",
   SETTING_QUICK_ACTIONS: "Cài đặt nhanh",

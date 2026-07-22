@@ -1,11 +1,15 @@
 import {
-  Box,
   Button,
-  Checkbox,
   FormControl,
   FormLabel,
   HStack,
   Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
   Text,
   VStack,
 } from "@hope-ui/solid";
@@ -32,7 +36,7 @@ export async function createGameInstallDirConfig({
   });
   const home = await env("HOME");
   const [diskUsage, setDiskUsage] = createSignal("");
-  const [deleteScreenshots, setDeleteScreenshots] = createSignal(false);
+  const [uninstallDialogOpen, setUninstallDialogOpen] = createSignal(false);
 
   async function onSave(apply: boolean) {
     return NOOP;
@@ -61,7 +65,7 @@ export async function createGameInstallDirConfig({
   async function clearGameDir(path: string) {
     if (!isSafeGameDir(path)) {
       await locale.alert("PATH_INVALID", "PATH_INVALID_FORBIDDEN_DIR");
-      return;
+      return false;
     }
     await exec([
       "find",
@@ -76,79 +80,107 @@ export async function createGameInstallDirConfig({
       rawString("{}"),
       rawString("+"),
     ]);
+    return true;
   }
 
   createEffect(() => {
     updateDiskUsage(gameInstallDir());
   });
 
+  async function uninstallGame() {
+    const path = gameInstallDir();
+    const cleared = await clearGameDir(path);
+    if (!cleared) return;
+    await setKey("game_install_dir", null);
+    await onGameInstallDirChange?.("");
+    setUninstallDialogOpen(false);
+    await updateDiskUsage("");
+  }
+
   return [
     function UI() {
       return (
-        <FormControl id="gameInstallDir">
-          <FormLabel>{locale.get("SETTING_GAME_INSTALL_DIR")}</FormLabel>
-          <VStack spacing={"$3"} alignItems="stretch">
-            <HStack spacing={"$2"} alignItems="center">
-              <Input disabled readOnly value={gameInstallDir()} />
-              <Text
-                size="sm"
-                userSelect="none"
-                style={{ "white-space": "nowrap" }}
-              >
-                {locale.format("SETTING_GAME_DIR_SIZE", [diskUsage()])}
-              </Text>
+        <>
+          <FormControl id="gameInstallDir">
+            <FormLabel>{locale.get("SETTING_GAME_INSTALL_DIR")}</FormLabel>
+            <VStack spacing={"$3"} alignItems="stretch">
+              <HStack spacing={"$2"} alignItems="center">
+                <Input disabled readOnly value={gameInstallDir()} />
+                <Text
+                  size="sm"
+                  userSelect="none"
+                  style={{ "white-space": "nowrap" }}
+                >
+                  {locale.format("SETTING_GAME_DIR_SIZE", [diskUsage()])}
+                </Text>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={async () => {
+                    const path = await selectPath();
+                    if (!path) return;
+                    if (onGameInstallDirChange) {
+                      await onGameInstallDirChange(path);
+                      await updateDiskUsage(gameInstallDir());
+                    } else {
+                      await setKey("game_install_dir", path);
+                      await updateDiskUsage(path);
+                    }
+                  }}
+                >
+                  {locale.get("SETTING_CHANGE_GAME_INSTALL_DIR")}
+                </Button>
+              </HStack>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={async () => {
-                  const path = await selectPath();
-                  if (!path) return;
-                  if (onGameInstallDirChange) {
-                    await onGameInstallDirChange(path);
-                    await updateDiskUsage(gameInstallDir());
-                  } else {
-                    await setKey("game_install_dir", path);
-                    await updateDiskUsage(path);
-                  }
-                }}
+                colorScheme="danger"
+                alignSelf="start"
+                disabled={!gameInstallDir()}
+                onClick={() => setUninstallDialogOpen(true)}
               >
-                {locale.get("SETTING_CHANGE_GAME_INSTALL_DIR")}
+                {locale.get("SETTING_UNINSTALL_GAME")}
               </Button>
-            </HStack>
-            <Box>
-              <Checkbox
-                checked={deleteScreenshots()}
-                onChange={() => setDeleteScreenshots(x => !x)}
-                size="sm"
-              >
-                {locale.get("SETTING_UNINSTALL_DELETE_SCREENSHOTS")}
-              </Checkbox>
-            </Box>
-            <Button
-              size="sm"
-              variant="ghost"
-              colorScheme="danger"
-              alignSelf="start"
-              disabled={!gameInstallDir() || !deleteScreenshots()}
-              onClick={async () => {
-                const path = gameInstallDir();
-                const confirmed = await locale.prompt(
-                  "SETTING_UNINSTALL_GAME",
-                  "SETTING_UNINSTALL_GAME_CONFIRM",
-                  [path]
-                );
-                if (!confirmed) return;
-                await clearGameDir(path);
-                await setKey("game_install_dir", null);
-                await onGameInstallDirChange?.("");
-                setDeleteScreenshots(false);
-                await updateDiskUsage("");
-              }}
-            >
-              {locale.get("SETTING_UNINSTALL_GAME")}
-            </Button>
-          </VStack>
-        </FormControl>
+            </VStack>
+          </FormControl>
+          <Modal
+            opened={uninstallDialogOpen()}
+            onClose={() => setUninstallDialogOpen(false)}
+          >
+            <ModalOverlay />
+            <ModalContent>
+              <ModalHeader>{locale.get("SETTING_UNINSTALL_GAME")}</ModalHeader>
+              <ModalBody>
+                <VStack spacing={"$3"} alignItems="stretch">
+                  <Text style={{ "white-space": "pre-wrap" }}>
+                    {locale.format("SETTING_UNINSTALL_GAME_CONFIRM", [
+                      gameInstallDir(),
+                    ])}
+                  </Text>
+                  <Text color="$danger10">
+                    {locale.get("SETTING_UNINSTALL_SCREENSHOTS_NOTICE")}
+                  </Text>
+                </VStack>
+              </ModalBody>
+              <ModalFooter>
+                <Button
+                  variant="ghost"
+                  mr="$3"
+                  onClick={() => setUninstallDialogOpen(false)}
+                >
+                  {locale.get("SETTING_CANCEL")}
+                </Button>
+                <Button
+                  colorScheme="danger"
+                  onClick={() => uninstallGame()}
+                  disabled={!gameInstallDir()}
+                >
+                  {locale.get("SETTING_UNINSTALL_GAME")}
+                </Button>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
+        </>
       );
     },
     onSave,
