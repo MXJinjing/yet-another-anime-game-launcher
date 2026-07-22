@@ -1,5 +1,7 @@
 import { join } from "path-browserify";
 import { build, CommandSegments, rawString } from "./command-builder";
+import { appendRuntimeLogFile } from "../log-file";
+import { appendRuntimeLog } from "../runtime-log";
 
 export function resolve(path: string): string {
   if (!path.startsWith("/")) {
@@ -156,14 +158,20 @@ export async function setKey(key: string, value: string | null) {
 }
 
 export function log(message: string) {
+  appendRuntimeLog(message, "INFO");
+  appendRuntimeLogFile("INFO", message).catch(() => undefined);
   return Neutralino.debug.log(message, "INFO");
 }
 
 export function warn(message: string) {
+  appendRuntimeLog(message, "WARNING");
+  appendRuntimeLogFile("WARNING", message).catch(() => undefined);
   return Neutralino.debug.log(message, "WARNING");
 }
 
 export function logerror(message: string) {
+  appendRuntimeLog(message, "ERROR");
+  appendRuntimeLogFile("ERROR", message).catch(() => undefined);
   return Neutralino.debug.log(message, "ERROR");
 }
 
@@ -360,7 +368,7 @@ export function addTerminationHook(fn: (forced: boolean) => Promise<boolean>) {
 
 // ??
 export async function GLOBAL_onClose(forced: boolean) {
-  for (const hook of hooks.reverse()) {
+  for (const hook of [...hooks].reverse()) {
     if (!(await hook(forced)) && !forced) {
       return false; // aborted
     }
@@ -369,7 +377,7 @@ export async function GLOBAL_onClose(forced: boolean) {
 }
 
 export async function shutdown() {
-  for (const hook of hooks.reverse()) {
+  for (const hook of [...hooks].reverse()) {
     await hook(true);
   }
 }

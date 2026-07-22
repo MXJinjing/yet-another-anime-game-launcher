@@ -34,6 +34,8 @@ export async function sha256_16(str: string) {
     .join("");
 }
 
+import { getDownloadControlState } from "../download-control";
+
 export function formatString(str: string, intrp: string[]) {
   return `${str}`.replace(/{(\d+)}/g, function (match, number) {
     return typeof intrp[number] != "undefined" ? intrp[number] : match;
@@ -72,6 +74,32 @@ export function humanFileSize(bytes: number, si = false, dp = 1) {
   );
 
   return bytes.toFixed(dp) + " " + units[u];
+}
+
+export function downloadPercent(
+  completed: number | bigint,
+  total: number | bigint
+) {
+  const completedNumber = Number(completed);
+  const totalNumber = Number(total);
+  if (!Number.isFinite(completedNumber) || !Number.isFinite(totalNumber)) {
+    return "0.00%";
+  }
+  if (totalNumber <= 0) {
+    return "0.00%";
+  }
+  const percent = Math.min(
+    100,
+    Math.max(0, (completedNumber / totalNumber) * 100)
+  );
+  return `${percent.toFixed(2)}%`;
+}
+
+export function formatDownloadSpeed(bytesPerSecond: number) {
+  if (getDownloadControlState().paused) {
+    return "下载暂停中";
+  }
+  return `${humanFileSize(bytesPerSecond)}/s`;
 }
 
 export function assertValueDefined<V>(

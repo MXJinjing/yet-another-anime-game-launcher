@@ -4,6 +4,8 @@ import { Locale } from "@locale";
 import {
   rmrf_dangerously,
   humanFileSize,
+  formatDownloadSpeed,
+  downloadPercent,
   tar_extract,
   removeFile,
   xattrRemove,
@@ -31,79 +33,96 @@ export async function createWineInstallProgram({
   wineAbsPrefix: string;
   wineDistro: WineDistribution;
 }) {
-  async function* program(): CommonUpdateProgram {
-    const wineBinaryDir = resolve("./wine");
+  return createCommonUpdateUI(locale, () =>
+    installWineEnvironmentProgram({
+      aria2,
+      wineAbsPrefix,
+      wineDistro,
+    })
+  );
+}
 
-    await rmrf_dangerously(wineAbsPrefix);
-    yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
-    const isXZ = wineDistro.remoteUrl.endsWith(".xz");
-    const wineTarPath = resolve("./wine.tar." + (isXZ ? "xz" : "gz"));
-    for await (const progress of aria2.doStreamingDownload({
-      uri: wineDistro.remoteUrl,
-      absDst: wineTarPath,
-    })) {
-      yield [
-        "setProgress",
-        Number((progress.completedLength * BigInt(100)) / progress.totalLength),
-      ];
-      yield [
-        "setStateText",
-        "DOWNLOADING_ENVIRONMENT_SPEED",
-        `${humanFileSize(Number(progress.downloadSpeed))}`,
-      ];
-    }
-    yield ["setStateText", "EXTRACT_ENVIRONMENT"];
-    yield ["setUndeterminedProgress"];
-    await rmrf_dangerously(wineBinaryDir);
-    await exec(["mkdir", "-p", wineBinaryDir]);
-    if (wineDistro.attributes.winePath) {
-      await tar_extract_directory(
-        resolve("./wine.tar." + (isXZ ? "xz" : "gz")),
-        wineBinaryDir,
-        wineDistro.attributes.winePath,
-        isXZ
-      );
-    } else {
-      await tar_extract(
-        resolve("./wine.tar." + (isXZ ? "xz" : "gz")),
-        wineBinaryDir
-      );
-    }
-    await removeFile(wineTarPath);
+export async function* installWineEnvironmentProgram({
+  aria2,
+  wineAbsPrefix,
+  wineDistro,
+}: {
+  aria2: Aria2;
+  wineAbsPrefix: string;
+  wineDistro: WineDistribution;
+}): CommonUpdateProgram {
+  const wineBinaryDir = resolve("./wine");
 
-    yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
+  await rmrf_dangerously(wineAbsPrefix);
+  yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
+  const isXZ = wineDistro.remoteUrl.endsWith(".xz");
+  const wineTarPath = resolve("./wine.tar." + (isXZ ? "xz" : "gz"));
+  for await (const progress of aria2.doStreamingDownload({
+    uri: wineDistro.remoteUrl,
+    absDst: wineTarPath,
+  })) {
+    yield [
+      "setProgress",
+      Number((progress.completedLength * BigInt(100)) / progress.totalLength),
+    ];
+    yield [
+      "setStateText",
+      "DOWNLOADING_ENVIRONMENT_SPEED",
+      formatDownloadSpeed(Number(progress.downloadSpeed)),
+      `${humanFileSize(Number(progress.completedLength))}`,
+      `${humanFileSize(Number(progress.totalLength))}`,
+      downloadPercent(progress.completedLength, progress.totalLength),
+    ];
+  }
+  yield ["setStateText", "EXTRACT_ENVIRONMENT"];
+  yield ["setUndeterminedProgress"];
+  await rmrf_dangerously(wineBinaryDir);
+  await exec(["mkdir", "-p", wineBinaryDir]);
+  if (wineDistro.attributes.winePath) {
+    await tar_extract_directory(
+      resolve("./wine.tar." + (isXZ ? "xz" : "gz")),
+      wineBinaryDir,
+      wineDistro.attributes.winePath,
+      isXZ
+    );
+  } else {
+    await tar_extract(
+      resolve("./wine.tar." + (isXZ ? "xz" : "gz")),
+      wineBinaryDir
+    );
+  }
+  await removeFile(wineTarPath);
 
-    await addCertsToWine(wineBinaryDir);
-    await xattrRemove("com.apple.quarantine", wineBinaryDir);
+  yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
 
-    yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
+  await addCertsToWine(wineBinaryDir);
+  await xattrRemove("com.apple.quarantine", wineBinaryDir);
 
-    yield ["setUndeterminedProgress"];
-    await ensureHosts(ENSURE_HOSTS);
+  yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
 
-    const wine = await createWine({
-      prefix: wineAbsPrefix,
-      distro: wineDistro,
-    });
-    await wine.exec("wineboot", ["-u"], {}, "/dev/null");
-    await wine.exec("winecfg", ["-v", "win10"], {}, "/dev/null");
+  yield ["setUndeterminedProgress"];
+  await ensureHosts(ENSURE_HOSTS);
 
-    // FIXME: don't abuse import.meta.env
-    if (
-      String(import.meta.env["YAAGL_CHANNEL_CLIENT"]).startsWith("bh3") ||
-      String(import.meta.env["YAAGL_CHANNEL_CLIENT"]).startsWith("cbjq")
-    ) {
-      yield* installMediaFoundation(aria2, wine);
-    }
+  const wine = await createWine({
+    prefix: wineAbsPrefix,
+    distro: wineDistro,
+  });
+  await wine.exec("wineboot", ["-u"], {}, "/dev/null");
+  await wine.exec("winecfg", ["-v", "win10"], {}, "/dev/null");
 
-    await setKey("wine_state", "ready");
-    await setKey("wine_tag", wineDistro.id);
-    await setKey("wine_update_url", null);
-    await setKey("wine_update_tag", null);
-    const netbiosname = `DESKTOP-${generateRandomString(7)}`; // exactly 15 chars
-    await setKey("wine_netbiosname", netbiosname);
-    yield ["setStateText", "INSTALL_DONE"];
+  // FIXME: don't abuse import.meta.env
+  if (
+    String(import.meta.env["YAAGL_CHANNEL_CLIENT"]).startsWith("bh3") ||
+    String(import.meta.env["YAAGL_CHANNEL_CLIENT"]).startsWith("cbjq")
+  ) {
+    yield* installMediaFoundation(aria2, wine);
   }
 
-  return createCommonUpdateUI(locale, program);
+  await setKey("wine_state", "ready");
+  await setKey("wine_tag", wineDistro.id);
+  await setKey("wine_update_url", null);
+  await setKey("wine_update_tag", null);
+  const netbiosname = `DESKTOP-${generateRandomString(7)}`; // exactly 15 chars
+  await setKey("wine_netbiosname", netbiosname);
+  yield ["setStateText", "INSTALL_DONE"];
 }

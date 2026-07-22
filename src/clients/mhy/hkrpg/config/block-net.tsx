@@ -49,7 +49,7 @@ export default async function ({
       return (
         <FormControl id="blockNet">
           <FormLabel>{locale.get("SETTING_BLOCK_NET")}</FormLabel>
-          <Box>
+          <Box mt={"$1"}>
             <Checkbox
               checked={value()}
               onChange={() => setValue(x => !x)}

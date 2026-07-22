@@ -7,13 +7,21 @@ export const ru_RU: typeof zh_CN = {
   INSTALL: "Установить игру",
   UPDATING: "Обновление",
   DOWNLOADING: "Загрузка",
+  PAUSE_DOWNLOAD: "Приостановить загрузку",
+  RESUME_DOWNLOAD: "Продолжить загрузку",
+  CANCEL_DOWNLOAD: "Отменить загрузку",
+  FORCE_QUIT_GAME: "Принудительно закрыть игру",
   FIXING_FILES: "Исправление игровых файлов {0}/{1}",
   PATCHING: "Патчинг игровых файлов",
   GAME_RUNNING: "Игра запущена (НЕ ЗАКРЫВАЙТЕ ЛАУНЧЕР)",
+  GAME_RUNNING_CLOSE_TITLE: "Игра всё ещё запущена",
+  GAME_RUNNING_CLOSE_DESC:
+    'Игра ещё не закрыта. Закрыть игровой процесс вместе с выходом из YAAgl?\n\nВыберите "Да", чтобы закрыть игру и лаунчер.\nВыберите "Нет", чтобы закрыть только лаунчер и по возможности оставить игру запущенной.\nВыберите "Отмена", чтобы вернуться в лаунчер.',
   REVERT_PATCHING: "Откат патчей",
   SCANNING_FILES: "Проверка целостности файлов игры. Завершенные файлы {0}/{1}",
   DOWNLOADING_ENVIRONMENT: "Загрузка файлов окружения",
-  DOWNLOADING_ENVIRONMENT_SPEED: "Загрузка файлов окружения ({0}/s)",
+  DOWNLOADING_ENVIRONMENT_SPEED:
+    "Загрузка файлов окружения ({1}/{2}, {3}, {0})",
   EXTRACT_ENVIRONMENT: "Распаковка окружения",
   CONFIGURING_ENVIRONMENT: "Настройка окружения",
   RESTART_TO_INSTALL: "Перезапустить программу",
@@ -34,7 +42,7 @@ export const ru_RU: typeof zh_CN = {
   GAME_DIR_CHANGED: "Путь к каталогу изменен",
   GAME_DIR_CHANGED_DESC:
     "Похоже, вы выбрали другой путь, который отличается от ранее выбранного. Эта операция недопустима, но вы можете выбрать ее позже",
-  GAME_VERSION: "Версия игры: ",
+  GAME_VERSION: "Версия игры",
 
   NEW_VERSION_AVAILABLE: "Доступна новая версия",
   NEW_VERSION_AVAILABLE_DESC:
@@ -46,7 +54,7 @@ export const ru_RU: typeof zh_CN = {
 
   DECOMPRESS_FILE_PROGRESS: "Распаковка файлов",
   ALLOCATING_FILE: "Выделение места на диске",
-  DOWNLOADING_FILE_PROGRESS: "Загрузка файла: {0} ({2}/{3}) {1}/s",
+  DOWNLOADING_FILE_PROGRESS: "Загрузка файла: {0} ({2}/{3}, {4}) {1}",
 
   BACKUP_USER_DATA: "Резервное копирование пользовательских данных",
   RECOVER_BACKUP_USER_DATA: "Восстановление резервной копии",
@@ -127,9 +135,9 @@ export const ru_RU: typeof zh_CN = {
   SETTING_BLOCK_NET: "Временно блокировать сеть через hosts",
   SETTING_BLOCK_NET_DURATION: "Длительность блокировки (секунды)",
   SETTING_TIMEOUT_FIX: "Включить обход тайм-аутов Wine",
-  SETTING_WORKAROUND4: "Временно заменять mhypbase.dll при запуске",
+  SETTING_WORKAROUND4: "Временно заменять mhypbase.dll во время работы игры",
   SETTING_WORKAROUND4_DESC:
-    "Перед запуском выбранная старая mhypbase.dll временно копируется в папку игры. После выхода из игры исходный файл восстанавливается. Лаунчер не включает и не распространяет эту DLL.",
+    "Перед запуском выбранная старая mhypbase.dll копируется в папку игры и остаётся там во время работы игры. После выхода из игры исходный файл восстанавливается. Лаунчер не включает и не распространяет эту DLL.",
   SETTING_WORKAROUND4_PICK: "Выбрать файл...",
   SETTING_WORKAROUND4_REVERT_BTN: "Восстановить исходный mhypbase.dll сейчас",
   SETTING_LICENSES: "Лицензии",
@@ -144,6 +152,32 @@ export const ru_RU: typeof zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "Пропустить обновление",
   SETTING_CHECK_UPDATE: "Проверить обновления YAAGL",
+  SETTING_CHECK_GAME_UPDATE: "Проверить обновления игры",
   ALREADY_LATEST_VERSION: "Вы уже используете последнюю версию.",
   UPDATE_LAUNCHER: "Обновить лаунчер",
+  INIT_ENVIRONMENT: "Initialize Environment",
+  INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
+  INIT_ENVIRONMENT_DESC:
+    "The Wine runtime environment must be initialized before installing or launching the game. You can skip this now and initialize it later.",
+  SKIP: "Skip",
+  DONT_REMIND_AGAIN: "Don't remind again",
+  SETTING_WINE_STATUS: "Wine Status",
+  SETTING_WINE_STATUS_INSTALLED: "Installed",
+  SETTING_WINE_STATUS_NOT_INSTALLED: "Not installed",
+  SETTING_WINE_PREFIX_PATH: "Путь Wine Prefix",
+  SETTING_OPEN: "Открыть",
+  LOG_VIEWER_TITLE: "Live Logs",
+  LOG_VIEWER_EMPTY: "No logs yet",
+  LOG_VIEWER_OPEN_HINT: "Click to view live logs",
+  LOG_VIEWER_OPEN_ACTION: "Показать живые логи",
+  LOG_VIEWER_OPEN_FILE: "Open Log File",
+  LOG_VIEWER_FOLLOW_SCROLL: "Следить за прокруткой",
+  SETTING_DOWNLOAD_SERVER: "Download Server",
+  SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
+  SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",
+  SETTING_DOWNLOAD_PROXY_DESC:
+    "Used for launcher downloads such as Wine, environment components, game files, and updates. http:// is used when no protocol is provided.",
+  SETTING_DOWNLOAD_SPEED_LIMIT: "Download speed limit",
+  SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
+  SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
 };

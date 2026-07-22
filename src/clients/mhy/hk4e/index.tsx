@@ -134,6 +134,7 @@ export async function createHK4EChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameVersion: gameCurrentVersion,
     updateRequired,
     uiContent: {
       background: background, // Always show image
@@ -349,15 +350,7 @@ export async function createHK4EChannelClient({
 
       return {
         game() {
-          return [
-            locale.get("GAME_VERSION"),
-            gameCurrentVersion(),
-            <W4 />,
-            <PO />,
-            <SP />,
-            <BN />,
-            <TF />,
-          ];
+          return [<W4 />, <PO />, <SP />, <BN />, <TF />];
         },
         video() {
           return [<RES />, <HDR />];

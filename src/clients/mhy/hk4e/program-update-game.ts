@@ -2,7 +2,15 @@ import { join, basename } from "path-browserify";
 import { Sophon } from "@sophon";
 import { CommonUpdateProgram } from "@common-update-ui";
 import { Server } from "@constants";
-import { mkdirp, humanFileSize, setKey, exec, fileOrDirExists } from "@utils";
+import {
+  downloadPercent,
+  formatDownloadSpeed,
+  mkdirp,
+  humanFileSize,
+  setKey,
+  exec,
+  fileOrDirExists,
+} from "@utils";
 import { gte } from "semver";
 
 //https://stackoverflow.com/a/69399958
@@ -40,9 +48,13 @@ async function* downloadAndPatch(
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           basename(progress.filename),
-          humanFileSize(progress.overall_progress.download_speed),
+          formatDownloadSpeed(progress.overall_progress.download_speed),
           humanFileSize(progress.overall_progress.downloaded_size),
           humanFileSize(progress.overall_progress.total_size),
+          downloadPercent(
+            progress.overall_progress.downloaded_size,
+            progress.overall_progress.total_size
+          ),
         ];
         yield [
           "setProgress",
@@ -55,9 +67,13 @@ async function* downloadAndPatch(
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           basename(progress.filename),
-          humanFileSize(progress.overall_progress.download_speed),
+          formatDownloadSpeed(progress.overall_progress.download_speed),
           humanFileSize(progress.overall_progress.downloaded_size),
           humanFileSize(progress.overall_progress.total_size),
+          downloadPercent(
+            progress.overall_progress.downloaded_size,
+            progress.overall_progress.total_size
+          ),
         ];
         yield [
           "setProgress",
@@ -160,9 +176,13 @@ async function* predownload(
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           basename(progress.filename),
-          humanFileSize(progress.overall_progress.download_speed),
+          formatDownloadSpeed(progress.overall_progress.download_speed),
           humanFileSize(progress.overall_progress.downloaded_size),
           humanFileSize(progress.overall_progress.total_size),
+          downloadPercent(
+            progress.overall_progress.downloaded_size,
+            progress.overall_progress.total_size
+          ),
         ];
         yield [
           "setProgress",
@@ -175,9 +195,13 @@ async function* predownload(
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           basename(progress.filename),
-          humanFileSize(progress.overall_progress.download_speed),
+          formatDownloadSpeed(progress.overall_progress.download_speed),
           humanFileSize(progress.overall_progress.downloaded_size),
           humanFileSize(progress.overall_progress.total_size),
+          downloadPercent(
+            progress.overall_progress.downloaded_size,
+            progress.overall_progress.total_size
+          ),
         ];
         yield [
           "setProgress",

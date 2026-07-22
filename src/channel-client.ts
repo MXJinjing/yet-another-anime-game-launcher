@@ -14,6 +14,7 @@ export type ChannelClientConfigUI =
 export interface ChannelClient {
   installState: () => ChannelClientInstallState;
   installDir: () => string;
+  gameVersion?: () => string;
 
   showPredownloadPrompt: () => boolean;
   updateRequired: () => boolean;

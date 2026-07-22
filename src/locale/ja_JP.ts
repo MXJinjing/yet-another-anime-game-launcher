@@ -7,13 +7,21 @@ export const ja_JP: typeof zh_CN = {
   INSTALL: "ゲームをインストール",
   UPDATING: "更新中",
   DOWNLOADING: "ダウンロード中",
+  PAUSE_DOWNLOAD: "ダウンロードを一時停止",
+  RESUME_DOWNLOAD: "ダウンロードを再開",
+  CANCEL_DOWNLOAD: "ダウンロードをキャンセル",
+  FORCE_QUIT_GAME: "ゲームを強制終了",
   FIXING_FILES: "ゲームファイルを修復中{0}/{1}",
   PATCHING: "ゲームファイルをパッチ中",
   GAME_RUNNING: "ゲーム実行中 (ランチャーを閉じないでください)",
+  GAME_RUNNING_CLOSE_TITLE: "ゲームはまだ実行中です",
+  GAME_RUNNING_CLOSE_DESC:
+    "ゲームはまだ終了していません。YAAgl を終了するときにゲームプロセスも終了しますか？\n\n「はい」を選ぶと、ゲームを終了してランチャーも閉じます。\n「いいえ」を選ぶと、ランチャーだけを閉じ、可能であればゲームを実行したままにします。\n「キャンセル」を選ぶと、ランチャーに戻ります。",
   REVERT_PATCHING: "パッチを元に戻し中",
   SCANNING_FILES: "ゲームファイルの整合性を確認中. 完了ファイル{0}/{1}",
   DOWNLOADING_ENVIRONMENT: "環境ファイルダウンロード中",
-  DOWNLOADING_ENVIRONMENT_SPEED: "環境ファイルダウンロード中({0}/秒)",
+  DOWNLOADING_ENVIRONMENT_SPEED:
+    "環境ファイルダウンロード中({1}/{2}, {3}, {0})",
   EXTRACT_ENVIRONMENT: "環境解凍中",
   CONFIGURING_ENVIRONMENT: "環境構成中",
   RESTART_TO_INSTALL: "プログラム再起動",
@@ -35,7 +43,7 @@ export const ja_JP: typeof zh_CN = {
   GAME_DIR_CHANGED: "ゲームディレクトリのパスが変更されました。",
   GAME_DIR_CHANGED_DESC:
     "ゲームパスを変更しました。この操作は非対応ですが、後で調整できます。",
-  GAME_VERSION: "ゲームバージョン：",
+  GAME_VERSION: "ゲームバージョン",
 
   NEW_VERSION_AVAILABLE: "新しいアップデートが利用可能です",
   NEW_VERSION_AVAILABLE_DESC:
@@ -47,7 +55,7 @@ export const ja_JP: typeof zh_CN = {
 
   DECOMPRESS_FILE_PROGRESS: "ファイル解凍中",
   ALLOCATING_FILE: "ディクス上ファイルを割り当て中",
-  DOWNLOADING_FILE_PROGRESS: "ファイルダウンロード中: {0} ({2}/{3}) {1}/秒",
+  DOWNLOADING_FILE_PROGRESS: "ファイルダウンロード中: {0} ({2}/{3}, {4}) {1}",
 
   BACKUP_USER_DATA: "ユーザーデータバックアップ中",
   RECOVER_BACKUP_USER_DATA: "バックアップ復元中",
@@ -128,9 +136,9 @@ export const ja_JP: typeof zh_CN = {
   SETTING_BLOCK_NET: "hostsで一時的に通信をブロック",
   SETTING_BLOCK_NET_DURATION: "ブロック時間（秒）",
   SETTING_TIMEOUT_FIX: "Wineタイムアウト回避を有効化",
-  SETTING_WORKAROUND4: "起動時にmhypbase.dllを一時置換",
+  SETTING_WORKAROUND4: "ゲーム実行中に mhypbase.dll を一時置換",
   SETTING_WORKAROUND4_DESC:
-    "起動前に、選択した古い mhypbase.dll を一時的にゲームフォルダへコピーします。ゲーム終了後、元のファイルを復元します。ランチャーはこの DLL を同梱または配布しません。",
+    "起動前に、選択した古い mhypbase.dll をゲームフォルダへコピーし、ゲーム実行中はそのまま保持します。ゲーム終了後、元のファイルを復元します。ランチャーはこの DLL を同梱または配布しません。",
   SETTING_WORKAROUND4_PICK: "ファイルを選択...",
   SETTING_WORKAROUND4_REVERT_BTN: "元の mhypbase.dll を今すぐ復元",
   SETTING_LICENSES: "ライセンス",
@@ -145,6 +153,32 @@ export const ja_JP: typeof zh_CN = {
 
   UPDATE_PROMPT_IGNORE: "更新無視",
   SETTING_CHECK_UPDATE: "YAAGL更新を確認する",
+  SETTING_CHECK_GAME_UPDATE: "ゲーム更新を確認する",
   ALREADY_LATEST_VERSION: "既に最新バージョンを使用しています。",
   UPDATE_LAUNCHER: "ランチャー更新",
+  INIT_ENVIRONMENT: "Initialize Environment",
+  INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
+  INIT_ENVIRONMENT_DESC:
+    "The Wine runtime environment must be initialized before installing or launching the game. You can skip this now and initialize it later.",
+  SKIP: "Skip",
+  DONT_REMIND_AGAIN: "Don't remind again",
+  SETTING_WINE_STATUS: "Wine Status",
+  SETTING_WINE_STATUS_INSTALLED: "Installed",
+  SETTING_WINE_STATUS_NOT_INSTALLED: "Not installed",
+  SETTING_WINE_PREFIX_PATH: "Wine Prefix パス",
+  SETTING_OPEN: "開く",
+  LOG_VIEWER_TITLE: "Live Logs",
+  LOG_VIEWER_EMPTY: "No logs yet",
+  LOG_VIEWER_OPEN_HINT: "Click to view live logs",
+  LOG_VIEWER_OPEN_ACTION: "ライブログを表示",
+  LOG_VIEWER_OPEN_FILE: "Open Log File",
+  LOG_VIEWER_FOLLOW_SCROLL: "自動スクロール",
+  SETTING_DOWNLOAD_SERVER: "Download Server",
+  SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
+  SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",
+  SETTING_DOWNLOAD_PROXY_DESC:
+    "Used for launcher downloads such as Wine, environment components, game files, and updates. http:// is used when no protocol is provided.",
+  SETTING_DOWNLOAD_SPEED_LIMIT: "Download speed limit",
+  SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
+  SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
 };

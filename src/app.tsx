@@ -13,12 +13,7 @@ import {
   rawString,
 } from "./utils";
 import { createAria2Retry } from "./aria2";
-import {
-  checkWine,
-  createWine,
-  createWineInstallProgram,
-  getCorrectWineBinary,
-} from "./wine";
+import { checkWine, createWine, installWineEnvironmentProgram } from "./wine";
 import { createGithubEndpoint } from "./github";
 import { createLauncher } from "./launcher";
 import "./app.css";
@@ -42,13 +37,6 @@ export async function createApp() {
   await setKey("singleton", null);
 
   const aria2_port = 6868;
-
-  await Neutralino.events.on("windowClose", async () => {
-    if (await GLOBAL_onClose(false)) {
-      await Neutralino.window.hide();
-      exit(0);
-    }
-  });
 
   const locale = await createLocale();
   const github = await createGithubEndpoint();
@@ -104,8 +92,6 @@ export async function createApp() {
   const wineStatus = await checkWine(github);
   const prefixPath = resolve("./wineprefix"); // CHECK: hardcoded path?
 
-  let MainApp: () => JSXElement;
-
   let showPromptSignal: (v: boolean) => void;
   let setPendingUpdateInfoSignal: (v: any) => void;
 
@@ -121,49 +107,96 @@ export async function createApp() {
     }
   };
 
-  if (wineStatus.wineReady) {
-    const wine = await createWine({
-      prefix: prefixPath,
-      distro: wineStatus.wineDistribution,
-    });
-    // Teardown safety net: when the launcher closes (window close button,
-    // Cmd-Q, or kill) we must tear down the wine prefix's process tree.
-    // Without this, a hung game launch or force-kill can leave
-    // services.exe / winedevice.exe / rpcss.exe attached to the prefix,
-    // which causes the NEXT launch to hang indefinitely at "PATCHING"
-    // because wineserver refuses to enter the prefix while ghosts are alive.
-    // Must run BEFORE the aria2 termination hook (hooks fire in reverse
-    // LIFO order; we push this hook AFTER aria2's, so it fires first
-    // while aria2 is still available — though wine.killAll does not
-    // require aria2, ordering is safest this way).
-    addTerminationHook(async () => {
-      await log("Termination hook: killing wine processes");
-      try {
-        await wine.killAll();
-      } catch (e) {
-        await log(`wine.killAll failed during shutdown: ${String(e)}`);
-      }
-      return true;
-    });
-    MainApp = await createLauncher({
-      wine,
-      locale,
-      github,
-      channelClient: await createClient({
-        wine,
-        aria2,
-        locale,
-      }),
-      onCheckUpdate,
-    });
-  } else {
-    MainApp = await createWineInstallProgram({
-      aria2,
-      wineAbsPrefix: prefixPath,
-      wineDistro: wineStatus.wineDistribution,
-      locale,
-    });
+  const [wineInstalled, setWineInstalled] = createSignal(wineStatus.wineReady);
+  const wine = await createWine({
+    prefix: prefixPath,
+    distro: wineStatus.wineDistribution,
+  });
+  let gameRunning = false;
+  let closeGameProcessesOnExit = true;
+  let handlingWindowClose = false;
+
+  async function confirmCloseWhileGameRuns() {
+    const out = await Neutralino.os.showMessageBox(
+      locale.get("GAME_RUNNING_CLOSE_TITLE"),
+      locale.get("GAME_RUNNING_CLOSE_DESC"),
+      "YES_NO_CANCEL"
+    );
+    if (out == "YES") return "CLOSE_GAME";
+    if (out == "NO") return "KEEP_GAME";
+    return "CANCEL";
   }
+
+  await Neutralino.events.on("windowClose", async () => {
+    if (handlingWindowClose) return;
+    handlingWindowClose = true;
+    let shouldExit = false;
+    try {
+      closeGameProcessesOnExit = true;
+      if (gameRunning) {
+        const decision = await confirmCloseWhileGameRuns();
+        if (decision == "CANCEL") return;
+        closeGameProcessesOnExit = decision == "CLOSE_GAME";
+      }
+      shouldExit = await GLOBAL_onClose(false);
+      if (shouldExit) {
+        await Neutralino.window.hide();
+        exit(0);
+      }
+    } finally {
+      if (!shouldExit) {
+        closeGameProcessesOnExit = true;
+        handlingWindowClose = false;
+      }
+    }
+  });
+  // Teardown safety net: when the launcher closes (window close button,
+  // Cmd-Q, or kill) we must tear down the wine prefix's process tree.
+  // Without this, a hung game launch or force-kill can leave
+  // services.exe / winedevice.exe / rpcss.exe attached to the prefix,
+  // which causes the NEXT launch to hang indefinitely at "PATCHING"
+  // because wineserver refuses to enter the prefix while ghosts are alive.
+  // Must run BEFORE the aria2 termination hook (hooks fire in reverse
+  // LIFO order; we push this hook AFTER aria2's, so it fires first
+  // while aria2 is still available — though wine.killAll does not
+  // require aria2, ordering is safest this way).
+  addTerminationHook(async () => {
+    if (!closeGameProcessesOnExit) {
+      await log("Termination hook: leaving wine processes running by request");
+      return true;
+    }
+    await log("Termination hook: killing wine processes");
+    try {
+      await wine.killAll();
+    } catch (e) {
+      await log(`wine.killAll failed during shutdown: ${String(e)}`);
+    }
+    return true;
+  });
+  const MainApp: () => JSXElement = await createLauncher({
+    wine,
+    wineDistroId: wineStatus.wineDistribution.id,
+    wineInstalled,
+    initializeWine: async function* () {
+      yield* installWineEnvironmentProgram({
+        aria2,
+        wineAbsPrefix: prefixPath,
+        wineDistro: wineStatus.wineDistribution,
+      });
+      setWineInstalled(true);
+    },
+    locale,
+    github,
+    channelClient: await createClient({
+      wine,
+      aria2,
+      locale,
+    }),
+    onCheckUpdate,
+    onGameRunningChange: running => {
+      gameRunning = running;
+    },
+  });
 
   return function AppRoot() {
     const [updaterComponent, setUpdaterComponent] =

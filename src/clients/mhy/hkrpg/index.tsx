@@ -107,6 +107,7 @@ export async function createHKRPGChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameVersion: gameCurrentVersion,
     updateRequired,
     uiContent: {
       background: background, // Always show image
@@ -350,12 +351,7 @@ export async function createHKRPGChannelClient({
       const [BN] = await createBlockNet({ locale, config });
 
       return function () {
-        return [
-          locale.get("GAME_VERSION"),
-          gameCurrentVersion(),
-          <PO />,
-          <BN />,
-        ];
+        return [<PO />, <BN />];
       };
     },
   };

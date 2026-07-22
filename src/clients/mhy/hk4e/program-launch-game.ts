@@ -13,6 +13,7 @@ import {
 } from "../../../utils";
 import { Wine } from "../../../wine";
 import { Config } from "@config";
+import { normalizeHttpProxy } from "@config/proxy";
 import {
   putLocal,
   patchProgram,
@@ -203,8 +204,8 @@ cd /d "${wine.toWinePath(gameDir)}"
             }),
         ...(config.proxyEnabled
           ? {
-              HTTP_PROXY: config.proxyHost,
-              HTTPS_PROXY: config.proxyHost,
+              HTTP_PROXY: normalizeHttpProxy(config.proxyHost),
+              HTTPS_PROXY: normalizeHttpProxy(config.proxyHost),
             }
           : {}),
       },

@@ -59,5 +59,6 @@ export async function createProxyEnabledConfig({
         </FormControl>
       );
     },
+    value,
   ] as const;
 }

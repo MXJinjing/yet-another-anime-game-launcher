@@ -1,4 +1,9 @@
 import { log } from "@utils";
+import {
+  beginControlledDownload,
+  DownloadCancelledError,
+  endControlledDownload,
+} from "./download-control";
 
 interface GameOperationOptions {
   gamedir: string;
@@ -112,6 +117,8 @@ export class SophonClient {
     let isConnected = false;
     let isCompleted = false;
     let error: string | null = null;
+    let cancelled = false;
+    let downloadControlActive = false;
     let messageResolver: ((value: unknown) => void) | null = null;
 
     ws.onopen = () => {
@@ -161,9 +168,27 @@ export class SophonClient {
         // Array is not empty. message is not null.
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const message = messageQueue.shift()!;
+        const isDownloadProgress =
+          message.type === "chunk_progress" ||
+          message.type === "ldiff_download_complete";
+        if (isDownloadProgress && !downloadControlActive) {
+          beginControlledDownload({
+            cancel: async () => {
+              cancelled = true;
+              await this.cancelOperation(taskId);
+            },
+          });
+          downloadControlActive = true;
+        } else if (!isDownloadProgress && downloadControlActive) {
+          endControlledDownload();
+          downloadControlActive = false;
+        }
         yield message;
 
         if (message.type === "error" || message.type === "job_error") {
+          if (cancelled) {
+            throw new DownloadCancelledError();
+          }
           throw new Error(message.error || "Operation failed");
         }
       } else {
@@ -174,6 +199,12 @@ export class SophonClient {
     }
 
     ws.close();
+    if (downloadControlActive) {
+      endControlledDownload();
+    }
+    if (cancelled) {
+      throw new DownloadCancelledError();
+    }
   }
 
   async cancelOperation(taskId: string): Promise<void> {

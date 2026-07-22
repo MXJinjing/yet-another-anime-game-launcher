@@ -5,6 +5,8 @@ import {
   mkdirp,
   resolve,
   humanFileSize,
+  formatDownloadSpeed,
+  downloadPercent,
   setKey,
   getKeyOrDefault,
   fileOrDirExists,
@@ -48,7 +50,10 @@ export async function* checkAndDownloadMoltenVK(
     yield [
       "setStateText",
       "DOWNLOADING_ENVIRONMENT_SPEED",
-      `${humanFileSize(Number(progress.downloadSpeed))}`,
+      formatDownloadSpeed(Number(progress.downloadSpeed)),
+      `${humanFileSize(Number(progress.completedLength))}`,
+      `${humanFileSize(Number(progress.totalLength))}`,
+      downloadPercent(progress.completedLength, progress.totalLength),
     ];
   }
   setKey("installed_moltenvk_version", CURRENT_MVK_VERSION);
@@ -87,7 +92,10 @@ export async function* checkAndDownloadDXVK(aria2: Aria2): CommonUpdateProgram {
       yield [
         "setStateText",
         "DOWNLOADING_ENVIRONMENT_SPEED",
-        `${humanFileSize(Number(progress.downloadSpeed))}`,
+        formatDownloadSpeed(Number(progress.downloadSpeed)),
+        `${humanFileSize(Number(progress.completedLength))}`,
+        `${humanFileSize(Number(progress.totalLength))}`,
+        downloadPercent(progress.completedLength, progress.totalLength),
       ];
     }
   }
@@ -122,7 +130,10 @@ export async function* checkAndDownloadJadeite(
     yield [
       "setStateText",
       "DOWNLOADING_ENVIRONMENT_SPEED",
-      `${humanFileSize(Number(progress.downloadSpeed))}`,
+      formatDownloadSpeed(Number(progress.downloadSpeed)),
+      `${humanFileSize(Number(progress.completedLength))}`,
+      `${humanFileSize(Number(progress.totalLength))}`,
+      downloadPercent(progress.completedLength, progress.totalLength),
     ];
   }
 
@@ -172,7 +183,10 @@ export async function* checkAndDownloadDXMT(aria2: Aria2): CommonUpdateProgram {
     yield [
       "setStateText",
       "DOWNLOADING_ENVIRONMENT_SPEED",
-      `${humanFileSize(Number(progress.downloadSpeed))}`,
+      formatDownloadSpeed(Number(progress.downloadSpeed)),
+      `${humanFileSize(Number(progress.completedLength))}`,
+      `${humanFileSize(Number(progress.totalLength))}`,
+      downloadPercent(progress.completedLength, progress.totalLength),
     ];
   }
 
@@ -236,7 +250,10 @@ export async function* checkAndDownloadReshade(
     yield [
       "setStateText",
       "DOWNLOADING_ENVIRONMENT_SPEED",
-      `${humanFileSize(Number(progress.downloadSpeed))}`,
+      formatDownloadSpeed(Number(progress.downloadSpeed)),
+      `${humanFileSize(Number(progress.completedLength))}`,
+      `${humanFileSize(Number(progress.totalLength))}`,
+      downloadPercent(progress.completedLength, progress.totalLength),
     ];
   }
   for await (const progress of aria2.doStreamingDownload({
@@ -250,7 +267,10 @@ export async function* checkAndDownloadReshade(
     yield [
       "setStateText",
       "DOWNLOADING_ENVIRONMENT_SPEED",
-      `${humanFileSize(Number(progress.downloadSpeed))}`,
+      formatDownloadSpeed(Number(progress.downloadSpeed)),
+      `${humanFileSize(Number(progress.completedLength))}`,
+      `${humanFileSize(Number(progress.totalLength))}`,
+      downloadPercent(progress.completedLength, progress.totalLength),
     ];
   }
   yield ["setStateText", "EXTRACT_ENVIRONMENT"];
