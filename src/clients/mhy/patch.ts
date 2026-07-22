@@ -194,6 +194,7 @@ export async function* patchRevertProgram(
 
 const MHYPBASE_FILE = "mhypbase.dll";
 const MHYPBASE_BAK_SUFFIX = ".yaagl-replaced.bak";
+const MHYPBASE_TMP_SUFFIX = ".yaagl-new.tmp";
 
 // Returns true if the two files have different bytes (or if the source
 // exists and the destination does not). Returns false if (a) the source
@@ -214,58 +215,108 @@ async function filesDiffer(a: string, b: string): Promise<boolean> {
   }
 }
 
+async function isFile(path: string): Promise<boolean> {
+  try {
+    await exec(["test", "-f", path], {}, false);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function trimTrailingSlash(path: string): string {
+  return path.replace(/\/+$/, "");
+}
+
+function samePath(a: string, b: string): boolean {
+  return trimTrailingSlash(resolve(a)) === trimTrailingSlash(resolve(b));
+}
+
+async function restoreMhypBaseBackup(target: string, backup: string) {
+  if (await fileOrDirExists(backup)) {
+    await forceMove(backup, target);
+    await log(`restoreMhypBaseBackup: restored ${target} from ${backup}`);
+  }
+}
+
 export async function applyMhypBaseReplacement(
   gameDir: string,
   config: Config
-): Promise<void> {
+): Promise<boolean> {
   const target = join(gameDir, MHYPBASE_FILE);
   const backup = join(gameDir, MHYPBASE_FILE + MHYPBASE_BAK_SUFFIX);
+  const tmp = join(gameDir, MHYPBASE_FILE + MHYPBASE_TMP_SUFFIX);
 
-  // Toggle off or no path set → restore original so the game boots clean.
+  // Toggle off or no path set -> restore original so the game boots clean.
   if (!config.workaround4) {
-    if (await fileOrDirExists(backup)) {
-      await forceMove(backup, target);
-      await log(
-        `applyMhypBaseReplacement: workaround4 disabled, restored original from ${backup}`
-      );
-    }
-    return;
+    await restoreMhypBaseBackup(target, backup);
+    return false;
   }
 
   const source = config.mhypBaseReplacementPath?.trim();
   if (!source) {
-    if (await fileOrDirExists(backup)) {
-      await forceMove(backup, target);
-      await log(
-        `applyMhypBaseReplacement: no source path set, restored original from ${backup}`
-      );
-    }
-    return;
+    await restoreMhypBaseBackup(target, backup);
+    return false;
   }
 
-  if (!(await fileOrDirExists(source))) {
+  if (!(await isFile(source))) {
     await log(
-      `applyMhypBaseReplacement: source path does not exist, skipping: ${source}`
+      `applyMhypBaseReplacement: source path is not a file, skipping: ${source}`
     );
-    return;
+    return false;
   }
 
-  // Only back up the original once — never overwrite an existing backup.
-  if (await filesDiffer(source, target)) {
-    if (!(await fileOrDirExists(backup))) {
-      await forceMove(target, backup);
-      await log(`applyMhypBaseReplacement: backed up original to ${backup}`);
-    } else {
+  if (!(await isFile(target))) {
+    await log(
+      `applyMhypBaseReplacement: target mhypbase.dll is missing, skipping: ${target}`
+    );
+    return false;
+  }
+
+  if (samePath(source, target) || samePath(source, backup)) {
+    await log(
+      `applyMhypBaseReplacement: source path points at the game file or backup, skipping: ${source}`
+    );
+    return false;
+  }
+
+  if (!(await filesDiffer(source, target))) {
+    const hasBackup = await fileOrDirExists(backup);
+    await log(
+      `applyMhypBaseReplacement: target already matches source, restore after launch: ${hasBackup}`
+    );
+    return hasBackup;
+  }
+
+  try {
+    await removeFileIfExists(tmp);
+    await cp(source, tmp);
+    if (await filesDiffer(source, tmp)) {
+      throw new Error(`temporary copy verification failed: ${tmp}`);
+    }
+
+    // Only back up the original once; never overwrite a known-good original.
+    if (await fileOrDirExists(backup)) {
       await log(
         `applyMhypBaseReplacement: existing backup found at ${backup}, not overwriting`
       );
+    } else {
+      await forceMove(target, backup);
+      await log(`applyMhypBaseReplacement: backed up original to ${backup}`);
     }
-    await cp(source, target);
-    await log(`applyMhypBaseReplacement: copied ${source} -> ${target}`);
-  } else {
+
+    await forceMove(tmp, target);
+    await log(`applyMhypBaseReplacement: temporarily installed ${source}`);
+    return true;
+  } catch (e) {
+    await removeFileIfExists(tmp);
+    await restoreMhypBaseBackup(target, backup);
     await log(
-      "applyMhypBaseReplacement: target already matches source, no copy needed"
+      `applyMhypBaseReplacement: failed and restored original if needed: ${String(
+        e
+      )}`
     );
+    return false;
   }
 }
 
@@ -274,8 +325,7 @@ export async function revertMhypBaseReplacement(
 ): Promise<void> {
   const target = join(gameDir, MHYPBASE_FILE);
   const backup = join(gameDir, MHYPBASE_FILE + MHYPBASE_BAK_SUFFIX);
-  if (await fileOrDirExists(backup)) {
-    await forceMove(backup, target);
-    await log(`revertMhypBaseReplacement: restored from ${backup}`);
-  }
+  const tmp = join(gameDir, MHYPBASE_FILE + MHYPBASE_TMP_SUFFIX);
+  await removeFileIfExists(tmp);
+  await restoreMhypBaseBackup(target, backup);
 }
