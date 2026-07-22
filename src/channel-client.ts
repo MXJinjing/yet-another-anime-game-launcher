@@ -4,6 +4,12 @@ import { Config } from "./config";
 import { Locale } from "./locale";
 
 export type ChannelClientInstallState = "INSTALLED" | "NOT_INSTALLED";
+export type ChannelClientConfigUI =
+  | (() => JSXElement)
+  | {
+      game: () => JSXElement;
+      video?: () => JSXElement;
+    };
 
 export interface ChannelClient {
   installState: () => ChannelClientInstallState;
@@ -31,8 +37,9 @@ export interface ChannelClient {
   launch(config: Config): CommonUpdateProgram;
   checkIntegrity(): CommonUpdateProgram;
   init(config: Config): CommonUpdateProgram;
+  changeInstallDir?(path: string): Promise<void>;
   createConfig(
     locale: Locale,
     config: Partial<Config>
-  ): Promise<() => JSXElement>;
+  ): Promise<ChannelClientConfigUI>;
 }

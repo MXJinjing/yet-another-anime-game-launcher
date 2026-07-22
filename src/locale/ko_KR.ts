@@ -69,16 +69,28 @@ export const ko_KR: typeof zh_CN = {
   SETTING_LEFT_CMD: "왼쪽 CMD를 CTRL로 할당",
   SETTING_TURN_OFF_AC_PATCH: "AC 패치 비활성화",
   SETTING_CUSTOM_RESOLUTION: "사용자 정의 해상도",
+  SETTING_DISPLAY_MODE: "게임 표시 모드",
+  SETTING_DISPLAY_MODE_FULLSCREEN: "전체 화면",
+  SETTING_DISPLAY_MODE_WINDOWED: "창 모드",
+  SETTING_WINDOW_RESOLUTION: "창 해상도",
   SETTING_SAVE: "저장",
   SETTING_CANCEL: "취소",
 
   SETTING_CHECK_INTEGRITY: "게임 파일 무결성 검사",
   SETTING_GAME_INSTALL_DIR: "게임 설치 경로",
+  SETTING_CHANGE_GAME_INSTALL_DIR: "변경",
+  SETTING_GAME_DIR_SIZE: "크기: {0}",
+  SETTING_GAME_DIR_SIZE_NOT_SET: "설정되지 않음",
+  SETTING_UNINSTALL_GAME: "게임 제거",
+  SETTING_UNINSTALL_GAME_CONFIRM:
+    "다음 게임 폴더를 비웁니다. 이 작업은 되돌릴 수 없습니다:\n{0}\n\n계속할까요?",
+  SETTING_UNINSTALL_DELETE_SCREENSHOTS: "모든 게임 스크린샷도 삭제",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "변경 사항을 확인하려면 이곳을 클릭하세요.",
   SETTING_QUICK_ACTIONS: "빠른 작업",
   SETTING_GENERAL: "일반",
   SETTING_GAME: "게임",
+  SETTING_VIDEO: "비디오",
   LANGUAGE_LOCALE_NAME: "한국어",
   SETTING_UI_LOCALE: "런처 UI 언어",
   SETTING_RESTART_TO_TAKE_EFFECT:

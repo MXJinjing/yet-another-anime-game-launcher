@@ -70,17 +70,30 @@ export const ja_JP: typeof zh_CN = {
   SETTING_LEFT_CMD: "左CMDキーをCTRLキーにマップ",
   SETTING_TURN_OFF_AC_PATCH: "ACパッチを無効にする",
   SETTING_CUSTOM_RESOLUTION: "カスタム解像度",
+  SETTING_DISPLAY_MODE: "ゲーム表示モード",
+  SETTING_DISPLAY_MODE_FULLSCREEN: "フルスクリーン",
+  SETTING_DISPLAY_MODE_WINDOWED: "ウィンドウ",
+  SETTING_WINDOW_RESOLUTION: "ウィンドウ解像度",
   SETTING_SAVE: "保存",
   SETTING_CANCEL: "キャンセル",
 
   SETTING_CHECK_INTEGRITY: "整合性確認",
   SETTING_GAME_INSTALL_DIR: "ゲームインストールディレクトリ",
+  SETTING_CHANGE_GAME_INSTALL_DIR: "変更",
+  SETTING_GAME_DIR_SIZE: "サイズ: {0}",
+  SETTING_GAME_DIR_SIZE_NOT_SET: "未設定",
+  SETTING_UNINSTALL_GAME: "ゲームをアンインストール",
+  SETTING_UNINSTALL_GAME_CONFIRM:
+    "次のゲームフォルダを空にします。この操作は元に戻せません:\n{0}\n\n続行しますか？",
+  SETTING_UNINSTALL_DELETE_SCREENSHOTS:
+    "すべてのゲームスクリーンショットも削除",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM:
     "変更を確認するには、ここをクリックしてください。",
   SETTING_QUICK_ACTIONS: "クイックアクション",
   SETTING_GENERAL: "全般",
   SETTING_GAME: "ゲーム",
+  SETTING_VIDEO: "ビデオ",
   LANGUAGE_LOCALE_NAME: "日本語",
   SETTING_UI_LOCALE: "ランチャー言語",
   SETTING_RESTART_TO_TAKE_EFFECT: "再起動後に有効になります。",

@@ -42,7 +42,6 @@ const SERVER_DEFINITION: Server = {
     // {
     //   file: `${CN_DATA_DIR}/Plugins/${DLL2}` as const,
     //   diffUrl: e,
-    //   tag: "workaround3",
     // },
   ],
   removed: NAP_REMOVED,

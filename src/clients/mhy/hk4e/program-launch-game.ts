@@ -50,7 +50,7 @@ async function applyHDRRegistry({
   }
 }
 
-async function applyResolutionRegistry(
+async function applyDisplayModeRegistry(
   wine: Wine,
   server: Server,
   config: Config
@@ -64,24 +64,35 @@ async function applyResolutionRegistry(
     return;
   }
 
-  const width = Number(config.resolutionWidth);
-  const height = Number(config.resolutionHeight);
-  if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
-    return;
-  }
-
   const lines = [
     `Windows Registry Editor Version 5.00`,
     ``,
     `[${key}]`,
-    `"Screenmanager Is Fullscreen mode_h3981298716"=dword:00000000`,
-    `"Screenmanager Resolution Width_h182942802"=dword:${width
-      .toString(16)
-      .padStart(8, "0")}`,
-    `"Screenmanager Resolution Height_h2627697771"=dword:${height
-      .toString(16)
-      .padStart(8, "0")}`,
+    `"Screenmanager Is Fullscreen mode_h3981298716"=dword:${
+      config.resolutionCustom ? "00000000" : "00000001"
+    }`,
   ];
+
+  if (config.resolutionCustom) {
+    const width = Number(config.resolutionWidth);
+    const height = Number(config.resolutionHeight);
+    if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
+      return;
+    }
+    lines.push(
+      `"Screenmanager Resolution Width_h182942802"=dword:${width
+        .toString(16)
+        .padStart(8, "0")}`,
+      `"Screenmanager Resolution Height_h2627697771"=dword:${height
+        .toString(16)
+        .padStart(8, "0")}`
+    );
+  } else {
+    lines.push(
+      `"Screenmanager Resolution Width_h182942802"=-`,
+      `"Screenmanager Resolution Height_h2627697771"=-`
+    );
+  }
 
   const path = resolve("./hk4e_resolution.reg");
   await writeBinary(path, utf16le(lines.join("\r\n")));
@@ -113,9 +124,7 @@ export async function* launchGameProgram({
     await applyHDRRegistry({ wine, server });
   }
 
-  if (config.resolutionCustom) {
-    await applyResolutionRegistry(wine, server, config);
-  }
+  await applyDisplayModeRegistry(wine, server, config);
   await wine.waitUntilServerOff();
 
   const cmd = `@echo off
@@ -205,15 +214,13 @@ cd /d "${wine.toWinePath(gameDir)}"
     if (config.hk4eEnableHDR) {
       await revertHDRRegistry({ wine, server });
     }
-    if (config.resolutionCustom) {
-      await revertResolutionRegistry(wine, server);
-    }
   } catch (e: unknown) {
     // it seems game crashed?
     await log(String(e));
   }
 
   // await removeFile(resolve("bWh5cHJvdDJfcnVubmluZy5yZWcK.reg"));
+  await revertResolutionRegistry(wine, server);
   if (mhypBaseReplaced) {
     await revertMhypBaseReplacement(gameDir);
   }

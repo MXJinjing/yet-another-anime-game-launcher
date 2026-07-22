@@ -67,6 +67,7 @@ export async function createLauncher({
     dismissPredownload,
     predownloadVersion,
     createConfig,
+    changeInstallDir,
   },
   onCheckUpdate,
 }: {
@@ -80,6 +81,7 @@ export async function createLauncher({
     wine,
     locale,
     gameInstallDir: installDir,
+    onGameInstallDirChange: changeInstallDir,
     configForChannelClient: createConfig,
     onCheckUpdate,
   });

@@ -72,16 +72,29 @@ export const fr_FR: typeof zh_CN = {
   SETTING_LEFT_CMD: "Mapper CMD gauche à CTRL",
   SETTING_TURN_OFF_AC_PATCH: "Désactiver le patch AC",
   SETTING_CUSTOM_RESOLUTION: "Résolution personnalisée",
+  SETTING_DISPLAY_MODE: "Mode d’affichage du jeu",
+  SETTING_DISPLAY_MODE_FULLSCREEN: "Plein écran",
+  SETTING_DISPLAY_MODE_WINDOWED: "Fenêtré",
+  SETTING_WINDOW_RESOLUTION: "Résolution de fenêtre",
   SETTING_SAVE: "Sauvegarder",
   SETTING_CANCEL: "Annuler",
 
   SETTING_CHECK_INTEGRITY: "Vérifier l'intégrité",
   SETTING_GAME_INSTALL_DIR: "Répertoire d’installation du jeu",
+  SETTING_CHANGE_GAME_INSTALL_DIR: "Modifier",
+  SETTING_GAME_DIR_SIZE: "Taille : {0}",
+  SETTING_GAME_DIR_SIZE_NOT_SET: "Non défini",
+  SETTING_UNINSTALL_GAME: "Désinstaller le jeu",
+  SETTING_UNINSTALL_GAME_CONFIRM:
+    "Le dossier de jeu suivant sera vidé. Cette action est irréversible :\n{0}\n\nContinuer ?",
+  SETTING_UNINSTALL_DELETE_SCREENSHOTS:
+    "Supprimer aussi toutes les captures d’écran du jeu",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "Cliquez ici pour confirmer la modification.",
   SETTING_QUICK_ACTIONS: "Actions rapides",
   SETTING_GENERAL: "Général",
   SETTING_GAME: "Jeu",
+  SETTING_VIDEO: "Vidéo",
   LANGUAGE_LOCALE_NAME: "Français",
   SETTING_UI_LOCALE: "Langue de l’interface utilisateur du lanceur",
   SETTING_RESTART_TO_TAKE_EFFECT:

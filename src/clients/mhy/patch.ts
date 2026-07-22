@@ -38,7 +38,6 @@ export async function* patchProgram(
   }
   if (!config.patchOff) {
     for (const file of server.patched) {
-      if (file.tag === "workaround3" && config.workaround3) continue;
       await forceMove(
         join(gameDir, file.file),
         join(gameDir, file.file + ".bak")
@@ -52,8 +51,7 @@ export async function* patchProgram(
       await log("patched " + file.file);
       await removeFile(join(gameDir, file.file + ".diff"));
     }
-    for (const { file, tag } of server.removed) {
-      if (tag === "workaround3" && config.workaround3) continue;
+    for (const { file } of server.removed) {
       if (await fileOrDirExists(join(gameDir, file))) {
         await forceMove(join(gameDir, file), join(gameDir, file + ".bak"));
       }
