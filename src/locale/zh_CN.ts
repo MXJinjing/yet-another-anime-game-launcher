@@ -34,6 +34,7 @@ export const zh_CN = {
   GAME_DIR_CHANGED: "路径不一致",
   GAME_DIR_CHANGED_DESC:
     "似乎跟你上次设置的游戏目录不一致。本操作无效，但之后你仍可以重新设置。",
+  GAME_VERSION: "游戏版本：",
   NEW_VERSION_AVAILABLE: "启动器有新版本可用",
   NEW_VERSION_AVAILABLE_DESC: "你希望更新到最新{0}版本吗?\n更新内容:\n{1}",
   DOWNLOADING_UPDATE_FILE: "正在下载更新文件",
@@ -64,7 +65,7 @@ export const zh_CN = {
   SETTING_MTL_HUD: "Metal HUD",
   SETTING_RETINA: "Retina 模式",
   SETTING_LEFT_CMD: "映射左 CMD 键为 CTRL 键",
-  SETTING_TURN_OFF_AC_PATCH: "关闭AC补丁",
+  SETTING_TURN_OFF_AC_PATCH: "关闭 AC 补丁",
   SETTING_CUSTOM_RESOLUTION: "自定义分辨率",
   SETTING_DISPLAY_MODE: "游戏显示模式",
   SETTING_DISPLAY_MODE_FULLSCREEN: "全屏",
@@ -91,7 +92,7 @@ export const zh_CN = {
   LANGUAGE_LOCALE_NAME: "简体中文",
   SETTING_UI_LOCALE: "启动器界面语言",
   SETTING_RESTART_TO_TAKE_EFFECT: "此设置将从下次启动生效",
-  SETTING_OPEN_CMD: "打开Wine命令行工具",
+  SETTING_OPEN_CMD: "打开 Wine 命令行工具",
   SETTING_OPEN_GAME_INSTALL_DIR: "打开游戏安装目录",
   SETTING_OPEN_YAAGL_DIR: "打开YAAGL数据目录",
   SETTING_YAAGL_VERSION: "YAAGL版本",
@@ -116,23 +117,22 @@ export const zh_CN = {
   COMMUNITY_WINE_ALERT:
     "当前选择为社区版本，此版本不受官方支持，请不要报告任何问题",
 
-  SETTING_BLOCK_NET: "Launch Fix(block hosts)",
+  SETTING_BLOCK_NET: "临时写入 hosts 阻断联网",
   SETTING_BLOCK_NET_DURATION: "阻断持续时间（秒）",
-  SETTING_TIMEOUT_FIX: "Timeout Fix",
-  SETTING_WORKAROUND4: "启动修复 #4（替换 mhypbase.dll）",
+  SETTING_TIMEOUT_FIX: "启用 Wine 超时绕过",
+  SETTING_WORKAROUND4: "启动时临时替换 mhypbase.dll",
   SETTING_WORKAROUND4_DESC:
-    "6.7 在离线启动时会因 mhypbase.dll 版本不匹配而闪退。请在此填写您手动下载的旧版 mhypbase.dll 的完整路径，启动器会自动比对并在不一致时复制到游戏目录。",
-  SETTING_WORKAROUND4_PICK: "选择文件 …",
-  SETTING_WORKAROUND4_REVERT_BTN: "还原原始文件",
-  SETTING_LICENSES: "Licenses", // TODO: Translate
+    "启动前会把用户选择的旧版 mhypbase.dll 临时复制到游戏目录，游戏退出后还原原文件。启动器不会内置或分发该 DLL。",
+  SETTING_WORKAROUND4_PICK: "选择文件...",
+  SETTING_WORKAROUND4_REVERT_BTN: "立即还原原始 mhypbase.dll",
+  SETTING_LICENSES: "许可证",
   SETTING_ENABLE_HDR: "启用 HDR",
 
-  SETTING_PROXY_ENABLED: "Enable HTTP Proxy", // TODO: Translate
-  SETTING_PROXY_HOST: "HTTP Proxy Host", // TODO: Translate
-  SETTING_PROXY_DESC:
-    "The proxy only applies to the game, not to the whole launcher.", // TODO: Translate
+  SETTING_PROXY_ENABLED: "启用 HTTP 代理",
+  SETTING_PROXY_HOST: "HTTP 代理地址",
+  SETTING_PROXY_DESC: "代理只会应用到游戏，不会影响整个启动器。",
 
-  SETTING_TURN_ON_STEAM_PATCH: "Enable Steam Patch", // TODO: Translate
+  SETTING_TURN_ON_STEAM_PATCH: "启用 Steam 补丁",
 
   UPDATE_PROMPT_IGNORE: "忽略此更新",
   SETTING_CHECK_UPDATE: "检查 YAAGL 更新",

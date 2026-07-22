@@ -18,9 +18,8 @@ import {
   Tabs,
   Text,
   VStack,
-  notificationService,
 } from "@hope-ui/solid";
-import { CURRENT_YAAGL_VERSION, YAAGL_ADVANCED_ENABLE } from "../constants";
+import { CURRENT_YAAGL_VERSION } from "../constants";
 import { Locale } from "../locale";
 import { Wine } from "../wine";
 import { Config } from "./config-def";
@@ -31,8 +30,8 @@ import { createLeftCmdConfig } from "./left-cmd";
 import { createWineDistroConfig } from "./wine-distribution";
 import createLocaleConfig from "./ui-locale";
 import createFPSUnlock from "./fps-unlock";
-import { exec2, getKeyOrDefault, resolve, setKey } from "../utils";
-import { createSignal, JSXElement, Show } from "solid-js";
+import { exec2, resolve } from "../utils";
+import { JSXElement } from "solid-js";
 import createReShade from "./reshade";
 import { createProxyEnabledConfig } from "@config/proxy-enabled";
 import { createProxyHostConfig } from "@config/proxy-host";
@@ -88,38 +87,6 @@ export async function createConfiguration({
       ? undefined
       : channelClientConfig.video;
 
-  const _advancedSetting =
-    YAAGL_ADVANCED_ENABLE &&
-    (await getKeyOrDefault("config_advanced", "false")) == "true";
-
-  const [advanceSetting, setAdvancedSetting] = createSignal(_advancedSetting);
-
-  const clickTimestamp: number[] = [];
-  async function onClickVersion() {
-    if (!YAAGL_ADVANCED_ENABLE) {
-      return;
-    }
-    clickTimestamp.push(Date.now());
-    if (clickTimestamp.length > 5) {
-      if (
-        clickTimestamp[clickTimestamp.length - 1] -
-          clickTimestamp[clickTimestamp.length - 5] <
-        1000
-      ) {
-        if (!advanceSetting()) {
-          notificationService.show({
-            status: "info",
-            title: locale.get("SETTING_ADVANCED_VISIBLE"),
-            description: "",
-          });
-        }
-        setAdvancedSetting(x => !x);
-        clickTimestamp.length = 0;
-        await setKey("config_advanced", String(advanceSetting()));
-      }
-    }
-  }
-
   return {
     UI: function (props: {
       onClose: (action: "check-integrity" | "close") => void;
@@ -135,22 +102,25 @@ export async function createConfiguration({
                 <Tab>{locale.get("SETTING_GAME")}</Tab>
                 <Tab>{locale.get("SETTING_VIDEO")}</Tab>
                 <Tab>Wine</Tab>
-                <Show when={advanceSetting()}>
-                  <Tab>{locale.get("SETTING_ADVANCED")}</Tab>
-                </Show>
+                <Tab>{locale.get("SETTING_ADVANCED")}</Tab>
                 <Tab>{locale.get("SETTING_LICENSES")}</Tab>
               </TabList>
-              <TabPanel flex={1} pt={0} pb={0} overflowY="auto">
+              <TabPanel
+                flex={1}
+                px={20}
+                pt={0}
+                pb={0}
+                h="100%"
+                overflowY="auto"
+              >
                 <HStack spacing={"$4"} h="100%">
                   <Box
-                    width="40%"
+                    width="65%"
                     alignSelf="stretch"
                     overflowY="scroll"
                     pr={16}
                   >
                     <VStack spacing={"$4"}>
-                      <GID />
-                      <Divider />
                       <MH />
                       <LC />
                       <Divider />
@@ -165,16 +135,14 @@ export async function createConfiguration({
                         <FormLabel>
                           {locale.get("SETTING_YAAGL_VERSION")}
                         </FormLabel>
-                        <Text userSelect={"none"} onClick={onClickVersion}>
-                          {CURRENT_YAAGL_VERSION}
-                        </Text>
+                        <Text userSelect={"none"}>{CURRENT_YAAGL_VERSION}</Text>
                       </FormControl>
                     </VStack>
                   </Box>
                   <Box flex={1} />
                   <VStack
                     spacing={"$1"}
-                    width="30%"
+                    width="15%"
                     alignItems="start"
                     alignSelf="start"
                   >
@@ -235,12 +203,28 @@ export async function createConfiguration({
                   </VStack>
                 </HStack>
               </TabPanel>
-              <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
+              <TabPanel
+                flex={1}
+                px={20}
+                pt={0}
+                pb={0}
+                h="100%"
+                overflowY="auto"
+              >
                 <VStack spacing={"$4"} w="40%" alignItems="start">
+                  <GID />
+                  <Divider />
                   <ChannelClientConfig />
                 </VStack>
               </TabPanel>
-              <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
+              <TabPanel
+                flex={1}
+                px={20}
+                pt={0}
+                pb={0}
+                h="100%"
+                overflowY="auto"
+              >
                 <VStack spacing={"$4"} w="40%" alignItems="start">
                   <R />
                   {ChannelClientVideoConfig ? (
@@ -248,24 +232,43 @@ export async function createConfiguration({
                   ) : null}
                 </VStack>
               </TabPanel>
-              <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
+              <TabPanel
+                flex={1}
+                px={20}
+                pt={0}
+                pb={0}
+                h="100%"
+                overflowY="auto"
+              >
                 <VStack spacing={"$4"} w="40%" alignItems="start">
                   <WD />
                 </VStack>
               </TabPanel>
-              <Show when={advanceSetting()}>
-                <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
-                  <VStack spacing={"$4"} w="40%" alignItems="start">
-                    <Alert status="warning" variant="left-accent">
-                      <AlertIcon mr="$2_5" />
-                      {locale.get("SETTING_ADVANCED_ALERT")}
-                    </Alert>
-                    <FO />
-                    <RS />
-                  </VStack>
-                </TabPanel>
-              </Show>
-              <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
+              <TabPanel
+                flex={1}
+                px={20}
+                pt={0}
+                pb={0}
+                h="100%"
+                overflowY="auto"
+              >
+                <VStack spacing={"$4"} w="40%" alignItems="start">
+                  <Alert status="warning" variant="left-accent">
+                    <AlertIcon mr="$2_5" />
+                    {locale.get("SETTING_ADVANCED_ALERT")}
+                  </Alert>
+                  <FO />
+                  <RS />
+                </VStack>
+              </TabPanel>
+              <TabPanel
+                flex={1}
+                px={20}
+                pt={0}
+                pb={0}
+                h="100%"
+                overflowY="auto"
+              >
                 <VStack spacing={"$4"} w="100%" alignItems="start">
                   <Heading>
                     Copyright Notice: steam.exe and lsteamclient.dll (in the

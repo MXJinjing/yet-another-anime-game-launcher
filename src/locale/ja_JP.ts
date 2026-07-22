@@ -35,6 +35,7 @@ export const ja_JP: typeof zh_CN = {
   GAME_DIR_CHANGED: "ゲームディレクトリのパスが変更されました。",
   GAME_DIR_CHANGED_DESC:
     "ゲームパスを変更しました。この操作は非対応ですが、後で調整できます。",
+  GAME_VERSION: "ゲームバージョン：",
 
   NEW_VERSION_AVAILABLE: "新しいアップデートが利用可能です",
   NEW_VERSION_AVAILABLE_DESC:
@@ -124,13 +125,14 @@ export const ja_JP: typeof zh_CN = {
   COMMUNITY_WINE_ALERT:
     "現在選択されているのはコミュニティ版です。このバージョンは公式にサポートされていませんので、不具合の報告はご遠慮ください。",
 
-  SETTING_BLOCK_NET: "起動修正（ホストのブロック）",
-  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
-  SETTING_TIMEOUT_FIX: "タイムアウト修正",
-  SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
-  SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,
-  SETTING_WORKAROUND4_PICK: en.SETTING_WORKAROUND4_PICK,
-  SETTING_WORKAROUND4_REVERT_BTN: en.SETTING_WORKAROUND4_REVERT_BTN,
+  SETTING_BLOCK_NET: "hostsで一時的に通信をブロック",
+  SETTING_BLOCK_NET_DURATION: "ブロック時間（秒）",
+  SETTING_TIMEOUT_FIX: "Wineタイムアウト回避を有効化",
+  SETTING_WORKAROUND4: "起動時にmhypbase.dllを一時置換",
+  SETTING_WORKAROUND4_DESC:
+    "起動前に、選択した古い mhypbase.dll を一時的にゲームフォルダへコピーします。ゲーム終了後、元のファイルを復元します。ランチャーはこの DLL を同梱または配布しません。",
+  SETTING_WORKAROUND4_PICK: "ファイルを選択...",
+  SETTING_WORKAROUND4_REVERT_BTN: "元の mhypbase.dll を今すぐ復元",
   SETTING_LICENSES: "ライセンス",
   SETTING_ENABLE_HDR: "HDR有効",
 

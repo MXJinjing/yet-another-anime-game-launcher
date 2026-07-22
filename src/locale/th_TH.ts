@@ -34,6 +34,7 @@ export const th_TH: typeof zh_CN = {
   GAME_DIR_CHANGED: "ตำแหน่งไปยังไดเรกทอรีเกมมีการเปลี่ยนแปลง",
   GAME_DIR_CHANGED_DESC:
     "ตรวจพบการเปลี่ยนแปลงตำแหน่งของเกม โปรดระบุตำแหน่งใหม่ในการตั้งค่าเพื่อให้ทำงานได้อย่างถูกต้อง",
+  GAME_VERSION: "เวอร์ชันเกม: ",
 
   NEW_VERSION_AVAILABLE: "มีการอัปเดตเวอร์ชันใหม่",
   NEW_VERSION_AVAILABLE_DESC:
@@ -57,8 +58,8 @@ export const th_TH: typeof zh_CN = {
     "ลันเชอร์จะทำการรีสตาร์ทเพื่อดำเนินการติดตั้ง wine ให้เสร็จสมบูรณ์",
 
   SETTING: "ตั้งค่า",
-  SETTING_WINE_VERSION: "Wine Distribution",
-  SETTING_ASYNC_DXVK: "DXVK Asynchronous Shader Compiling",
+  SETTING_WINE_VERSION: "ดิสทริบิวชัน Wine",
+  SETTING_ASYNC_DXVK: "คอมไพล์ shader ของ DXVK แบบอะซิงโครนัส",
   SETTING_ENABLED: "เปิดใช้งาน",
   SETTING_DXVK_HUD: "DXVK HUD",
   SETTING_DXVK_HUD_NONE: "ไม่แสดง",
@@ -68,25 +69,27 @@ export const th_TH: typeof zh_CN = {
   SETTING_RETINA: "โหมด Retina",
   SETTING_LEFT_CMD: "แมปปุ่ม CMD ซ้ายเป็น CTRL",
   SETTING_TURN_OFF_AC_PATCH: "ปิดการใช้งานแพตช์ AC",
-  SETTING_CUSTOM_RESOLUTION: "Custom resolution",
-  SETTING_DISPLAY_MODE: en.SETTING_DISPLAY_MODE,
-  SETTING_DISPLAY_MODE_FULLSCREEN: en.SETTING_DISPLAY_MODE_FULLSCREEN,
-  SETTING_DISPLAY_MODE_WINDOWED: en.SETTING_DISPLAY_MODE_WINDOWED,
-  SETTING_WINDOW_RESOLUTION: en.SETTING_WINDOW_RESOLUTION,
+  SETTING_CUSTOM_RESOLUTION: "ความละเอียดแบบกำหนดเอง",
+  SETTING_DISPLAY_MODE: "โหมดแสดงผลของเกม",
+  SETTING_DISPLAY_MODE_FULLSCREEN: "เต็มหน้าจอ",
+  SETTING_DISPLAY_MODE_WINDOWED: "หน้าต่าง",
+  SETTING_WINDOW_RESOLUTION: "ความละเอียดหน้าต่าง",
   SETTING_SAVE: "บันทึก",
   SETTING_CANCEL: "ยกเลิก",
 
   SETTING_CHECK_INTEGRITY: "ตรวจสอบความสมบูรณ์ของไฟล์",
   SETTING_GAME_INSTALL_DIR: "ไดเรกทอรีติดตั้งเกม",
-  SETTING_CHANGE_GAME_INSTALL_DIR: en.SETTING_CHANGE_GAME_INSTALL_DIR,
-  SETTING_GAME_DIR_SIZE: en.SETTING_GAME_DIR_SIZE,
-  SETTING_GAME_DIR_SIZE_NOT_SET: en.SETTING_GAME_DIR_SIZE_NOT_SET,
-  SETTING_UNINSTALL_GAME: en.SETTING_UNINSTALL_GAME,
-  SETTING_UNINSTALL_GAME_CONFIRM: en.SETTING_UNINSTALL_GAME_CONFIRM,
-  SETTING_UNINSTALL_SCREENSHOTS_NOTICE: en.SETTING_UNINSTALL_SCREENSHOTS_NOTICE,
+  SETTING_CHANGE_GAME_INSTALL_DIR: "เปลี่ยน",
+  SETTING_GAME_DIR_SIZE: "ขนาด: {0}",
+  SETTING_GAME_DIR_SIZE_NOT_SET: "ยังไม่ได้ตั้งค่า",
+  SETTING_UNINSTALL_GAME: "ถอนการติดตั้งเกม",
+  SETTING_UNINSTALL_GAME_CONFIRM:
+    "การดำเนินการนี้จะล้างโฟลเดอร์เกมต่อไปนี้ และไม่สามารถย้อนกลับได้:\n{0}\n\nดำเนินการต่อหรือไม่?",
+  SETTING_UNINSTALL_SCREENSHOTS_NOTICE:
+    "หมายเหตุ: การถอนการติดตั้งจะลบภาพหน้าจอเกมทั้งหมดด้วย",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "ยืนยัน",
-  SETTING_QUICK_ACTIONS: "Quick Actions",
+  SETTING_QUICK_ACTIONS: "การทำงานด่วน",
   SETTING_GENERAL: "ทั่วไป",
   SETTING_GAME: "เกม",
   SETTING_VIDEO: "วิดีโอ",
@@ -119,21 +122,22 @@ export const th_TH: typeof zh_CN = {
   COMMUNITY_WINE_ALERT:
     "เวอร์ชันที่เลือกคือเวอร์ชันจากชุมชน ซึ่งไม่ได้รับการสนับสนุนอย่างเป็นทางการ กรุณาอย่ารายงานปัญหาใดๆ มา",
 
-  SETTING_BLOCK_NET: "Launch Fix(block hosts)",
-  SETTING_BLOCK_NET_DURATION: en.SETTING_BLOCK_NET_DURATION,
-  SETTING_TIMEOUT_FIX: "Timeout Fix",
-  SETTING_WORKAROUND4: en.SETTING_WORKAROUND4,
-  SETTING_WORKAROUND4_DESC: en.SETTING_WORKAROUND4_DESC,
-  SETTING_WORKAROUND4_PICK: en.SETTING_WORKAROUND4_PICK,
-  SETTING_WORKAROUND4_REVERT_BTN: en.SETTING_WORKAROUND4_REVERT_BTN,
-  SETTING_LICENSES: en.SETTING_LICENSES, // TODO: Translate
+  SETTING_BLOCK_NET: "บล็อกเครือข่ายชั่วคราวผ่าน hosts",
+  SETTING_BLOCK_NET_DURATION: "ระยะเวลาบล็อก (วินาที)",
+  SETTING_TIMEOUT_FIX: "เปิดใช้การเลี่ยง timeout ของ Wine",
+  SETTING_WORKAROUND4: "แทนที่ mhypbase.dll ชั่วคราวตอนเริ่มเกม",
+  SETTING_WORKAROUND4_DESC:
+    "ก่อนเริ่มเกม ไฟล์ mhypbase.dll เวอร์ชันเก่าที่เลือกไว้จะถูกคัดลอกไปยังโฟลเดอร์เกมชั่วคราว หลังจากออกจากเกมแล้ว ไฟล์เดิมจะถูกกู้คืน Launcher จะไม่รวมไฟล์ DLL นี้ไว้ในแอปหรือแจกจ่ายไฟล์นี้",
+  SETTING_WORKAROUND4_PICK: "เลือกไฟล์...",
+  SETTING_WORKAROUND4_REVERT_BTN: "กู้คืน mhypbase.dll เดิมทันที",
+  SETTING_LICENSES: "สัญญาอนุญาต",
   SETTING_ENABLE_HDR: "เปิดใช้ HDR",
 
-  SETTING_PROXY_ENABLED: en.SETTING_PROXY_ENABLED, // TODO: Translate
-  SETTING_PROXY_HOST: en.SETTING_PROXY_HOST, // TODO: Translate
-  SETTING_PROXY_DESC: en.SETTING_PROXY_DESC, // TODO: Translate
+  SETTING_PROXY_ENABLED: "เปิดใช้ HTTP Proxy",
+  SETTING_PROXY_HOST: "โฮสต์ HTTP Proxy",
+  SETTING_PROXY_DESC: "Proxy จะมีผลกับเกมเท่านั้น ไม่ใช่ทั้ง Launcher",
 
-  SETTING_TURN_ON_STEAM_PATCH: en.SETTING_TURN_ON_STEAM_PATCH, // TODO: Translate
+  SETTING_TURN_ON_STEAM_PATCH: "เปิดใช้แพตช์ Steam",
 
   UPDATE_PROMPT_IGNORE: "ละเว้นการอัปเดต",
   SETTING_CHECK_UPDATE: "ตรวจสอบการอัปเดต YAAGL",
