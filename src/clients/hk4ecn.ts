@@ -40,11 +40,6 @@ const SERVER_DEFINITION: Server = {
     //   file: DLL1,
     //   diffUrl: c,
     // },
-    // {
-    //   file: `${CN_DATA_DIR}/Plugins/${DLL2}` as const,
-    //   diffUrl: e,
-    //   tag: "workaround3",
-    // },
   ],
   removed: [
     {
@@ -56,10 +51,6 @@ const SERVER_DEFINITION: Server = {
     {
       file: atob("WXVhblNoZW5fRGF0YS9QbHVnaW5zL3Z1bGthbi0xLmRsbA=="),
     },
-    // {
-    //   file: atob("bWh5cGJhc2UuZGxs"),
-    //   tag: "workaround3",
-    // },
   ],
   hosts: CN_CUSTOM_HOSTS,
   added: [],

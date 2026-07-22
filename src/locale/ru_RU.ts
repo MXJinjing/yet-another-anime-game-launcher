@@ -69,16 +69,28 @@ export const ru_RU: typeof zh_CN = {
   SETTING_LEFT_CMD: "Назначить левый CMD как CTRL",
   SETTING_TURN_OFF_AC_PATCH: "Отключить патч АЧ",
   SETTING_CUSTOM_RESOLUTION: "Пользовательское разрешение",
+  SETTING_DISPLAY_MODE: "Режим отображения",
+  SETTING_DISPLAY_MODE_FULLSCREEN: "Полный экран",
+  SETTING_DISPLAY_MODE_WINDOWED: "Оконный",
+  SETTING_WINDOW_RESOLUTION: "Разрешение окна",
   SETTING_SAVE: "Сохранить",
   SETTING_CANCEL: "Отменить",
 
   SETTING_CHECK_INTEGRITY: "Проверить целостность файлов",
   SETTING_GAME_INSTALL_DIR: "Каталог установки игры",
+  SETTING_CHANGE_GAME_INSTALL_DIR: "Изменить",
+  SETTING_GAME_DIR_SIZE: "Размер: {0}",
+  SETTING_GAME_DIR_SIZE_NOT_SET: "Не задано",
+  SETTING_UNINSTALL_GAME: "Удалить игру",
+  SETTING_UNINSTALL_GAME_CONFIRM:
+    "Следующая папка игры будет очищена. Это действие нельзя отменить:\n{0}\n\nПродолжить?",
+  SETTING_UNINSTALL_DELETE_SCREENSHOTS: "Также удалить все скриншоты игры",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "Нажмите для подтверждения изменений",
   SETTING_QUICK_ACTIONS: "Быстрые действия",
   SETTING_GENERAL: "Основные",
   SETTING_GAME: "Игра",
+  SETTING_VIDEO: "Видео",
   LANGUAGE_LOCALE_NAME: "Русский",
   SETTING_UI_LOCALE: "Язык лаунчера",
   SETTING_RESTART_TO_TAKE_EFFECT:

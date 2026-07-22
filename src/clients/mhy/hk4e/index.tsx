@@ -39,7 +39,6 @@ import {
   checkAndDownloadDXVK,
   checkAndDownloadReshade,
 } from "../../../downloadable-resource";
-import { createWorkaround3Config } from "./config/workaround-3";
 import createMhypBaseReplacement from "./config/mhypbase-replacement";
 import createPatchOff from "./config/patch-off";
 import createSteamPatch from "./config/steam-patch";
@@ -296,6 +295,30 @@ export async function createHK4EChannelClient({
         gameDir: _gameInstallDir(),
       });
     },
+    async changeInstallDir(selection: string) {
+      if (!selection) {
+        batch(() => {
+          setInstalled("NOT_INSTALLED");
+          setGameInstallDir("");
+          setGameVersion("0.0.0");
+        });
+        await setKey("game_install_dir", null);
+        return;
+      }
+      try {
+        const gameVersion = await getGameVersionGI(
+          join(selection, server.dataDir)
+        );
+        batch(() => {
+          setInstalled("INSTALLED");
+          setGameInstallDir(selection);
+          setGameVersion(gameVersion);
+        });
+        await setKey("game_install_dir", selection);
+      } catch {
+        await locale.alert("CANT_OPEN_GAME_FILE", "CANT_OPEN_GAME_FILE_DESC");
+      }
+    },
     async *init(config: Config) {
       try {
         await getKey("patched");
@@ -312,7 +335,6 @@ export async function createHK4EChannelClient({
       }
     },
     async createConfig(locale: Locale, config: Partial<Config>) {
-      const [W3] = await createWorkaround3Config({ locale, config });
       const [W4] = await createMhypBaseReplacement({
         locale,
         config,
@@ -325,19 +347,21 @@ export async function createHK4EChannelClient({
       const [RES] = await createResolution({ locale, config });
       const [TF] = await createTimeoutFix({ locale, config });
 
-      return function () {
-        return [
-          "Game Version: ",
-          gameCurrentVersion(),
-          <HDR />,
-          <W3 />,
-          <W4 />,
-          <PO />,
-          <SP />,
-          <BN />,
-          <RES />,
-          <TF />,
-        ];
+      return {
+        game() {
+          return [
+            "Game Version: ",
+            gameCurrentVersion(),
+            <W4 />,
+            <PO />,
+            <SP />,
+            <BN />,
+            <TF />,
+          ];
+        },
+        video() {
+          return [<RES />, <HDR />];
+        },
       };
     },
   };

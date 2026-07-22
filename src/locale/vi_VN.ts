@@ -71,16 +71,29 @@ export const vi_VN: typeof zh_CN = {
   SETTING_LEFT_CMD: "Ánh xạ CMD trái sang CTRL",
   SETTING_TURN_OFF_AC_PATCH: "tắt bản vá AC",
   SETTING_CUSTOM_RESOLUTION: "Độ phân giải tùy chỉnh",
+  SETTING_DISPLAY_MODE: "Chế độ hiển thị trò chơi",
+  SETTING_DISPLAY_MODE_FULLSCREEN: "Toàn màn hình",
+  SETTING_DISPLAY_MODE_WINDOWED: "Cửa sổ",
+  SETTING_WINDOW_RESOLUTION: "Độ phân giải cửa sổ",
   SETTING_SAVE: "Lưu",
   SETTING_CANCEL: "Huỷ",
 
   SETTING_CHECK_INTEGRITY: "Kiểm tra tính toàn vẹn của tệp",
   SETTING_GAME_INSTALL_DIR: "Thư mục cài đặt trò chơi",
+  SETTING_CHANGE_GAME_INSTALL_DIR: "Thay đổi",
+  SETTING_GAME_DIR_SIZE: "Dung lượng: {0}",
+  SETTING_GAME_DIR_SIZE_NOT_SET: "Chưa đặt",
+  SETTING_UNINSTALL_GAME: "Gỡ cài đặt trò chơi",
+  SETTING_UNINSTALL_GAME_CONFIRM:
+    "Thao tác này sẽ xoá sạch thư mục trò chơi sau và không thể hoàn tác:\n{0}\n\nTiếp tục?",
+  SETTING_UNINSTALL_DELETE_SCREENSHOTS:
+    "Đồng thời xoá tất cả ảnh chụp trò chơi",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "Ấn vào để xác nhận thay đổi",
   SETTING_QUICK_ACTIONS: "Cài đặt nhanh",
   SETTING_GENERAL: "Cài đặt chung",
   SETTING_GAME: "Trò chơi",
+  SETTING_VIDEO: "Video",
   LANGUAGE_LOCALE_NAME: "Tiếng Việt",
   SETTING_UI_LOCALE: "Ngôn ngữ trình khởi động",
   SETTING_RESTART_TO_TAKE_EFFECT:

@@ -36,6 +36,7 @@ import { createSignal, JSXElement, Show } from "solid-js";
 import createReShade from "./reshade";
 import { createProxyEnabledConfig } from "@config/proxy-enabled";
 import { createProxyHostConfig } from "@config/proxy-host";
+import { ChannelClientConfigUI } from "../channel-client";
 
 export async function createConfiguration({
   wine,
@@ -43,14 +44,16 @@ export async function createConfiguration({
   gameInstallDir,
   configForChannelClient,
   onCheckUpdate,
+  onGameInstallDirChange,
 }: {
   wine: Wine;
   locale: Locale;
   gameInstallDir: () => string;
+  onGameInstallDirChange?: (path: string) => Promise<void>;
   configForChannelClient: (
     locale: Locale,
     config: Partial<Config>
-  ) => Promise<() => JSXElement>;
+  ) => Promise<ChannelClientConfigUI>;
   onCheckUpdate: () => void;
 }) {
   const config: Partial<Config> = {};
@@ -65,6 +68,7 @@ export async function createConfiguration({
     locale,
     config,
     gameInstallDir,
+    onGameInstallDirChange,
   });
 
   const [UL] = await createLocaleConfig({ locale, config });
@@ -74,7 +78,15 @@ export async function createConfiguration({
   const [PRE] = await createProxyEnabledConfig({ locale, config });
   const [PRH] = await createProxyHostConfig({ locale, config });
 
-  const ChannelClientConfig = await configForChannelClient(locale, config);
+  const channelClientConfig = await configForChannelClient(locale, config);
+  const ChannelClientConfig =
+    typeof channelClientConfig === "function"
+      ? channelClientConfig
+      : channelClientConfig.game;
+  const ChannelClientVideoConfig =
+    typeof channelClientConfig === "function"
+      ? undefined
+      : channelClientConfig.video;
 
   const _advancedSetting =
     YAAGL_ADVANCED_ENABLE &&
@@ -121,6 +133,7 @@ export async function createConfiguration({
               <TabList minW={120}>
                 <Tab>{locale.get("SETTING_GENERAL")}</Tab>
                 <Tab>{locale.get("SETTING_GAME")}</Tab>
+                <Tab>{locale.get("SETTING_VIDEO")}</Tab>
                 <Tab>Wine</Tab>
                 <Show when={advanceSetting()}>
                   <Tab>{locale.get("SETTING_ADVANCED")}</Tab>
@@ -139,7 +152,6 @@ export async function createConfiguration({
                       <GID />
                       <Divider />
                       <MH />
-                      <R />
                       <LC />
                       <Divider />
                       <PRE />
@@ -226,6 +238,14 @@ export async function createConfiguration({
               <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
                 <VStack spacing={"$4"} w="40%" alignItems="start">
                   <ChannelClientConfig />
+                </VStack>
+              </TabPanel>
+              <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
+                <VStack spacing={"$4"} w="40%" alignItems="start">
+                  <R />
+                  {ChannelClientVideoConfig ? (
+                    <ChannelClientVideoConfig />
+                  ) : null}
                 </VStack>
               </TabPanel>
               <TabPanel flex={1} pt={0} pb={0} h="100%" overflowY="auto">
