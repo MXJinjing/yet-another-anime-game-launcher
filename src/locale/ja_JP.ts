@@ -85,8 +85,8 @@ export const ja_JP: typeof zh_CN = {
   SETTING_UNINSTALL_GAME: "ゲームをアンインストール",
   SETTING_UNINSTALL_GAME_CONFIRM:
     "次のゲームフォルダを空にします。この操作は元に戻せません:\n{0}\n\n続行しますか？",
-  SETTING_UNINSTALL_DELETE_SCREENSHOTS:
-    "すべてのゲームスクリーンショットも削除",
+  SETTING_UNINSTALL_SCREENSHOTS_NOTICE:
+    "注意: アンインストール時にすべてのゲームスクリーンショットも削除されます。",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM:
     "変更を確認するには、ここをクリックしてください。",

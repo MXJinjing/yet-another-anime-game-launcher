@@ -84,7 +84,8 @@ export const ru_RU: typeof zh_CN = {
   SETTING_UNINSTALL_GAME: "Удалить игру",
   SETTING_UNINSTALL_GAME_CONFIRM:
     "Следующая папка игры будет очищена. Это действие нельзя отменить:\n{0}\n\nПродолжить?",
-  SETTING_UNINSTALL_DELETE_SCREENSHOTS: "Также удалить все скриншоты игры",
+  SETTING_UNINSTALL_SCREENSHOTS_NOTICE:
+    "Внимание: при удалении также будут удалены все скриншоты игры.",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "Нажмите для подтверждения изменений",
   SETTING_QUICK_ACTIONS: "Быстрые действия",

@@ -84,7 +84,8 @@ export const ko_KR: typeof zh_CN = {
   SETTING_UNINSTALL_GAME: "게임 제거",
   SETTING_UNINSTALL_GAME_CONFIRM:
     "다음 게임 폴더를 비웁니다. 이 작업은 되돌릴 수 없습니다:\n{0}\n\n계속할까요?",
-  SETTING_UNINSTALL_DELETE_SCREENSHOTS: "모든 게임 스크린샷도 삭제",
+  SETTING_UNINSTALL_SCREENSHOTS_NOTICE:
+    "주의: 제거 과정에서 모든 게임 스크린샷도 삭제됩니다.",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "변경 사항을 확인하려면 이곳을 클릭하세요.",
   SETTING_QUICK_ACTIONS: "빠른 작업",

@@ -80,7 +80,7 @@ export const zh_CN = {
   SETTING_UNINSTALL_GAME: "卸载游戏",
   SETTING_UNINSTALL_GAME_CONFIRM:
     "即将清空以下游戏文件夹，且无法撤销：\n{0}\n\n确认继续？",
-  SETTING_UNINSTALL_DELETE_SCREENSHOTS: "同时删除所有游戏截图",
+  SETTING_UNINSTALL_SCREENSHOTS_NOTICE: "注意：卸载过程也会删除所有游戏截图。",
   SETTING_CHECK_INTEGRITY: "检查文件完整性",
 
   SETTING_WINE_VERSION_CONFIRM: "点击确认修改",

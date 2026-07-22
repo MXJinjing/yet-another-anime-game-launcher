@@ -84,7 +84,8 @@ export const en: typeof zh_CN = {
   SETTING_UNINSTALL_GAME: "Uninstall game",
   SETTING_UNINSTALL_GAME_CONFIRM:
     "This will empty the following game folder and cannot be undone:\n{0}\n\nContinue?",
-  SETTING_UNINSTALL_DELETE_SCREENSHOTS: "Also delete all game screenshots",
+  SETTING_UNINSTALL_SCREENSHOTS_NOTICE:
+    "Note: uninstalling will also delete all game screenshots.",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "Click here to confirm the change.",
   SETTING_QUICK_ACTIONS: "Quick Actions",

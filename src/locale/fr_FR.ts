@@ -87,8 +87,8 @@ export const fr_FR: typeof zh_CN = {
   SETTING_UNINSTALL_GAME: "Désinstaller le jeu",
   SETTING_UNINSTALL_GAME_CONFIRM:
     "Le dossier de jeu suivant sera vidé. Cette action est irréversible :\n{0}\n\nContinuer ?",
-  SETTING_UNINSTALL_DELETE_SCREENSHOTS:
-    "Supprimer aussi toutes les captures d’écran du jeu",
+  SETTING_UNINSTALL_SCREENSHOTS_NOTICE:
+    "Remarque : la désinstallation supprimera aussi toutes les captures d’écran du jeu.",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "Cliquez ici pour confirmer la modification.",
   SETTING_QUICK_ACTIONS: "Actions rapides",
