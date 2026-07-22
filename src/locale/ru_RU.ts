@@ -172,6 +172,8 @@ export const ru_RU: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "Показать живые логи",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Следить за прокруткой",
+  LOG_VIEWER_COPY: "Копировать логи",
+  LICENSE_COPY: "Копировать текущую лицензию",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

@@ -7,7 +7,6 @@ import {
   writeFile,
   resolve,
   log,
-  exec,
   utf16le,
   writeBinary,
 } from "../../../utils";
@@ -22,6 +21,10 @@ import {
   revertMhypBaseReplacement,
 } from "../patch";
 import { CN_BLOCK_URL, OS_BLOCK_URL } from "../../secret";
+import {
+  blockPrivilegedHosts,
+  legacyBlockHosts,
+} from "../../../privileged-hosts";
 import hk4eHDRGlobalReg from "../../../constants/hk4e_hdr_os.reg?raw";
 import hk4eHDRCnReg from "../../../constants/hk4e_hdr_cn.reg?raw";
 import { gt } from "semver";
@@ -149,36 +152,13 @@ cd /d "${wine.toWinePath(gameDir)}"
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
 
     if (config.blockNet) {
-      const tmpScriptPath = "/tmp/yaagl_network_block_script.sh";
       const blockUrl = server.id == "hk4e_global" ? OS_BLOCK_URL : CN_BLOCK_URL;
-
-      const commands = [
-        `#!/bin/sh`,
-
-        `HOSTS_FILE="/etc/hosts"`,
-        `ENTRY4="0.0.0.0 ${blockUrl}"`,
-        `ENTRY6="::1 ${blockUrl}"`,
-        `PAD_START="# Temporarily Added by Yaagl"`,
-        `PAD_END="# End of section"`,
-
-        `if ! grep -qF "$ENTRY4" "$HOSTS_FILE"; then`,
-        `sudo bash -c "echo -e '$PAD_START\n$ENTRY4\n$ENTRY6\n$PAD_END' >> '$HOSTS_FILE'"`,
-        `fi`,
-        `sleep ${config.blockNetDuration}`,
-        `sudo sed -i.bak "/$PAD_START/,/$PAD_END/d" "$HOSTS_FILE"`,
-
-        `rm ${tmpScriptPath}`,
+      const hosts: [string, string][] = [
+        [blockUrl, "0.0.0.0"],
+        [blockUrl, "::1"],
       ];
-
-      await writeFile(tmpScriptPath, commands.join("\n"));
-      await exec(
-        [
-          "osascript",
-          "-e",
-          `do shell script "source ${tmpScriptPath} > /dev/null 2>&1 &" with administrator privileges`,
-        ],
-        {},
-        false
+      await blockPrivilegedHosts(hosts, config.blockNetDuration, () =>
+        legacyBlockHosts(hosts, config.blockNetDuration)
       );
     }
 

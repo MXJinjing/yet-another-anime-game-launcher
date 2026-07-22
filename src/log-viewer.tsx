@@ -49,6 +49,14 @@ export function createLogViewer(locale: Locale) {
     });
   });
 
+  function copyLogs() {
+    return Neutralino.clipboard.writeText(
+      formattedEntries()
+        .map(entry => entry.text)
+        .join("\n")
+    );
+  }
+
   return {
     openLogs: () => setOpened(true),
     LogViewer() {
@@ -69,7 +77,8 @@ export function createLogViewer(locale: Locale) {
                 p={"$3"}
                 fontFamily="monospace"
                 fontSize={12}
-                style={{ "white-space": "pre-wrap" }}
+                userSelect="text"
+                style={{ "white-space": "pre-wrap", cursor: "text" }}
               >
                 <For
                   each={formattedEntries()}
@@ -81,6 +90,7 @@ export function createLogViewer(locale: Locale) {
                 >
                   {entry => (
                     <Box
+                      userSelect="text"
                       color={
                         entry.level === "ERROR"
                           ? "$danger11"
@@ -103,20 +113,25 @@ export function createLogViewer(locale: Locale) {
               >
                 {locale.get("LOG_VIEWER_FOLLOW_SCROLL")}
               </Checkbox>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  exec2(
-                    ["open", getRuntimeLogFilePath()],
-                    {},
-                    false,
-                    "/dev/null"
-                  )
-                }
-              >
-                {locale.get("LOG_VIEWER_OPEN_FILE")}
-              </Button>
+              <Box>
+                <Button variant="ghost" size="sm" mr={"$2"} onClick={copyLogs}>
+                  {locale.get("LOG_VIEWER_COPY")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    exec2(
+                      ["open", getRuntimeLogFilePath()],
+                      {},
+                      false,
+                      "/dev/null"
+                    )
+                  }
+                >
+                  {locale.get("LOG_VIEWER_OPEN_FILE")}
+                </Button>
+              </Box>
             </ModalFooter>
           </ModalContent>
         </Modal>

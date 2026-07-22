@@ -172,6 +172,8 @@ export const vi_VN: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "Xem log trực tiếp",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Tự cuộn theo",
+  LOG_VIEWER_COPY: "Sao chép log",
+  LICENSE_COPY: "Sao chép license hiện tại",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

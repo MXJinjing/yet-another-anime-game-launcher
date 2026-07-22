@@ -173,6 +173,8 @@ export const ja_JP: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "ライブログを表示",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "自動スクロール",
+  LOG_VIEWER_COPY: "ログをコピー",
+  LICENSE_COPY: "現在のライセンスをコピー",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

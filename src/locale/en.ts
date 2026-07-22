@@ -171,6 +171,8 @@ export const en: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "View Live Logs",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Follow scroll",
+  LOG_VIEWER_COPY: "Copy Logs",
+  LICENSE_COPY: "Copy Current License",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Enable HTTP proxy for download servers",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

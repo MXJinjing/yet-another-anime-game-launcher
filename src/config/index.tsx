@@ -163,7 +163,7 @@ export async function createConfiguration({
                 FPSUnlockConfig={FO}
                 ReShadeConfig={RS}
               />
-              <LicensesTab />
+              <LicensesTab locale={locale} />
             </Tabs>
           </ModalBody>
         </ModalContent>

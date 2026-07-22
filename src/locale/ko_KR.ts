@@ -171,6 +171,8 @@ export const ko_KR: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "실시간 로그 보기",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "스크롤 따라가기",
+  LOG_VIEWER_COPY: "로그 복사",
+  LICENSE_COPY: "현재 라이선스 복사",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

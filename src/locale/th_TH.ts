@@ -168,6 +168,8 @@ export const th_TH: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "ดูบันทึกสด",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "เลื่อนตามอัตโนมัติ",
+  LOG_VIEWER_COPY: "คัดลอกบันทึก",
+  LICENSE_COPY: "คัดลอก License ปัจจุบัน",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

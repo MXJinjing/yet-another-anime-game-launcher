@@ -32,7 +32,7 @@ export function WineTab(props: {
         <FormControl>
           <FormLabel>{props.locale.get("SETTING_WINE_PREFIX_PATH")}</FormLabel>
           <HStack spacing={"$2"} alignItems="center" w="100%">
-            <Input readOnly value={props.winePrefix} flex={1} />
+            <Input disabled readOnly value={props.winePrefix} flex={1} />
             <Button
               variant="ghost"
               size="sm"
