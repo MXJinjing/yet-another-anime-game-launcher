@@ -7,7 +7,7 @@ import {
   Input,
   VStack,
 } from "@hope-ui/solid";
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey } from "@utils";
 import { Config, NOOP } from "@config/config-def";
@@ -106,23 +106,23 @@ export default async function ({
                 {locale.get("SETTING_DISPLAY_MODE_WINDOWED")}
               </Button>
             </ButtonGroup>
-            <Show when={windowed()}>
-              <FormLabel>{locale.get("SETTING_WINDOW_RESOLUTION")}</FormLabel>
-              <HStack spacing={"$2"}>
-                <Input
-                  value={width()}
-                  type="number"
-                  min={1}
-                  onChange={e => setWidth(e.currentTarget.value)}
-                />
-                <Input
-                  value={height()}
-                  type="number"
-                  min={1}
-                  onChange={e => setHeight(e.currentTarget.value)}
-                />
-              </HStack>
-            </Show>
+            <FormLabel>{locale.get("SETTING_WINDOW_RESOLUTION")}</FormLabel>
+            <HStack spacing={"$2"}>
+              <Input
+                value={width()}
+                type="number"
+                min={1}
+                disabled={!windowed()}
+                onChange={e => setWidth(e.currentTarget.value)}
+              />
+              <Input
+                value={height()}
+                type="number"
+                min={1}
+                disabled={!windowed()}
+                onChange={e => setHeight(e.currentTarget.value)}
+              />
+            </HStack>
           </VStack>
         </FormControl>
       );

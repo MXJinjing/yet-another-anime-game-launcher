@@ -164,6 +164,8 @@ export const zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "查看实时日志",
   LOG_VIEWER_OPEN_FILE: "打开日志文件",
   LOG_VIEWER_FOLLOW_SCROLL: "跟随滚动",
+  LOG_VIEWER_COPY: "复制日志",
+  LICENSE_COPY: "复制当前许可证",
   SETTING_DOWNLOAD_SERVER: "下载服务器",
   SETTING_DOWNLOAD_PROXY: "为下载服务器启用 HTTP 代理",
   SETTING_DOWNLOAD_PROXY_ENABLED: "启用下载 HTTP 代理",

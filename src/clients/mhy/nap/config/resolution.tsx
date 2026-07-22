@@ -1,12 +1,9 @@
 import {
+  Button,
+  ButtonGroup,
   FormControl,
   FormLabel,
-  Box,
-  Checkbox,
   Input,
-  InputGroup,
-  InputAddon,
-  InputLeftAddon,
   HStack,
   VStack,
 } from "@hope-ui/solid";
@@ -34,160 +31,100 @@ export default async function ({
   config: Partial<Config>;
   locale: Locale;
 }) {
-  const [Custom] = await createCustom({ locale, config });
-  const [Width] = await createWidth({ locale, config });
-  const [Height] = await createHeight({ locale, config });
-
-  return [
-    function UI() {
-      return (
-        <FormControl>
-          <FormLabel>{locale.get("SETTING_CUSTOM_RESOLUTION")}</FormLabel>
-          <VStack spacing={4} alignItems="stretch">
-            <Box>
-              <Custom />
-            </Box>
-            <HStack spacing={8}>
-              <Width />
-              <Height />
-            </HStack>
-          </VStack>
-        </FormControl>
-      );
-    },
-  ] as const;
-}
-
-async function createCustom({
-  locale,
-  config,
-}: {
-  config: Partial<Config>;
-  locale: Locale;
-}) {
   try {
     config.resolutionCustom = (await getKey(CONFIG_KEY_CUSTOM)) == "true";
   } catch {
     config.resolutionCustom = false; // default value
   }
-
-  const [value, setValue] = createSignal(config.resolutionCustom);
-
-  async function onSave(apply: boolean) {
-    assertValueDefined(config.resolutionCustom);
-    if (!apply) {
-      setValue(config.resolutionCustom);
-      return NOOP;
-    }
-    if (config.resolutionCustom == value()) return NOOP;
-    config.resolutionCustom = value();
-    await setKey(CONFIG_KEY_CUSTOM, config.resolutionCustom ? "true" : "false");
-    return NOOP;
-  }
-
-  createEffect(() => {
-    value();
-    onSave(true);
-  });
-
-  return [
-    function UI() {
-      return (
-        <Checkbox
-          checked={value()}
-          onChange={() => setValue(x => !x)}
-          size="md"
-        >
-          {locale.get("SETTING_ENABLED")}
-        </Checkbox>
-      );
-    },
-  ] as const;
-}
-
-async function createWidth({
-  locale,
-  config,
-}: {
-  config: Partial<Config>;
-  locale: Locale;
-}) {
   try {
     config.resolutionWidth = await getKey(CONFIG_KEY_WIDTH);
   } catch {
     config.resolutionWidth = "1920"; // default value
   }
-
-  const [value, setValue] = createSignal(config.resolutionWidth);
-
-  async function onSave(apply: boolean) {
-    assertValueDefined(config.resolutionWidth);
-    if (!apply) {
-      setValue(config.resolutionWidth);
-      return NOOP;
-    }
-    if (config.resolutionWidth == value()) return NOOP;
-    config.resolutionWidth = value();
-    await setKey(CONFIG_KEY_WIDTH, config.resolutionWidth);
-    return NOOP;
-  }
-
-  createEffect(() => {
-    value();
-    onSave(true);
-  });
-
-  return [
-    function UI() {
-      return (
-        <Input
-          value={value()}
-          onChange={e => setValue(e.currentTarget.value)}
-        />
-      );
-    },
-  ] as const;
-}
-
-async function createHeight({
-  locale,
-  config,
-}: {
-  config: Partial<Config>;
-  locale: Locale;
-}) {
   try {
     config.resolutionHeight = await getKey(CONFIG_KEY_HEIGHT);
   } catch {
-    config.resolutionHeight = "1920"; // default value
+    config.resolutionHeight = "1080"; // default value
   }
 
-  const [value, setValue] = createSignal(config.resolutionHeight);
+  const [windowed, setWindowed] = createSignal(config.resolutionCustom);
+  const [width, setWidth] = createSignal(config.resolutionWidth);
+  const [height, setHeight] = createSignal(config.resolutionHeight);
 
   async function onSave(apply: boolean) {
+    assertValueDefined(config.resolutionCustom);
+    assertValueDefined(config.resolutionWidth);
     assertValueDefined(config.resolutionHeight);
     if (!apply) {
-      setValue(config.resolutionHeight);
+      setWindowed(config.resolutionCustom);
+      setWidth(config.resolutionWidth);
+      setHeight(config.resolutionHeight);
       return NOOP;
     }
-    if (config.resolutionHeight == value()) return NOOP;
-    config.resolutionHeight = value();
-    await setKey(CONFIG_KEY_HEIGHT, config.resolutionHeight);
+    if (config.resolutionCustom != windowed()) {
+      config.resolutionCustom = windowed();
+      await setKey(
+        CONFIG_KEY_CUSTOM,
+        config.resolutionCustom ? "true" : "false"
+      );
+    }
+    if (config.resolutionWidth != width()) {
+      config.resolutionWidth = width();
+      await setKey(CONFIG_KEY_WIDTH, config.resolutionWidth);
+    }
+    if (config.resolutionHeight != height()) {
+      config.resolutionHeight = height();
+      await setKey(CONFIG_KEY_HEIGHT, config.resolutionHeight);
+    }
     return NOOP;
   }
 
   createEffect(() => {
-    value();
+    windowed();
+    width();
+    height();
     onSave(true);
   });
 
   return [
     function UI() {
       return (
-        <Input
-          value={value()}
-          onChange={e => setValue(e.currentTarget.value)}
-        />
+        <FormControl>
+          <FormLabel>{locale.get("SETTING_DISPLAY_MODE")}</FormLabel>
+          <VStack spacing={"$2"} alignItems="stretch">
+            <ButtonGroup attached size="sm">
+              <Button
+                variant={windowed() ? "ghost" : "solid"}
+                onClick={() => setWindowed(false)}
+              >
+                {locale.get("SETTING_DISPLAY_MODE_FULLSCREEN")}
+              </Button>
+              <Button
+                variant={windowed() ? "solid" : "ghost"}
+                onClick={() => setWindowed(true)}
+              >
+                {locale.get("SETTING_DISPLAY_MODE_WINDOWED")}
+              </Button>
+            </ButtonGroup>
+            <FormLabel>{locale.get("SETTING_WINDOW_RESOLUTION")}</FormLabel>
+            <HStack spacing={"$2"}>
+              <Input
+                value={width()}
+                type="number"
+                min={1}
+                disabled={!windowed()}
+                onChange={e => setWidth(e.currentTarget.value)}
+              />
+              <Input
+                value={height()}
+                type="number"
+                min={1}
+                disabled={!windowed()}
+                onChange={e => setHeight(e.currentTarget.value)}
+              />
+            </HStack>
+          </VStack>
+        </FormControl>
       );
     },
   ] as const;

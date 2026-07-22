@@ -264,6 +264,25 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
   }
   // Remove potentially existing dev sophon_server from sidecar
   await fs.remove(path.resolve(process.cwd(), `sidecar`, `sophon_server`));
+  await execa("cc", [
+    "-arch",
+    "arm64",
+    "-arch",
+    "x86_64",
+    path.resolve(
+      process.cwd(),
+      "sidecar",
+      "yaagl-hosts-helper",
+      "yaagl-hosts-helper.c"
+    ),
+    "-o",
+    path.resolve(
+      process.cwd(),
+      "sidecar",
+      "yaagl-hosts-helper",
+      "yaagl-hosts-helper"
+    ),
+  ]);
   await fs.copy(path.resolve(process.cwd(), `sidecar`), sidecarDst, {
     preserveTimestamps: true,
   });

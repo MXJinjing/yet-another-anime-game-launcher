@@ -153,8 +153,9 @@ export async function createGameInstallDirConfig({
               <Button
                 size="sm"
                 variant="ghost"
-                colorScheme="danger"
                 alignSelf="start"
+                color="$danger8"
+                _hover={{ bg: "$danger3", color: "$danger9" }}
                 disabled={!gameInstallDir()}
                 onClick={() => setUninstallDialogOpen(true)}
               >
