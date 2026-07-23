@@ -1,6 +1,9 @@
 import { gt } from "semver";
 import { dirname, join } from "path-browserify";
-import { CommonUpdateProgram } from "@common-update-ui";
+import {
+  CommonProgressUICommand,
+  CommonUpdateProgram,
+} from "@common-update-ui";
 import { Server } from "@constants";
 import {
   writeBinary,
@@ -23,6 +26,11 @@ import { disableUnityFeature } from "./unity";
 import { Wine } from "@wine";
 import { DXMT_FILES, DXVK_FILES } from "src/downloadable-resource";
 
+type PatchProgressRange = {
+  start: number;
+  end: number;
+};
+
 export async function putLocal(url: string, dest: string) {
   return await writeBinary(dest, await (await fetch(url)).arrayBuffer());
 }
@@ -31,35 +39,86 @@ export async function* patchProgram(
   gameDir: string,
   wine: Wine,
   server: Server,
-  config: Config
+  config: Config,
+  progressRange: PatchProgressRange = { start: 0, end: 0 }
 ): CommonUpdateProgram {
+  const progressSpan = progressRange.end - progressRange.start;
+  const report = async function* (
+    step: number,
+    total: number,
+    message: string
+  ): AsyncGenerator<CommonProgressUICommand> {
+    if (progressSpan > 0) {
+      yield [
+        "setProgress",
+        progressRange.start + Math.round((progressSpan * step) / total),
+      ];
+    }
+    yield ["setRawStateText", message];
+  };
+
   if ((await getKeyOrDefault("patched", "NOTFOUND")) != "NOTFOUND") {
+    yield* report(1, 1, "补丁阶段：已检测到补丁状态，跳过重复应用");
     return;
   }
+
+  const patchFileSteps = server.patched.length * 4;
+  const removedFileSteps = server.removed.length;
+  const addedFileSteps = server.added.length;
+  const dxmtSteps = DXMT_FILES.length * 2;
+  const totalSteps = Math.max(
+    1,
+    patchFileSteps +
+      removedFileSteps +
+      addedFileSteps +
+      dxmtSteps +
+      9 +
+      (server.id.startsWith("hkrpg") ? 2 : 4) +
+      (config.reshade ? 2 : 0)
+  );
+  let step = 0;
+
+  yield* report(step, totalSteps, "补丁阶段：开始准备游戏文件");
   if (!config.patchOff) {
     for (const file of server.patched) {
+      yield* report(++step, totalSteps, `补丁阶段：备份 ${file.file}`);
       await forceMove(
         join(gameDir, file.file),
         join(gameDir, file.file + ".bak")
       );
+      yield* report(++step, totalSteps, `补丁阶段：下载 ${file.file} 差分补丁`);
       await putLocal(file.diffUrl, join(gameDir, file.file + ".diff"));
+      yield* report(++step, totalSteps, `补丁阶段：应用 ${file.file} 差分补丁`);
       await xdelta3(
         join(gameDir, file.file + ".bak"),
         join(gameDir, file.file + ".diff"),
         join(gameDir, file.file)
       );
       await log("patched " + file.file);
+      yield* report(
+        ++step,
+        totalSteps,
+        `补丁阶段：清理 ${file.file} 临时差分文件`
+      );
       await removeFile(join(gameDir, file.file + ".diff"));
     }
     for (const { file } of server.removed) {
+      yield* report(++step, totalSteps, `补丁阶段：临时移除 ${file}`);
       if (await fileOrDirExists(join(gameDir, file))) {
         await forceMove(join(gameDir, file), join(gameDir, file + ".bak"));
       }
     }
     for (const file of server.added) {
+      yield* report(++step, totalSteps, `补丁阶段：写入 ${file.file}`);
       await mkdirp(join(gameDir, dirname(file.file)));
       await putLocal(file.url, join(gameDir, file.file));
     }
+  } else {
+    yield* report(
+      ++step,
+      totalSteps,
+      "补丁阶段：游戏文件补丁已关闭，跳过文件改动"
+    );
   }
 
   const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
@@ -67,34 +126,59 @@ export async function* patchProgram(
 
   for (const f of DXMT_FILES) {
     const wineLibPath = resolve(`./wine/lib/wine/x86_64-windows/${f}`);
+    yield* report(++step, totalSteps, `补丁阶段：备份 Wine 运行库 ${f}`);
     await forceMove(wineLibPath, wineLibPath + ".bak");
+    yield* report(++step, totalSteps, `补丁阶段：安装 DXMT 运行库 ${f}`);
     await cp(`./dxmt/${f}`, wineLibPath);
   }
 
   // winemetal files always go to Wine lib directories
+  yield* report(
+    ++step,
+    totalSteps,
+    "补丁阶段：安装 winemetal.dll 到 Wine 运行库"
+  );
   await cp(
     `./dxmt/winemetal.dll`,
     resolve("./wine/lib/wine/x86_64-windows/winemetal.dll")
   );
 
+  yield* report(
+    ++step,
+    totalSteps,
+    "补丁阶段：安装 winemetal.so 到 Wine 运行库"
+  );
   await cp(
     `./dxmt/winemetal.so`,
     resolve("./wine/lib/wine/x86_64-unix/winemetal.so")
   );
 
   // winemetal.dll also to system32 for both native and builtin
+  yield* report(++step, totalSteps, "补丁阶段：安装 winemetal.dll 到 system32");
   await cp(`./dxmt/winemetal.dll`, join(system32Dir, "winemetal.dll"));
 
   if (server.id.startsWith("hkrpg")) {
+    yield* report(
+      ++step,
+      totalSteps,
+      "补丁阶段：安装 nvngx.dll 到 Wine 运行库"
+    );
     await cp(
       `./dxmt/nvngx.dll`,
       resolve("./wine/lib/wine/x86_64-windows/nvngx.dll")
     );
+    yield* report(++step, totalSteps, "补丁阶段：安装 nvngx.dll 到 system32");
     await cp(`./dxmt/nvngx.dll`, join(system32Dir, "nvngx.dll"));
   }
 
   if (config.reshade) {
+    yield* report(++step, totalSteps, "补丁阶段：安装 ReShade dxgi.dll");
     await cp(resolve("./reshade/dxgi.dll"), join(gameDir, "dxgi.dll"));
+    yield* report(
+      ++step,
+      totalSteps,
+      "补丁阶段：安装 ReShade d3dcompiler_47.dll"
+    );
     await cp(
       resolve("./reshade/d3dcompiler_47.dll"),
       join(gameDir, "d3dcompiler_47.dll")
@@ -102,25 +186,30 @@ export async function* patchProgram(
   }
 
   if (!server.id.startsWith("hkrpg")) {
+    yield* report(++step, totalSteps, "补丁阶段：安装 steam64.exe");
     await cp(
       resolve("./sidecar/protonextras/steam64.exe"),
       join(system32Dir, "steam.exe")
     );
+    yield* report(++step, totalSteps, "补丁阶段：安装 steam32.exe");
     await cp(
       resolve("./sidecar/protonextras/steam32.exe"),
       join(syswow64Dir, "steam.exe")
     );
+    yield* report(++step, totalSteps, "补丁阶段：安装 lsteamclient64.dll");
     await cp(
       resolve("./sidecar/protonextras/lsteamclient64.dll"),
       join(system32Dir, "lsteamclient.dll")
     );
+    yield* report(++step, totalSteps, "补丁阶段：安装 lsteamclient32.dll");
     await cp(
       resolve("./sidecar/protonextras/lsteamclient32.dll"),
       join(syswow64Dir, "lsteamclient.dll")
     );
   }
 
-  setKey("patched", "1");
+  yield* report(totalSteps, totalSteps, "补丁阶段：记录补丁状态");
+  await setKey("patched", "1");
 }
 
 export async function* patchRevertProgram(
@@ -132,10 +221,13 @@ export async function* patchRevertProgram(
   try {
     await getKey("patched");
   } catch {
+    yield ["setRawStateText", "还原补丁阶段：未检测到补丁状态，跳过还原"];
     return;
   }
+  yield ["setRawStateText", "还原补丁阶段：开始还原游戏文件"];
   if (!config.patchOff) {
     for (const file of server.patched) {
+      yield ["setRawStateText", `还原补丁阶段：还原 ${file.file}`];
       if (await fileOrDirExists(join(gameDir, file.file + ".bak"))) {
         await forceMove(
           join(gameDir, file.file + ".bak"),
@@ -144,11 +236,13 @@ export async function* patchRevertProgram(
       }
     }
     for (const { file } of server.removed) {
+      yield ["setRawStateText", `还原补丁阶段：恢复 ${file}`];
       if (await fileOrDirExists(join(gameDir, file + ".bak"))) {
         await forceMove(join(gameDir, file + ".bak"), join(gameDir, file));
       }
     }
     for (const file of server.added) {
+      yield ["setRawStateText", `还原补丁阶段：移除 ${file.file}`];
       if (await fileOrDirExists(join(gameDir, file.file))) {
         await removeFile(join(gameDir, file.file));
       }
@@ -158,15 +252,18 @@ export async function* patchRevertProgram(
   const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
   if (wine.attributes.renderBackend == "dxmt") {
     for (const f of DXMT_FILES) {
+      yield ["setRawStateText", `还原补丁阶段：还原 Wine 运行库 ${f}`];
       const wineLibPath = resolve(`./wine/lib/wine/x86_64-windows/${f}`);
       await forceMove(wineLibPath + ".bak", wineLibPath);
     }
   }
   if (config.reshade) {
+    yield ["setRawStateText", "还原补丁阶段：移除 ReShade 文件"];
     await removeFileIfExists(join(gameDir, "dxgi.dll"));
     await removeFileIfExists(join(gameDir, "d3dcompiler_47.dll"));
   }
-  setKey("patched", null);
+  yield ["setRawStateText", "还原补丁阶段：清除补丁状态"];
+  await setKey("patched", null);
 }
 
 // ---------------------------------------------------------------------------

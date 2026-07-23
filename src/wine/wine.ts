@@ -11,15 +11,60 @@ import {
   stats,
   resolve,
   writeFile,
+  fileOrDirExists,
+  removeFileIfExists,
+  rmrf_dangerously,
 } from "@utils";
 import { dirname, join } from "path-browserify";
-import { WineDistribution } from "./distro";
+import type { WineDistribution, WineDistributionAttributes } from "./distro";
+
+export function getWineInstallDir(distroId: string) {
+  return resolve(`./wines/${distroId}`);
+}
+
+export function getActiveWineDir(distroId: string) {
+  return getWineInstallDir(distroId);
+}
+
+export async function isWineDistroInstalled(distroId: string) {
+  return (
+    (await fileOrDirExists(join(getWineInstallDir(distroId), "bin", "wine"))) ||
+    (await fileOrDirExists(join(getWineInstallDir(distroId), "bin", "wine64")))
+  );
+}
+
+export async function uninstallWineDistro(distroId: string) {
+  let activeDistroId: string | undefined;
+  try {
+    activeDistroId = await getKey("wine_tag");
+  } catch {
+    activeDistroId = undefined;
+  }
+  if (activeDistroId == distroId) {
+    throw new Error(`Cannot uninstall active Wine distribution: ${distroId}`);
+  }
+
+  const wineBinaryDir = getWineInstallDir(distroId);
+  await rmrf_dangerously(wineBinaryDir);
+  await rmrf_dangerously(`${wineBinaryDir}.installing`);
+  for (const ext of ["xz", "gz"]) {
+    await removeFileIfExists(`./wine-${distroId}.tar.${ext}`);
+    await removeFileIfExists(`./wine-${distroId}.tar.${ext}.aria2`);
+  }
+}
+
+export async function ensureActiveWineCompatLink(distroId: string) {
+  const activeWineDir = getActiveWineDir(distroId);
+  await unixExec(["mkdir", "-p", resolve("./wines")]);
+  await unixExec(["rm", "-rf", resolve("./wine")]);
+  await unixExec(["ln", "-s", activeWineDir, resolve("./wine")]);
+}
 
 export async function createWine(options: {
   prefix: string;
   distro: WineDistribution;
 }) {
-  const loaderBin = await getCorrectWineBinary();
+  let loaderBin = await getCorrectWineBinary(options.distro.id);
 
   async function cmd(command: string, args: string[]) {
     return await exec("cmd", [command, ...args]);
@@ -63,10 +108,130 @@ export async function createWine(options: {
     );
   }
 
-  async function waitUntilServerOff() {
-    return await unixExec2([join(dirname(loaderBin), "wineserver"), "-w"], {
-      ...getEnvironmentVariables(),
-    });
+  async function waitUntilServerOff(timeoutMs = 15_000) {
+    const waitPromise = unixExec2(
+      [join(dirname(loaderBin), "wineserver"), "-w"],
+      {
+        ...getEnvironmentVariables(),
+      }
+    );
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+      return await Promise.race([
+        waitPromise,
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(
+            () =>
+              reject(new Error(`wineserver -w timed out after ${timeoutMs}ms`)),
+            timeoutMs
+          );
+        }),
+      ]);
+    } catch (e) {
+      await log(String(e));
+      await log(
+        "wineserver wait timed out; asking before killing stale wine processes"
+      );
+      waitPromise.catch(() => undefined);
+      const staleProcesses = await listStaleWineProcesses();
+      const confirmed = await confirmKillStaleWineProcesses(staleProcesses);
+      if (!confirmed) {
+        await log("User declined to kill stale wine processes");
+        throw new Error("User declined to kill stale wine processes");
+      }
+      await log("User confirmed killing stale wine processes");
+      await killAll();
+      return await unixExec2([join(dirname(loaderBin), "wineserver"), "-w"], {
+        ...getEnvironmentVariables(),
+      });
+    } finally {
+      if (timeout != undefined) {
+        clearTimeout(timeout);
+      }
+    }
+  }
+
+  type StaleWineProcess = {
+    pid: string;
+    name: string;
+    command: string;
+  };
+
+  function processName(command: string) {
+    const executable = command.trim().split(/\s+/)[0] ?? "";
+    return executable.split("/").pop() || executable || "unknown";
+  }
+
+  function summarizeCommand(command: string) {
+    return command.length > 180 ? `${command.slice(0, 177)}...` : command;
+  }
+
+  async function listStaleWineProcesses(): Promise<StaleWineProcess[]> {
+    try {
+      const ret = await unixExec(["ps", "-axo", "pid=,command="]);
+      const wineBinDir = dirname(loaderBin);
+      const candidates = ret.stdOut
+        .split("\n")
+        .map(line => {
+          const match = line.match(/^\s*(\d+)\s+(.+)$/);
+          if (!match) return null;
+          const [, pid, command] = match;
+          return {
+            pid,
+            name: processName(command),
+            command,
+          };
+        })
+        .filter((process): process is StaleWineProcess => {
+          if (!process) return false;
+          const command = process.command.toLowerCase();
+          return (
+            process.command.includes(options.prefix) ||
+            process.command.includes(wineBinDir) ||
+            command.includes("wine") ||
+            command.includes("wineserver")
+          );
+        });
+
+      return candidates;
+    } catch (e) {
+      await log(`Failed to list stale wine processes: ${String(e)}`);
+      return [];
+    }
+  }
+
+  async function confirmKillStaleWineProcesses(
+    processes: StaleWineProcess[]
+  ): Promise<boolean> {
+    const processList =
+      processes.length > 0
+        ? processes
+            .map(
+              process =>
+                `PID ${process.pid} - ${process.name}\n${summarizeCommand(
+                  process.command
+                )}`
+            )
+            .join("\n\n")
+        : "未能找到明确的 Wine 相关进程，但当前 Wine prefix 仍在等待退出。";
+
+    const out = await Neutralino.os.showMessageBox(
+      "Wine 进程未退出",
+      [
+        `启动器等待 Wine 退出已超过 15 秒。`,
+        `继续启动前需要结束当前 Wine prefix 下的残留进程。`,
+        ``,
+        `将处理的进程候选：`,
+        processList,
+        ``,
+        `是否继续并结束这些 Wine 进程？`,
+      ].join("\n"),
+      "YES_NO",
+      "WARNING"
+    );
+
+    return out == "YES";
   }
 
   // Kill every wine process attached to this prefix. This is invoked on
@@ -183,6 +348,21 @@ reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v F
     await waitUntilServerOff();
   }
 
+  const attributes: Partial<WineDistributionAttributes> = {
+    ...options.distro.attributes,
+  };
+
+  async function setDistribution(distro: WineDistribution) {
+    for (const key of Object.keys(attributes) as Array<
+      keyof WineDistributionAttributes
+    >) {
+      delete attributes[key];
+    }
+    Object.assign(attributes, distro.attributes);
+    await ensureActiveWineCompatLink(distro.id);
+    loaderBin = await getCorrectWineBinary(distro.id);
+  }
+
   return {
     exec,
     exec2,
@@ -194,20 +374,20 @@ reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v F
     openCmdWindow,
     setProps,
     setNVExtension,
-    attributes: {
-      ...options.distro.attributes,
-    },
+    setDistribution,
+    attributes,
   };
 }
 
-export async function getCorrectWineBinary() {
+export async function getCorrectWineBinary(distroId?: string) {
+  const wineDir = distroId ? getWineInstallDir(distroId) : resolve("./wine");
   try {
     // use wine64 if it is presented
     // in newer version of wine (esp. WoW64 mode), only one binary `bin/wine` exists
-    await stats("./wine/bin/wine64");
-    return resolve("./wine/bin/wine64");
+    await stats(join(wineDir, "bin", "wine64"));
+    return join(wineDir, "bin", "wine64");
   } catch {
-    return resolve("./wine/bin/wine");
+    return join(wineDir, "bin", "wine");
   }
 }
 
