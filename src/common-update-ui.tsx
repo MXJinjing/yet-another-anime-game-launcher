@@ -41,6 +41,10 @@ export function createCommonUpdateUI(
                 await log(locale.format(text[1], text.slice(2)));
               }
               break;
+            case "setRawStateText":
+              setStatusText(text[1]);
+              await log(text[1]);
+              break;
           }
         }
         await log("Task completed");
@@ -110,4 +114,5 @@ export type CommonUpdateProgram<Ret = void> = AsyncGenerator<
 export type CommonProgressUICommand =
   | ["setProgress", number]
   | ["setStateText", LocaleTextKey, ...string[]]
+  | ["setRawStateText", string]
   | ["setUndeterminedProgress"];

@@ -8,7 +8,7 @@ import {
   Tabs,
 } from "@hope-ui/solid";
 import { Locale } from "../locale";
-import { Wine } from "../wine";
+import { Wine, WineDistribution } from "../wine";
 import { Config } from "./config-def";
 import { createMetalHUDConfig } from "./metal-hud";
 import { createGameInstallDirConfig } from "./game-install-dir";
@@ -39,6 +39,9 @@ export async function createConfiguration({
   gameInstallDir,
   configForChannelClient,
   onCheckUpdate,
+  wineActionDisabled,
+  onEnableWineDistro,
+  onUninstallWineDistro,
   onGameInstallDirChange,
 }: {
   wine: Wine;
@@ -54,6 +57,15 @@ export async function createConfiguration({
     config: Partial<Config>
   ) => Promise<ChannelClientConfigUI>;
   onCheckUpdate: () => void;
+  wineActionDisabled: () => boolean;
+  onEnableWineDistro: (
+    distro: WineDistribution,
+    onDone: (distro: WineDistribution) => void
+  ) => void;
+  onUninstallWineDistro: (
+    distro: WineDistribution,
+    onDone: (distro: WineDistribution) => void
+  ) => void;
 }) {
   const config: Partial<Config> = {};
   const [WD] = await createWineDistroConfig({
@@ -61,6 +73,9 @@ export async function createConfiguration({
     config,
     wineInstalled,
     wineDistroId,
+    wineActionDisabled,
+    onEnableWineDistro,
+    onUninstallWineDistro,
   });
   const [MH] = await createMetalHUDConfig({ locale, config });
   const [R] = await createRetinaConfig({ locale, config });

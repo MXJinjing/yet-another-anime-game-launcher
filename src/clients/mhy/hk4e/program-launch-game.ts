@@ -1,5 +1,8 @@
 import { join } from "path-browserify";
-import { CommonUpdateProgram } from "../../../common-update-ui";
+import {
+  CommonProgressUICommand,
+  CommonUpdateProgram,
+} from "../../../common-update-ui";
 import { Server } from "../../../constants";
 import {
   mkdirp,
@@ -33,6 +36,14 @@ const HDR_REGISTRY_FILES = {
   hk4e_global: hk4eHDRGlobalReg,
   hk4e_cn: hk4eHDRCnReg,
 } as const;
+
+function* launchStep(
+  progress: number,
+  message: string
+): Generator<CommonProgressUICommand> {
+  yield ["setProgress", progress];
+  yield ["setRawStateText", message];
+}
 
 async function applyHDRRegistry({
   wine,
@@ -123,14 +134,21 @@ export async function* launchGameProgram({
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "PATCHING"];
 
+  yield* launchStep(3, "启动准备：写入 Wine 显示与键盘配置");
   await wine.setProps(config);
   if (config.hk4eEnableHDR) {
+    yield* launchStep(8, "启动准备：写入 HDR 注册表配置");
     await applyHDRRegistry({ wine, server });
+  } else {
+    yield* launchStep(8, "启动准备：跳过 HDR 注册表配置");
   }
 
+  yield* launchStep(12, "启动准备：写入分辨率/全屏注册表配置");
   await applyDisplayModeRegistry(wine, server, config);
+  yield* launchStep(16, "启动准备：等待 Wine 配置进程退出");
   await wine.waitUntilServerOff();
 
+  yield* launchStep(20, "启动准备：生成游戏启动脚本 config.bat");
   const cmd = `@echo off
 cd "%~dp0"
 copy "${wine.toWinePath(
@@ -141,17 +159,20 @@ cd /d "${wine.toWinePath(gameDir)}"
     join(gameDir, gameExecutable)
   )}" -platform_type CLOUD_THIRD_PARTY_PC -is_cloud 1`;
   await writeFile(resolve("config.bat"), cmd);
-  yield* patchProgram(gameDir, wine, server, config);
+  yield* patchProgram(gameDir, wine, server, config, { start: 22, end: 62 });
   // Workaround #4 is intentionally temporary: install the user-provided
   // mhypbase.dll only for this launch, then restore the original afterward.
+  yield* launchStep(64, "启动准备：检查并应用 mhypbase.dll 临时替换");
   const mhypBaseReplaced = await applyMhypBaseReplacement(gameDir, config);
+  yield* launchStep(68, "启动准备：创建游戏日志目录");
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
   try {
-    yield ["setStateText", "GAME_RUNNING"];
+    yield* launchStep(72, "启动准备：准备游戏日志文件");
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
 
     if (config.blockNet) {
+      yield* launchStep(76, "启动准备：临时屏蔽游戏联网检测域名");
       const blockUrl = server.id == "hk4e_global" ? OS_BLOCK_URL : CN_BLOCK_URL;
       const hosts: [string, string][] = [
         [blockUrl, "0.0.0.0"],
@@ -160,8 +181,17 @@ cd /d "${wine.toWinePath(gameDir)}"
       await blockPrivilegedHosts(hosts, config.blockNetDuration, () =>
         legacyBlockHosts(hosts, config.blockNetDuration)
       );
+    } else {
+      yield* launchStep(76, "启动准备：跳过联网检测域名屏蔽");
     }
 
+    yield* launchStep(
+      82,
+      `启动游戏：通过 ${
+        config.steamPatch ? "Steam 补丁入口" : "cmd 启动脚本"
+      } 拉起 ${gameExecutable}`
+    );
+    yield ["setStateText", "GAME_RUNNING"];
     await wine.exec2(
       config.steamPatch ? "C:\\windows\\system32\\steam.exe" : "cmd",
       config.steamPatch
@@ -191,23 +221,33 @@ cd /d "${wine.toWinePath(gameDir)}"
       },
       logfile
     );
+    yield* launchStep(90, "游戏进程已退出：等待 Wine 服务关闭");
     await wine.waitUntilServerOff();
     if (config.hk4eEnableHDR) {
+      yield* launchStep(92, "启动清理：还原 HDR 注册表配置");
       await revertHDRRegistry({ wine, server });
     }
   } catch (e: unknown) {
     // it seems game crashed?
     await log(String(e));
+    yield* launchStep(90, `游戏启动进程返回异常：${String(e)}`);
   }
 
   // await removeFile(resolve("bWh5cHJvdDJfcnVubmluZy5yZWcK.reg"));
+  yield* launchStep(93, "启动清理：还原分辨率/全屏注册表配置");
   await revertResolutionRegistry(wine, server);
   if (mhypBaseReplaced) {
+    yield* launchStep(95, "启动清理：还原 mhypbase.dll");
     await revertMhypBaseReplacement(gameDir);
+  } else {
+    yield* launchStep(95, "启动清理：无需还原 mhypbase.dll");
   }
+  yield* launchStep(97, "启动清理：删除临时启动脚本 config.bat");
   await removeFile(resolve("config.bat"));
   yield ["setStateText", "REVERT_PATCHING"];
+  yield ["setProgress", 98];
   yield* patchRevertProgram(gameDir, wine, server, config);
+  yield* launchStep(100, "启动清理：补丁还原完成");
 }
 
 async function revertHDRRegistry({
