@@ -1,23 +1,22 @@
 import {
+  Box,
   Button,
-  FormControl,
-  FormLabel,
-  Select,
-  SelectContent,
-  SelectIcon,
-  SelectListbox,
-  SelectOption,
-  SelectOptionIndicator,
-  SelectOptionText,
-  SelectPlaceholder,
-  SelectTrigger,
-  SelectValue,
+  HStack,
+  Popover,
+  PopoverArrow,
+  PopoverBody,
+  PopoverContent,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverTrigger,
+  Text,
+  VStack,
 } from "@hope-ui/solid";
 import { createSignal, For, Show } from "solid-js";
 import { Locale } from "../locale";
-import { getKey, setKey, _safeRelaunch, assertValueDefined } from "../utils";
 import { Config } from "./config-def";
-import { getWineDistributions } from "@wine";
+import { getWineDistributions, isWineDistroInstalled } from "@wine";
+import type { WineDistribution } from "@wine";
 
 declare module "./config-def" {
   interface Config {
@@ -25,104 +24,228 @@ declare module "./config-def" {
   }
 }
 
+type WineDistroActionDone = (distro: WineDistribution) => void;
+
 export async function createWineDistroConfig({
   locale,
   config,
   wineInstalled,
   wineDistroId,
+  wineActionDisabled,
+  onEnableWineDistro,
+  onUninstallWineDistro,
 }: {
   locale: Locale;
   config: Partial<Config>;
   wineInstalled: () => boolean;
   wineDistroId: string;
+  wineActionDisabled: () => boolean;
+  onEnableWineDistro: (
+    distro: WineDistribution,
+    onDone: WineDistroActionDone
+  ) => void;
+  onUninstallWineDistro: (
+    distro: WineDistribution,
+    onDone: WineDistroActionDone
+  ) => void;
 }) {
-  config.wineDistro = wineInstalled() ? await getKey("wine_tag") : wineDistroId;
+  config.wineDistro = wineDistroId;
 
   const versions = await getWineDistributions();
-
-  assertValueDefined(config.wineDistro);
-  const [value, setValue] = createSignal(config.wineDistro);
-
-  const [wineVersions] = createSignal<
-    {
-      tag: string;
-      url: string;
-      displayName: string;
-      community?: boolean;
-    }[]
-  >(
-    (() => {
-      if (versions.find(x => x.id === config.wineDistro)) {
-        return versions.map(x => ({
-          tag: x.id,
-          url: x.remoteUrl,
-          displayName: x.displayName,
-        }));
-      } else {
-        return [
-          {
-            tag: config.wineDistro,
-            url: "not_applicable",
-            displayName: config.wineDistro,
-          },
-          ...versions.map(x => ({
-            tag: x.id,
-            url: x.remoteUrl,
-            displayName: x.displayName,
-          })),
-        ];
-      }
-    })()
+  const initialInstalled = new Set(
+    (
+      await Promise.all(
+        versions.map(async distro =>
+          (await isWineDistroInstalled(distro.id)) ? distro.id : undefined
+        )
+      )
+    ).filter((id): id is string => id != undefined)
   );
 
-  async function applyChanges() {
-    const tag = (config.wineDistro = value());
-    const distro = wineVersions().find(x => x.tag === tag);
-    if (!distro) return;
-    // If Community Version is selected, a warning message pops up
-    if (distro.community) {
-      await locale.alert("COMMUNITY_WARNING", "COMMUNITY_WINE_ALERT");
+  const [activeWineDistroId, setActiveWineDistroId] =
+    createSignal(wineDistroId);
+  const [installedWineDistroIds, setInstalledWineDistroIds] =
+    createSignal(initialInstalled);
+
+  function markInstalled(distro: WineDistribution) {
+    setInstalledWineDistroIds(prev => new Set([...prev, distro.id]));
+  }
+
+  function markEnabled(distro: WineDistribution) {
+    markInstalled(distro);
+    setActiveWineDistroId(distro.id);
+    config.wineDistro = distro.id;
+  }
+
+  function markUninstalled(distro: WineDistribution) {
+    setInstalledWineDistroIds(prev => {
+      const next = new Set(prev);
+      next.delete(distro.id);
+      return next;
+    });
+  }
+
+  function getWineDistroRank(distro: WineDistribution) {
+    const installed = installedWineDistroIds().has(distro.id);
+    const active = installed && activeWineDistroId() == distro.id;
+    if (active) return 0;
+    if (installed) return 1;
+    return 2;
+  }
+
+  function sortedVersions() {
+    return [...versions].sort(
+      (a, b) => getWineDistroRank(a) - getWineDistroRank(b)
+    );
+  }
+
+  function getStatusDotColor(distro: WineDistribution) {
+    const installed = installedWineDistroIds().has(distro.id);
+    const active = installed && activeWineDistroId() == distro.id;
+    if (active) return "$success9";
+    if (installed) return "$warning9";
+    return "$neutral8";
+  }
+
+  async function enableWineDistro(distro: WineDistribution) {
+    if (!wineInstalled()) {
+      await locale.alert(
+        "INIT_ENVIRONMENT_TITLE",
+        "SETTING_WINE_INSTALL_INITIALIZES_ENVIRONMENT"
+      );
     }
-    await locale.alert("RELAUNCH_REQUIRED", "RELAUNCH_REQUIRED_DESC");
-    {
-      await setKey("wine_state", "update");
-      await setKey("wine_update_tag", tag);
-      await setKey("wine_update_url", distro.url);
-      await _safeRelaunch();
-    }
+    onEnableWineDistro(distro, markEnabled);
+  }
+
+  function uninstallWineDistro(distro: WineDistribution) {
+    onUninstallWineDistro(distro, markUninstalled);
   }
 
   return [
     function UI() {
-      return [
-        <FormControl id="wineVersion">
-          <FormLabel>{locale.get("SETTING_WINE_VERSION")}</FormLabel>
-          <Select value={value()} onChange={setValue}>
-            <SelectTrigger>
-              <SelectPlaceholder>Choose an option</SelectPlaceholder>
-              <SelectValue />
-              <SelectIcon />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectListbox>
-                <For each={[...wineVersions()]}>
-                  {item => (
-                    <SelectOption value={item.tag}>
-                      <SelectOptionText>{item.displayName}</SelectOptionText>
-                      <SelectOptionIndicator />
-                    </SelectOption>
-                  )}
-                </For>
-              </SelectListbox>
-            </SelectContent>
-          </Select>
-        </FormControl>,
-        <Show when={value() != config.wineDistro}>
-          <Button size="sm" colorScheme="danger" onClick={applyChanges}>
-            {locale.get("SETTING_WINE_VERSION_CONFIRM")}
-          </Button>
-        </Show>,
-      ];
+      return (
+        <VStack spacing={"$2"} w="100%" alignItems="stretch">
+          <Text fontWeight="$semibold">
+            {locale.get("SETTING_WINE_VERSION")}
+          </Text>
+          <For each={sortedVersions()}>
+            {distro => {
+              const installed = () => installedWineDistroIds().has(distro.id);
+              const active = () =>
+                installed() && activeWineDistroId() == distro.id;
+              return (
+                <Box
+                  bg={active() ? "$success2" : undefined}
+                  border="1px solid"
+                  borderColor={active() ? "$success7" : "$neutral6"}
+                  borderRadius="$sm"
+                  px="$3"
+                  py="$2"
+                >
+                  <HStack justifyContent="space-between" spacing="$3">
+                    <VStack alignItems="start" spacing={0}>
+                      <HStack spacing="$2">
+                        <Box
+                          w="8px"
+                          h="8px"
+                          borderRadius="$full"
+                          bg={getStatusDotColor(distro)}
+                        />
+                        <Text>{distro.displayName}</Text>
+                      </HStack>
+                      <Text size="sm" color="$neutral11">
+                        {active()
+                          ? locale.get("SETTING_WINE_STATUS_ENABLED")
+                          : installed()
+                          ? locale.get("SETTING_WINE_STATUS_INSTALLED")
+                          : locale.get("SETTING_WINE_STATUS_NOT_INSTALLED")}
+                      </Text>
+                    </VStack>
+                    <HStack spacing="$2">
+                      <Button
+                        size="sm"
+                        colorScheme={active() ? "neutral" : "primary"}
+                        disabled={active() || wineActionDisabled()}
+                        title={
+                          wineActionDisabled()
+                            ? locale.get("SETTING_WINE_VERSION_UPDATE_BUSY")
+                            : undefined
+                        }
+                        onClick={() => enableWineDistro(distro)}
+                      >
+                        {active()
+                          ? locale.get("SETTING_WINE_STATUS_ENABLED")
+                          : installed()
+                          ? locale.get("SETTING_WINE_ENABLE")
+                          : locale.get("SETTING_WINE_INSTALL")}
+                      </Button>
+                      <Show when={installed() && !active()}>
+                        <Popover placement="left" triggerMode="click">
+                          {({ onClose }) => (
+                            <>
+                              <PopoverTrigger>
+                                <Button
+                                  size="sm"
+                                  colorScheme="danger"
+                                  disabled={wineActionDisabled()}
+                                  title={
+                                    wineActionDisabled()
+                                      ? locale.get(
+                                          "SETTING_WINE_VERSION_UPDATE_BUSY"
+                                        )
+                                      : undefined
+                                  }
+                                >
+                                  {locale.get("SETTING_WINE_UNINSTALL")}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent>
+                                <PopoverArrow />
+                                <PopoverHeader>
+                                  {locale.get(
+                                    "SETTING_WINE_UNINSTALL_CONFIRM_TITLE"
+                                  )}
+                                </PopoverHeader>
+                                <PopoverBody>
+                                  <Text size="sm">
+                                    {locale.format(
+                                      "SETTING_WINE_UNINSTALL_CONFIRM_DESC",
+                                      [distro.displayName]
+                                    )}
+                                  </Text>
+                                </PopoverBody>
+                                <PopoverFooter>
+                                  <HStack justifyContent="end" w="100%">
+                                    <Button size="sm" onClick={onClose}>
+                                      {locale.get("SETTING_CANCEL")}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      colorScheme="danger"
+                                      onClick={() => {
+                                        onClose();
+                                        uninstallWineDistro(distro);
+                                      }}
+                                    >
+                                      {locale.get(
+                                        "SETTING_WINE_UNINSTALL_CONFIRM"
+                                      )}
+                                    </Button>
+                                  </HStack>
+                                </PopoverFooter>
+                              </PopoverContent>
+                            </>
+                          )}
+                        </Popover>
+                      </Show>
+                    </HStack>
+                  </HStack>
+                </Box>
+              );
+            }}
+          </For>
+        </VStack>
+      );
     },
   ] as const;
 }

@@ -13,7 +13,14 @@ import {
   rawString,
 } from "./utils";
 import { createAria2Retry } from "./aria2";
-import { checkWine, createWine, installWineEnvironmentProgram } from "./wine";
+import {
+  checkWine,
+  configureWineEnvironmentProgram,
+  createWine,
+  installWineEnvironmentProgram,
+  isWineDistroInstalled,
+  uninstallWineDistro as uninstallWineDistroFiles,
+} from "./wine";
 import { createGithubEndpoint } from "./github";
 import { createLauncher } from "./launcher";
 import "./app.css";
@@ -177,13 +184,51 @@ export async function createApp() {
     wine,
     wineDistroId: wineStatus.wineDistribution.id,
     wineInstalled,
-    initializeWine: async function* () {
+    initializeWine: async function* (wineDistro) {
+      await setKey("wine_state", "update");
+      await setKey("wine_update_tag", wineDistro.id);
+      await setKey("wine_update_url", wineDistro.remoteUrl);
       yield* installWineEnvironmentProgram({
         aria2,
         wineAbsPrefix: prefixPath,
-        wineDistro: wineStatus.wineDistribution,
+        wineDistro,
+        activate: true,
       });
+      await wine.setDistribution(wineDistro);
       setWineInstalled(true);
+    },
+    enableWineDistro: async function* (wineDistro) {
+      await setKey("wine_state", "update");
+      await setKey("wine_update_tag", wineDistro.id);
+      await setKey("wine_update_url", wineDistro.remoteUrl);
+      const installed = await isWineDistroInstalled(wineDistro.id);
+      if (!installed) {
+        yield* installWineEnvironmentProgram({
+          aria2,
+          wineAbsPrefix: prefixPath,
+          wineDistro,
+          activate: true,
+        });
+      }
+      if (installed) {
+        yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
+        yield ["setUndeterminedProgress"];
+        yield* configureWineEnvironmentProgram({
+          aria2,
+          wineAbsPrefix: prefixPath,
+          wineDistro,
+        });
+        await wine.setDistribution(wineDistro);
+      } else {
+        await wine.setDistribution(wineDistro);
+      }
+      setWineInstalled(true);
+    },
+    uninstallWineDistro: async function* (wineDistro) {
+      yield ["setStateText", "UNINSTALLING_ENVIRONMENT"];
+      yield ["setUndeterminedProgress"];
+      await uninstallWineDistroFiles(wineDistro.id);
+      yield ["setStateText", "INSTALL_DONE"];
     },
     locale,
     github,

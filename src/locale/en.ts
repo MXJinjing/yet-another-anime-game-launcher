@@ -23,6 +23,7 @@ export const en: typeof zh_CN = {
     "Downloading environment files ({1}/{2}, {3}, {0})",
   EXTRACT_ENVIRONMENT: "Extracting environment",
   CONFIGURING_ENVIRONMENT: "Configuring environment",
+  UNINSTALLING_ENVIRONMENT: "Uninstalling Wine",
   RESTART_TO_INSTALL: "Restart the program",
   PATH_INVALID: "Path is invalid",
   PLEASE_SELECT_A_DIR: "Please select a path",
@@ -97,6 +98,8 @@ export const en: typeof zh_CN = {
     "Note: uninstalling will also delete all game screenshots.",
   // 0.0.27
   SETTING_WINE_VERSION_CONFIRM: "Click here to confirm the change.",
+  SETTING_WINE_VERSION_UPDATE_BUSY:
+    "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "Quick Actions",
   SETTING_GENERAL: "General",
   SETTING_GAME: "Game",
@@ -166,11 +169,28 @@ export const en: typeof zh_CN = {
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
   INIT_ENVIRONMENT_DESC:
     "The Wine runtime environment must be initialized before installing or launching the game. You can skip this now and initialize it later.",
+  INIT_ENVIRONMENT_CONFIRM_DESC:
+    "This initialization will install and enable the following Wine version:\n{0}",
+  INIT_ENVIRONMENT_USE_RECOMMENDED: "Use Recommended Settings",
+  INIT_ENVIRONMENT_CUSTOM_WINE: "Custom Wine Version",
+  INIT_ENVIRONMENT_WINE_VERSION: "Wine Version",
   SKIP: "Skip",
   DONT_REMIND_AGAIN: "Don't remind again",
   SETTING_WINE_STATUS: "Wine Status",
+  SETTING_WINE_ENV_INITIALIZED: "Initialized",
+  SETTING_WINE_ENV_NOT_INITIALIZED: "Not initialized",
   SETTING_WINE_STATUS_INSTALLED: "Installed",
   SETTING_WINE_STATUS_NOT_INSTALLED: "Not installed",
+  SETTING_WINE_STATUS_ENABLED: "Enabled",
+  SETTING_WINE_INSTALL: "Install and Enable",
+  SETTING_WINE_ENABLE: "Enable",
+  SETTING_WINE_UNINSTALL: "Uninstall",
+  SETTING_WINE_UNINSTALL_CONFIRM_TITLE: "Uninstall Wine",
+  SETTING_WINE_UNINSTALL_CONFIRM_DESC:
+    "This will delete Wine files and download leftovers for {0}. The shared Wine prefix will not be removed. Continue?",
+  SETTING_WINE_UNINSTALL_CONFIRM: "Confirm Uninstall",
+  SETTING_WINE_INSTALL_INITIALIZES_ENVIRONMENT:
+    "The runtime environment has not been initialized yet. Installing this Wine version will also initialize the environment and enable this version.",
   SETTING_WINE_PREFIX_PATH: "Wine Prefix Path",
   SETTING_OPEN: "Open",
   LOG_VIEWER_TITLE: "Live Logs",
