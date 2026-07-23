@@ -1,11 +1,6 @@
-import { exec, fileOrDirExists, getKey, resolve, setKey } from "@utils";
+import { getKey } from "@utils";
 import { DEFAULT_WINE_DISTRO_TAG } from "../clients";
 import { Github } from "../github";
-import {
-  ensureActiveWineCompatLink,
-  getWineInstallDir,
-  isWineDistroInstalled,
-} from "./wine";
 
 export interface WineDistributionAttributes {
   renderBackend: "dxmt";
@@ -110,32 +105,16 @@ export async function checkWine(github: Github): Promise<WineStatus> {
     const wineState = await getKey("wine_state");
     if (wineState == "update") {
       const update_wine_tag = await getKey("wine_update_tag");
-      const wineDistribution =
-        wine_versions.find(x => x.id == update_wine_tag) ?? defaultDistro;
       return {
         wineReady: false,
-        wineDistribution,
+        wineDistribution:
+          wine_versions.find(x => x.id == update_wine_tag) ?? defaultDistro,
       } as const;
-    }
-    if (wineState != "ready") {
-      return {
-        wineReady: false,
-        wineDistribution: defaultDistro,
-      };
     }
     const currrent_wine_tag = await getKey("wine_tag");
     const wineDistribution = wine_versions.find(x => x.id == currrent_wine_tag);
     if (wineDistribution) {
-      await migrateLegacyWineDir(currrent_wine_tag);
-      const wineReady = await isWineDistroInstalled(currrent_wine_tag);
-      if (wineReady) {
-        await ensureActiveWineCompatLink(currrent_wine_tag);
-        return { wineReady: true, wineDistribution } as const;
-      }
-      return {
-        wineReady: false,
-        wineDistribution,
-      };
+      return { wineReady: true, wineDistribution } as const;
     } else {
       // Force re-install for unknown wine version
       return {
@@ -144,36 +123,9 @@ export async function checkWine(github: Github): Promise<WineStatus> {
       };
     }
   } catch (e) {
-    await migrateLegacyWineDir(defaultDistro.id);
-    if (
-      (await getKey("wine_state").catch(() => undefined)) == "ready" &&
-      (await isWineDistroInstalled(defaultDistro.id))
-    ) {
-      await ensureActiveWineCompatLink(defaultDistro.id);
-      await setKey("wine_tag", defaultDistro.id);
-      return {
-        wineReady: true,
-        wineDistribution: defaultDistro,
-      };
-    }
     return {
       wineReady: false,
       wineDistribution: defaultDistro,
     } as const;
   }
-}
-
-async function migrateLegacyWineDir(distroId: string) {
-  const legacyWineDir = resolve("./wine");
-  const versionedWineDir = getWineInstallDir(distroId);
-  if (await isWineDistroInstalled(distroId)) return;
-  if (!(await fileOrDirExists(legacyWineDir))) return;
-  try {
-    await exec(["test", "-L", legacyWineDir]);
-    return;
-  } catch {
-    // Not a symlink: this is the legacy single-version Wine directory.
-  }
-  await exec(["mkdir", "-p", resolve("./wines")]);
-  await exec(["mv", legacyWineDir, versionedWineDir]);
 }

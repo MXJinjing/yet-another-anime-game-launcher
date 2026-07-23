@@ -20,26 +20,17 @@ import {
   PopoverTrigger,
   Progress,
   ProgressIndicator,
-  Select,
-  SelectContent,
-  SelectIcon,
-  SelectListbox,
-  SelectOption,
-  SelectOptionIndicator,
-  SelectOptionText,
-  SelectTrigger,
-  SelectValue,
   Text,
 } from "@hope-ui/solid";
 import { createIcon } from "@hope-ui/solid";
-import { For, Show, createSignal, onCleanup } from "solid-js";
+import { Show, createSignal, onCleanup } from "solid-js";
 import { Locale } from "@locale";
 import { createConfiguration } from "@config";
 import { Github } from "../github";
 import { createGameInstallationDirectorySanitizer } from "../accidental-complexity";
 import { ChannelClient } from "../channel-client";
 import { createTaskQueueState } from "./task-queue";
-import { getWineDistributions, Wine, WineDistribution } from "@wine";
+import { Wine } from "@wine";
 import { CommonUpdateProgram } from "../common-update-ui";
 import { createLogViewer } from "../log-viewer";
 import {
@@ -70,8 +61,6 @@ export async function createLauncher({
   wineDistroId,
   wineInstalled,
   initializeWine,
-  enableWineDistro,
-  uninstallWineDistro,
   locale,
   github,
   channelClient: {
@@ -106,9 +95,7 @@ export async function createLauncher({
   wine: Wine;
   wineDistroId: string;
   wineInstalled: () => boolean;
-  initializeWine: (distro: WineDistribution) => CommonUpdateProgram;
-  enableWineDistro: (distro: WineDistribution) => CommonUpdateProgram;
-  uninstallWineDistro: (distro: WineDistribution) => CommonUpdateProgram;
+  initializeWine: () => CommonUpdateProgram;
   locale: Locale;
   github: Github;
   channelClient: ChannelClient;
@@ -118,19 +105,6 @@ export async function createLauncher({
   const showInitialWineGuideByDefault =
     !wineInstalled() &&
     (await getKeyOrDefault(SKIP_INITIAL_WINE_GUIDE_KEY, "false")) != "true";
-  const wineDistros = await getWineDistributions();
-  const initialWineDistro =
-    wineDistros.find(distro => distro.id == wineDistroId) ?? wineDistros[0];
-  let wineActionDisabled = () => false;
-  let requestWineDistroEnable = (
-    _distro: WineDistribution,
-    _onDone: (distro: WineDistribution) => void
-  ): void => undefined;
-  let requestWineDistroUninstall = (
-    _distro: WineDistribution,
-    _onDone: (distro: WineDistribution) => void
-  ): void => undefined;
-
   const { UI: ConfigurationUI, config } = await createConfiguration({
     wine,
     wineDistroId,
@@ -142,11 +116,6 @@ export async function createLauncher({
     onGameInstallDirChange: changeInstallDir,
     configForChannelClient: createConfig,
     onCheckUpdate,
-    wineActionDisabled: () => wineActionDisabled(),
-    onEnableWineDistro: (distro, onDone) =>
-      requestWineDistroEnable(distro, onDone),
-    onUninstallWineDistro: (distro, onDone) =>
-      requestWineDistroUninstall(distro, onDone),
   });
 
   const { selectPath } = await createGameInstallationDirectorySanitizer({
@@ -161,12 +130,6 @@ export async function createLauncher({
     const bh = 40;
     const bw = 136;
     const [gameRunning, setGameRunning] = createSignal(false);
-    const [initialWineDistroId, setInitialWineDistroId] = createSignal(
-      initialWineDistro.id
-    );
-    const selectedInitialWineDistro = () =>
-      wineDistros.find(distro => distro.id == initialWineDistroId()) ??
-      initialWineDistro;
 
     const [statusText, progress, programBusy, taskQueue] = createTaskQueueState(
       {
@@ -193,10 +156,6 @@ export async function createLauncher({
     const [showInitialWineGuide, setShowInitialWineGuide] = createSignal(
       showInitialWineGuideByDefault
     );
-    const [showInitializeWineConfirm, setShowInitializeWineConfirm] =
-      createSignal(false);
-    const [customizeInitialWineDistro, setCustomizeInitialWineDistro] =
-      createSignal(false);
     const { LogViewer, openLogs } = createLogViewer(locale);
 
     const [videoLoaded, setVideoLoaded] = createSignal(false);
@@ -216,49 +175,6 @@ export async function createLauncher({
       );
     }
 
-    function wineDistroActionDisabled() {
-      const download = downloadControl();
-      return (
-        programBusy() ||
-        nonUrgentProgramBusy() ||
-        download.active ||
-        download.actionPending ||
-        gameRunning()
-      );
-    }
-
-    wineActionDisabled = wineDistroActionDisabled;
-    requestWineDistroEnable = (distro, onDone) => {
-      if (wineDistroActionDisabled()) return;
-      onClose();
-      log(`Wine environment enable requested: ${distro.id}`);
-      taskQueue.next(async function* () {
-        yield* enableWineDistro(distro);
-        onDone(distro);
-      });
-    };
-    requestWineDistroUninstall = (distro, onDone) => {
-      if (wineDistroActionDisabled()) return;
-      log(`Wine environment uninstall requested: ${distro.id}`);
-      taskQueue.next(async function* () {
-        yield* uninstallWineDistro(distro);
-        onDone(distro);
-      });
-    };
-
-    function openInitializeWineConfirm() {
-      setShowInitialWineGuide(false);
-      setCustomizeInitialWineDistro(false);
-      setInitialWineDistroId(initialWineDistro.id);
-      setShowInitializeWineConfirm(true);
-    }
-
-    function startInitializeWine(distro: WineDistribution) {
-      log(`Initialize Wine environment requested: ${distro.id}`);
-      setShowInitializeWineConfirm(false);
-      taskQueue.next(() => initializeWine(distro));
-    }
-
     async function onButtonClick() {
       const download = downloadControl();
       if (download.active) {
@@ -272,7 +188,8 @@ export async function createLauncher({
       }
       if (programBusy()) return; // ignore
       if (!wineInstalled()) {
-        openInitializeWineConfirm();
+        await log("Initialize Wine environment requested");
+        taskQueue.next(initializeWine);
         return;
       }
       if (installState() == "INSTALLED") {
@@ -448,13 +365,17 @@ export async function createLauncher({
                           : locale.get("LAUNCH")
                         : locale.get("INSTALL")}
                     </Button>
-                    <IconButton
-                      onClick={onOpen}
-                      disabled={programBusy() && !downloadControl().active}
-                      fontSize={30}
-                      aria-label="Settings"
-                      icon={<IconSetting />}
-                    />
+                    <Show
+                      when={installState() == "INSTALLED" || !wineInstalled()}
+                    >
+                      <IconButton
+                        onClick={onOpen}
+                        disabled={programBusy() && !downloadControl().active}
+                        fontSize={30}
+                        aria-label="Settings"
+                        icon={<IconSetting />}
+                      />
+                    </Show>
                   </ButtonGroup>
                   <Box class="download-cancel-slot">
                     <Show
@@ -573,102 +494,16 @@ export async function createLauncher({
                 >
                   {locale.get("SKIP")}
                 </Button>
-                <Button onClick={openInitializeWineConfirm}>
+                <Button
+                  onClick={() => {
+                    log("Initialize Wine environment requested");
+                    setShowInitialWineGuide(false);
+                    taskQueue.next(initializeWine);
+                  }}
+                >
                   {locale.get("INIT_ENVIRONMENT")}
                 </Button>
               </Box>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-        <Modal
-          opened={showInitializeWineConfirm() && !wineInstalled()}
-          onClose={() => setShowInitializeWineConfirm(false)}
-        >
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>{locale.get("INIT_ENVIRONMENT_TITLE")}</ModalHeader>
-            <ModalBody>
-              <Text>
-                {locale.format("INIT_ENVIRONMENT_CONFIRM_DESC", [
-                  (customizeInitialWineDistro()
-                    ? selectedInitialWineDistro()
-                    : initialWineDistro
-                  ).displayName,
-                ])}
-              </Text>
-              <Show when={customizeInitialWineDistro()}>
-                <Box mt="$4">
-                  <Text mb="$2" fontWeight="$semibold">
-                    {locale.get("INIT_ENVIRONMENT_WINE_VERSION")}
-                  </Text>
-                  <Select
-                    value={initialWineDistroId()}
-                    onChange={setInitialWineDistroId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                      <SelectIcon />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectListbox>
-                        <For each={wineDistros}>
-                          {distro => (
-                            <SelectOption value={distro.id}>
-                              <SelectOptionText>
-                                {distro.displayName}
-                              </SelectOptionText>
-                              <SelectOptionIndicator />
-                            </SelectOption>
-                          )}
-                        </For>
-                      </SelectListbox>
-                    </SelectContent>
-                  </Select>
-                </Box>
-              </Show>
-            </ModalBody>
-            <ModalFooter>
-              <Show
-                when={customizeInitialWineDistro()}
-                fallback={
-                  <>
-                    <Button
-                      variant="ghost"
-                      mr="$3"
-                      onClick={() => setShowInitializeWineConfirm(false)}
-                    >
-                      {locale.get("SETTING_CANCEL")}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      mr="$3"
-                      onClick={() => setCustomizeInitialWineDistro(true)}
-                    >
-                      {locale.get("INIT_ENVIRONMENT_CUSTOM_WINE")}
-                    </Button>
-                    <Button
-                      onClick={() => startInitializeWine(initialWineDistro)}
-                    >
-                      {locale.get("INIT_ENVIRONMENT_USE_RECOMMENDED")}
-                    </Button>
-                  </>
-                }
-              >
-                <Button
-                  variant="ghost"
-                  mr="$3"
-                  onClick={() => setShowInitializeWineConfirm(false)}
-                >
-                  {locale.get("SETTING_CANCEL")}
-                </Button>
-                <Button
-                  onClick={() =>
-                    startInitializeWine(selectedInitialWineDistro())
-                  }
-                >
-                  {locale.get("INIT_ENVIRONMENT")}
-                </Button>
-              </Show>
             </ModalFooter>
           </ModalContent>
         </Modal>

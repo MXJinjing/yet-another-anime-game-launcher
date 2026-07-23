@@ -1,9 +1,6 @@
 import { gt } from "semver";
 import { dirname, join } from "path-browserify";
-import {
-  CommonProgressUICommand,
-  CommonUpdateProgram,
-} from "@common-update-ui";
+import { CommonUpdateProgram } from "@common-update-ui";
 import { Server } from "@constants";
 import {
   writeBinary,
@@ -34,73 +31,35 @@ export async function* patchProgram(
   gameDir: string,
   wine: Wine,
   server: Server,
-  config: Config,
-  progressRange?: { start: number; end: number }
+  config: Config
 ): CommonUpdateProgram {
-  const progressStart = progressRange?.start ?? 0;
-  const progressEnd = progressRange?.end ?? 0;
-  let completedSteps = 0;
-  const totalSteps =
-    (config.patchOff
-      ? 0
-      : server.patched.length * 4 +
-        server.removed.length +
-        server.added.length) +
-    DXMT_FILES.length * 2 +
-    3 +
-    (server.id.startsWith("hkrpg") ? 2 : 0) +
-    (config.reshade ? 2 : 0) +
-    (!server.id.startsWith("hkrpg") ? 4 : 0) +
-    1;
-
-  function* report(message: string): Generator<CommonProgressUICommand> {
-    completedSteps += 1;
-    if (progressRange && totalSteps > 0) {
-      yield [
-        "setProgress",
-        progressStart +
-          ((progressEnd - progressStart) * completedSteps) / totalSteps,
-      ];
-    }
-    yield ["setRawStateText", message];
-  }
-
   if ((await getKeyOrDefault("patched", "NOTFOUND")) != "NOTFOUND") {
-    yield* report("启动补丁：检测到补丁状态已存在，跳过重复应用");
     return;
   }
   if (!config.patchOff) {
     for (const file of server.patched) {
-      yield* report(`启动补丁：备份待补丁文件 ${file.file}`);
       await forceMove(
         join(gameDir, file.file),
         join(gameDir, file.file + ".bak")
       );
-      yield* report(`启动补丁：下载差分文件 ${file.file}`);
       await putLocal(file.diffUrl, join(gameDir, file.file + ".diff"));
-      yield* report(`启动补丁：应用差分补丁 ${file.file}`);
       await xdelta3(
         join(gameDir, file.file + ".bak"),
         join(gameDir, file.file + ".diff"),
         join(gameDir, file.file)
       );
       await log("patched " + file.file);
-      yield* report(`启动补丁：删除临时差分文件 ${file.file}.diff`);
       await removeFile(join(gameDir, file.file + ".diff"));
     }
     for (const { file } of server.removed) {
-      yield* report(`启动补丁：临时移除游戏文件 ${file}`);
       if (await fileOrDirExists(join(gameDir, file))) {
         await forceMove(join(gameDir, file), join(gameDir, file + ".bak"));
       }
     }
     for (const file of server.added) {
-      yield* report(`启动补丁：添加游戏文件 ${file.file}`);
       await mkdirp(join(gameDir, dirname(file.file)));
       await putLocal(file.url, join(gameDir, file.file));
     }
-  } else {
-    yield* report("启动补丁：已关闭 AC 补丁，跳过游戏文件补丁");
   }
 
   const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
@@ -108,43 +67,34 @@ export async function* patchProgram(
 
   for (const f of DXMT_FILES) {
     const wineLibPath = resolve(`./wine/lib/wine/x86_64-windows/${f}`);
-    yield* report(`启动补丁：备份 Wine 图形库 ${f}`);
     await forceMove(wineLibPath, wineLibPath + ".bak");
-    yield* report(`启动补丁：安装 DXMT 图形库 ${f}`);
     await cp(`./dxmt/${f}`, wineLibPath);
   }
 
   // winemetal files always go to Wine lib directories
-  yield* report("启动补丁：安装 winemetal.dll 到 Wine 库目录");
   await cp(
     `./dxmt/winemetal.dll`,
     resolve("./wine/lib/wine/x86_64-windows/winemetal.dll")
   );
 
-  yield* report("启动补丁：安装 winemetal.so 到 Wine 库目录");
   await cp(
     `./dxmt/winemetal.so`,
     resolve("./wine/lib/wine/x86_64-unix/winemetal.so")
   );
 
   // winemetal.dll also to system32 for both native and builtin
-  yield* report("启动补丁：安装 winemetal.dll 到 system32");
   await cp(`./dxmt/winemetal.dll`, join(system32Dir, "winemetal.dll"));
 
   if (server.id.startsWith("hkrpg")) {
-    yield* report("启动补丁：安装 nvngx.dll 到 Wine 库目录");
     await cp(
       `./dxmt/nvngx.dll`,
       resolve("./wine/lib/wine/x86_64-windows/nvngx.dll")
     );
-    yield* report("启动补丁：安装 nvngx.dll 到 system32");
     await cp(`./dxmt/nvngx.dll`, join(system32Dir, "nvngx.dll"));
   }
 
   if (config.reshade) {
-    yield* report("启动补丁：安装 ReShade dxgi.dll");
     await cp(resolve("./reshade/dxgi.dll"), join(gameDir, "dxgi.dll"));
-    yield* report("启动补丁：安装 ReShade d3dcompiler_47.dll");
     await cp(
       resolve("./reshade/d3dcompiler_47.dll"),
       join(gameDir, "d3dcompiler_47.dll")
@@ -152,30 +102,25 @@ export async function* patchProgram(
   }
 
   if (!server.id.startsWith("hkrpg")) {
-    yield* report("启动补丁：安装 steam64.exe 到 system32");
     await cp(
       resolve("./sidecar/protonextras/steam64.exe"),
       join(system32Dir, "steam.exe")
     );
-    yield* report("启动补丁：安装 steam32.exe 到 syswow64");
     await cp(
       resolve("./sidecar/protonextras/steam32.exe"),
       join(syswow64Dir, "steam.exe")
     );
-    yield* report("启动补丁：安装 64 位 lsteamclient.dll");
     await cp(
       resolve("./sidecar/protonextras/lsteamclient64.dll"),
       join(system32Dir, "lsteamclient.dll")
     );
-    yield* report("启动补丁：安装 32 位 lsteamclient.dll");
     await cp(
       resolve("./sidecar/protonextras/lsteamclient32.dll"),
       join(syswow64Dir, "lsteamclient.dll")
     );
   }
 
-  yield* report("启动补丁：写入补丁状态标记");
-  await setKey("patched", "1");
+  setKey("patched", "1");
 }
 
 export async function* patchRevertProgram(
@@ -187,12 +132,10 @@ export async function* patchRevertProgram(
   try {
     await getKey("patched");
   } catch {
-    yield ["setRawStateText", "还原补丁：未检测到补丁状态，跳过还原"];
     return;
   }
   if (!config.patchOff) {
     for (const file of server.patched) {
-      yield ["setRawStateText", `还原补丁：恢复原始文件 ${file.file}`];
       if (await fileOrDirExists(join(gameDir, file.file + ".bak"))) {
         await forceMove(
           join(gameDir, file.file + ".bak"),
@@ -201,37 +144,29 @@ export async function* patchRevertProgram(
       }
     }
     for (const { file } of server.removed) {
-      yield ["setRawStateText", `还原补丁：恢复临时移除文件 ${file}`];
       if (await fileOrDirExists(join(gameDir, file + ".bak"))) {
         await forceMove(join(gameDir, file + ".bak"), join(gameDir, file));
       }
     }
     for (const file of server.added) {
-      yield ["setRawStateText", `还原补丁：删除启动时添加文件 ${file.file}`];
       if (await fileOrDirExists(join(gameDir, file.file))) {
         await removeFile(join(gameDir, file.file));
       }
     }
-  } else {
-    yield ["setRawStateText", "还原补丁：AC 补丁已关闭，跳过游戏文件还原"];
   }
 
   const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
   if (wine.attributes.renderBackend == "dxmt") {
     for (const f of DXMT_FILES) {
-      yield ["setRawStateText", `还原补丁：恢复 Wine 图形库 ${f}`];
       const wineLibPath = resolve(`./wine/lib/wine/x86_64-windows/${f}`);
       await forceMove(wineLibPath + ".bak", wineLibPath);
     }
   }
   if (config.reshade) {
-    yield ["setRawStateText", "还原补丁：删除 ReShade dxgi.dll"];
     await removeFileIfExists(join(gameDir, "dxgi.dll"));
-    yield ["setRawStateText", "还原补丁：删除 ReShade d3dcompiler_47.dll"];
     await removeFileIfExists(join(gameDir, "d3dcompiler_47.dll"));
   }
-  yield ["setRawStateText", "还原补丁：清除补丁状态标记"];
-  await setKey("patched", null);
+  setKey("patched", null);
 }
 
 // ---------------------------------------------------------------------------

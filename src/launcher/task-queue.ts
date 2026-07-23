@@ -39,11 +39,6 @@ export function createTaskQueueState({
                   await log(locale.format(text[1], text.slice(2)));
                 }
                 break;
-              case "setRawStateText":
-                onStateKey?.(null);
-                setStatusText(text[1]);
-                await log(text[1]);
-                break;
             }
           }
           await log("Task completed");
