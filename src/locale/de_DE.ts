@@ -136,6 +136,14 @@ export const de_DE: typeof zh_CN = {
 
   SETTING_BLOCK_NET: "Netzwerk temporär über hosts blockieren",
   SETTING_BLOCK_NET_DURATION: "Blockierdauer (Sekunden)",
+  SETTING_HOSTS_HELPER: "Hosts permission helper",
+  SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
+  SETTING_HOSTS_HELPER_STATUS_STOPPED: "Status: installed but not running",
+  SETTING_HOSTS_HELPER_STATUS_NOT_INSTALLED: "Status: not installed",
+  SETTING_HOSTS_HELPER_STATUS_ERROR: "Status: needs attention",
+  SETTING_HOSTS_HELPER_INSTALL: "Install",
+  SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
+  SETTING_HOSTS_HELPER_REFRESH: "Refresh",
   SETTING_TIMEOUT_FIX: "Wine-Timeout-Workaround aktivieren",
   SETTING_WORKAROUND4: "mhypbase.dll während des Spiels temporär ersetzen",
   SETTING_WORKAROUND4_DESC:

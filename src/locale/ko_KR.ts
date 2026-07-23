@@ -133,6 +133,14 @@ export const ko_KR: typeof zh_CN = {
 
   SETTING_BLOCK_NET: "hosts로 네트워크 임시 차단",
   SETTING_BLOCK_NET_DURATION: "차단 시간(초)",
+  SETTING_HOSTS_HELPER: "Hosts permission helper",
+  SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
+  SETTING_HOSTS_HELPER_STATUS_STOPPED: "Status: installed but not running",
+  SETTING_HOSTS_HELPER_STATUS_NOT_INSTALLED: "Status: not installed",
+  SETTING_HOSTS_HELPER_STATUS_ERROR: "Status: needs attention",
+  SETTING_HOSTS_HELPER_INSTALL: "Install",
+  SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
+  SETTING_HOSTS_HELPER_REFRESH: "Refresh",
   SETTING_TIMEOUT_FIX: "Wine 타임아웃 우회 활성화",
   SETTING_WORKAROUND4: "게임 실행 중 mhypbase.dll 임시 교체",
   SETTING_WORKAROUND4_DESC:

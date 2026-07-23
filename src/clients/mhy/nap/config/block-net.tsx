@@ -3,6 +3,7 @@ import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey } from "@utils";
 import { Config, NOOP } from "@config/config-def";
+import { HostsHelperControl } from "@config/hosts-helper";
 
 declare module "@config/config-def" {
   interface Config {
@@ -58,6 +59,7 @@ export default async function ({
               {locale.get("SETTING_ENABLED")}
             </Checkbox>
           </Box>
+          <HostsHelperControl locale={locale} />
         </FormControl>
       );
     },

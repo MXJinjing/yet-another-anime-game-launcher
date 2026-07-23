@@ -1,8 +1,9 @@
 import { FormControl, FormLabel, Box, Checkbox, Input } from "@hope-ui/solid";
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey } from "@utils";
 import { Config, NOOP } from "@config/config-def";
+import { HostsHelperControl } from "@config/hosts-helper";
 
 declare module "@config/config-def" {
   interface Config {
@@ -75,30 +76,29 @@ export default async function ({
               {locale.get("SETTING_ENABLED")}
             </Checkbox>
           </Box>
-          <Show when={on()}>
-            <Box mt={"$2"}>
-              <Box mb={"$1"}>
-                <span style="font-size:12px;color:#aaa">
-                  {locale.get("SETTING_BLOCK_NET_DURATION")}
-                </span>
-              </Box>
-              <Box display="flex" alignItems="center" gap={"$2"}>
-                <Input
-                  type="number"
-                  value={String(duration())}
-                  min={5}
-                  max={60}
-                  width="60px"
-                  size="sm"
-                  onChange={e => {
-                    const v = Number(e.currentTarget.value);
-                    if (!isNaN(v)) setDuration(Math.max(5, Math.min(60, v)));
-                  }}
-                />
-                <span style="font-size:12px;color:#aaa">s</span>
-              </Box>
+          <HostsHelperControl locale={locale} />
+          <Box mt={"$2"}>
+            <Box mb={"$1"}>
+              <span style="font-size:12px;color:#aaa">
+                {locale.get("SETTING_BLOCK_NET_DURATION")}
+              </span>
             </Box>
-          </Show>
+            <Box display="flex" alignItems="center" gap={"$2"}>
+              <Input
+                type="number"
+                value={String(duration())}
+                min={5}
+                max={60}
+                width="60px"
+                size="sm"
+                onChange={e => {
+                  const v = Number(e.currentTarget.value);
+                  if (!isNaN(v)) setDuration(Math.max(5, Math.min(60, v)));
+                }}
+              />
+              <span style="font-size:12px;color:#aaa">s</span>
+            </Box>
+          </Box>
         </FormControl>
       );
     },

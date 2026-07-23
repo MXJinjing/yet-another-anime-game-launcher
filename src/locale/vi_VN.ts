@@ -134,6 +134,14 @@ export const vi_VN: typeof zh_CN = {
 
   SETTING_BLOCK_NET: "Tạm chặn mạng qua hosts",
   SETTING_BLOCK_NET_DURATION: "Thời lượng chặn (giây)",
+  SETTING_HOSTS_HELPER: "Hosts permission helper",
+  SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
+  SETTING_HOSTS_HELPER_STATUS_STOPPED: "Status: installed but not running",
+  SETTING_HOSTS_HELPER_STATUS_NOT_INSTALLED: "Status: not installed",
+  SETTING_HOSTS_HELPER_STATUS_ERROR: "Status: needs attention",
+  SETTING_HOSTS_HELPER_INSTALL: "Install",
+  SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
+  SETTING_HOSTS_HELPER_REFRESH: "Refresh",
   SETTING_TIMEOUT_FIX: "Bật khắc phục timeout của Wine",
   SETTING_WORKAROUND4: "Tạm thay mhypbase.dll khi trò chơi đang chạy",
   SETTING_WORKAROUND4_DESC:
