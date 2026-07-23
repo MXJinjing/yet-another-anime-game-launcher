@@ -53,16 +53,19 @@ export async function* installWineEnvironmentProgram({
   wineAbsPrefix,
   wineDistro,
   activate = true,
+  finishMessage = true,
 }: {
   aria2: Aria2;
   wineAbsPrefix: string;
   wineDistro: WineDistribution;
   activate?: boolean;
+  finishMessage?: boolean;
 }): CommonUpdateProgram {
   const wineBinaryDir = getWineInstallDir(wineDistro.id);
   const wineBinaryTmpDir = `${wineBinaryDir}.installing`;
+  const installedBefore = await isWineDistroInstalled(wineDistro.id);
 
-  if (!(await isWineDistroInstalled(wineDistro.id))) {
+  if (!installedBefore) {
     yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
     const isXZ = wineDistro.remoteUrl.endsWith(".xz");
     const wineTarPath = resolve(
@@ -104,20 +107,19 @@ export async function* installWineEnvironmentProgram({
     await exec(["mv", wineBinaryTmpDir, wineBinaryDir]);
   }
 
-  if (!activate) {
-    yield ["setStateText", "INSTALL_DONE"];
-    return;
+  if (!installedBefore || activate) {
+    yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
+    yield ["setUndeterminedProgress"];
+    await addCertsToWine(wineBinaryDir);
+    await xattrRemove("com.apple.quarantine", wineBinaryDir);
   }
 
-  yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
-
-  await addCertsToWine(wineBinaryDir);
-  await xattrRemove("com.apple.quarantine", wineBinaryDir);
-
-  yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
-
-  yield ["setUndeterminedProgress"];
-  await ensureHosts(ENSURE_HOSTS);
+  if (!activate) {
+    if (finishMessage) {
+      yield ["setStateText", "INSTALL_DONE"];
+    }
+    return;
+  }
 
   yield* configureWineEnvironmentProgram({ aria2, wineAbsPrefix, wineDistro });
 }
@@ -131,6 +133,9 @@ export async function* configureWineEnvironmentProgram({
   wineAbsPrefix: string;
   wineDistro: WineDistribution;
 }): CommonUpdateProgram {
+  yield ["setUndeterminedProgress"];
+  await ensureHosts(ENSURE_HOSTS);
+
   const wine = await createWine({
     prefix: wineAbsPrefix,
     distro: wineDistro,

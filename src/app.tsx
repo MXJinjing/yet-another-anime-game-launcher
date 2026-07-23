@@ -185,43 +185,42 @@ export async function createApp() {
     wineDistroId: wineStatus.wineDistribution.id,
     wineInstalled,
     initializeWine: async function* (wineDistro) {
-      await setKey("wine_state", "update");
-      await setKey("wine_update_tag", wineDistro.id);
-      await setKey("wine_update_url", wineDistro.remoteUrl);
       yield* installWineEnvironmentProgram({
         aria2,
         wineAbsPrefix: prefixPath,
         wineDistro,
-        activate: true,
+        activate: false,
+        finishMessage: false,
+      });
+      yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
+      yield ["setUndeterminedProgress"];
+      yield* configureWineEnvironmentProgram({
+        aria2,
+        wineAbsPrefix: prefixPath,
+        wineDistro,
       });
       await wine.setDistribution(wineDistro);
       setWineInstalled(true);
     },
     enableWineDistro: async function* (wineDistro) {
-      await setKey("wine_state", "update");
-      await setKey("wine_update_tag", wineDistro.id);
-      await setKey("wine_update_url", wineDistro.remoteUrl);
       const installed = await isWineDistroInstalled(wineDistro.id);
       if (!installed) {
         yield* installWineEnvironmentProgram({
           aria2,
           wineAbsPrefix: prefixPath,
           wineDistro,
-          activate: true,
+          activate: false,
+          finishMessage: false,
         });
       }
-      if (installed) {
-        yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
-        yield ["setUndeterminedProgress"];
-        yield* configureWineEnvironmentProgram({
-          aria2,
-          wineAbsPrefix: prefixPath,
-          wineDistro,
-        });
-        await wine.setDistribution(wineDistro);
-      } else {
-        await wine.setDistribution(wineDistro);
-      }
+      yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
+      yield ["setUndeterminedProgress"];
+      yield* configureWineEnvironmentProgram({
+        aria2,
+        wineAbsPrefix: prefixPath,
+        wineDistro,
+      });
+      await wine.setDistribution(wineDistro);
       setWineInstalled(true);
     },
     uninstallWineDistro: async function* (wineDistro) {
