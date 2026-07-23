@@ -183,21 +183,20 @@ export async function createWineDistroConfig({
                         <Popover placement="left" triggerMode="click">
                           {({ onClose }) => (
                             <>
-                              <PopoverTrigger>
-                                <Button
-                                  size="sm"
-                                  colorScheme="danger"
-                                  disabled={wineActionDisabled()}
-                                  title={
-                                    wineActionDisabled()
-                                      ? locale.get(
-                                          "SETTING_WINE_VERSION_UPDATE_BUSY"
-                                        )
-                                      : undefined
-                                  }
-                                >
-                                  {locale.get("SETTING_WINE_UNINSTALL")}
-                                </Button>
+                              <PopoverTrigger
+                                as={Button}
+                                size="sm"
+                                colorScheme="danger"
+                                disabled={wineActionDisabled()}
+                                title={
+                                  wineActionDisabled()
+                                    ? locale.get(
+                                        "SETTING_WINE_VERSION_UPDATE_BUSY"
+                                      )
+                                    : undefined
+                                }
+                              >
+                                {locale.get("SETTING_WINE_UNINSTALL")}
                               </PopoverTrigger>
                               <PopoverContent>
                                 <PopoverArrow />
