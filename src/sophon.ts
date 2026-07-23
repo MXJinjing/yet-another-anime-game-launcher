@@ -59,17 +59,21 @@ export class SophonClient {
       .replace("https://", "wss://");
   }
 
-  async healthCheck(): Promise<boolean> {
+  async healthCheck({ logFailures = true } = {}): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/health`);
       if (!response.ok) {
-        log(`Health check failed with status: ${response.status}`);
+        if (logFailures) {
+          log(`Health check failed with status: ${response.status}`);
+        }
         return false;
       }
       await response.json();
       return true;
     } catch (error) {
-      log(`Health check error: ${error}`);
+      if (logFailures) {
+        log(`Health check error: ${error}`);
+      }
       return false;
     }
   }
@@ -253,13 +257,24 @@ export async function createSophonRetry(
   host: string,
   port: number
 ): Promise<Sophon> {
-  for (let i = 0; i < 10; i++) {
+  const client = new SophonClient(host, port);
+  let lastError = "";
+
+  for (let i = 0; i < 60; i++) {
     try {
-      return await createSophon(host, port);
+      if (await client.healthCheck({ logFailures: false })) {
+        return client;
+      }
     } catch (error) {
-      log("Failed to create sophon client, retrying..." + error);
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      lastError = String(error);
     }
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
-  throw new Error("Failed to create sophon client after retries");
+
+  await client.healthCheck({ logFailures: true });
+  throw new Error(
+    `Failed to create sophon client after retries${
+      lastError ? `: ${lastError}` : ""
+    }`
+  );
 }

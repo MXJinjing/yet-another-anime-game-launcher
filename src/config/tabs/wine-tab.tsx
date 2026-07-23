@@ -8,7 +8,7 @@ import {
   Text,
   VStack,
 } from "@hope-ui/solid";
-import { JSXElement, Show } from "solid-js";
+import { JSXElement } from "solid-js";
 import { Locale } from "../../locale";
 import { exec2 } from "../../utils";
 
@@ -25,8 +25,8 @@ export function WineTab(props: {
           <FormLabel>{props.locale.get("SETTING_WINE_STATUS")}</FormLabel>
           <Text userSelect={"none"}>
             {props.wineInstalled()
-              ? props.locale.get("SETTING_WINE_STATUS_INSTALLED")
-              : props.locale.get("SETTING_WINE_STATUS_NOT_INSTALLED")}
+              ? props.locale.get("SETTING_WINE_ENV_INITIALIZED")
+              : props.locale.get("SETTING_WINE_ENV_NOT_INITIALIZED")}
           </Text>
         </FormControl>
         <FormControl>
@@ -44,9 +44,7 @@ export function WineTab(props: {
             </Button>
           </HStack>
         </FormControl>
-        <Show when={props.wineInstalled()}>
-          <props.WineDistroConfig />
-        </Show>
+        <props.WineDistroConfig />
       </VStack>
     </TabPanel>
   );
