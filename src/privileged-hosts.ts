@@ -8,6 +8,17 @@ const helperSourcePath = () =>
   resolve("./sidecar/yaagl-hosts-helper/yaagl-hosts-helper.c");
 const installScriptPath = () =>
   resolve("./sidecar/yaagl-hosts-helper/install.sh");
+const uninstallScriptPath = () =>
+  resolve("./sidecar/yaagl-hosts-helper/uninstall.sh");
+const installedHelperPath = "/Library/PrivilegedHelperTools/yaagl-hosts-helper";
+const installedPlistPath =
+  "/Library/LaunchDaemons/com.3shain.yaagl.hosts-helper.plist";
+
+export type PrivilegedHostsHelperStatus =
+  | "running"
+  | "installed-stopped"
+  | "not-installed"
+  | "error";
 
 function helperArgs(
   action: "ensure" | "block",
@@ -93,6 +104,31 @@ export async function blockPrivilegedHosts(
 
 export async function unblockPrivilegedHosts() {
   await requestHelper(["--request", "unblock"]);
+}
+
+export async function getPrivilegedHostsHelperStatus(): Promise<PrivilegedHostsHelperStatus> {
+  try {
+    if (await helperAvailable()) return "running";
+    await exec(["test", "-x", installedHelperPath]);
+    await exec(["test", "-f", installedPlistPath]);
+    return "installed-stopped";
+  } catch {
+    try {
+      await exec(["test", "-e", installedHelperPath]);
+      return "error";
+    } catch {
+      return "not-installed";
+    }
+  }
+}
+
+export async function installPrivilegedHostsHelper() {
+  await installHelper();
+}
+
+export async function uninstallPrivilegedHostsHelper() {
+  await log("Uninstalling YAAGL privileged hosts helper");
+  await exec(["/bin/sh", uninstallScriptPath()], {}, true);
 }
 
 export async function legacyBlockHosts(hosts: HostEntry[], ttl: number) {

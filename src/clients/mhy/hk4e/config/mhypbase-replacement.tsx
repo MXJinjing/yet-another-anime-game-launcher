@@ -7,7 +7,7 @@ import {
   Input,
   Text,
 } from "@hope-ui/solid";
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey, log } from "@utils";
 import { Config, NOOP } from "@config/config-def";
@@ -94,36 +94,36 @@ export default async function ({
               {locale.get("SETTING_ENABLED")}
             </Checkbox>
           </Box>
-          <Show when={enabled()}>
-            <Input
-              value={pathValue()}
-              placeholder="/Users/you/Downloads/old_mhypbase.dll"
-              onChange={e => setPathValue(e.currentTarget.value)}
+          <Input
+            value={pathValue()}
+            placeholder="/Users/you/Downloads/old_mhypbase.dll"
+            disabled={!enabled()}
+            onChange={e => setPathValue(e.currentTarget.value)}
+            size="sm"
+          />
+          <Box mt={"$2"}>
+            <Button
+              variant="ghost"
               size="sm"
-            />
-            <Box mt={"$2"}>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  const picked = await Neutralino.os.showOpenDialog(
-                    locale.get("SETTING_WORKAROUND4_PICK"),
-                    {
-                      filter: [
-                        { name: "DLL", extensions: ["dll"] },
-                        { name: "All files", extensions: ["*"] },
-                      ],
-                    }
-                  );
-                  if (Array.isArray(picked) && picked.length > 0) {
-                    setPathValue(picked[0]);
+              disabled={!enabled()}
+              onClick={async () => {
+                const picked = await Neutralino.os.showOpenDialog(
+                  locale.get("SETTING_WORKAROUND4_PICK"),
+                  {
+                    filter: [
+                      { name: "DLL", extensions: ["dll"] },
+                      { name: "All files", extensions: ["*"] },
+                    ],
                   }
-                }}
-              >
-                {locale.get("SETTING_WORKAROUND4_PICK")}
-              </Button>
-            </Box>
-          </Show>
+                );
+                if (Array.isArray(picked) && picked.length > 0) {
+                  setPathValue(picked[0]);
+                }
+              }}
+            >
+              {locale.get("SETTING_WORKAROUND4_PICK")}
+            </Button>
+          </Box>
           <Box mt={"$3"}>
             <Button
               variant="ghost"

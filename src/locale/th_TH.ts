@@ -131,6 +131,14 @@ export const th_TH: typeof zh_CN = {
 
   SETTING_BLOCK_NET: "บล็อกเครือข่ายชั่วคราวผ่าน hosts",
   SETTING_BLOCK_NET_DURATION: "ระยะเวลาบล็อก (วินาที)",
+  SETTING_HOSTS_HELPER: "Hosts permission helper",
+  SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
+  SETTING_HOSTS_HELPER_STATUS_STOPPED: "Status: installed but not running",
+  SETTING_HOSTS_HELPER_STATUS_NOT_INSTALLED: "Status: not installed",
+  SETTING_HOSTS_HELPER_STATUS_ERROR: "Status: needs attention",
+  SETTING_HOSTS_HELPER_INSTALL: "Install",
+  SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
+  SETTING_HOSTS_HELPER_REFRESH: "Refresh",
   SETTING_TIMEOUT_FIX: "เปิดใช้การเลี่ยง timeout ของ Wine",
   SETTING_WORKAROUND4: "แทนที่ mhypbase.dll ชั่วคราวระหว่างที่เกมทำงาน",
   SETTING_WORKAROUND4_DESC:
