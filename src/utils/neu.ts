@@ -48,72 +48,43 @@ export async function exec2(
     [...segments, ...(log_redirect ? [rawString("&>"), log_redirect] : [])],
     env
   );
-  const command = sudo ? runInSudo(cmd) : cmd;
-  await log(command);
-
-  let id: number | undefined;
-  let pid = 0;
-  let stdErr = "";
-  let stdOut = "";
-  const pendingEvents: Neutralino.os.SpawnProcessResult[] = [];
-  let handler!: Neutralino.events.Handler<Neutralino.os.SpawnProcessResult>;
-  let finish: (exit: number) => void = () => undefined;
-
-  const handleDetail = (detail: Neutralino.os.SpawnProcessResult) => {
-    if (detail.id != id) return;
-    if (detail["action"] == "exit") {
-      finish(Number(detail["data"]));
-    } else if (detail["action"] == "stdOut") {
-      stdOut += detail["data"];
-    } else if (detail["action"] == "stdErr") {
-      stdErr += detail["data"];
-    }
-  };
-
-  const result = new Promise<Neutralino.os.ExecCommandResult>((res, rej) => {
-    finish = (exit: number) => {
-      Neutralino.events.off("spawnedProcess", handler);
-      if (exit == 0) {
-        res({
-          pid,
-          exitCode: exit,
-          stdErr,
-          stdOut,
-        });
-      } else {
-        rej(
-          new Error(
-            `Command return non-zero code (${exit}) \n${command}\nStdOut:\n${stdOut}\nStdErr:\n${stdErr}`
-          )
-        );
-      }
-    };
-
-    handler = event => {
+  await log(cmd);
+  const { id, pid } = await Neutralino.os.spawnProcess(cmd);
+  return await new Promise((res, rej) => {
+    const handler: Neutralino.events.Handler<
+      Neutralino.os.SpawnProcessResult
+    > = event => {
       if (!event) return;
-      if (id == undefined) {
-        pendingEvents.push(event.detail);
-        return;
+      let stdErr = "",
+        stdOut = "";
+      if (event.detail.id == id) {
+        if (event.detail["action"] == "exit") {
+          const exit = Number(event.detail["data"]);
+          if (exit == 0) {
+            res({
+              pid,
+              exitCode: exit,
+              stdErr,
+              stdOut,
+            });
+          } else {
+            rej(
+              new Error(
+                `Command return non-zero code (${exit}) \n${cmd}\nStdOut:\n${stdOut}\nStdErr:\n${stdErr}`
+              )
+            );
+          }
+
+          Neutralino.events.off("spawnedProcess", handler);
+        } else if (event.detail["action"] == "stdOut") {
+          stdOut += event.detail["data"];
+        } else if (event.detail["action"] == "stdErr") {
+          stdErr += event.detail["data"];
+        }
       }
-      handleDetail(event.detail);
     };
+    Neutralino.events.on("spawnedProcess", handler);
   });
-
-  await Neutralino.events.on("spawnedProcess", handler);
-
-  try {
-    const spawned = await Neutralino.os.spawnProcess(command);
-    id = spawned.id;
-    pid = spawned.pid;
-    for (const detail of pendingEvents) {
-      handleDetail(detail);
-    }
-  } catch (e) {
-    await Neutralino.events.off("spawnedProcess", handler);
-    throw e;
-  }
-
-  return await result;
 }
 
 export function runInSudo(cmd: string) {
