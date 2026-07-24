@@ -105,6 +105,8 @@ export const ko_KR: typeof zh_CN = {
   SETTING_VIDEO: "비디오",
   LANGUAGE_LOCALE_NAME: "한국어",
   SETTING_UI_LOCALE: "런처 UI 언어",
+  SETTING_THEME_COLOR: "Launcher Theme Color",
+  SETTING_THEME_COLOR_CUSTOM: "Custom Color",
   SETTING_RESTART_TO_TAKE_EFFECT:
     "이 설정은 런처를 재시작한 이후에 적용됩니다.",
   SETTING_OPEN_CMD: "Wine 명령줄 도구 실행",

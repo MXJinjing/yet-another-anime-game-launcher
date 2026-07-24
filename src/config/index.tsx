@@ -23,6 +23,7 @@ import { createProxyEnabledConfig } from "@config/proxy-enabled";
 import { createProxyHostConfig } from "@config/proxy-host";
 import { ChannelClientConfigUI } from "../channel-client";
 import { createDownloadServerConfig } from "./download-server";
+import createThemeColorConfig from "./theme-color";
 // Advanced tab moved into VideoTab
 import { GameTab } from "./tabs/game-tab";
 import { GeneralTab } from "./tabs/general-tab";
@@ -114,6 +115,7 @@ export async function createConfiguration({
   });
   const [PRH] = await createProxyHostConfig({ locale, config });
   const [DS] = await createDownloadServerConfig({ locale, config });
+  const [TC] = await createThemeColorConfig({ locale, config });
 
   const channelClientConfig = await configForChannelClient(locale, config);
   const ChannelClientConfig =
@@ -164,6 +166,7 @@ export async function createConfiguration({
                 LeftCmdConfig={LC}
                 DownloadServerConfig={DS}
                 LocaleConfig={UL}
+                ThemeColorConfig={TC}
               />
               <GameTab
                 locale={locale}

@@ -106,6 +106,8 @@ export const ru_RU: typeof zh_CN = {
   SETTING_VIDEO: "Видео",
   LANGUAGE_LOCALE_NAME: "Русский",
   SETTING_UI_LOCALE: "Язык лаунчера",
+  SETTING_THEME_COLOR: "Launcher Theme Color",
+  SETTING_THEME_COLOR_CUSTOM: "Custom Color",
   SETTING_RESTART_TO_TAKE_EFFECT:
     "Настройка вступит в силу после перезагрузки.",
   SETTING_OPEN_CMD: "Открыть командную строку Wine",

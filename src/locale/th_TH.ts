@@ -105,6 +105,8 @@ export const th_TH: typeof zh_CN = {
   SETTING_VIDEO: "วิดีโอ",
   LANGUAGE_LOCALE_NAME: "ไทย",
   SETTING_UI_LOCALE: "ภาษาของลันเชอร์",
+  SETTING_THEME_COLOR: "Launcher Theme Color",
+  SETTING_THEME_COLOR_CUSTOM: "Custom Color",
   SETTING_RESTART_TO_TAKE_EFFECT: "การตั้งค่านี้จะมีผลหลังจากรีสตาร์ท",
   SETTING_OPEN_CMD: "เปิด Wine Command Line Tool",
   SETTING_OPEN_WINE_CMD: en.SETTING_OPEN_WINE_CMD,

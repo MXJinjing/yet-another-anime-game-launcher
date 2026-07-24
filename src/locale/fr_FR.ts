@@ -109,6 +109,8 @@ export const fr_FR: typeof zh_CN = {
   SETTING_VIDEO: "Vidéo",
   LANGUAGE_LOCALE_NAME: "Français",
   SETTING_UI_LOCALE: "Langue de l’interface utilisateur du lanceur",
+  SETTING_THEME_COLOR: "Launcher Theme Color",
+  SETTING_THEME_COLOR_CUSTOM: "Custom Color",
   SETTING_RESTART_TO_TAKE_EFFECT:
     "Cette action prendra effet après le redémarrage.",
   SETTING_OPEN_CMD: "Lancer l’outil de ligne de commande Wine",

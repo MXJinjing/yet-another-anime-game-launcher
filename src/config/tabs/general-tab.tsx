@@ -25,6 +25,7 @@ export function GeneralTab(props: {
   LeftCmdConfig: () => JSXElement;
   DownloadServerConfig: () => JSXElement;
   LocaleConfig: () => JSXElement;
+  ThemeColorConfig: () => JSXElement;
 }) {
   return (
     <TabPanel flex={1} px={20} pt={0} pb={0} h="100%" overflowY="auto">
@@ -35,6 +36,8 @@ export function GeneralTab(props: {
       >
         <Box alignSelf="stretch" overflowY="scroll" pr={20}>
           <VStack spacing={"$4"}>
+            <props.ThemeColorConfig />
+            <Divider />
             <props.LeftCmdConfig />
             <Divider />
             <props.DownloadServerConfig />

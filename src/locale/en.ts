@@ -106,6 +106,8 @@ export const en: typeof zh_CN = {
   SETTING_VIDEO: "Video",
   LANGUAGE_LOCALE_NAME: "English",
   SETTING_UI_LOCALE: "Launcher UI Language",
+  SETTING_THEME_COLOR: "Launcher Theme Color",
+  SETTING_THEME_COLOR_CUSTOM: "Custom Color",
   SETTING_RESTART_TO_TAKE_EFFECT: "This will take effect after restart.",
   SETTING_OPEN_CMD: "Launch Wine Command Line Tool",
   SETTING_OPEN_WINE_CMD: "Open Wine Command Line",

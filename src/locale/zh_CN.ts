@@ -101,6 +101,8 @@ export const zh_CN = {
   SETTING_VIDEO: "视频",
   LANGUAGE_LOCALE_NAME: "简体中文",
   SETTING_UI_LOCALE: "启动器界面语言",
+  SETTING_THEME_COLOR: "启动器主题色",
+  SETTING_THEME_COLOR_CUSTOM: "自定义颜色",
   SETTING_RESTART_TO_TAKE_EFFECT: "此设置将从下次启动生效",
   SETTING_OPEN_CMD: "打开 Wine 命令行工具",
   SETTING_OPEN_WINE_CMD: "打开 Wine 命令行",

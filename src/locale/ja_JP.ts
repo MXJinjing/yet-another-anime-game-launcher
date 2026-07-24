@@ -108,6 +108,8 @@ export const ja_JP: typeof zh_CN = {
   SETTING_VIDEO: "ビデオ",
   LANGUAGE_LOCALE_NAME: "日本語",
   SETTING_UI_LOCALE: "ランチャー言語",
+  SETTING_THEME_COLOR: "Launcher Theme Color",
+  SETTING_THEME_COLOR_CUSTOM: "Custom Color",
   SETTING_RESTART_TO_TAKE_EFFECT: "再起動後に有効になります。",
   SETTING_OPEN_CMD: "Wineコマンドラインツールを起動",
   SETTING_OPEN_WINE_CMD: en.SETTING_OPEN_WINE_CMD,

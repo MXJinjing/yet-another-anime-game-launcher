@@ -108,6 +108,8 @@ export const vi_VN: typeof zh_CN = {
   SETTING_VIDEO: "Video",
   LANGUAGE_LOCALE_NAME: "Tiếng Việt",
   SETTING_UI_LOCALE: "Ngôn ngữ trình khởi động",
+  SETTING_THEME_COLOR: "Launcher Theme Color",
+  SETTING_THEME_COLOR_CUSTOM: "Custom Color",
   SETTING_RESTART_TO_TAKE_EFFECT:
     "Cài đặt sẽ có hiệu lực sau khi khởi động lại",
   SETTING_OPEN_CMD: "Mở command line (cmd) của wine",
