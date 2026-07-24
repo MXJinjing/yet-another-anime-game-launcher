@@ -45,6 +45,26 @@ body {
   left: 0;
 }
 
+.game-logo-fallback {
+  position: absolute;
+  top: 10vh;
+  left: 10vw;
+  right: 10vw;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  z-index: 1;
+}
+
+.game-logo-fallback-text {
+  font-size: 42px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 2px 2px 12px rgba(0, 0, 0, 0.6),
+    0 0 40px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.05em;
+}
+
 .version-icon {
   display: block;
   position: absolute;

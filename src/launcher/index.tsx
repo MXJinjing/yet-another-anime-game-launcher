@@ -94,6 +94,8 @@ export async function createLauncher({
       iconImage,
       launchButtonLocation,
       logo,
+      channelName,
+      fallbackBackground,
     },
     dismissPredownload,
     predownloadVersion,
@@ -102,6 +104,7 @@ export async function createLauncher({
   },
   onCheckUpdate,
   onGameRunningChange,
+  onResetWineEnv,
 }: {
   wine: Wine;
   wineDistroId: string;
@@ -114,6 +117,7 @@ export async function createLauncher({
   channelClient: ChannelClient;
   onCheckUpdate: () => void;
   onGameRunningChange?: (running: boolean) => void;
+  onResetWineEnv: () => Promise<void>;
 }) {
   const showInitialWineGuideByDefault =
     !wineInstalled() &&
@@ -152,6 +156,7 @@ export async function createLauncher({
     onWineDistroInitialized: onDone => {
       notifyWineDistroInitialized = onDone;
     },
+    onResetWineEnv,
   });
 
   const { selectPath } = await createGameInstallationDirectorySanitizer({
@@ -184,7 +189,7 @@ export async function createLauncher({
       }
     );
     if (wineInstalled()) {
-      taskQueue.next(() => init(config));
+      taskQueue.next({ fn: () => init(config) });
     }
 
     const [
@@ -237,17 +242,23 @@ export async function createLauncher({
       if (wineDistroActionDisabled()) return;
       onClose();
       log(`Wine environment enable requested: ${distro.id}`);
-      taskQueue.next(async function* () {
-        yield* enableWineDistro(distro);
-        onDone(distro);
+      taskQueue.next({
+        fn: async function* () {
+          yield* enableWineDistro(distro);
+          onDone(distro);
+        },
+        name: "SETTING_WINE_ENABLED",
       });
     };
     requestWineDistroUninstall = (distro, onDone) => {
       if (wineDistroActionDisabled()) return;
       log(`Wine environment uninstall requested: ${distro.id}`);
-      taskQueue.next(async function* () {
-        yield* uninstallWineDistro(distro);
-        onDone(distro);
+      taskQueue.next({
+        fn: async function* () {
+          yield* uninstallWineDistro(distro);
+          onDone(distro);
+        },
+        name: "SETTING_WINE_UNINSTALLED",
       });
     };
 
@@ -261,9 +272,12 @@ export async function createLauncher({
     function startInitializeWine(distro: WineDistribution) {
       log(`Initialize Wine environment requested: ${distro.id}`);
       setShowInitializeWineConfirm(false);
-      taskQueue.next(async function* () {
-        yield* initializeWine(distro);
-        notifyWineDistroInitialized(distro);
+      taskQueue.next({
+        fn: async function* () {
+          yield* initializeWine(distro);
+          notifyWineDistroInitialized(distro);
+        },
+        name: "INIT_ENVIRONMENT",
       });
     }
 
@@ -286,16 +300,16 @@ export async function createLauncher({
       if (installState() == "INSTALLED") {
         if (updateRequired() == true) {
           await log("Game update requested");
-          taskQueue.next(update);
+          taskQueue.next({ fn: update, name: "UPDATE" });
         } else {
           await log("Game launch requested");
-          taskQueue.next(() => launch(config));
+          taskQueue.next({ fn: () => launch(config) });
         }
       } else {
         const selection = await selectPath();
         if (!selection) return;
         await log(`Game installation requested: ${selection}`);
-        taskQueue.next(() => install(selection));
+        taskQueue.next({ fn: () => install(selection), name: "INSTALL" });
       }
     }
 
@@ -303,7 +317,11 @@ export async function createLauncher({
       <div
         class="background"
         style={{
-          "background-image": background ? `url(${background})` : undefined,
+          "background-image": background
+            ? `url(${background})`
+            : fallbackBackground
+              ? fallbackBackground
+              : undefined,
         }}
       >
         <Show when={background_video}>
@@ -340,6 +358,10 @@ export async function createLauncher({
               width: `${416}px`, //fixme: responsive size
             }}
           />
+        ) : channelName ? (
+          <div class="game-logo-fallback">
+            <span class="game-logo-fallback-text">{channelName}</span>
+          </div>
         ) : null}
         {iconImage ? (
           <div
@@ -515,7 +537,7 @@ export async function createLauncher({
                     variant="ghost"
                     onClick={async () => {
                       await log("Game predownload requested");
-                      nonUrgentTaskQueue.next(predownload);
+                      nonUrgentTaskQueue.next({ fn: predownload, name: "PREDOWNLOAD_READY" });
                     }}
                   >
                     {locale.format("PREDOWNLOAD_READY", [predownloadVersion()])}
@@ -533,7 +555,7 @@ export async function createLauncher({
                   onClose();
                   await log("Game update check requested");
                   if (updateRequired()) {
-                    taskQueue.next(update);
+                    taskQueue.next({ fn: update, name: "UPDATE" });
                   } else {
                     await locale.alert(
                       "GAME_VERSION",
@@ -544,7 +566,7 @@ export async function createLauncher({
                 onClose={action => {
                   onClose();
                   if (action == "check-integrity") {
-                    taskQueue.next(checkIntegrity);
+                    taskQueue.next({ fn: checkIntegrity, name: "SETTING_CHECK_INTEGRITY" });
                   }
                 }}
               ></ConfigurationUI>

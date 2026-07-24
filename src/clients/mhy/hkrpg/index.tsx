@@ -12,6 +12,7 @@ import {
   getFreeSpace,
   getKey,
   getKeyOrDefault,
+  log,
   setKey,
   stats,
   waitImageReady,
@@ -38,10 +39,12 @@ import {
 import { getGameVersion2019 } from "../unity";
 import {
   HoyoConnectGameBackgroundType,
+  HoyoConnectGamePackages,
   VoicePackNames,
 } from "../launcher-info";
 import createPatchOff from "./config/patch-off";
 import createBlockNet from "./config/block-net";
+import createMhypBaseReplacement from "../hk4e/config/mhypbase-replacement";
 import { getLatestAdvInfo, getLatestVersionInfo } from "../hyp-connect";
 
 // no need to check supported version
@@ -58,27 +61,58 @@ export async function createHKRPGChannelClient({
   aria2: Aria2;
   wine: Wine;
 }): Promise<ChannelClient> {
-  const {
-    background: { url: background },
-    icon: { url: icon, link: icon_link },
-    video: { url: video_url },
-    theme: { url: theme_url },
-    type: bg_type,
-  } = await getLatestAdvInfo(locale, server);
+  let background: string;
+  let icon: string;
+  let icon_link: string;
+  let video_url: string;
+  let theme_url: string;
+  let bg_type: HoyoConnectGameBackgroundType;
+  let isAdvFallback = false;
+  try {
+    const advInfo = await getLatestAdvInfo(locale, server);
+    background = advInfo.background.url;
+    icon = advInfo.icon.url;
+    icon_link = advInfo.icon.link;
+    video_url = advInfo.video.url;
+    theme_url = advInfo.theme.url;
+    bg_type = advInfo.type;
+  } catch {
+    isAdvFallback = true;
+    background = "";
+    icon = "";
+    icon_link = "";
+    video_url = "";
+    theme_url = "";
+    bg_type = HoyoConnectGameBackgroundType.BACKGROUND_TYPE_UNSPECIFIED;
+  }
   const IS_VIDEO_BG =
+    !isAdvFallback &&
     bg_type === HoyoConnectGameBackgroundType.BACKGROUND_TYPE_VIDEO;
-  const {
-    main: {
-      major: {
-        version: GAME_LATEST_VERSION,
-        game_pkgs,
-        res_list_url: decompressed_path,
-      },
-      patches,
-    },
-    pre_download,
-  } = await getLatestVersionInfo(server);
-  await waitImageReady(background);
+  const fallbackBg = "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)";
+  let GAME_LATEST_VERSION: string;
+  let game_pkgs: { url: string; size: string }[];
+  let decompressed_path: string;
+  let patches: HoyoConnectGamePackages[];
+  let pre_download: { major: HoyoConnectGamePackages | null; patches: HoyoConnectGamePackages[] };
+  try {
+    const versionInfo = await getLatestVersionInfo(server);
+    GAME_LATEST_VERSION = versionInfo.main.major.version;
+    game_pkgs = versionInfo.main.major.game_pkgs;
+    decompressed_path = versionInfo.main.major.res_list_url;
+    patches = versionInfo.main.patches;
+    pre_download = versionInfo.pre_download;
+  } catch {
+    await log("Failed to fetch version info, using fallback");
+    await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+    GAME_LATEST_VERSION = "0.0.0";
+    game_pkgs = [];
+    decompressed_path = "";
+    patches = [];
+    pre_download = { major: null, patches: [] };
+  }
+  if (background) {
+    await waitImageReady(background);
+  }
 
   const { gameInstalled, gameInstallDir, gameVersion } = await checkGameState(
     locale,
@@ -114,12 +148,18 @@ export async function createHKRPGChannelClient({
       background_video: IS_VIDEO_BG ? video_url : undefined,
       background_theme: IS_VIDEO_BG ? theme_url : undefined,
       url: icon_link,
+      channelName: isAdvFallback ? server.id : undefined,
+      fallbackBackground: isAdvFallback ? fallbackBg : undefined,
     },
     predownloadVersion: () => pre_download?.major?.version ?? "",
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
     async *install(selection: string): CommonUpdateProgram {
+      if (game_pkgs.length === 0) {
+        await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+        return;
+      }
       try {
         // await stats(join(selection, "pkg_version"));
         await stats(join(selection, "GameAssembly.dll")); // FIXME: no pkg_version?
@@ -200,7 +240,7 @@ export async function createHKRPGChannelClient({
     },
     async *predownload() {
       setShowPredownloadPrompt(false);
-      if (pre_download.major == null) return;
+      if (pre_download?.major == null) return;
       const updateTarget = pre_download.patches.find(
         x => x.version == gameCurrentVersion()
       );
@@ -240,6 +280,10 @@ export async function createHKRPGChannelClient({
       });
     },
     async *update() {
+      if (patches.length === 0) {
+        await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+        return;
+      }
       const updateTarget = patches.find(x => x.version == gameCurrentVersion());
       if (!updateTarget) {
         await locale.prompt(
@@ -347,11 +391,16 @@ export async function createHKRPGChannelClient({
       }
     },
     async createConfig(locale: Locale, config: Partial<Config>) {
+      const [W4] = await createMhypBaseReplacement({
+        locale,
+        config,
+        gameInstallDir: _gameInstallDir,
+      });
       const [PO] = await createPatchOff({ locale, config });
       const [BN] = await createBlockNet({ locale, config });
 
       return function () {
-        return [<PO />, <BN />];
+        return [<W4 />, <PO />, <BN />];
       };
     },
   };

@@ -11,12 +11,15 @@ import {
 import { JSXElement } from "solid-js";
 import { Locale } from "../../locale";
 import { exec2 } from "../../utils";
+import { Wine } from "../../wine";
 
 export function WineTab(props: {
   locale: Locale;
+  wine: Wine;
   wineInstalled: () => boolean;
   winePrefix: string;
   WineDistroConfig: () => JSXElement;
+  onResetWineEnv: () => Promise<void>;
 }) {
   return (
     <TabPanel flex={1} px={20} pt={0} pb={0} h="100%" overflowY="auto">
@@ -42,6 +45,39 @@ export function WineTab(props: {
             >
               {props.locale.get("SETTING_OPEN")}
             </Button>
+          </HStack>
+          <HStack spacing={"$2"} mt="$2">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!props.wineInstalled()}
+              onClick={() =>
+                props.wine.openCmdWindow({
+                  gameDir: props.winePrefix,
+                })
+              }
+            >
+              {props.locale.get("SETTING_OPEN_WINE_CMD")}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!props.wineInstalled()}
+              onClick={() =>
+                props.wine.exec2("winecfg", [], {}, "/dev/null")
+              }
+            >
+              {props.locale.get("SETTING_OPEN_WINECFG")}
+            </Button>
+            <Button
+            variant="ghost"
+            size="sm"
+            colorScheme="danger"
+            disabled={!props.wineInstalled()}
+            onClick={() => props.onResetWineEnv()}
+          >
+            {props.locale.get("SETTING_RESET_WINE_ENV")}
+          </Button>
           </HStack>
         </FormControl>
         <props.WineDistroConfig />

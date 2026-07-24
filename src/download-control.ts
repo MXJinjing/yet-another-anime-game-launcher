@@ -33,8 +33,19 @@ export class DownloadCancelledError extends Error {
   }
 }
 
+export class DownloadFailedError extends Error {
+  constructor(message = "Download failed") {
+    super(message);
+    this.name = "DownloadFailedError";
+  }
+}
+
 export function isDownloadCancelledError(error: unknown) {
   return error instanceof DownloadCancelledError;
+}
+
+export function isDownloadFailedError(error: unknown) {
+  return error instanceof DownloadFailedError;
 }
 
 function emit() {

@@ -109,6 +109,9 @@ export const ru_RU: typeof zh_CN = {
   SETTING_RESTART_TO_TAKE_EFFECT:
     "Настройка вступит в силу после перезагрузки.",
   SETTING_OPEN_CMD: "Открыть командную строку Wine",
+  SETTING_OPEN_WINE_CMD: "Открыть командную строку Wine",
+  SETTING_OPEN_WINECFG: "Открыть Winecfg",
+  SETTING_RESET_WINE_ENV: en.SETTING_RESET_WINE_ENV,
   SETTING_OPEN_GAME_INSTALL_DIR: "Открыть каталог игры",
   SETTING_OPEN_YAAGL_DIR: "Открыть каталог YAAGL",
   SETTING_YAAGL_VERSION: "Версия YAAGL",
@@ -185,6 +188,8 @@ export const ru_RU: typeof zh_CN = {
   SETTING_WINE_INSTALL: en.SETTING_WINE_INSTALL,
   SETTING_WINE_ENABLE: en.SETTING_WINE_ENABLE,
   SETTING_WINE_UNINSTALL: en.SETTING_WINE_UNINSTALL,
+  SETTING_WINE_ENABLED: en.SETTING_WINE_ENABLED,
+  SETTING_WINE_UNINSTALLED: en.SETTING_WINE_UNINSTALLED,
   SETTING_WINE_UNINSTALL_CONFIRM_TITLE: en.SETTING_WINE_UNINSTALL_CONFIRM_TITLE,
   SETTING_WINE_UNINSTALL_CONFIRM_DESC: en.SETTING_WINE_UNINSTALL_CONFIRM_DESC,
   SETTING_WINE_UNINSTALL_CONFIRM: en.SETTING_WINE_UNINSTALL_CONFIRM,
@@ -208,4 +213,6 @@ export const ru_RU: typeof zh_CN = {
   SETTING_DOWNLOAD_SPEED_LIMIT: "Download speed limit",
   SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
+  CHECK_GAME_UPDATE_FAILED: "Check game update failed",
+  CHECK_GAME_UPDATE_FAILED_DESC: "Cannot connect to update server. Please check your network and try again.",
 };

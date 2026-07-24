@@ -146,21 +146,19 @@ export async function createGameInstallDirConfig({
                 >
                   {locale.get("SETTING_CHANGE_GAME_INSTALL_DIR")}
                 </Button>
+                <Button
+                  size="sm"
+                  colorScheme="danger"
+                  variant="ghost"
+                  disabled={!gameInstallDir()}
+                  onClick={() => setUninstallDialogOpen(true)}
+                >
+                  {locale.get("SETTING_UNINSTALL_GAME")}
+                </Button>
               </HStack>
               <Text size="sm" userSelect="none" color="$neutral11">
                 {locale.format("SETTING_GAME_DIR_SIZE", [diskUsage()])}
               </Text>
-              <Button
-                size="sm"
-                variant="ghost"
-                alignSelf="start"
-                color="$danger8"
-                _hover={{ bg: "$danger3", color: "$danger9" }}
-                disabled={!gameInstallDir()}
-                onClick={() => setUninstallDialogOpen(true)}
-              >
-                {locale.get("SETTING_UNINSTALL_GAME")}
-              </Button>
             </VStack>
           </FormControl>
           <Modal

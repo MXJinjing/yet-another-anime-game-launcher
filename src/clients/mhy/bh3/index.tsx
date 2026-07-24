@@ -64,28 +64,55 @@ export async function createBH3ChannelClient({
   aria2: Aria2;
   wine: Wine;
 }): Promise<ChannelClient> {
-  const {
-    data: {
-      adv: { background, url, icon },
-    },
-  }: LauncherContentData = await (
-    await fetch(
-      server.adv_url +
-        (server.id == "CN"
-          ? `&language=zh-cn` // CN server has no other language support
-          : `&language=en-us`)
-    )
-  ).json();
-  const {
-    data: {
-      game: {
-        diffs,
-        latest: { version: GAME_LATEST_VERSION, path, decompressed_path, size },
-      },
-      pre_download_game,
-    },
-  }: LauncherResourceData = await getLatestVersionInfo(server);
-  await waitImageReady(background);
+  let background: string;
+  let url: string;
+  let icon: string;
+  let isAdvFallback = false;
+  try {
+    const contentData: LauncherContentData = await (
+      await fetch(
+        server.adv_url +
+          (server.id == "CN"
+            ? `&language=zh-cn` // CN server has no other language support
+            : `&language=en-us`)
+      )
+    ).json();
+    background = contentData.data.adv.background;
+    url = contentData.data.adv.url;
+    icon = contentData.data.adv.icon;
+  } catch {
+    isAdvFallback = true;
+    background = "";
+    url = "";
+    icon = "";
+  }
+  const fallbackBg = "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)";
+  let GAME_LATEST_VERSION: string;
+  let diffs: LauncherResourceData["data"]["game"]["diffs"];
+  let decompressed_path: string;
+  let path: string;
+  let pre_download_game: LauncherResourceData["data"]["pre_download_game"];
+  let size: string;
+  try {
+    const versionInfo: LauncherResourceData = await getLatestVersionInfo(server);
+    GAME_LATEST_VERSION = versionInfo.data.game.latest.version;
+    diffs = versionInfo.data.game.diffs;
+    decompressed_path = versionInfo.data.game.latest.decompressed_path;
+    path = versionInfo.data.game.latest.path;
+    size = versionInfo.data.game.latest.size;
+    pre_download_game = versionInfo.data.pre_download_game;
+  } catch {
+    await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+    GAME_LATEST_VERSION = "0.0.0";
+    diffs = [];
+    decompressed_path = "";
+    path = "";
+    size = "0";
+    pre_download_game = null;
+  }
+  if (background) {
+    await waitImageReady(background);
+  }
 
   const { gameInstalled, gameInstallDir, gameVersion } = await checkGameState(
     locale,
@@ -120,12 +147,18 @@ export async function createBH3ChannelClient({
       background,
       iconImage: icon,
       url,
+      channelName: isAdvFallback ? server.id : undefined,
+      fallbackBackground: isAdvFallback ? fallbackBg : undefined,
     },
     predownloadVersion: () => pre_download_game?.latest.version ?? "",
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
     async *install(selection: string): CommonUpdateProgram {
+      if (!path) {
+        await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+        return;
+      }
       try {
         await stats(join(selection, "pkg_version"));
       } catch {
@@ -236,6 +269,10 @@ export async function createBH3ChannelClient({
       });
     },
     async *update() {
+      if (diffs.length === 0) {
+        await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+        return;
+      }
       const updateTarget = diffs.find(x => x.version == gameCurrentVersion());
       if (!updateTarget) {
         await locale.prompt(

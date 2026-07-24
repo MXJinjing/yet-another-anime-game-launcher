@@ -180,62 +180,21 @@ export async function createWineDistroConfig({
                           : locale.get("SETTING_WINE_INSTALL")}
                       </Button>
                       <Show when={installed() && !active()}>
-                        <Popover placement="left" triggerMode="click">
-                          {({ onClose }) => (
-                            <>
-                              <PopoverTrigger
-                                as={Button}
-                                size="sm"
-                                colorScheme="danger"
-                                disabled={wineActionDisabled()}
-                                title={
-                                  wineActionDisabled()
-                                    ? locale.get(
-                                        "SETTING_WINE_VERSION_UPDATE_BUSY"
-                                      )
-                                    : undefined
-                                }
-                              >
-                                {locale.get("SETTING_WINE_UNINSTALL")}
-                              </PopoverTrigger>
-                              <PopoverContent>
-                                <PopoverArrow />
-                                <PopoverHeader>
-                                  {locale.get(
-                                    "SETTING_WINE_UNINSTALL_CONFIRM_TITLE"
-                                  )}
-                                </PopoverHeader>
-                                <PopoverBody>
-                                  <Text size="sm">
-                                    {locale.format(
-                                      "SETTING_WINE_UNINSTALL_CONFIRM_DESC",
-                                      [distro.displayName]
-                                    )}
-                                  </Text>
-                                </PopoverBody>
-                                <PopoverFooter>
-                                  <HStack justifyContent="end" w="100%">
-                                    <Button size="sm" onClick={onClose}>
-                                      {locale.get("SETTING_CANCEL")}
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      colorScheme="danger"
-                                      onClick={() => {
-                                        onClose();
-                                        uninstallWineDistro(distro);
-                                      }}
-                                    >
-                                      {locale.get(
-                                        "SETTING_WINE_UNINSTALL_CONFIRM"
-                                      )}
-                                    </Button>
-                                  </HStack>
-                                </PopoverFooter>
-                              </PopoverContent>
-                            </>
-                          )}
-                        </Popover>
+                      <Button
+                        size="sm"
+                        colorScheme="danger"
+                        disabled={wineActionDisabled()}
+                        title={
+                          wineActionDisabled()
+                            ? locale.get(
+                                "SETTING_WINE_VERSION_UPDATE_BUSY"
+                              )
+                            : undefined
+                        }
+                        onClick={() => uninstallWineDistro(distro)}
+                      >
+                        {locale.get("SETTING_WINE_UNINSTALL")}
+                      </Button>
                       </Show>
                     </HStack>
                   </HStack>

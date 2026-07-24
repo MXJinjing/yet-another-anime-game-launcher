@@ -37,14 +37,6 @@ const HDR_REGISTRY_FILES = {
   hk4e_cn: hk4eHDRCnReg,
 } as const;
 
-function* launchStep(
-  progress: number,
-  message: string
-): Generator<CommonProgressUICommand> {
-  yield ["setProgress", progress];
-  yield ["setRawStateText", message];
-}
-
 async function applyHDRRegistry({
   wine,
   server,
@@ -118,6 +110,28 @@ async function applyDisplayModeRegistry(
   }
 }
 
+const LAUNCH_PROGRESS_STEPS = 10;
+
+function* launchProgress(
+  current: number,
+  total: number,
+  message: string
+): Generator<CommonProgressUICommand> {
+  yield ["setProgress", Math.round((current / total) * 100)];
+  yield ["setRawStateText", message];
+}
+
+const REVERT_STEPS = 6;
+
+function* revertProgress(
+  current: number,
+  total: number,
+  message: string
+): Generator<CommonProgressUICommand> {
+  yield ["setProgress", Math.round((current / total) * 100)];
+  yield ["setRawStateText", message];
+}
+
 export async function* launchGameProgram({
   gameDir,
   gameExecutable,
@@ -131,21 +145,21 @@ export async function* launchGameProgram({
   config: Config;
   server: Server;
 }): CommonUpdateProgram {
-  yield* launchStep(2, "启动阶段：开始准备运行环境");
+  yield* launchProgress(0, LAUNCH_PROGRESS_STEPS, "启动阶段：开始准备运行环境");
 
-  yield* launchStep(5, "启动阶段：应用 Wine 启动参数");
+  yield* launchProgress(1, LAUNCH_PROGRESS_STEPS, "启动阶段：应用 Wine 启动参数");
   await wine.setProps(config);
   if (config.hk4eEnableHDR) {
-    yield* launchStep(8, "启动阶段：写入 HDR 注册表配置");
+    yield* launchProgress(2, LAUNCH_PROGRESS_STEPS, "启动阶段：写入 HDR 注册表配置");
     await applyHDRRegistry({ wine, server });
   }
 
-  yield* launchStep(10, "启动阶段：写入显示模式注册表配置");
+  yield* launchProgress(3, LAUNCH_PROGRESS_STEPS, "启动阶段：写入显示模式注册表配置");
   await applyDisplayModeRegistry(wine, server, config);
-  yield* launchStep(14, "启动阶段：等待 Wine 服务空闲");
+  yield* launchProgress(4, LAUNCH_PROGRESS_STEPS, "启动阶段：等待 Wine 服务空闲");
   await wine.waitUntilServerOff();
 
-  yield* launchStep(18, "启动阶段：生成游戏启动脚本");
+  yield* launchProgress(5, LAUNCH_PROGRESS_STEPS, "启动阶段：生成游戏启动脚本");
   const cmd = `@echo off
 cd "%~dp0"
 copy "${wine.toWinePath(
@@ -156,21 +170,21 @@ cd /d "${wine.toWinePath(gameDir)}"
     join(gameDir, gameExecutable)
   )}" -platform_type CLOUD_THIRD_PARTY_PC -is_cloud 1`;
   await writeFile(resolve("config.bat"), cmd);
-  yield* launchStep(22, "启动阶段：正在应用补丁");
-  yield* patchProgram(gameDir, wine, server, config, { start: 22, end: 62 });
+  yield* launchProgress(6, LAUNCH_PROGRESS_STEPS, "启动阶段：正在应用补丁");
+  yield* patchProgram(gameDir, wine, server, config, { start: 60, end: 70 });
   // Workaround #4 is intentionally temporary: install the user-provided
   // mhypbase.dll only for this launch, then restore the original afterward.
-  yield* launchStep(64, "启动阶段：检查 mhypbase.dll 临时替换");
+  yield* launchProgress(7, LAUNCH_PROGRESS_STEPS, "启动阶段：检查 mhypbase.dll 临时替换");
   const mhypBaseReplaced = await applyMhypBaseReplacement(gameDir, config);
-  yield* launchStep(67, "启动阶段：准备游戏日志目录");
+  yield* launchProgress(8, LAUNCH_PROGRESS_STEPS, "启动阶段：准备游戏日志目录");
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
   try {
-    yield* launchStep(72, "启动阶段：准备启动游戏进程");
+    yield* launchProgress(9, LAUNCH_PROGRESS_STEPS, "启动阶段：准备启动游戏进程");
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
 
     if (config.blockNet) {
-      yield* launchStep(76, "启动阶段：应用断网启动 hosts 规则");
+      yield* launchProgress(10, LAUNCH_PROGRESS_STEPS, "启动阶段：应用断网启动 hosts 规则");
       const blockUrl = server.id == "hk4e_global" ? OS_BLOCK_URL : CN_BLOCK_URL;
       const hosts: [string, string][] = [
         [blockUrl, "0.0.0.0"],
@@ -181,7 +195,10 @@ cd /d "${wine.toWinePath(gameDir)}"
       );
     }
 
-    yield* launchStep(82, "启动阶段：启动游戏进程");
+    yield ["setProgress", 100];
+    yield* launchProgress(10, LAUNCH_PROGRESS_STEPS, "启动阶段：启动游戏进程");
+    yield ["setProgress", 100];
+    yield ["setStateText", "GAME_RUNNING"];
     await wine.exec2(
       config.steamPatch ? "C:\\windows\\system32\\steam.exe" : "cmd",
       config.steamPatch
@@ -211,10 +228,10 @@ cd /d "${wine.toWinePath(gameDir)}"
       },
       logfile
     );
-    yield* launchStep(88, "启动阶段：等待游戏 Wine 服务退出");
+    yield* revertProgress(0, REVERT_STEPS, "还原阶段：等待 Wine 服务退出");
     await wine.waitUntilServerOff();
     if (config.hk4eEnableHDR) {
-      yield* launchStep(90, "启动阶段：还原 HDR 注册表配置");
+      yield* revertProgress(1, REVERT_STEPS, "还原阶段：还原 HDR 注册表配置");
       await revertHDRRegistry({ wine, server });
     }
   } catch (e: unknown) {
@@ -223,17 +240,18 @@ cd /d "${wine.toWinePath(gameDir)}"
   }
 
   // await removeFile(resolve("bWh5cHJvdDJfcnVubmluZy5yZWcK.reg"));
-  yield* launchStep(92, "启动阶段：还原显示模式注册表配置");
+  yield* revertProgress(2, REVERT_STEPS, "还原阶段：还原显示模式注册表配置");
   await revertResolutionRegistry(wine, server);
   if (mhypBaseReplaced) {
-    yield* launchStep(94, "启动阶段：还原 mhypbase.dll");
+    yield* revertProgress(3, REVERT_STEPS, "还原阶段：还原 mhypbase.dll");
     await revertMhypBaseReplacement(gameDir);
   }
-  yield* launchStep(96, "启动阶段：删除临时启动脚本");
+  yield* revertProgress(4, REVERT_STEPS, "还原阶段：删除临时启动脚本");
   await removeFile(resolve("config.bat"));
-  yield* launchStep(97, "启动阶段：正在还原补丁");
+  yield* revertProgress(5, REVERT_STEPS, "还原阶段：正在还原补丁");
   yield* patchRevertProgram(gameDir, wine, server, config);
-  yield* launchStep(100, "启动阶段：游戏启动流程完成");
+  yield ["setProgress", 100];
+  yield* revertProgress(6, REVERT_STEPS, "还原阶段：游戏启动流程完成");
 }
 
 async function revertHDRRegistry({

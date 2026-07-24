@@ -2,6 +2,7 @@ import { WebSocket as RPC } from "libaria2-ts";
 import {
   beginControlledDownload,
   DownloadCancelledError,
+  DownloadFailedError,
   endControlledDownload,
   updateControlledDownload,
 } from "./download-control";
@@ -17,6 +18,11 @@ import {
 } from "./utils";
 import { basename } from "path-browserify";
 import { normalizeHttpProxy } from "./config/proxy";
+
+type Aria2ErrorStatus = {
+  errorCode?: number;
+  errorMessage?: string;
+};
 
 async function getDownloadOptions() {
   const downloadProxyEnabled =
@@ -78,6 +84,15 @@ export async function createAria2({
     );
   }
 
+  function formatAria2DownloadError(status: Aria2ErrorStatus) {
+    const details = [
+      status.errorCode != null ? `code ${status.errorCode}` : null,
+      status.errorMessage,
+    ].filter(Boolean);
+    if (details.length == 0) return "aria2 download failed";
+    return `aria2 download failed: ${details.join(" - ")}`;
+  }
+
   async function* doStreaming(gid: string, isCancelled: () => boolean) {
     let pausedYielded = false;
     while (true) {
@@ -98,6 +113,9 @@ export async function createAria2({
       }
       if (status.status == "removed") {
         throw new DownloadCancelledError();
+      }
+      if (status.status == "error") {
+        throw new DownloadFailedError(formatAria2DownloadError(status));
       }
       if (status.status == "paused") {
         updateControlledDownload({ paused: true, pauseRequested: true });
@@ -216,9 +234,13 @@ export async function createAria2({
           return;
         }
         await log(
-          `忽略暂停请求：${basename(options.absDst)} 当前 aria2 状态为 ${
-            status.status
-          }`
+          status.status == "error"
+            ? `下载任务已失败，无法暂停：${basename(
+                options.absDst
+              )}（${formatAria2DownloadError(status)}）`
+            : `忽略暂停请求：${basename(options.absDst)} 当前 aria2 状态为 ${
+                status.status
+              }`
         );
       },
       resume: async () => {
@@ -243,9 +265,13 @@ export async function createAria2({
           return;
         }
         await log(
-          `忽略继续请求：${basename(options.absDst)} 当前 aria2 状态为 ${
-            status.status
-          }`
+          status.status == "error"
+            ? `下载任务已失败，无法继续：${basename(
+                options.absDst
+              )}（${formatAria2DownloadError(status)}）`
+            : `忽略继续请求：${basename(options.absDst)} 当前 aria2 状态为 ${
+                status.status
+              }`
         );
       },
       cancel: async () => {

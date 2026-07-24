@@ -65,10 +65,28 @@ export async function createCBJQChannelClient({
   aria2: Aria2;
   wine: Wine;
 }): Promise<ChannelClient> {
-  const resourceData = await getLatestVersionInfo(server);
+  let resourceData: LauncherResourceData;
+  let isFallback = false;
+  try {
+    resourceData = await getLatestVersionInfo(server);
+  } catch {
+    isFallback = true;
+    resourceData = {
+      projectVersion: "0.0.0",
+      hashList: [],
+    } as unknown as LauncherResourceData;
+  }
   const { projectVersion: GAME_LATEST_VERSION }: LauncherResourceData =
     resourceData;
-  await waitImageReady(server.background_url);
+
+  let isImageFallback = false;
+  try {
+    await waitImageReady(server.background_url);
+  } catch {
+    isImageFallback = true;
+  }
+  const isUiFallback = isFallback || isImageFallback;
+  const fallbackBg = "linear-gradient(135deg, #0ba360 0%, #3cba92 100%)";
 
   const { gameInstalled, gameInstallDir, gameVersion } = await checkGameState(
     locale,
@@ -96,10 +114,12 @@ export async function createCBJQChannelClient({
     gameVersion: gameCurrentVersion,
     updateRequired,
     uiContent: {
-      background: server.background_url,
+      background: isUiFallback ? "" : server.background_url,
       iconImage: "",
       url: "",
       launchButtonLocation: "left",
+      channelName: isUiFallback ? server.id : undefined,
+      fallbackBackground: isUiFallback ? fallbackBg : undefined,
     },
     predownloadVersion: () => "", // TODO
     dismissPredownload() {

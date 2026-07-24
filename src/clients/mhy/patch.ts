@@ -54,11 +54,10 @@ export async function* patchProgram(
         progressRange.start + Math.round((progressSpan * step) / total),
       ];
     }
-    yield ["setRawStateText", message];
   };
 
   if ((await getKeyOrDefault("patched", "NOTFOUND")) != "NOTFOUND") {
-    yield* report(1, 1, "补丁阶段：已检测到补丁状态，跳过重复应用");
+    yield* report(1, 1, "启动阶段：已检测到补丁状态，跳过重复应用");
     return;
   }
 
@@ -221,13 +220,36 @@ export async function* patchRevertProgram(
   try {
     await getKey("patched");
   } catch {
-    yield ["setRawStateText", "还原补丁阶段：未检测到补丁状态，跳过还原"];
+    yield ["setRawStateText", "还原阶段：未检测到补丁状态，跳过还原"];
     return;
   }
-  yield ["setRawStateText", "还原补丁阶段：开始还原游戏文件"];
+
+  const patchFileSteps = server.patched.length;
+  const removedFileSteps = server.removed.length;
+  const addedFileSteps = server.added.length;
+  const dxmtSteps = DXMT_FILES.length;
+  const totalSteps = Math.max(
+    1,
+    patchFileSteps +
+      removedFileSteps +
+      addedFileSteps +
+      dxmtSteps +
+      (config.reshade ? 1 : 0) +
+      1
+  );
+  let step = 0;
+
+  const report = async function* (
+    message: string
+  ): AsyncGenerator<CommonProgressUICommand> {
+    yield ["setRawStateText", `还原阶段：正在还原补丁(${step}/${totalSteps})`];
+  };
+
+  yield* report("还原阶段：开始还原游戏文件");
   if (!config.patchOff) {
     for (const file of server.patched) {
-      yield ["setRawStateText", `还原补丁阶段：还原 ${file.file}`];
+      ++step;
+      yield* report(`还原阶段：还原 ${file.file}`);
       if (await fileOrDirExists(join(gameDir, file.file + ".bak"))) {
         await forceMove(
           join(gameDir, file.file + ".bak"),
@@ -236,13 +258,15 @@ export async function* patchRevertProgram(
       }
     }
     for (const { file } of server.removed) {
-      yield ["setRawStateText", `还原补丁阶段：恢复 ${file}`];
+      ++step;
+      yield* report(`还原阶段：恢复 ${file}`);
       if (await fileOrDirExists(join(gameDir, file + ".bak"))) {
         await forceMove(join(gameDir, file + ".bak"), join(gameDir, file));
       }
     }
     for (const file of server.added) {
-      yield ["setRawStateText", `还原补丁阶段：移除 ${file.file}`];
+      ++step;
+      yield* report(`还原阶段：移除 ${file.file}`);
       if (await fileOrDirExists(join(gameDir, file.file))) {
         await removeFile(join(gameDir, file.file));
       }
@@ -252,17 +276,20 @@ export async function* patchRevertProgram(
   const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
   if (wine.attributes.renderBackend == "dxmt") {
     for (const f of DXMT_FILES) {
-      yield ["setRawStateText", `还原补丁阶段：还原 Wine 运行库 ${f}`];
+      ++step;
+      yield* report(`还原阶段：还原 Wine 运行库 ${f}`);
       const wineLibPath = resolve(`./wine/lib/wine/x86_64-windows/${f}`);
       await forceMove(wineLibPath + ".bak", wineLibPath);
     }
   }
   if (config.reshade) {
-    yield ["setRawStateText", "还原补丁阶段：移除 ReShade 文件"];
+    ++step;
+    yield* report("还原阶段：移除 ReShade 文件");
     await removeFileIfExists(join(gameDir, "dxgi.dll"));
     await removeFileIfExists(join(gameDir, "d3dcompiler_47.dll"));
   }
-  yield ["setRawStateText", "还原补丁阶段：清除补丁状态"];
+  step = totalSteps;
+  yield* report("还原阶段：清除补丁状态");
   await setKey("patched", null);
 }
 

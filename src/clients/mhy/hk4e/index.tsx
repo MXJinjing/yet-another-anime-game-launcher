@@ -69,15 +69,35 @@ export async function createHK4EChannelClient({
   wine: Wine;
   releaseType: "os" | "cn" | "bb";
 }): Promise<ChannelClient> {
-  const {
-    background: { url: background },
-    icon: { url: icon, link: icon_link },
-    video: { url: video_url },
-    theme: { url: theme_url },
-    type: bg_type,
-  } = await getLatestAdvInfo(locale, server);
+  let background: string;
+  let icon: string;
+  let icon_link: string;
+  let video_url: string;
+  let theme_url: string;
+  let bg_type: HoyoConnectGameBackgroundType;
+  let isAdvFallback = false;
+  try {
+    const advInfo = await getLatestAdvInfo(locale, server);
+    background = advInfo.background.url;
+    icon = advInfo.icon.url;
+    icon_link = advInfo.icon.link;
+    video_url = advInfo.video.url;
+    theme_url = advInfo.theme.url;
+    bg_type = advInfo.type;
+  } catch {
+    log("Failed to fetch adv info, using fallback UI");
+    isAdvFallback = true;
+    background = "";
+    icon = "";
+    icon_link = "";
+    video_url = "";
+    theme_url = "";
+    bg_type = HoyoConnectGameBackgroundType.BACKGROUND_TYPE_UNSPECIFIED;
+  }
   const IS_VIDEO_BG =
+    !isAdvFallback &&
     bg_type === HoyoConnectGameBackgroundType.BACKGROUND_TYPE_VIDEO;
+  const fallbackBg = "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)";
 
   const sophon_port = Math.floor(Math.random() * (65535 - 40000)) + 40000;
   const sophon_host = "127.0.0.1";
@@ -105,7 +125,9 @@ export async function createHK4EChannelClient({
   const PRE_DOWNLOAD_AVAILABLE: boolean = gameInfo.pre_download;
   const INSTALL_SIZE_BYTES: number = gameInfo.install_size;
 
-  await waitImageReady(background);
+  if (background) {
+    await waitImageReady(background);
+  }
 
   const { gameInstalled, gameInstallDir, gameVersion } = await checkGameState(
     locale,
@@ -141,6 +163,8 @@ export async function createHK4EChannelClient({
       background_video: IS_VIDEO_BG ? video_url : undefined,
       background_theme: IS_VIDEO_BG ? theme_url : undefined,
       url: icon_link,
+      channelName: isAdvFallback ? server.id : undefined,
+      fallbackBackground: isAdvFallback ? fallbackBg : undefined,
     },
     predownloadVersion: () =>
       PRE_DOWNLOAD_AVAILABLE ? PRE_DOWNLOAD_VERSION : "",

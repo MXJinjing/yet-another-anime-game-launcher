@@ -44,6 +44,7 @@ export async function createConfiguration({
   onUninstallWineDistro,
   onWineDistroInitialized,
   onGameInstallDirChange,
+  onResetWineEnv,
 }: {
   wine: Wine;
   wineDistroId: string;
@@ -70,6 +71,7 @@ export async function createConfiguration({
   onWineDistroInitialized?: (
     onDone: (distro: WineDistribution) => void
   ) => void;
+  onResetWineEnv: () => Promise<void>;
 }) {
   const config: Partial<Config> = {};
   const [WD, wineDistroConfig] = await createWineDistroConfig({
@@ -131,7 +133,7 @@ export async function createConfiguration({
           <ModalCloseButton />
           <ModalHeader>{locale.get("SETTING")}</ModalHeader>
           <ModalBody pb={20}>
-            <Tabs orientation="vertical" h="100%">
+            <Tabs orientation="vertical" h="100%" variant={"pills"}>
               <TabList minW={120}>
                 <Tab>{locale.get("SETTING_GENERAL")}</Tab>
                 <Tab>{locale.get("SETTING_GAME")}</Tab>
@@ -174,9 +176,11 @@ export async function createConfiguration({
               />
               <WineTab
                 locale={locale}
+                wine={wine}
                 wineInstalled={wineInstalled}
                 winePrefix={wine.prefix}
                 WineDistroConfig={WD}
+                onResetWineEnv={onResetWineEnv}
               />
               <AdvancedTab
                 locale={locale}

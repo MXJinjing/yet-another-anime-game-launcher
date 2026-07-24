@@ -119,6 +119,13 @@ export async function createApp() {
     prefix: prefixPath,
     distro: wineStatus.wineDistribution,
   });
+
+  async function resetWineEnv() {
+    await wine.killAll();
+    await exec(["rm", "-rf", prefixPath]);
+    setWineInstalled(false);
+    
+  }
   let gameRunning = false;
   let closeGameProcessesOnExit = true;
   let handlingWindowClose = false;
@@ -184,6 +191,7 @@ export async function createApp() {
     wine,
     wineDistroId: wineStatus.wineDistribution.id,
     wineInstalled,
+    onResetWineEnv: resetWineEnv,
     initializeWine: async function* (wineDistro) {
       yield* installWineEnvironmentProgram({
         aria2,

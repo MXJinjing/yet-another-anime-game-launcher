@@ -1,10 +1,19 @@
 import { CommonUpdateProgram } from "@common-update-ui";
-import { isDownloadCancelledError } from "../download-control";
+import {
+  isDownloadCancelledError,
+  isDownloadFailedError,
+} from "../download-control";
 import { Locale, LocaleTextKey } from "@locale";
 import { fatal, log, logerror } from "@utils";
 import { createSignal } from "solid-js";
+import { notificationService } from "@hope-ui/solid";
 
 const SKIP_LOG_STATE_KEYS = new Set(["DOWNLOADING_ENVIRONMENT_SPEED"]);
+
+type TaskEntry = {
+  fn: () => CommonUpdateProgram;
+  name?: LocaleTextKey;
+};
 
 export function createTaskQueueState({
   locale,
@@ -17,10 +26,11 @@ export function createTaskQueueState({
   const [progress, setProgress] = createSignal(0);
   const [programBusy, setBusy] = createSignal(false);
 
-  const taskQueue: AsyncGenerator<unknown, void, () => CommonUpdateProgram> =
+  const taskQueue: AsyncGenerator<unknown, void, TaskEntry> =
     (async function* () {
       while (true) {
-        const task = yield 0;
+        const entry = yield undefined!;
+        const { fn: task, name: taskName } = entry;
         setBusy(true);
         await log("Task started");
         try {
@@ -47,10 +57,43 @@ export function createTaskQueueState({
             }
           }
           await log("Task completed");
+          if (taskName) {
+            notificationService.show({
+              status: "success",
+              title: locale.get(taskName),
+              description: "已完成",
+            });
+          }
         } catch (e) {
           onStateKey?.(null);
           if (isDownloadCancelledError(e)) {
             await log("Task cancelled");
+            if (taskName) {
+              notificationService.show({
+                status: "warning",
+                title: locale.get(taskName),
+                description: "已取消",
+              });
+            }
+            setBusy(false);
+            continue;
+          }
+          if (isDownloadFailedError(e)) {
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            await logerror(errorMessage);
+            if (taskName) {
+              notificationService.show({
+                status: "danger",
+                title: locale.get(taskName),
+                description: `已失败 — ${errorMessage}`,
+              });
+            } else {
+              notificationService.show({
+                status: "danger",
+                title: "Download failed",
+                description: errorMessage,
+              });
+            }
             setBusy(false);
             continue;
           }

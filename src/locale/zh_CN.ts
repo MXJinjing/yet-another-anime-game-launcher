@@ -103,6 +103,9 @@ export const zh_CN = {
   SETTING_UI_LOCALE: "启动器界面语言",
   SETTING_RESTART_TO_TAKE_EFFECT: "此设置将从下次启动生效",
   SETTING_OPEN_CMD: "打开 Wine 命令行工具",
+  SETTING_OPEN_WINE_CMD: "打开 Wine 命令行",
+  SETTING_OPEN_WINECFG: "打开 Winecfg",
+  SETTING_RESET_WINE_ENV: "重置 Wine 环境",
   SETTING_OPEN_GAME_INSTALL_DIR: "打开游戏安装目录",
   SETTING_OPEN_YAAGL_DIR: "打开YAAGL数据目录",
   SETTING_YAAGL_VERSION: "YAAGL版本",
@@ -177,9 +180,10 @@ export const zh_CN = {
   SETTING_WINE_INSTALL: "安装并启用",
   SETTING_WINE_ENABLE: "启用",
   SETTING_WINE_UNINSTALL: "卸载",
+  SETTING_WINE_ENABLED: "Wine 启用",
+  SETTING_WINE_UNINSTALLED: "Wine 卸载",
   SETTING_WINE_UNINSTALL_CONFIRM_TITLE: "卸载 Wine",
-  SETTING_WINE_UNINSTALL_CONFIRM_DESC:
-    "即将删除 {0} 的 Wine 文件和下载残留。共享 Wine Prefix 不会被删除。确认继续？",
+  SETTING_WINE_UNINSTALL_CONFIRM_DESC: "确认删除？",
   SETTING_WINE_UNINSTALL_CONFIRM: "确认卸载",
   SETTING_WINE_INSTALL_INITIALIZES_ENVIRONMENT:
     "当前运行环境尚未初始化。安装此 Wine 版本的同时会初始化运行环境，并将其设为启用版本。",
@@ -201,4 +205,6 @@ export const zh_CN = {
   SETTING_DOWNLOAD_SPEED_LIMIT: "下载限速",
   SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "启用下载限速",
   SETTING_GAME_VERSION_NOT_INSTALLED: "未安装",
+  CHECK_GAME_UPDATE_FAILED: "检查游戏更新失败",
+  CHECK_GAME_UPDATE_FAILED_DESC: "无法连接到更新服务器，请检查网络连接后重试。",
 };

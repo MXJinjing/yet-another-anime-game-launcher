@@ -108,6 +108,9 @@ export const en: typeof zh_CN = {
   SETTING_UI_LOCALE: "Launcher UI Language",
   SETTING_RESTART_TO_TAKE_EFFECT: "This will take effect after restart.",
   SETTING_OPEN_CMD: "Launch Wine Command Line Tool",
+  SETTING_OPEN_WINE_CMD: "Open Wine Command Line",
+  SETTING_OPEN_WINECFG: "Open Winecfg",
+  SETTING_RESET_WINE_ENV: "Reset Wine Environment",
   SETTING_OPEN_GAME_INSTALL_DIR: "Open Game Install Directory",
   SETTING_OPEN_YAAGL_DIR: "Open YAAGL Data Directory",
   SETTING_YAAGL_VERSION: "YAAGL Version",
@@ -185,9 +188,10 @@ export const en: typeof zh_CN = {
   SETTING_WINE_INSTALL: "Install and Enable",
   SETTING_WINE_ENABLE: "Enable",
   SETTING_WINE_UNINSTALL: "Uninstall",
+  SETTING_WINE_ENABLED: "Wine Enabled",
+  SETTING_WINE_UNINSTALLED: "Wine Uninstalled",
   SETTING_WINE_UNINSTALL_CONFIRM_TITLE: "Uninstall Wine",
-  SETTING_WINE_UNINSTALL_CONFIRM_DESC:
-    "This will delete Wine files and download leftovers for {0}. The shared Wine prefix will not be removed. Continue?",
+  SETTING_WINE_UNINSTALL_CONFIRM_DESC: "Confirm delete?",
   SETTING_WINE_UNINSTALL_CONFIRM: "Confirm Uninstall",
   SETTING_WINE_INSTALL_INITIALIZES_ENVIRONMENT:
     "The runtime environment has not been initialized yet. Installing this Wine version will also initialize the environment and enable this version.",
@@ -209,4 +213,6 @@ export const en: typeof zh_CN = {
   SETTING_DOWNLOAD_SPEED_LIMIT: "Download speed limit",
   SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
+  CHECK_GAME_UPDATE_FAILED: "Check game update failed",
+  CHECK_GAME_UPDATE_FAILED_DESC: "Cannot connect to update server. Please check your network and try again.",
 };

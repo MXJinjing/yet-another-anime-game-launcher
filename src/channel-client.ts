@@ -28,6 +28,10 @@ export interface ChannelClient {
     iconImage?: string;
     launchButtonLocation?: "left" | "right";
     logo?: string;
+    /** Fallback channel name for offline or API-unavailable scenarios */
+    channelName?: string;
+    /** CSS gradient string for offline background fallback */
+    fallbackBackground?: string;
   };
 
   dismissPredownload(): void;

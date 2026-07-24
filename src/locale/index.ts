@@ -9,12 +9,12 @@ import { ko_KR } from "./ko_KR";
 import { de_DE } from "./de_DE";
 import { th_TH } from "./th_TH";
 import {
-  alert as ualert,
   prompt as uprompt,
   promptUpdate as upromptUpdate,
   formatString,
   getKey,
 } from "../utils";
+import { notificationService } from "@hope-ui/solid";
 
 export type LocaleTextKey = keyof typeof zh_CN;
 
@@ -55,9 +55,14 @@ export async function createLocale() {
   function alert(
     title: LocaleTextKey,
     content: LocaleTextKey,
-    intrp: string[] = []
+    intrp: string[] = [],
+    status?: "success" | "info" | "warning" | "danger"
   ) {
-    return ualert(locale[title], formatString(locale[content], intrp));
+    notificationService.show({
+      ...(status ? { status } : {}),
+      title: locale[title],
+      description: formatString(locale[content], intrp),
+    });
   }
 
   function prompt(
