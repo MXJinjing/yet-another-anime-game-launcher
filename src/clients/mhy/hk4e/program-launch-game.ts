@@ -251,7 +251,7 @@ cd /d "${wine.toWinePath(gameDir)}"
   yield* revertProgress(5, REVERT_STEPS, "还原阶段：正在还原补丁");
   yield* patchRevertProgram(gameDir, wine, server, config);
   yield ["setProgress", 100];
-  yield* revertProgress(6, REVERT_STEPS, "还原阶段：游戏启动流程完成");
+  yield* revertProgress(6, REVERT_STEPS, "还原阶段完成");
 }
 
 async function revertHDRRegistry({
