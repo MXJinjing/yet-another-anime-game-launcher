@@ -19,16 +19,16 @@ import { createEffect, createSignal, For, Show } from "solid-js";
 import { Locale } from "../locale";
 import { getKey, setKey, assertValueDefined } from "../utils";
 
-// Radix presets (dark variants - matching the launcher's dark theme)
-import amber from "@radix-ui/colors/amberDark.css?inline";
-import blue from "@radix-ui/colors/blueDark.css?inline";
-import green from "@radix-ui/colors/greenDark.css?inline";
-import red from "@radix-ui/colors/redDark.css?inline";
-import violet from "@radix-ui/colors/violetDark.css?inline";
-import cyan from "@radix-ui/colors/cyanDark.css?inline";
-import teal from "@radix-ui/colors/tealDark.css?inline";
-import plum from "@radix-ui/colors/plumDark.css?inline";
-import tomato from "@radix-ui/colors/tomatoDark.css?inline";
+// Radix presets (light variants - matching the launcher's color theme)
+import amber from "@radix-ui/colors/amber.css?inline";
+import blue from "@radix-ui/colors/blue.css?inline";
+import green from "@radix-ui/colors/green.css?inline";
+import red from "@radix-ui/colors/red.css?inline";
+import violet from "@radix-ui/colors/violet.css?inline";
+import cyan from "@radix-ui/colors/cyan.css?inline";
+import teal from "@radix-ui/colors/teal.css?inline";
+import plum from "@radix-ui/colors/plum.css?inline";
+import tomato from "@radix-ui/colors/tomato.css?inline";
 
 // --- Preset color definitions ---
 // Each preset maps its radix color step (e.g. amber1) to CSS variable
@@ -95,29 +95,31 @@ for (const [name, css] of Object.entries(presetCssSources)) {
 
 /**
  * Generate a 12-step HSL color scale from a base hue.
- * Approximates radix-ui's scale for dark themes:
- * - steps 1-8: low lightness, varying saturation
- * - step 9: main brand color
- * - steps 10-12: brighter variants
+ * Approximates radix-ui's scale for light themes:
+ * - steps 1-6: high lightness (light backgrounds), lower saturation
+ * - steps 7-8: border/muted colors
+ * - step 9: main brand color (the base hue)
+ * - steps 10-12: darker variants for text/strong contrast
  */
 function generateColorScale(
   baseH: number,
   baseS: number,
   baseL: number
 ): Record<string, string> {
+  const sat = Math.min(baseS, 100);
   return {
-    [`primary1`]: `hsl(${baseH}, ${Math.min(baseS * 0.4, 60)}%, ${Math.max(baseL * 0.13, 5)}%)`,
-    [`primary2`]: `hsl(${baseH}, ${Math.min(baseS * 0.55, 70)}%, ${Math.max(baseL * 0.16, 7)}%)`,
-    [`primary3`]: `hsl(${baseH}, ${Math.min(baseS * 0.7, 75)}%, ${Math.max(baseL * 0.21, 9)}%)`,
-    [`primary4`]: `hsl(${baseH}, ${Math.min(baseS * 0.8, 80)}%, ${Math.max(baseL * 0.25, 11)}%)`,
-    [`primary5`]: `hsl(${baseH}, ${Math.min(baseS * 0.85, 85)}%, ${Math.max(baseL * 0.29, 13)}%)`,
-    [`primary6`]: `hsl(${baseH}, ${Math.min(baseS * 0.92, 90)}%, ${Math.max(baseL * 0.34, 15)}%)`,
-    [`primary7`]: `hsl(${baseH}, ${Math.min(baseS * 0.95, 92)}%, ${Math.max(baseL * 0.42, 19)}%)`,
-    [`primary8`]: `hsl(${baseH}, ${Math.min(baseS, 95)}%, ${Math.max(baseL * 0.55, 27)}%)`,
-    [`primary9`]: `hsl(${baseH}, ${baseS}%, ${baseL}%)`,
-    [`primary10`]: `hsl(${baseH}, ${Math.min(baseS * 1.05, 100)}%, ${Math.min(baseL + 8, 72)}%)`,
-    [`primary11`]: `hsl(${baseH}, ${Math.min(baseS * 0.75, 85)}%, ${Math.max(baseL - 5, 45)}%)`,
-    [`primary12`]: `hsl(${baseH}, ${Math.min(baseS * 0.3, 40)}%, ${Math.min(baseL + 36, 95)}%)`,
+    [`primary1`]: `hsl(${baseH}, ${Math.min(sat * 0.65, 70)}%, 99%)`,
+    [`primary2`]: `hsl(${baseH}, ${Math.min(sat * 0.8, 80)}%, 96.5%)`,
+    [`primary3`]: `hsl(${baseH}, ${sat * 0.9}%, 91.7%)`,
+    [`primary4`]: `hsl(${baseH}, ${sat * 0.95}%, 86.8%)`,
+    [`primary5`]: `hsl(${baseH}, ${sat}%, 81%)`,
+    [`primary6`]: `hsl(${baseH}, ${sat}%, 74%)`,
+    [`primary7`]: `hsl(${baseH}, ${sat}%, 65%)`,
+    [`primary8`]: `hsl(${baseH}, ${sat}%, 55%)`,
+    [`primary9`]: `hsl(${baseH}, ${sat}%, ${baseL}%)`,
+    [`primary10`]: `hsl(${baseH}, ${sat}%, ${Math.max(baseL - 8, 30)}%)`,
+    [`primary11`]: `hsl(${baseH}, ${Math.min(sat * 0.85, 90)}%, ${Math.max(baseL - 16, 20)}%)`,
+    [`primary12`]: `hsl(${baseH}, ${Math.min(sat * 0.5, 60)}%, ${Math.max(baseL - 24, 12)}%)`,
   };
 }
 
