@@ -1,6 +1,7 @@
 import {
   FormControl,
   FormLabel,
+  Icon,
   Select,
   SelectContent,
   SelectIcon,
@@ -13,7 +14,6 @@ import {
   SelectValue,
   Input,
   HStack,
-  Box,
 } from "@hope-ui/solid";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { Locale } from "../locale";
@@ -310,14 +310,11 @@ export default async function createThemeColorConfig({
                       {(item) => (
                         <SelectOption value={item.id}>
                           <HStack spacing="$2">
-                            <Box
-                              w="$4"
-                              h="$4"
-                              borderRadius="$sm"
-                              style={{
-                                "background-color": item.color,
-                              }}
-                            />
+                            <Icon color={item.color} boxSize="$4">
+                              <svg viewBox="0 0 24 24" fill="currentColor">
+                                <circle cx="12" cy="12" r="10" />
+                              </svg>
+                            </Icon>
                             <SelectOptionText>{item.label}</SelectOptionText>
                           </HStack>
                           <SelectOptionIndicator />
