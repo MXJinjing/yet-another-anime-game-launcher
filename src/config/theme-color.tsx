@@ -22,13 +22,21 @@ import { getKey, setKey, assertValueDefined } from "../utils";
 // Radix presets (light variants - matching the launcher's color theme)
 import amber from "@radix-ui/colors/amber.css?inline";
 import blue from "@radix-ui/colors/blue.css?inline";
-import green from "@radix-ui/colors/green.css?inline";
-import red from "@radix-ui/colors/red.css?inline";
-import violet from "@radix-ui/colors/violet.css?inline";
+import crimson from "@radix-ui/colors/crimson.css?inline";
 import cyan from "@radix-ui/colors/cyan.css?inline";
-import teal from "@radix-ui/colors/teal.css?inline";
+import green from "@radix-ui/colors/green.css?inline";
+import indigo from "@radix-ui/colors/indigo.css?inline";
+import lime from "@radix-ui/colors/lime.css?inline";
+import orange from "@radix-ui/colors/orange.css?inline";
+import pink from "@radix-ui/colors/pink.css?inline";
 import plum from "@radix-ui/colors/plum.css?inline";
+import purple from "@radix-ui/colors/purple.css?inline";
+import red from "@radix-ui/colors/red.css?inline";
+import sky from "@radix-ui/colors/sky.css?inline";
+import teal from "@radix-ui/colors/teal.css?inline";
 import tomato from "@radix-ui/colors/tomato.css?inline";
+import violet from "@radix-ui/colors/violet.css?inline";
+import yellow from "@radix-ui/colors/yellow.css?inline";
 
 // --- Preset color definitions ---
 // Each preset maps its radix color step (e.g. amber1) to CSS variable
@@ -42,13 +50,21 @@ interface PresetColor {
 export const PRESET_COLORS: PresetColor[] = [
   { id: "amber", label: "Amber", color: "#FFB224" },
   { id: "blue", label: "Blue", color: "#0091FF" },
-  { id: "green", label: "Green", color: "#30A46C" },
-  { id: "red", label: "Red", color: "#E5484D" },
-  { id: "violet", label: "Violet", color: "#6344AF" },
+  { id: "crimson", label: "Crimson", color: "#E93D82" },
   { id: "cyan", label: "Cyan", color: "#00A2C7" },
-  { id: "teal", label: "Teal", color: "#12A594" },
+  { id: "green", label: "Green", color: "#30A46C" },
+  { id: "indigo", label: "Indigo", color: "#3E63DD" },
+  { id: "lime", label: "Lime", color: "#BDEA11" },
+  { id: "orange", label: "Orange", color: "#F76B15" },
+  { id: "pink", label: "Pink", color: "#D6409F" },
   { id: "plum", label: "Plum", color: "#AB4ABA" },
+  { id: "purple", label: "Purple", color: "#8E4EC6" },
+  { id: "red", label: "Red", color: "#E5484D" },
+  { id: "sky", label: "Sky", color: "#7CE2FE" },
+  { id: "teal", label: "Teal", color: "#12A594" },
   { id: "tomato", label: "Tomato", color: "#E54D2E" },
+  { id: "violet", label: "Violet", color: "#6344AF" },
+  { id: "yellow", label: "Yellow", color: "#FBE50B" },
 ];
 
 // CSS variable injection helpers
@@ -79,13 +95,21 @@ function parseRadixCss(raw: string): Record<string, string> {
 const presetCssSources: Record<string, string> = {
   amber: amber,
   blue: blue,
-  green: green,
-  red: red,
-  violet: violet,
+  crimson: crimson,
   cyan: cyan,
-  teal: teal,
+  green: green,
+  indigo: indigo,
+  lime: lime,
+  orange: orange,
+  pink: pink,
   plum: plum,
+  purple: purple,
+  red: red,
+  sky: sky,
+  teal: teal,
   tomato: tomato,
+  violet: violet,
+  yellow: yellow,
 };
 
 const presetColorMaps: Record<string, Record<string, string>> = {};
