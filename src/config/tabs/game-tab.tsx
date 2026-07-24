@@ -15,9 +15,10 @@ export function GameTab(props: {
   locale: Locale;
   displayGameVersion: () => string;
   gameInstalled: () => boolean;
-  gameUpdateCheckDisabled: () => boolean;
+  actionDisabled: () => boolean;
   gameProxyEnabled: () => boolean;
   onCheckGameUpdate: () => void;
+  onCheckIntegrity: () => void;
   GameInstallDirConfig: () => JSXElement;
   ProxyEnabledConfig: () => JSXElement;
   ProxyHostConfig: () => JSXElement;
@@ -34,10 +35,18 @@ export function GameTab(props: {
               <Button
                 variant="ghost"
                 size="sm"
-                disabled={props.gameUpdateCheckDisabled()}
+                disabled={props.actionDisabled()}
                 onClick={props.onCheckGameUpdate}
               >
                 {props.locale.get("SETTING_CHECK_GAME_UPDATE")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={props.actionDisabled()}
+                onClick={props.onCheckIntegrity}
+              >
+                {props.locale.get("SETTING_CHECK_INTEGRITY")}
               </Button>
             </Show>
           </HStack>

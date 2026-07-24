@@ -124,6 +124,8 @@ export const ja_JP: typeof zh_CN = {
   SETTING_ADVANCED_ALERT:
     "何が起きるか分からない場合は、絶対に何も変更しないでください。",
   SETTING_ADVANCED_VISIBLE: "詳細設定が利用可能になりました。",
+  SETTING_ENABLE_ADVANCED: en.SETTING_ENABLE_ADVANCED,
+  SETTING_OPEN_SHADERS_FOLDER: en.SETTING_OPEN_SHADERS_FOLDER,
 
   NO_ENOUGH_DISKSPACE: "ディスクの空き容量が足りません。",
   NO_ENOUGH_DISKSPACE_DESC:

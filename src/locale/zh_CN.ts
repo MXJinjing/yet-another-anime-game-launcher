@@ -114,8 +114,11 @@ export const zh_CN = {
   SETTING_FPS_UNLOCK_DEFAULT: "不解锁",
 
   SETTING_ADVANCED: "高级设置",
-  SETTING_ADVANCED_ALERT: "在不清楚作用的情况下，请不要改动任何设置。",
+  SETTING_ADVANCED_ALERT:
+    "高级设置可能违反游戏服务条款，存在账号封禁风险。如非必要，请勿修改。",
   SETTING_ADVANCED_VISIBLE: "高级设置已解锁。",
+  SETTING_ENABLE_ADVANCED: "启用高级设置",
+  SETTING_OPEN_SHADERS_FOLDER: "打开着色器文件夹",
 
   NO_ENOUGH_DISKSPACE: "磁盘空间不足",
   NO_ENOUGH_DISKSPACE_DESC: "解压安装需要至少{0}GiB ({1}GB)的剩余空间",
@@ -180,8 +183,8 @@ export const zh_CN = {
   SETTING_WINE_INSTALL: "安装并启用",
   SETTING_WINE_ENABLE: "启用",
   SETTING_WINE_UNINSTALL: "卸载",
-  SETTING_WINE_ENABLED: "Wine 启用",
-  SETTING_WINE_UNINSTALLED: "Wine 卸载",
+  SETTING_WINE_ENABLED: "安装 Wine 版本",
+  SETTING_WINE_UNINSTALLED: "卸载 Wine 版本",
   SETTING_WINE_UNINSTALL_CONFIRM_TITLE: "卸载 Wine",
   SETTING_WINE_UNINSTALL_CONFIRM_DESC: "确认删除？",
   SETTING_WINE_UNINSTALL_CONFIRM: "确认卸载",

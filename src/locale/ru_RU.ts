@@ -123,6 +123,8 @@ export const ru_RU: typeof zh_CN = {
   SETTING_ADVANCED_ALERT:
     "НИЧЕГО НЕ МЕНЯЙТЕ, если только вы не знаете, что делаете.",
   SETTING_ADVANCED_VISIBLE: "Расширенные настройки теперь доступны.",
+  SETTING_ENABLE_ADVANCED: en.SETTING_ENABLE_ADVANCED,
+  SETTING_OPEN_SHADERS_FOLDER: en.SETTING_OPEN_SHADERS_FOLDER,
 
   NO_ENOUGH_DISKSPACE: "Недостаточно свободного места на диске",
   NO_ENOUGH_DISKSPACE_DESC:

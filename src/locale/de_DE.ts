@@ -124,6 +124,8 @@ export const de_DE: typeof zh_CN = {
   SETTING_ADVANCED_ALERT:
     "ÄNDERN SIE NICHTS, es sei denn, Sie wissen, was Sie tun.",
   SETTING_ADVANCED_VISIBLE: "Erweiterte Einstellungen sind jetzt verfügbar.",
+  SETTING_ENABLE_ADVANCED: en.SETTING_ENABLE_ADVANCED,
+  SETTING_OPEN_SHADERS_FOLDER: en.SETTING_OPEN_SHADERS_FOLDER,
 
   NO_ENOUGH_DISKSPACE:
     "Nicht genügend freier Speicherplatz auf der Festplatte.",

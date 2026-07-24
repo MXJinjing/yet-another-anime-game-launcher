@@ -18,11 +18,12 @@ import { createWineDistroConfig } from "./wine-distribution";
 import createLocaleConfig from "./ui-locale";
 import createFPSUnlock from "./fps-unlock";
 import createReShade from "./reshade";
+import { getKey } from "@utils";
 import { createProxyEnabledConfig } from "@config/proxy-enabled";
 import { createProxyHostConfig } from "@config/proxy-host";
 import { ChannelClientConfigUI } from "../channel-client";
 import { createDownloadServerConfig } from "./download-server";
-import { AdvancedTab } from "./tabs/advanced-tab";
+// Advanced tab moved into VideoTab
 import { GameTab } from "./tabs/game-tab";
 import { GeneralTab } from "./tabs/general-tab";
 import { LicensesTab } from "./tabs/licenses-tab";
@@ -39,7 +40,7 @@ export async function createConfiguration({
   gameInstallDir,
   configForChannelClient,
   onCheckUpdate,
-  wineActionDisabled,
+  actionDisabled,
   onEnableWineDistro,
   onUninstallWineDistro,
   onWineDistroInitialized,
@@ -59,7 +60,7 @@ export async function createConfiguration({
     config: Partial<Config>
   ) => Promise<ChannelClientConfigUI>;
   onCheckUpdate: () => void;
-  wineActionDisabled: () => boolean;
+  actionDisabled: () => boolean;
   onEnableWineDistro: (
     distro: WineDistribution,
     onDone: (distro: WineDistribution) => void
@@ -79,7 +80,7 @@ export async function createConfiguration({
     config,
     wineInstalled,
     wineDistroId,
-    wineActionDisabled,
+    wineActionDisabled: actionDisabled,
     onEnableWineDistro,
     onUninstallWineDistro,
   });
@@ -95,6 +96,15 @@ export async function createConfiguration({
   });
 
   const [UL] = await createLocaleConfig({ locale, config });
+
+  // load advancedEnable into config (persisted key)
+  try {
+    const v = (await getKey("config_advanced_enable")) == "true";
+    config.advancedEnable = v;
+  } catch {
+    config.advancedEnable = false;
+  }
+
   const [FO] = await createFPSUnlock({ locale, config });
   const [RS] = await createReShade({ locale, config });
 
@@ -125,7 +135,7 @@ export async function createConfiguration({
     UI: function (props: {
       onClose: (action: "check-integrity" | "close") => void;
       onOpenLogs: () => void;
-      gameUpdateCheckDisabled: () => boolean;
+      actionDisabled: () => boolean;
       onCheckGameUpdate: () => void;
     }) {
       return (
@@ -139,7 +149,6 @@ export async function createConfiguration({
                 <Tab>{locale.get("SETTING_GAME")}</Tab>
                 <Tab>{locale.get("SETTING_VIDEO")}</Tab>
                 <Tab>Wine</Tab>
-                <Tab>{locale.get("SETTING_ADVANCED")}</Tab>
                 <Tab>{locale.get("SETTING_LICENSES")}</Tab>
               </TabList>
               <GeneralTab
@@ -147,13 +156,11 @@ export async function createConfiguration({
                 wine={wine}
                 wineInstalled={wineInstalled}
                 gameInstallDir={gameInstallDir}
-                onCheckIntegrity={() => props.onClose("check-integrity")}
                 onCheckUpdate={onCheckUpdate}
                 onOpenLogs={() => {
                   props.onClose("close");
                   props.onOpenLogs();
                 }}
-                MetalHUDConfig={MH}
                 LeftCmdConfig={LC}
                 DownloadServerConfig={DS}
                 LocaleConfig={UL}
@@ -162,17 +169,23 @@ export async function createConfiguration({
                 locale={locale}
                 displayGameVersion={displayGameVersion}
                 gameInstalled={gameInstalled}
-                gameUpdateCheckDisabled={props.gameUpdateCheckDisabled}
+                actionDisabled={props.actionDisabled}
                 gameProxyEnabled={gameProxyEnabled}
                 onCheckGameUpdate={props.onCheckGameUpdate}
+                onCheckIntegrity={() => props.onClose("check-integrity")}
                 GameInstallDirConfig={GID}
                 ProxyEnabledConfig={PRE}
                 ProxyHostConfig={PRH}
                 ChannelClientConfig={ChannelClientConfig}
               />
               <VideoTab
+                locale={locale}
                 RetinaConfig={R}
+                MetalHUDConfig={MH}
                 ChannelClientVideoConfig={ChannelClientVideoConfig}
+                FPSUnlockConfig={FO}
+                ReShadeConfig={RS}
+                config={config}
               />
               <WineTab
                 locale={locale}
@@ -181,11 +194,7 @@ export async function createConfiguration({
                 winePrefix={wine.prefix}
                 WineDistroConfig={WD}
                 onResetWineEnv={onResetWineEnv}
-              />
-              <AdvancedTab
-                locale={locale}
-                FPSUnlockConfig={FO}
-                ReShadeConfig={RS}
+                wineActionDisabled={actionDisabled}
               />
               <LicensesTab locale={locale} />
             </Tabs>
@@ -193,7 +202,7 @@ export async function createConfiguration({
         </ModalContent>
       );
     },
-    config: config as Config, // FIXME: better method than type assertation?
+    config: config as Config,
   };
 }
 

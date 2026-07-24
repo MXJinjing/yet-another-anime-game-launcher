@@ -20,10 +20,8 @@ export function GeneralTab(props: {
   wine: Wine;
   wineInstalled: () => boolean;
   gameInstallDir: () => string;
-  onCheckIntegrity: () => void;
   onCheckUpdate: () => void;
   onOpenLogs: () => void;
-  MetalHUDConfig: () => JSXElement;
   LeftCmdConfig: () => JSXElement;
   DownloadServerConfig: () => JSXElement;
   LocaleConfig: () => JSXElement;
@@ -37,7 +35,6 @@ export function GeneralTab(props: {
       >
         <Box alignSelf="stretch" overflowY="scroll" pr={20}>
           <VStack spacing={"$4"}>
-            <props.MetalHUDConfig />
             <props.LeftCmdConfig />
             <Divider />
             <props.DownloadServerConfig />
@@ -53,9 +50,6 @@ export function GeneralTab(props: {
           <Heading level="1" ml={12} mb={"$4"}>
             {props.locale.get("SETTING_QUICK_ACTIONS")}
           </Heading>
-          <Button variant="ghost" size="sm" onClick={props.onCheckIntegrity}>
-            {props.locale.get("SETTING_CHECK_INTEGRITY")}
-          </Button>
           <Button variant="ghost" size="sm" onClick={props.onOpenLogs}>
             {props.locale.get("LOG_VIEWER_OPEN_ACTION")}
           </Button>

@@ -125,7 +125,6 @@ export async function createLauncher({
   const wineDistros = await getWineDistributions();
   const initialWineDistro =
     wineDistros.find(distro => distro.id == wineDistroId) ?? wineDistros[0];
-  let wineActionDisabled = () => false;
   let requestWineDistroEnable = (
     _distro: WineDistribution,
     _onDone: (distro: WineDistribution) => void
@@ -136,6 +135,7 @@ export async function createLauncher({
   ): void => undefined;
   let notifyWineDistroInitialized = (_distro: WineDistribution): void =>
     undefined;
+  let _actionDisabled = () => false;
 
   const { UI: ConfigurationUI, config } = await createConfiguration({
     wine,
@@ -148,7 +148,7 @@ export async function createLauncher({
     onGameInstallDirChange: changeInstallDir,
     configForChannelClient: createConfig,
     onCheckUpdate,
-    wineActionDisabled: () => wineActionDisabled(),
+    actionDisabled: () => _actionDisabled(),
     onEnableWineDistro: (distro, onDone) =>
       requestWineDistroEnable(distro, onDone),
     onUninstallWineDistro: (distro, onDone) =>
@@ -166,8 +166,6 @@ export async function createLauncher({
   });
 
   return function Launcher() {
-    // const bh = 40 / window.devicePixelRatio;
-    // const bw = 136 / window.devicePixelRatio;
     const bh = 40;
     const bw = 136;
     const [gameRunning, setGameRunning] = createSignal(false);
@@ -215,31 +213,19 @@ export async function createLauncher({
     );
     onCleanup(subscribeDownloadControl(setDownloadControl));
 
-    function gameUpdateCheckDisabled() {
+    function actionDisabled() {
       const download = downloadControl();
       return (
         programBusy() ||
-        nonUrgentProgramBusy() ||
         download.active ||
         download.actionPending ||
         gameRunning()
       );
     }
 
-    function wineDistroActionDisabled() {
-      const download = downloadControl();
-      return (
-        programBusy() ||
-        nonUrgentProgramBusy() ||
-        download.active ||
-        download.actionPending ||
-        gameRunning()
-      );
-    }
-
-    wineActionDisabled = wineDistroActionDisabled;
+    _actionDisabled = actionDisabled;
     requestWineDistroEnable = (distro, onDone) => {
-      if (wineDistroActionDisabled()) return;
+      if (actionDisabled()) return;
       onClose();
       log(`Wine environment enable requested: ${distro.id}`);
       taskQueue.next({
@@ -251,7 +237,7 @@ export async function createLauncher({
       });
     };
     requestWineDistroUninstall = (distro, onDone) => {
-      if (wineDistroActionDisabled()) return;
+      if (actionDisabled()) return;
       log(`Wine environment uninstall requested: ${distro.id}`);
       taskQueue.next({
         fn: async function* () {
@@ -292,7 +278,7 @@ export async function createLauncher({
         }
         return;
       }
-      if (programBusy()) return; // ignore
+      if (programBusy()) return;
       if (!wineInstalled()) {
         openInitializeWineConfirm();
         return;
@@ -344,8 +330,6 @@ export async function createLauncher({
             class="background-theme"
             style={{
               "background-image": `url(${background_theme})`,
-              // HACK: always load video overlay image.
-              // Image seems to align with overlay. Fix for ZZZ not having text in image.
             }}
           />
         </Show>
@@ -355,7 +339,7 @@ export async function createLauncher({
             style={{
               "background-image": `url(${logo})`,
               height: `${234}px`,
-              width: `${416}px`, //fixme: responsive size
+              width: `${416}px`,
             }}
           />
         ) : channelName ? (
@@ -371,14 +355,14 @@ export async function createLauncher({
             style={{
               "background-image": `url(${iconImage})`,
               height: `${bh}px`,
-              width: `${bw}px`, //fixme: responsive size
+              width: `${bw}px`,
             }}
           />
         ) : null}
         <Flex h="100vh" direction={"column-reverse"}>
           <Flex
             direction={launchButtonLocation == "left" ? "row-reverse" : "row"}
-            mr={"calc(10vw + 2px)"} // 微操大师
+            mr={"calc(10vw + 2px)"}
             ml={"10vw"}
             mb={50}
             columnGap="10vw"
@@ -480,7 +464,6 @@ export async function createLauncher({
                     </Button>
                     <IconButton
                       onClick={onOpen}
-                      disabled={programBusy() && !downloadControl().active}
                       fontSize={30}
                       aria-label="Settings"
                       icon={<IconSetting />}
@@ -549,9 +532,9 @@ export async function createLauncher({
               <ModalOverlay />
               <ConfigurationUI
                 onOpenLogs={openLogs}
-                gameUpdateCheckDisabled={gameUpdateCheckDisabled}
+                actionDisabled={actionDisabled}
                 onCheckGameUpdate={async () => {
-                  if (gameUpdateCheckDisabled()) return;
+                  if (actionDisabled()) return;
                   onClose();
                   await log("Game update check requested");
                   if (updateRequired()) {

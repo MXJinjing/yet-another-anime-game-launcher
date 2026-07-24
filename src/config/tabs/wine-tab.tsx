@@ -20,6 +20,7 @@ export function WineTab(props: {
   winePrefix: string;
   WineDistroConfig: () => JSXElement;
   onResetWineEnv: () => Promise<void>;
+  wineActionDisabled: () => boolean;
 }) {
   return (
     <TabPanel flex={1} px={20} pt={0} pb={0} h="100%" overflowY="auto">
@@ -70,14 +71,14 @@ export function WineTab(props: {
               {props.locale.get("SETTING_OPEN_WINECFG")}
             </Button>
             <Button
-            variant="ghost"
-            size="sm"
-            colorScheme="danger"
-            disabled={!props.wineInstalled()}
-            onClick={() => props.onResetWineEnv()}
-          >
-            {props.locale.get("SETTING_RESET_WINE_ENV")}
-          </Button>
+              variant="ghost"
+              size="sm"
+              colorScheme="danger"
+              disabled={!props.wineInstalled() || props.wineActionDisabled()}
+              onClick={() => props.onResetWineEnv()}
+            >
+              {props.locale.get("SETTING_RESET_WINE_ENV")}
+            </Button>
           </HStack>
         </FormControl>
         <props.WineDistroConfig />

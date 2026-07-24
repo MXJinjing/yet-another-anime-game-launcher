@@ -125,6 +125,8 @@ export const vi_VN: typeof zh_CN = {
   SETTING_ADVANCED_ALERT:
     "VUI LÒNG KHÔNG THAY ĐỔI BẤT KỲ ĐIỀU GÌ, trừ khi bạn biết mình nên làm gì.",
   SETTING_ADVANCED_VISIBLE: "Cài đặt nâng cao hiện có thể nhìn thấy.",
+  SETTING_ENABLE_ADVANCED: en.SETTING_ENABLE_ADVANCED,
+  SETTING_OPEN_SHADERS_FOLDER: en.SETTING_OPEN_SHADERS_FOLDER,
 
   NO_ENOUGH_DISKSPACE: "Không đủ dung lượng trống trên ổ đĩa",
   NO_ENOUGH_DISKSPACE_DESC: "Cần có tối thiếu {0}GiB ({1}GB) dung lượng trống.",

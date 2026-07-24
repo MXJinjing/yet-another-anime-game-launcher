@@ -58,11 +58,12 @@ export default async function ({
   });
 
   return [
-    function UI() {
+    function UI(opts?: { disabled?: boolean }) {
+      const disabled = opts?.disabled ?? !config.advancedEnable;
       return [
         <FormControl>
           <FormLabel>{locale.get("SETTING_FPS_UNLOCK")}</FormLabel>
-          <Select value={value()} onChange={setValue}>
+          <Select value={value()} onChange={setValue} disabled={disabled}>
             <SelectTrigger>
               <SelectPlaceholder>Choose an option</SelectPlaceholder>
               <SelectValue />

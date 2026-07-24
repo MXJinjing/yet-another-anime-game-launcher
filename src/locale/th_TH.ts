@@ -121,6 +121,8 @@ export const th_TH: typeof zh_CN = {
   SETTING_ADVANCED_ALERT:
     "อย่าเปลี่ยนแปลงอะไรเด็ดขาด, เว้นแต่คุณจะรู้ว่ากำลังทำอะไรอยู่",
   SETTING_ADVANCED_VISIBLE: "การตั้งค่าขั้นสูงพร้อมใช้งานแล้ว",
+  SETTING_ENABLE_ADVANCED: en.SETTING_ENABLE_ADVANCED,
+  SETTING_OPEN_SHADERS_FOLDER: en.SETTING_OPEN_SHADERS_FOLDER,
 
   NO_ENOUGH_DISKSPACE: "มีพื้นที่บนดิสก์ไม่เพียงพอ",
   NO_ENOUGH_DISKSPACE_DESC: "ต้องการพื้นที่ว่างบนดิสก์อย่างน้อย {0}GiB ({1}GB)",

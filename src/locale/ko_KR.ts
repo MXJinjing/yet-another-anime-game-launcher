@@ -122,6 +122,8 @@ export const ko_KR: typeof zh_CN = {
   SETTING_ADVANCED_ALERT:
     "당신이 무엇을 하고 있는지 모른다면, 아무것도 바꾸지 마세요.",
   SETTING_ADVANCED_VISIBLE: "이제 고급 설정이 활성화 되었습니다.",
+  SETTING_ENABLE_ADVANCED: en.SETTING_ENABLE_ADVANCED,
+  SETTING_OPEN_SHADERS_FOLDER: en.SETTING_OPEN_SHADERS_FOLDER,
 
   NO_ENOUGH_DISKSPACE: "디스크에 여유 공간이 부족합니다",
   NO_ENOUGH_DISKSPACE_DESC:

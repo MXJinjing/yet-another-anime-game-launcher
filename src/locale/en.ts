@@ -120,8 +120,10 @@ export const en: typeof zh_CN = {
 
   SETTING_ADVANCED: "Advanced",
   SETTING_ADVANCED_ALERT:
-    "DO NOT CHANGE ANYTHING, unless you know what you are doing.",
+    "Advanced settings may violate the game's Terms of Service and risk account ban. Do not modify unless necessary.",
   SETTING_ADVANCED_VISIBLE: "Advanced settings are now available.",
+  SETTING_ENABLE_ADVANCED: "Enable advanced settings",
+  SETTING_OPEN_SHADERS_FOLDER: "Open Shaders Folder",
 
   NO_ENOUGH_DISKSPACE: "Not enough free space on disk.",
   NO_ENOUGH_DISKSPACE_DESC:
