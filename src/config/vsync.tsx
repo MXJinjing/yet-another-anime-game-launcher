@@ -6,11 +6,11 @@ import { Config } from "./config-def";
 
 declare module "./config-def" {
   interface Config {
-    fpsUnlockEnable: boolean;
+    vsyncDisable: boolean;
   }
 }
 
-const CONFIG_KEY = "config_fps_unlock_enable";
+const CONFIG_KEY = "config_vsync_disable";
 
 export default async function ({
   locale,
@@ -20,22 +20,22 @@ export default async function ({
   locale: Locale;
 }) {
   try {
-    config.fpsUnlockEnable = (await getKey(CONFIG_KEY)) == "true";
+    config.vsyncDisable = (await getKey(CONFIG_KEY)) == "true";
   } catch {
-    config.fpsUnlockEnable = false;
+    config.vsyncDisable = false;
   }
 
-  const [value, setValue] = createSignal(config.fpsUnlockEnable);
+  const [value, setValue] = createSignal(config.vsyncDisable);
 
   async function onSave(apply: boolean) {
-    assertValueDefined(config.fpsUnlockEnable);
+    assertValueDefined(config.vsyncDisable);
     if (!apply) {
-      setValue(config.fpsUnlockEnable);
+      setValue(config.vsyncDisable);
       return;
     }
-    if (config.fpsUnlockEnable == value()) return;
-    config.fpsUnlockEnable = value();
-    await setKey(CONFIG_KEY, config.fpsUnlockEnable ? "true" : "false");
+    if (config.vsyncDisable == value()) return;
+    config.vsyncDisable = value();
+    await setKey(CONFIG_KEY, config.vsyncDisable ? "true" : "false");
     return;
   }
 
@@ -45,17 +45,15 @@ export default async function ({
   });
 
   return [
-    function UI(opts?: { disabled?: boolean }) {
-      const disabled = opts?.disabled ?? !config.advancedEnable;
+    function UI() {
       return (
         <FormControl>
-          <FormLabel>{locale.get("SETTING_FPS_UNLOCK")}</FormLabel>
+          <FormLabel>{locale.get("SETTING_VSYNC_DISABLE")}</FormLabel>
           <Box>
             <Checkbox
               checked={value()}
               onChange={() => setValue(x => !x)}
               size="md"
-              disabled={disabled}
             >
               {locale.get("SETTING_ENABLED")}
             </Checkbox>

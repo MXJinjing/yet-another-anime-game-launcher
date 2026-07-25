@@ -18,6 +18,9 @@ import { createWineDistroConfig } from "./wine-distribution";
 import createLocaleConfig from "./ui-locale";
 import createFPSUnlock from "./fps-unlock";
 import createReShade from "./reshade";
+import createVSyncDisable from "./vsync";
+import createPreferredMaxFps from "./preferred-max-fps";
+import createMetalFxUpscale from "./metal-fx-upscale";
 import { getKey } from "@utils";
 import { createProxyEnabledConfig } from "@config/proxy-enabled";
 import { createProxyHostConfig } from "@config/proxy-host";
@@ -107,6 +110,9 @@ export async function createConfiguration({
   }
 
   const [FO] = await createFPSUnlock({ locale, config });
+  const [VS] = await createVSyncDisable({ locale, config });
+  const [PMF] = await createPreferredMaxFps({ locale, config });
+  const [MFX] = await createMetalFxUpscale({ locale, config });
   const [RS] = await createReShade({ locale, config });
 
   const [PRE, gameProxyEnabled] = await createProxyEnabledConfig({
@@ -184,9 +190,12 @@ export async function createConfiguration({
               <VideoTab
                 locale={locale}
                 RetinaConfig={R}
+                PreferredMaxFpsConfig={PMF}
                 MetalHUDConfig={MH}
                 ChannelClientVideoConfig={ChannelClientVideoConfig}
+                VsyncDisableConfig={VS}
                 FPSUnlockConfig={FO}
+                MetalFxUpscaleConfig={MFX}
                 ReShadeConfig={RS}
                 config={config}
               />

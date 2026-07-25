@@ -18,9 +18,12 @@ const CONFIG_KEY = "config_advanced_enable";
 export function VideoTab(props: {
   locale: Locale;
   RetinaConfig: () => JSXElement;
+  PreferredMaxFpsConfig?: () => JSXElement;
   MetalHUDConfig?: () => JSXElement;
   ChannelClientVideoConfig?: () => JSXElement;
+  VsyncDisableConfig?: () => JSXElement;
   FPSUnlockConfig?: (opts?: { disabled?: boolean }) => JSXElement;
+  MetalFxUpscaleConfig?: (opts?: { disabled?: boolean }) => JSXElement;
   ReShadeConfig?: (opts?: { disabled?: boolean }) => JSXElement;
   config?: Partial<Config>;
 }) {
@@ -44,12 +47,14 @@ export function VideoTab(props: {
             <props.ChannelClientVideoConfig />
           ) : null}
           <props.RetinaConfig />
+          {props.PreferredMaxFpsConfig ? <props.PreferredMaxFpsConfig /> : null}
           {props.MetalHUDConfig ? <props.MetalHUDConfig /> : null}
         </VStack>
 
         <Box w="1px" h="100%" bg="$neutral5" />
 
         <VStack spacing={"$4"} w="48%" alignItems="start">
+          {props.VsyncDisableConfig ? <props.VsyncDisableConfig /> : null}
           <FormControl>
             <FormLabel>{props.locale.get("SETTING_ADVANCED")}</FormLabel>
             <Box>
@@ -61,15 +66,16 @@ export function VideoTab(props: {
                 {props.locale.get("SETTING_ENABLED")}
               </Checkbox>
             </Box>
-            <Show when={advancedEnabled()}>
-              <Text color="$danger9" fontSize="xs" mt="$1" userSelect="none">
-                * {props.locale.get("SETTING_ADVANCED_ALERT")}
-              </Text>
-            </Show>
+            <Text color="$danger9" fontSize={12} mt="$1" userSelect="none">
+              * {props.locale.get("SETTING_ADVANCED_ALERT")}
+            </Text>
           </FormControl>
 
           {props.FPSUnlockConfig ? (
             props.FPSUnlockConfig({ disabled: !advancedEnabled() })
+          ) : null}
+          {props.MetalFxUpscaleConfig ? (
+            props.MetalFxUpscaleConfig({ disabled: !advancedEnabled() })
           ) : null}
           {props.ReShadeConfig ? (
             props.ReShadeConfig({ disabled: !advancedEnabled() })

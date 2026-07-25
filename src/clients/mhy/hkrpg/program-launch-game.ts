@@ -75,7 +75,8 @@ cd /d "${wine.toWinePath(gameDir)}"
               WINEMSYNC: "1",
               DXMT_LOG_PATH: yaaglDir,
               DXMT_CONFIG:
-                "d3d11.preferredMaxFrameRate=60;dxgi.customVendorId=10de;dxgi.customDeviceId=2684",
+                `d3d11.preferredMaxFrameRate=${config.preferredMaxFps};${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${config.metalFxEnable ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};` : ""}dxgi.customVendorId=10de;dxgi.customDeviceId=2684`,
+              DXMT_METALFX_SPATIAL_SWAPCHAIN: config.metalFxEnable ? "1" : "",
               DXMT_CONFIG_FILE: join(yaaglDir, "dxmt.conf"),
               DXMT_ENABLE_NVEXT: "1",
               GST_PLUGIN_FEATURE_RANK: "atdec:MAX,avdec_h264:MAX",
