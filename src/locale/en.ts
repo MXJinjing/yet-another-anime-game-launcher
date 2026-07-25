@@ -117,7 +117,6 @@ export const en: typeof zh_CN = {
   SETTING_OPEN_YAAGL_DIR: "Open YAAGL Data Directory",
   SETTING_YAAGL_VERSION: "YAAGL Version",
 
-  SETTING_FPS_UNLOCK: "Disable In-Game FPS Cap",
   SETTING_VSYNC_DISABLE: "Disable VSync",
   SETTING_PREFERRED_MAX_FPS: "Frame Rate Target",
   SETTING_PREFERRED_MAX_FPS_AUTO: "Auto",

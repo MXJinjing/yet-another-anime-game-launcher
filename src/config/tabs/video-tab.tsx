@@ -22,7 +22,6 @@ export function VideoTab(props: {
   MetalHUDConfig?: () => JSXElement;
   ChannelClientVideoConfig?: () => JSXElement;
   VsyncDisableConfig?: () => JSXElement;
-  FPSUnlockConfig?: (opts?: { disabled?: boolean }) => JSXElement;
   MetalFxUpscaleConfig?: (opts?: { disabled?: boolean }) => JSXElement;
   ReShadeConfig?: (opts?: { disabled?: boolean }) => JSXElement;
   config?: Partial<Config>;
@@ -71,9 +70,6 @@ export function VideoTab(props: {
             </Text>
           </FormControl>
 
-          {props.FPSUnlockConfig ? (
-            props.FPSUnlockConfig({ disabled: !advancedEnabled() })
-          ) : null}
           {props.MetalFxUpscaleConfig ? (
             props.MetalFxUpscaleConfig({ disabled: !advancedEnabled() })
           ) : null}

@@ -16,7 +16,6 @@ import { createRetinaConfig } from "./retina";
 import { createLeftCmdConfig } from "./left-cmd";
 import { createWineDistroConfig } from "./wine-distribution";
 import createLocaleConfig from "./ui-locale";
-import createFPSUnlock from "./fps-unlock";
 import createReShade from "./reshade";
 import createVSyncDisable from "./vsync";
 import createPreferredMaxFps from "./preferred-max-fps";
@@ -109,7 +108,6 @@ export async function createConfiguration({
     config.advancedEnable = false;
   }
 
-  const [FO] = await createFPSUnlock({ locale, config });
   const [VS] = await createVSyncDisable({ locale, config });
   const [PMF] = await createPreferredMaxFps({ locale, config });
   const [MFX] = await createMetalFxUpscale({ locale, config });
@@ -194,7 +192,6 @@ export async function createConfiguration({
                 MetalHUDConfig={MH}
                 ChannelClientVideoConfig={ChannelClientVideoConfig}
                 VsyncDisableConfig={VS}
-                FPSUnlockConfig={FO}
                 MetalFxUpscaleConfig={MFX}
                 ReShadeConfig={RS}
                 config={config}
