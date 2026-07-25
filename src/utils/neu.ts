@@ -328,7 +328,7 @@ export async function writeFile(path: string, data: string) {
 }
 
 export async function removeFile(path: string) {
-  return await Neutralino.filesystem.removeFile(resolve(path));
+  return await Neutralino.filesystem.remove(resolve(path));
 }
 
 export async function removeFileIfExists(path: string) {
@@ -337,7 +337,7 @@ export async function removeFileIfExists(path: string) {
   } catch {
     return;
   }
-  return await Neutralino.filesystem.removeFile(resolve(path));
+  return await Neutralino.filesystem.remove(resolve(path));
 }
 
 export async function stats(path: string) {

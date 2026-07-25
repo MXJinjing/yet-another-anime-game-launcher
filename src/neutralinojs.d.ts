@@ -688,9 +688,9 @@ declare namespace Neutralino {
      * Removes given file. Throws `NE_FS_FILRMER` for file removal errors.
      * @param filename Filename.
      * @example
-     * await Neutralino.filesystem.removeFile('./myFile.txt');
+     * await Neutralino.filesystem.remove('./myFile.txt');
      */
-    function removeFile(filename: string): Promise<void>;
+    function remove(filename: string): Promise<void>;
 
     /**
      * Reads directory contents. Throws `NE_FS_NOPATHE` if the path doesn't exist.
