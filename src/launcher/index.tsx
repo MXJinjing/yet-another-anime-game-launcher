@@ -414,7 +414,7 @@ export async function createLauncher({
                 >
                   <Progress
                     value={progress()}
-                    indeterminate={progress() == 0}
+                    indeterminate={progress() == 0 || gameRunning()}
                     size="sm"
                     borderRadius={8}
                   >
