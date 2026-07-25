@@ -187,7 +187,7 @@ export async function createLauncher({
       }
     );
     if (wineInstalled()) {
-      taskQueue.next({ fn: () => init(config) });
+      taskQueue.next({ fn: () => init(config.advancedEnable ? config : { ...config, reshade: false, metalFxEnable: false }) });
     }
 
     const [
@@ -289,7 +289,7 @@ export async function createLauncher({
           taskQueue.next({ fn: update, name: "UPDATE" });
         } else {
           await log("Game launch requested");
-          taskQueue.next({ fn: () => launch(config) });
+          taskQueue.next({ fn: () => launch(config.advancedEnable ? config : { ...config, reshade: false, metalFxEnable: false }) });
         }
       } else {
         const selection = await selectPath();

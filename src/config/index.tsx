@@ -96,6 +96,7 @@ export async function createConfiguration({
     config,
     gameInstallDir,
     onGameInstallDirChange,
+    actionDisabled,
   });
 
   const [UL] = await createLocaleConfig({ locale, config });

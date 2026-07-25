@@ -31,11 +31,13 @@ export async function createGameInstallDirConfig({
   locale,
   gameInstallDir,
   onGameInstallDirChange,
+  actionDisabled,
 }: {
   config: Partial<Config>;
   locale: Locale;
   gameInstallDir: () => string;
   onGameInstallDirChange?: (path: string) => Promise<void>;
+  actionDisabled?: () => boolean;
 }) {
   const { selectPath } = await createGameInstallationDirectorySanitizer({
     openFolderDialog: async () =>
@@ -150,7 +152,7 @@ export async function createGameInstallDirConfig({
                   size="sm"
                   colorScheme="danger"
                   variant="ghost"
-                  disabled={!gameInstallDir()}
+                  disabled={!gameInstallDir() || actionDisabled?.()}
                   onClick={() => setUninstallDialogOpen(true)}
                 >
                   {locale.get("SETTING_UNINSTALL_GAME")}
@@ -191,7 +193,7 @@ export async function createGameInstallDirConfig({
                 <Button
                   colorScheme="danger"
                   onClick={() => uninstallGame()}
-                  disabled={!gameInstallDir()}
+                  disabled={!gameInstallDir() || actionDisabled?.()}
                 >
                   {locale.get("SETTING_UNINSTALL_GAME")}
                 </Button>
