@@ -222,6 +222,19 @@ def cmp_versions(lhs: list, rhs: list) -> int:
 			return 1
 	return 0
 
+def compare_game_versions(lhs: str, rhs: str) -> int:
+	"""Compare two strict ``major.minor.patch`` game versions."""
+	version_pattern = r"\d+\.\d+\.\d+"
+	if not re.fullmatch(version_pattern, lhs):
+		raise ValueError(f"Invalid installed game version: {lhs}")
+	if not re.fullmatch(version_pattern, rhs):
+		raise ValueError(f"Invalid target game version: {rhs}")
+
+	return cmp_versions(
+		[int(component) for component in lhs.split(".")],
+		[int(component) for component in rhs.split(".")],
+	)
+
 def hpatchz_patch_file(oldfile: pathlib.Path, dstfile: pathlib.Path, patchfile: pathlib.Path,
 		p_offset: int, p_len: int, timeout: int = 50):
 	"""
@@ -705,7 +718,9 @@ class SophonClient:
 			if self.rel_type == "os":
 				url = "sg-downloader-api.ho" + "yoverse.com"
 			elif self.rel_type == "cn":
-				assert False, "TODO"
+				# Unlike the overseas service, the CN service exposes both
+				# getBuild (GET) and getPatchBuild (POST) on the public API host.
+				url = "api-takumi.mih" + "oyo.com"
 		else:
 			if self.rel_type == "os":
 				url = "sg-public-api.ho" + "yoverse.com"
@@ -1476,8 +1491,18 @@ class SophonClient:
 
 		self.load_manifest(cat_name)
 
-		if self.installed_ver != self.di_chunks.getBuild_json["data"]["tag"]:
-			abortlog(f"The installed version is outdated. {self.installed_ver} / {self.di_chunks.getBuild_json['data']['tag']} Run an update first.")
+		target_ver = self.di_chunks.getBuild_json["data"]["tag"]
+		version_comparison = compare_game_versions(self.installed_ver, target_ver)
+		if version_comparison < 0:
+			abortlog(
+				f"The installed version requires an update. "
+				f"{self.installed_ver} / {target_ver}"
+			)
+		if version_comparison > 0:
+			abortlog(
+				f"The installed version is newer than the available repair manifest. "
+				f"{self.installed_ver} / {target_ver}"
+			)
 
 		self.new_files_to_download.clear()
 

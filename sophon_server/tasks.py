@@ -4,7 +4,7 @@ from typing import Dict, Optional, Literal
 from progress_handlers import InstallProgressHandler, RepairProgressHandler, UpdateProgressHandler
 from models import InstallRequest, RepairRequest, UpdateRequest, TaskStatus, OnlineGameInfo
 from utils import ConnectionManager
-from sophon_api import Options, SophonClient, force_memory_release, RUN_MEMORY_HACK, WORKER_CNT, warnlog
+from sophon_api import Options, SophonClient, compare_game_versions, force_memory_release, RUN_MEMORY_HACK, WORKER_CNT, warnlog
 
 
 def update_config_ini_version(gamedir: pathlib.Path, version: str):
@@ -26,6 +26,30 @@ def remove_cached_files(tempdir: pathlib.Path):
                     item.unlink()
     else:
         print(f"Temporary directory {tempdir} does not exist, skipping removal.")
+
+def is_predownload_enabled(reltype: str) -> bool:
+    """Pre-download manifests are currently complete only for overseas releases."""
+    return reltype == "os"
+
+def determine_repair_action(
+    installed_version: str,
+    target_version: str,
+    updatable_versions: list[str],
+) -> Literal["repair", "update"]:
+    version_comparison = compare_game_versions(installed_version, target_version)
+    if version_comparison > 0:
+        raise RuntimeError(
+            f"The installed version is newer than the available repair manifest. "
+            f"{installed_version} / {target_version}"
+        )
+    if version_comparison < 0:
+        if installed_version not in updatable_versions:
+            raise RuntimeError(
+                f"The installed version is too old for an incremental update. "
+                f"{installed_version} / {target_version}"
+            )
+        return "update"
+    return "repair"
 
 def perform_install(manager: ConnectionManager, tasks: Dict[str, TaskStatus], task_id: str, request: InstallRequest, cancel_event: Optional[threading.Event] = None):
     progress = InstallProgressHandler(task_id, manager, tasks)
@@ -130,6 +154,54 @@ def perform_repair(manager: ConnectionManager, tasks: Dict[str, TaskStatus], tas
     cli.initialize(options)
     cli.retrieve_API_keys()
 
+    target_version = cli.branches_json["tag"]
+    repair_action = determine_repair_action(
+        cli.installed_ver,
+        target_version,
+        cli.branches_json.get("diff_tags", []),
+    )
+    if repair_action == "update":
+        manager.send_message_threadsafe(
+            {
+                "type": "auto_update_start",
+                "task_id": task_id,
+                "installed_version": cli.installed_ver,
+                "target_version": target_version,
+            },
+            task_id,
+        )
+        warnlog(
+            f"Repair requested for older game version {cli.installed_ver}; "
+            f"updating to {target_version} first."
+        )
+
+        update_request = UpdateRequest(
+            gamedir=request.gamedir,
+            game_type=request.game_type,
+            tempdir=request.tempdir,
+            predownload=False,
+        )
+        update_progress = UpdateProgressHandler(task_id, manager, tasks)
+        del cli
+        del options
+        _perform_update(update_progress, update_request, cancel_event)
+
+        # Re-read both version anchors after the update. This also restores
+        # repair-mode options before loading the repair manifest.
+        options = Options()
+        options.gamedir = pathlib.Path(request.gamedir)
+        options.game_type = request.game_type
+        options.repair_mode = request.repair_mode
+        options.tempdir = (
+            pathlib.Path(request.tempdir)
+            if request.tempdir
+            else pathlib.Path(request.gamedir) / ".tmp"
+        )
+
+        cli = SophonClient()
+        cli.initialize(options)
+        cli.retrieve_API_keys()
+
     cli.repair_by_category("game", repair_progress_handler=progress, cancel_event=cancel_event)
 
     del cli
@@ -139,10 +211,11 @@ def perform_repair(manager: ConnectionManager, tasks: Dict[str, TaskStatus], tas
     if RUN_MEMORY_HACK:
         force_memory_release()
 
-def perform_update(manager: ConnectionManager, tasks: Dict[str, TaskStatus], task_id: str, request: UpdateRequest, cancel_event: Optional[threading.Event] = None):
-    progress = UpdateProgressHandler(task_id, manager, tasks)
-    progress.job_start()
-
+def _perform_update(
+    progress: UpdateProgressHandler,
+    request: UpdateRequest,
+    cancel_event: Optional[threading.Event] = None,
+):
     options = Options()
     options.gamedir = pathlib.Path(request.gamedir)
     options.do_update = True
@@ -157,6 +230,11 @@ def perform_update(manager: ConnectionManager, tasks: Dict[str, TaskStatus], tas
 
     cli = SophonClient()
     cli.initialize(options)
+    if options.predownload and not is_predownload_enabled(cli.rel_type):
+        raise RuntimeError(
+            f"Pre-download is disabled for release type '{cli.rel_type}' "
+            f"because its resource manifest is incomplete."
+        )
     cli.retrieve_API_keys()
     cli.load_manifest("game")
 
@@ -173,6 +251,13 @@ def perform_update(manager: ConnectionManager, tasks: Dict[str, TaskStatus], tas
 
     del cli
     del options
+
+def perform_update(manager: ConnectionManager, tasks: Dict[str, TaskStatus], task_id: str, request: UpdateRequest, cancel_event: Optional[threading.Event] = None):
+    progress = UpdateProgressHandler(task_id, manager, tasks)
+    progress.job_start()
+
+    _perform_update(progress, request, cancel_event)
+
     progress.job_end()
 
     if RUN_MEMORY_HACK:
@@ -202,6 +287,8 @@ def fetch_online_game_info(reltype: str, game: Literal["nap", "hk4e"]) -> Online
                 "install_size": 0,
                 "updatable_versions": cli.branches_json.get("diff_tags", []),
                 "release_type": reltype,
+                "pre_download": False,
+                "pre_download_version": "0.0.0",
             }
 
             try:
@@ -213,21 +300,21 @@ def fetch_online_game_info(reltype: str, game: Literal["nap", "hk4e"]) -> Online
             del cli
 
             shutil.rmtree(options.gamedir, ignore_errors=True)
-            options.predownload = True
+            if is_predownload_enabled(reltype):
+                options.predownload = True
 
-            cli = SophonClient()
-            cli.initialize(options)
+                cli = SophonClient()
+                cli.initialize(options)
 
-            try:
-                cli.retrieve_API_keys()
-                online_info['pre_download'] = True
-                online_info['pre_download_version'] = cli.branches_json["tag"]
-            except AssertionError:
-                online_info['pre_download'] = False
-                online_info["pre_download_version"] = "0.0.0"
+                try:
+                    cli.retrieve_API_keys()
+                    online_info['pre_download'] = True
+                    online_info['pre_download_version'] = cli.branches_json["tag"]
+                except AssertionError:
+                    pass
 
-            shutil.rmtree(options.gamedir, ignore_errors=True)
-            del cli
+                shutil.rmtree(options.gamedir, ignore_errors=True)
+                del cli
             del options
 
             if RUN_MEMORY_HACK:

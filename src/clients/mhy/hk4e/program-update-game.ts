@@ -215,10 +215,12 @@ async function* predownload(
 export async function* predownloadGameProgram({
   sophon,
   gameDir,
+  targetVersion,
 }: {
   sophon: Sophon;
   gameDir: string;
+  targetVersion: string;
 }) {
   yield* predownload(sophon, gameDir);
-  await setKey(`predownloaded_all`, "true");
+  await setKey(`predownloaded_all`, targetVersion);
 }

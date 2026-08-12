@@ -122,7 +122,11 @@ export async function createHK4EChannelClient({
   const LATEST_GAME_VERSION: string = gameInfo.version || "0.0.0";
   const UPDATABLE_VERSIONS: string[] = gameInfo.updatable_versions;
   const PRE_DOWNLOAD_VERSION: string = gameInfo.pre_download_version || "0.0.0";
-  const PRE_DOWNLOAD_AVAILABLE: boolean = gameInfo.pre_download;
+  // The CN/BB Sophon pre-download currently omits part of the resources.
+  // Keep the feature unreachable for domestic releases until the upstream
+  // pre-download manifests can be handled completely.
+  const PRE_DOWNLOAD_AVAILABLE: boolean =
+    releaseType === "os" && gameInfo.pre_download;
   const INSTALL_SIZE_BYTES: number = gameInfo.install_size;
 
   if (background) {
@@ -140,8 +144,8 @@ export async function createHK4EChannelClient({
   const [showPredownloadPrompt, setShowPredownloadPrompt] =
     createSignal<boolean>(
       PRE_DOWNLOAD_AVAILABLE &&
-        (await getKeyOrDefault("predownloaded_all", "NOTFOUND")) ==
-          "NOTFOUND" && // not downloaded yet
+        (await getKeyOrDefault("predownloaded_all", "NOTFOUND")) !=
+          PRE_DOWNLOAD_VERSION && // this version has not been downloaded yet
         gameInstalled && // game installed
         gt(PRE_DOWNLOAD_VERSION, gameVersion) // predownload version is greater
     );
@@ -152,6 +156,48 @@ export async function createHK4EChannelClient({
     gameVersion ?? "0.0.0"
   );
   const updateRequired = () => lt(gameCurrentVersion(), LATEST_GAME_VERSION);
+
+  async function refreshInstalledGameVersion() {
+    const installedVersion = await getGameVersionGI(
+      join(_gameInstallDir(), server.dataDir)
+    );
+    setGameVersion(installedVersion);
+    return installedVersion;
+  }
+
+  async function* updateToLatest(): CommonUpdateProgram<boolean> {
+    if (!updateRequired()) return true;
+
+    const currentVersion = gameCurrentVersion();
+    const updatable = UPDATABLE_VERSIONS.includes(currentVersion);
+    if (!updatable) {
+      await locale.prompt("UNSUPPORTED_VERSION", "GAME_VERSION_TOO_OLD_DESC", [
+        currentVersion,
+      ]);
+      batch(() => {
+        setInstalled("NOT_INSTALLED");
+        setGameInstallDir("");
+        setGameVersion("0.0.0");
+      });
+      await setKey("game_install_dir", null);
+      return false;
+    }
+
+    yield* updateGameProgram({
+      sophon,
+      gameDir: _gameInstallDir(),
+      server,
+      updatedGameVersion: LATEST_GAME_VERSION,
+    });
+    const installedVersion = await refreshInstalledGameVersion();
+    if (lt(installedVersion, LATEST_GAME_VERSION)) {
+      log(
+        `Update completed but the installed game version is still ${installedVersion}; expected ${LATEST_GAME_VERSION}`
+      );
+    }
+    return true;
+  }
+
   return {
     installState: installed,
     showPredownloadPrompt,
@@ -204,10 +250,13 @@ export async function createHK4EChannelClient({
           installReltype: releaseType,
         });
         // setGameInstalled
+        const installedVersion = await getGameVersionGI(
+          join(selection, server.dataDir)
+        );
         batch(() => {
           setInstalled("INSTALLED");
           setGameInstallDir(selection);
-          setGameVersion(LATEST_GAME_VERSION);
+          setGameVersion(installedVersion);
         });
         await setKey("game_install_dir", selection);
         return;
@@ -260,33 +309,11 @@ export async function createHK4EChannelClient({
       yield* predownloadGameProgram({
         sophon,
         gameDir: _gameInstallDir(),
+        targetVersion: PRE_DOWNLOAD_VERSION,
       });
     },
     async *update() {
-      const updatable = UPDATABLE_VERSIONS.includes(gameCurrentVersion());
-      if (!updatable) {
-        await locale.prompt(
-          "UNSUPPORTED_VERSION",
-          "GAME_VERSION_TOO_OLD_DESC",
-          [gameCurrentVersion()]
-        );
-        batch(() => {
-          setInstalled("NOT_INSTALLED");
-          setGameInstallDir("");
-          setGameVersion("0.0.0");
-        });
-        await setKey("game_install_dir", null);
-        return;
-      }
-      yield* updateGameProgram({
-        sophon,
-        gameDir: _gameInstallDir(),
-        server,
-        updatedGameVersion: LATEST_GAME_VERSION,
-      });
-      batch(() => {
-        setGameVersion(LATEST_GAME_VERSION);
-      });
+      yield* updateToLatest();
     },
     async *launch(config: Config) {
       // if (
@@ -315,10 +342,12 @@ export async function createHK4EChannelClient({
       });
     },
     async *checkIntegrity() {
+      if (!(yield* updateToLatest())) return;
       yield* checkIntegrityProgram({
         sophon,
         gameDir: _gameInstallDir(),
       });
+      await refreshInstalledGameVersion();
     },
     async changeInstallDir(selection: string) {
       if (!selection) {
