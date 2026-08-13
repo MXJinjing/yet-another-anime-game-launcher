@@ -103,6 +103,11 @@ export const th_TH: typeof zh_CN = {
   SETTING_GENERAL: "ทั่วไป",
   SETTING_GAME: "เกม",
   SETTING_VIDEO: "วิดีโอ",
+  SETTING_GLOBAL: "การตั้งค่าทั่วไป",
+  SETTING_GAME_WINE: "Wine ที่กำหนดเอง",
+  SETTING_GAME_WINE_SHARED: "ปฏิบัติตามทั่วโลก",
+  SETTING_GAME_WINE_DESC:
+    "เลือกเวอร์ชัน Wine ที่ดาวน์โหลดไว้สำหรับเกมนี้เท่านั้น เลือก 'ปฏิบัติตามทั่วโลก' เพื่อใช้ Wine ของลันเชอร์",
   LANGUAGE_LOCALE_NAME: "ไทย",
   SETTING_UI_LOCALE: "ภาษาของลันเชอร์",
   SETTING_THEME_COLOR: "Launcher Theme Color",
@@ -171,6 +176,11 @@ export const th_TH: typeof zh_CN = {
   UPDATE_PROMPT_IGNORE: "ละเว้นการอัปเดต",
   SETTING_CHECK_UPDATE: "ตรวจสอบการอัปเดต YAAGL",
   SETTING_CHECK_GAME_UPDATE: "ตรวจสอบอัปเดตเกม",
+  SETTING_GAME_UPDATE_AVAILABLE: "มีเวอร์ชันใหม่ของเกม",
+  SETTING_GAME_UPDATE_AVAILABLE_DESC:
+    "พบเวอร์ชันใหม่ของเกม ต้องการติดตั้งตอนนี้หรือไม่",
+  SETTING_CONFIRM_INSTALL: "ยืนยันการติดตั้ง",
+  SETTING_CANCEL_INSTALL: "ยกเลิกการติดตั้ง",
   ALREADY_LATEST_VERSION: "คุณใช้เวอร์ชันล่าสุดอยู่แล้ว",
   UPDATE_LAUNCHER: "อัปเดต Launcher",
   INIT_ENVIRONMENT: "Initialize Environment",
@@ -218,5 +228,6 @@ export const th_TH: typeof zh_CN = {
   SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   CHECK_GAME_UPDATE_FAILED: "Check game update failed",
-  CHECK_GAME_UPDATE_FAILED_DESC: "Cannot connect to update server. Please check your network and try again.",
+  CHECK_GAME_UPDATE_FAILED_DESC:
+    "Cannot connect to update server. Please check your network and try again.",
 };

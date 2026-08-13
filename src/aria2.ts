@@ -93,7 +93,11 @@ export async function createAria2({
     return `aria2 download failed: ${details.join(" - ")}`;
   }
 
-  async function* doStreaming(gid: string, isCancelled: () => boolean) {
+  async function* doStreaming(
+    gid: string,
+    isCancelled: () => boolean,
+    downloadKey?: string
+  ) {
     let pausedYielded = false;
     while (true) {
       let status;
@@ -118,7 +122,10 @@ export async function createAria2({
         throw new DownloadFailedError(formatAria2DownloadError(status));
       }
       if (status.status == "paused") {
-        updateControlledDownload({ paused: true, pauseRequested: true });
+        updateControlledDownload(
+          { paused: true, pauseRequested: true },
+          downloadKey
+        );
         if (!pausedYielded && status.totalLength > BigInt(0)) {
           pausedYielded = true;
           yield status;
@@ -126,7 +133,7 @@ export async function createAria2({
         await wait(250);
         continue;
       }
-      updateControlledDownload({ paused: false });
+      updateControlledDownload({ paused: false }, downloadKey);
       pausedYielded = false;
       if (status.totalLength == BigInt(0)) {
         await wait(250);
@@ -140,6 +147,8 @@ export async function createAria2({
   async function* doStreamingDownload(options: {
     uri: string;
     absDst: string;
+    /** Associates the download with a per-game download control key. */
+    downloadKey?: string;
   }) {
     const gid = await sha256_16(`${options.uri}:${options.absDst}`);
     const downloadOptions = await getDownloadOptions();
@@ -206,85 +215,101 @@ export async function createAria2({
         throw error;
       }
       if (status.status == "paused") {
-        updateControlledDownload({ paused: true, pauseRequested: true });
+        updateControlledDownload(
+          { paused: true, pauseRequested: true },
+          options.downloadKey
+        );
         return status;
       }
       if (status.status == "active" || status.status == "waiting") {
-        updateControlledDownload({ paused: false });
+        updateControlledDownload({ paused: false }, options.downloadKey);
         return status;
       }
       return status;
     }
-    beginControlledDownload({
-      pause: async () => {
-        const status = await syncDownloadPauseState();
-        if (!status) return;
-        if (status.status == "paused") return;
-        if (status.status == "active" || status.status == "waiting") {
-          try {
-            await rpc.forcePause(gid);
-          } catch (error) {
-            const refreshedStatus = await syncDownloadPauseState();
-            if (refreshedStatus?.status == "paused" || !refreshedStatus) {
-              return;
+    beginControlledDownload(
+      {
+        pause: async () => {
+          const status = await syncDownloadPauseState();
+          if (!status) return;
+          if (status.status == "paused") return;
+          if (status.status == "active" || status.status == "waiting") {
+            try {
+              await rpc.forcePause(gid);
+            } catch (error) {
+              const refreshedStatus = await syncDownloadPauseState();
+              if (refreshedStatus?.status == "paused" || !refreshedStatus) {
+                return;
+              }
+              throw error;
             }
-            throw error;
+            updateControlledDownload(
+              { pauseRequested: true },
+              options.downloadKey
+            );
+            return;
           }
-          updateControlledDownload({ pauseRequested: true });
-          return;
-        }
-        await log(
-          status.status == "error"
-            ? `下载任务已失败，无法暂停：${basename(
-                options.absDst
-              )}（${formatAria2DownloadError(status)}）`
-            : `忽略暂停请求：${basename(options.absDst)} 当前 aria2 状态为 ${
-                status.status
-              }`
-        );
-      },
-      resume: async () => {
-        const status = await syncDownloadPauseState();
-        if (!status) return;
-        if (status.status == "active" || status.status == "waiting") return;
-        if (status.status == "paused") {
-          try {
-            await rpc.unpause(gid);
-          } catch (error) {
-            const refreshedStatus = await syncDownloadPauseState();
-            if (
-              refreshedStatus?.status == "active" ||
-              refreshedStatus?.status == "waiting" ||
-              !refreshedStatus
-            ) {
-              return;
+          await log(
+            status.status == "error"
+              ? `下载任务已失败，无法暂停：${basename(
+                  options.absDst
+                )}（${formatAria2DownloadError(status)}）`
+              : `忽略暂停请求：${basename(options.absDst)} 当前 aria2 状态为 ${
+                  status.status
+                }`
+          );
+        },
+        resume: async () => {
+          const status = await syncDownloadPauseState();
+          if (!status) return;
+          if (status.status == "active" || status.status == "waiting") return;
+          if (status.status == "paused") {
+            try {
+              await rpc.unpause(gid);
+            } catch (error) {
+              const refreshedStatus = await syncDownloadPauseState();
+              if (
+                refreshedStatus?.status == "active" ||
+                refreshedStatus?.status == "waiting" ||
+                !refreshedStatus
+              ) {
+                return;
+              }
+              throw error;
             }
-            throw error;
+            updateControlledDownload(
+              { paused: false, pauseRequested: false },
+              options.downloadKey
+            );
+            return;
           }
-          updateControlledDownload({ paused: false, pauseRequested: false });
-          return;
-        }
-        await log(
-          status.status == "error"
-            ? `下载任务已失败，无法继续：${basename(
-                options.absDst
-              )}（${formatAria2DownloadError(status)}）`
-            : `忽略继续请求：${basename(options.absDst)} 当前 aria2 状态为 ${
-                status.status
-              }`
-        );
+          await log(
+            status.status == "error"
+              ? `下载任务已失败，无法继续：${basename(
+                  options.absDst
+                )}（${formatAria2DownloadError(status)}）`
+              : `忽略继续请求：${basename(options.absDst)} 当前 aria2 状态为 ${
+                  status.status
+                }`
+          );
+        },
+        cancel: async () => {
+          cancelled = true;
+          try {
+            await rpc.forceRemove(gid);
+          } catch (error) {
+            await log(`取消下载时 aria2 已无活动任务：${String(error)}`);
+          }
+        },
       },
-      cancel: async () => {
-        cancelled = true;
-        try {
-          await rpc.forceRemove(gid);
-        } catch (error) {
-          await log(`取消下载时 aria2 已无活动任务：${String(error)}`);
-        }
-      },
-    });
+      options.downloadKey
+    );
     try {
-      for await (const status of doStreaming(gid, () => cancelled)) {
+      for await (const status of doStreaming(
+        gid,
+        () => cancelled,
+        options.downloadKey
+      )) {
         const now = Date.now();
         if (now >= nextProgressLogAt) {
           await log(
@@ -302,7 +327,7 @@ export async function createAria2({
         yield status;
       }
     } finally {
-      endControlledDownload();
+      endControlledDownload(options.downloadKey);
     }
     await log(`下载进度 100%：${basename(options.absDst)}`);
   }

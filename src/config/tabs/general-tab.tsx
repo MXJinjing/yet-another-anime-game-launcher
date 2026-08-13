@@ -72,16 +72,6 @@ export function GeneralTab(props: {
           <Button
             variant="ghost"
             size="sm"
-            disabled={!props.gameInstallDir()}
-            onClick={() =>
-              exec2(["open", props.gameInstallDir()], {}, false, "/dev/null")
-            }
-          >
-            {props.locale.get("SETTING_OPEN_GAME_INSTALL_DIR")}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
             onClick={async () =>
               await exec2(["open", resolve("./")], {}, false, "/dev/null")
             }

@@ -7,111 +7,6 @@ body {
   margin: 0;
 }
 
-.background {
-  height: 100vh;
-  width: 100vw;
-  position: fixed;
-  background-position: center;
-  background-size: cover;
-}
-
-.background-video {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  object-fit: cover;
-  z-index: -2;
-}
-
-.background-theme {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-position: center;
-  background-size: cover;
-  z-index: -1;
-  pointer-events: none;
-}
-
-.game-logo {
-  display: block;
-  position: absolute;
-  background-size: cover;
-  top: 0;
-  left: 0;
-}
-
-.game-logo-fallback {
-  position: absolute;
-  top: 10vh;
-  left: 10vw;
-  right: 10vw;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  z-index: 1;
-}
-
-.game-logo-fallback-text {
-  font-size: 42px;
-  font-weight: 700;
-  color: white;
-  text-shadow: 2px 2px 12px rgba(0, 0, 0, 0.6),
-    0 0 40px rgba(0, 0, 0, 0.3);
-  letter-spacing: 0.05em;
-}
-
-.version-icon {
-  display: block;
-  position: absolute;
-  cursor: pointer;
-  right: 10vw;
-  bottom: calc(23vh - 2px);
-  background-size: contain;
-  background-repeat: no-repeat;
-}
-
-.launch-button button {
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-.launch-actions {
-  position: relative;
-}
-
-.download-cancel-slot {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-}
-
-.download-cancel-action {
-  width: fit-content;
-  margin: 8px auto 0;
-  padding: 4px 10px;
-  color: #f4a3a3;
-  border-radius: 6px;
-  cursor: pointer;
-  user-select: none;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  font-size: 14px;
-  line-height: 20px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-}
-
-.download-cancel-action:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
 ::-webkit-scrollbar {
   height: 16px;
   overflow: visible;
@@ -138,4 +33,510 @@ body {
 }
 ::-webkit-scrollbar-thumb:active {
   box-shadow: inset 1px 1px 3px #a6a6a6;
+}
+.hoyoplay-shell {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  color: white;
+  background-color: #08090d;
+  background-position: center;
+  background-size: cover;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.hoyoplay-video,
+.hoyoplay-theme {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background-position: center;
+  background-size: cover;
+  transition: opacity 0.3s ease;
+}
+
+.hoyoplay-game-rail {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 88px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0 24px;
+  background: rgba(6, 7, 11, 0.74);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+.hoyoplay-orbit-button,
+.hoyoplay-game-icon,
+.hoyoplay-rail-button,
+.hoyoplay-primary-button,
+.hoyoplay-secondary-button {
+  border: 0;
+  cursor: pointer;
+}
+
+.hoyoplay-orbit-button {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.hoyoplay-orbit-button span {
+  width: 28px;
+  height: 28px;
+  border: 4px solid white;
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+
+.hoyoplay-game-icons {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.hoyoplay-game-icon {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 0.72;
+  transition: opacity 160ms ease, transform 160ms ease,
+    background-color 160ms ease;
+}
+
+.hoyoplay-game-icon:hover,
+.hoyoplay-game-icon.active {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.hoyoplay-game-icon.active {
+  background: rgba(255, 221, 67, 0.92);
+}
+
+.hoyoplay-game-icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+.hoyoplay-rail-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.hoyoplay-rail-button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  transition: background-color 160ms ease;
+}
+
+.hoyoplay-rail-button:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.hoyoplay-gear-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+.hoyoplay-gear-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hoyoplay-stage {
+  position: absolute;
+  z-index: 1;
+  inset: 0 0 0 88px;
+}
+
+.hoyoplay-settings-icon {
+  position: relative;
+  display: block;
+}
+
+.hoyoplay-settings-icon {
+  width: 22px;
+  height: 22px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+}
+
+.hoyoplay-settings-icon::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.hoyoplay-action-area {
+  position: absolute;
+  z-index: 2;
+  right: 42px;
+  bottom: 38px;
+  left: 104px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 14px;
+  pointer-events: none;
+}
+
+.hoyoplay-action-area > * {
+  pointer-events: auto;
+}
+
+.hoyoplay-primary-button {
+  width: fit-content;
+  min-width: 0;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 0 40px;
+  border-radius: 999px;
+  background: var(--hoyoplay-accent, #ffd834);
+  color: var(--hoyoplay-accent-text, #111418);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.34);
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+.hoyoplay-primary-button:hover {
+  transform: none;
+  filter: none;
+}
+
+.hoyoplay-primary-button:disabled {
+  cursor: default;
+  filter: grayscale(0.5);
+  opacity: 0.68;
+}
+
+.hoyoplay-menu-button {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 0;
+  cursor: pointer;
+  color: white;
+  background: rgba(18, 21, 28, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(16px);
+}
+
+.hoyoplay-menu-button:hover {
+  background: rgba(42, 47, 58, 0.82);
+  transform: translateY(-1px);
+}
+
+.hoyoplay-menu-popover-content {
+  background: rgba(18, 21, 28, 0.96) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important;
+  color: white;
+  backdrop-filter: blur(16px);
+  overflow: hidden;
+}
+
+.hoyoplay-menu-popover-body {
+  padding: 0 !important;
+}
+
+.hoyoplay-menu-popover {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 6px;
+}
+
+.hoyoplay-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  color: white;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  transition: background-color 140ms ease;
+}
+
+.hoyoplay-menu-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hoyoplay-menu-item:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.hoyoplay-menu-item:disabled:hover {
+  background: transparent;
+}
+
+.hoyoplay-menu-version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hoyoplay-menu-version strong {
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.hoyoplay-menu-divider {
+  height: 1px;
+  margin: 5px 4px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hoyoplay-action-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.hoyoplay-ring {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.hoyoplay-ring svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hoyoplay-ring-bg {
+  fill: none;
+  stroke: var(--hoyoplay-accent-text, #111418);
+  stroke-width: 3;
+  opacity: 0.25;
+}
+
+.hoyoplay-ring-fg {
+  fill: none;
+  stroke: var(--hoyoplay-accent-text, #111418);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 160ms ease;
+}
+
+.hoyoplay-ring-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--hoyoplay-accent-text, #111418);
+}
+
+.hoyoplay-download-details {
+  width: 320px;
+  min-height: 64px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.hoyoplay-download-file {
+  max-width: 100%;
+  overflow: hidden;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.hoyoplay-download-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hoyoplay-action-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+
+.hoyoplay-action-copy span {
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.hoyoplay-secondary-button {
+  height: 48px;
+  padding: 0 18px;
+  border-radius: 999px;
+  color: white;
+  background: rgba(18, 21, 28, 0.68);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(16px);
+  font-weight: 800;
+}
+
+.hoyoplay-progress {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 680px;
+  margin-right: auto;
+  padding: 14px 16px 16px;
+  border-radius: 8px;
+  background: rgba(9, 11, 16, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
+}
+
+.hoyoplay-progress strong {
+  display: block;
+  margin-bottom: 9px;
+  color: white;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.hoyoplay-setting-row {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  color: #222;
+  font-weight: 700;
+}
+
+.hoyoplay-setting-row input[type="number"] {
+  width: 120px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #d6d6d6;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.hoyoplay-setting-row select {
+  width: 280px;
+  max-width: 52%;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #d6d6d6;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.hoyoplay-setting-row input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+}
+
+.hoyoplay-settings-muted {
+  margin: 10px 0 0;
+  color: #666;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .hoyoplay-game-rail {
+    width: 72px;
+  }
+
+  .hoyoplay-stage {
+    left: 72px;
+  }
+
+  .hoyoplay-game-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .hoyoplay-action-area {
+    left: 84px;
+    right: 18px;
+    bottom: 20px;
+    gap: 10px;
+  }
+
+  .hoyoplay-primary-button {
+    height: 52px;
+    padding: 0 28px;
+  }
+
+  .hoyoplay-action-copy span {
+    font-size: 24px;
+  }
+
+  .hoyoplay-menu-button {
+    width: 44px;
+    height: 44px;
+  }
 }

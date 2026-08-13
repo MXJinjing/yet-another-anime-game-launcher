@@ -167,8 +167,201 @@ export async function spawn(
   return { pid, id };
 }
 
+let storageNamespace: string | undefined;
+
+function storageKeyHash(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return hash.toString(36);
+}
+
+function shouldNamespaceStorageKey(key: string) {
+  return (
+    key == "game_install_dir" ||
+    key == "patched" ||
+    key == "predownloaded_all" ||
+    key.startsWith("predownloaded_") ||
+    key == "left_cmd" ||
+    key == "config_retina" ||
+    key == "config_block_net" ||
+    key == "config_block_net_duration" ||
+    key == "config_hk4e_enable_hdr" ||
+    key == "config_metalfx_enable" ||
+    key == "config_metalfx_factor" ||
+    key == "config_mhypbase_replacement_path" ||
+    key == "config_patch_off" ||
+    key == "config_preferred_max_fps" ||
+    key == "config_reshade" ||
+    key == "config_resolution_custom" ||
+    key == "config_resolution_width" ||
+    key == "config_resolution_height" ||
+    key == "config_steam_patch" ||
+    key == "config_timeout_fix" ||
+    key == "config_vsync_disable" ||
+    key == "config_workaround4" ||
+    key == "config_proxyEnabled" ||
+    key == "config_proxyHost" ||
+    key == "config_metalHud"
+  );
+}
+
+// Map merged-channel game namespaces to the old single-game launcher apps so
+// per-game settings from previous installs keep working (and writes keep the
+// old apps in sync if the user runs them side by side).
+function oldYaaglStorageAppsForNamespace(namespace: string | undefined) {
+  switch (namespace) {
+    case "hpgenshin":
+      return ["Yaagl OS", "Yaagl"];
+    case "hphsr":
+      return ["Yaagl HSR OS", "Yaagl HSR"];
+    case "hpzzz":
+      return ["Yaagl ZZZ OS", "Yaagl ZZZ"];
+    case "hpcngenshin":
+      return ["Yaagl"];
+    case "hpcnhsr":
+      return ["Yaagl HSR"];
+    case "hpcnzzz":
+      return ["Yaagl ZZZ"];
+    default:
+      return undefined;
+  }
+}
+
+function getNeutralinoStorageKey(key: string) {
+  const namespacedKey =
+    storageNamespace && shouldNamespaceStorageKey(key)
+      ? `${storageNamespace}_${key}`
+      : key;
+  const validKey = namespacedKey.replace(/[^a-zA-Z0-9_-]/g, "_");
+  if (validKey.length <= 50) return validKey;
+  const namespace = storageNamespace
+    ? storageNamespace.replace(/[^a-zA-Z0-9_-]/g, "_")
+    : "k";
+  return `${namespace}_${storageKeyHash(validKey)}`.slice(0, 50);
+}
+
+function assertStorageKeyFormat(key: string) {
+  if (!/^[a-zA-Z-_0-9]{1,50}$/.test(key)) {
+    throw new Error(
+      `Invalid storage key format. The key should match regex: ^[a-zA-Z-_0-9]{1,50}$ (${key})`
+    );
+  }
+}
+
+async function getOldYaaglStorageFile(appName: string, key: string) {
+  assertStorageKeyFormat(key);
+  const home = await env("HOME");
+  return join(
+    home,
+    "Library",
+    "Application Support",
+    appName,
+    ".storage",
+    `${key}.neustorage`
+  );
+}
+
+async function getOldYaaglStorageValue(appNames: string[], key: string) {
+  for (const appName of appNames) {
+    const path = await getOldYaaglStorageFile(appName, key);
+    try {
+      return await Neutralino.filesystem.readFile(path);
+    } catch {
+      // Try the next compatible old app storage location.
+    }
+  }
+  throw new Error(`Unable to find storage key: ${key}`);
+}
+
+async function setOldYaaglStorageValue(
+  appName: string,
+  key: string,
+  value: string | null
+) {
+  const path = await getOldYaaglStorageFile(appName, key);
+  const storageDir = join(
+    await env("HOME"),
+    "Library",
+    "Application Support",
+    appName,
+    ".storage"
+  );
+  await exec(["mkdir", "-p", storageDir]);
+  if (value === null) {
+    try {
+      await Neutralino.filesystem.remove(path);
+    } catch {
+      // Already unset.
+    }
+    return;
+  }
+  await Neutralino.filesystem.writeFile(path, value);
+}
+
+function getOldYaaglStorageRoute(key: string) {
+  if (!storageNamespace || !shouldNamespaceStorageKey(key)) return undefined;
+  return oldYaaglStorageAppsForNamespace(storageNamespace);
+}
+
+export function getActiveStorageNamespace() {
+  return storageNamespace;
+}
+
+// Several games run concurrently (downloads/updates), but the active storage
+// namespace is a single ambient value. If two namespaced blocks overlapped,
+// a step of one game could resume after an internal await and resolve its
+// storage reads/writes (or download-control key) against the other game's
+// namespace. Chaining the blocks through this promise queue keeps exactly one
+// namespaced block in flight at a time, so each block keeps its own namespace
+// stable for its whole duration. The actual downloads still run in parallel
+// in aria2/the Sophon sidecar; only the JS-side namespace-critical steps are
+// serialized.
+let namespaceQueue: Promise<void> = Promise.resolve();
+
+function enqueueNamespaceBlock<T>(run: () => Promise<T>): Promise<T> {
+  const result = namespaceQueue.then(run);
+  namespaceQueue = result.then(
+    () => undefined,
+    () => undefined
+  );
+  return result;
+}
+
+export function withStorageNamespace<T>(
+  namespace: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  return enqueueNamespaceBlock(async () => {
+    const previous = storageNamespace;
+    storageNamespace = namespace;
+    try {
+      return await fn();
+    } finally {
+      storageNamespace = previous;
+    }
+  });
+}
+
+export async function activateStorageNamespace(
+  namespace: string
+): Promise<() => void> {
+  return enqueueNamespaceBlock(async () => {
+    const previous = storageNamespace;
+    storageNamespace = namespace;
+    return () => {
+      storageNamespace = previous;
+    };
+  });
+}
+
 export async function getKey(key: string): Promise<string> {
-  return await Neutralino.storage.getData(key);
+  const oldYaaglStorageApps = getOldYaaglStorageRoute(key);
+  if (oldYaaglStorageApps) {
+    return await getOldYaaglStorageValue(oldYaaglStorageApps, key);
+  }
+  return await Neutralino.storage.getData(getNeutralinoStorageKey(key));
 }
 
 export async function getKeyOrDefault(
@@ -183,7 +376,11 @@ export async function getKeyOrDefault(
 }
 
 export async function setKey(key: string, value: string | null) {
-  return await Neutralino.storage.setData(key, value);
+  const oldYaaglStorageApps = getOldYaaglStorageRoute(key);
+  if (oldYaaglStorageApps) {
+    return await setOldYaaglStorageValue(oldYaaglStorageApps[0], key, value);
+  }
+  return await Neutralino.storage.setData(getNeutralinoStorageKey(key), value);
 }
 
 export function log(message: string) {

@@ -21,8 +21,13 @@ import {
   isWineDistroInstalled,
   uninstallWineDistro as uninstallWineDistroFiles,
 } from "./wine";
+import type { Wine, WineDistribution } from "./wine";
+import type { Locale } from "./locale";
+import type { CommonUpdateProgram } from "./common-update-ui";
 import { createGithubEndpoint } from "./github";
 import { createLauncher } from "./launcher";
+import { createMultiGameLauncher } from "./launcher/multi-game";
+import { MULTI_GAME_CN_GAME_SPECS } from "./launcher/multi-game-cn";
 import "./app.css";
 import { createUpdater, downloadProgram } from "./updater";
 import { createCommonUpdateUI } from "./common-update-ui";
@@ -124,7 +129,6 @@ export async function createApp() {
     await wine.killAll();
     await exec(["rm", "-rf", prefixPath]);
     setWineInstalled(false);
-    
   }
   let gameRunning = false;
   let closeGameProcessesOnExit = true;
@@ -187,7 +191,21 @@ export async function createApp() {
     }
     return true;
   });
-  const MainApp: () => JSXElement = await createLauncher({
+  const channel = import.meta.env.YAAGL_CHANNEL_CLIENT || "hk4ecn";
+  const isMergedChannel = channel == "yaaglos" || channel == "yaaglcn";
+  let MainApp: () => JSXElement;
+  const sharedLauncherProps: {
+    wine: Wine;
+    wineDistroId: string;
+    wineInstalled: () => boolean;
+    onResetWineEnv: () => Promise<void>;
+    initializeWine: (distro: WineDistribution) => CommonUpdateProgram;
+    enableWineDistro: (distro: WineDistribution) => CommonUpdateProgram;
+    uninstallWineDistro: (distro: WineDistribution) => CommonUpdateProgram;
+    locale: Locale;
+    onCheckUpdate: () => void;
+    onGameRunningChange?: (running: boolean) => void;
+  } = {
     wine,
     wineDistroId: wineStatus.wineDistribution.id,
     wineInstalled,
@@ -238,17 +256,29 @@ export async function createApp() {
       yield ["setStateText", "INSTALL_DONE"];
     },
     locale,
-    github,
-    channelClient: await createClient({
-      wine,
-      aria2,
-      locale,
-    }),
     onCheckUpdate,
     onGameRunningChange: running => {
       gameRunning = running;
     },
-  });
+  };
+  if (isMergedChannel) {
+    MainApp = await createMultiGameLauncher({
+      ...sharedLauncherProps,
+      aria2,
+      specs: channel == "yaaglcn" ? MULTI_GAME_CN_GAME_SPECS : undefined,
+    });
+  } else {
+    MainApp = await createLauncher({
+      ...sharedLauncherProps,
+      aria2,
+      channel,
+      channelClient: await createClient({
+        wine,
+        aria2,
+        locale,
+      }),
+    });
+  }
 
   return function AppRoot() {
     const [updaterComponent, setUpdaterComponent] =

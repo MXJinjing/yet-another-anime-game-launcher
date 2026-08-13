@@ -103,6 +103,11 @@ export const ko_KR: typeof zh_CN = {
   SETTING_GENERAL: "일반",
   SETTING_GAME: "게임",
   SETTING_VIDEO: "비디오",
+  SETTING_GLOBAL: "전역 설정",
+  SETTING_GAME_WINE: "사용자 지정 Wine",
+  SETTING_GAME_WINE_SHARED: "전역 따르기",
+  SETTING_GAME_WINE_DESC:
+    "이 게임에만 다운로드된 Wine 버전을 선택하세요. '전역 따르기'를 선택하면 런처 전체의 Wine을 사용합니다.",
   LANGUAGE_LOCALE_NAME: "한국어",
   SETTING_UI_LOCALE: "런처 UI 언어",
   SETTING_THEME_COLOR: "Launcher Theme Color",
@@ -174,6 +179,11 @@ export const ko_KR: typeof zh_CN = {
   UPDATE_PROMPT_IGNORE: "업데이트 무시",
   SETTING_CHECK_UPDATE: "YAAGL 업데이트 확인",
   SETTING_CHECK_GAME_UPDATE: "게임 업데이트 확인",
+  SETTING_GAME_UPDATE_AVAILABLE: "게임에 새 버전이 있습니다",
+  SETTING_GAME_UPDATE_AVAILABLE_DESC:
+    "게임에 새 버전이 있습니다. 지금 설치하시겠습니까?",
+  SETTING_CONFIRM_INSTALL: "설치 확인",
+  SETTING_CANCEL_INSTALL: "설치 취소",
   ALREADY_LATEST_VERSION: "이미 최신 버전을 사용 중입니다.",
   UPDATE_LAUNCHER: "런처 업데이트",
   INIT_ENVIRONMENT: "Initialize Environment",
@@ -221,5 +231,6 @@ export const ko_KR: typeof zh_CN = {
   SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   CHECK_GAME_UPDATE_FAILED: "Check game update failed",
-  CHECK_GAME_UPDATE_FAILED_DESC: "Cannot connect to update server. Please check your network and try again.",
+  CHECK_GAME_UPDATE_FAILED_DESC:
+    "Cannot connect to update server. Please check your network and try again.",
 };

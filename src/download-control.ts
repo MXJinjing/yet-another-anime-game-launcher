@@ -1,4 +1,6 @@
-type DownloadControlState = {
+import { getActiveStorageNamespace } from "./utils/neu";
+
+export type DownloadControlState = {
   active: boolean;
   paused: boolean;
   pauseRequested: boolean;
@@ -22,9 +24,14 @@ const defaultState: DownloadControlState = {
   canCancel: false,
 };
 
-let state = defaultState;
-let actions: DownloadControlActions = {};
-const listeners = new Set<(state: DownloadControlState) => void>();
+const DEFAULT_KEY = "";
+
+const states = new Map<string, DownloadControlState>();
+const actionsByKey = new Map<string, DownloadControlActions>();
+const listenersByKey = new Map<
+  string,
+  Set<(state: DownloadControlState) => void>
+>();
 
 export class DownloadCancelledError extends Error {
   constructor(message = "Download cancelled") {
@@ -48,96 +55,141 @@ export function isDownloadFailedError(error: unknown) {
   return error instanceof DownloadFailedError;
 }
 
-function emit() {
-  const snapshot = { ...state };
-  for (const listener of listeners) {
+// Downloads started while a per-game storage namespace is active (i.e. inside
+// a game's install/update/launch program) are automatically associated with
+// that game, so multiple games can be controlled independently. Callers may
+// also pass an explicit key to override the namespace (e.g. per-game Wine
+// downloads that run before the namespace is entered).
+function resolveKey(key?: string) {
+  if (key) return key;
+  return getActiveStorageNamespace() ?? DEFAULT_KEY;
+}
+
+function getListeners(key: string) {
+  let set = listenersByKey.get(key);
+  if (!set) {
+    set = new Set();
+    listenersByKey.set(key, set);
+  }
+  return set;
+}
+
+function getState(key: string) {
+  return states.get(key) ?? defaultState;
+}
+
+function emit(key: string) {
+  const snapshot = { ...getState(key) };
+  for (const listener of getListeners(key)) {
     listener(snapshot);
   }
 }
 
-export function getDownloadControlState() {
-  return { ...state };
+export function getDownloadControlState(key?: string) {
+  return { ...getState(resolveKey(key)) };
 }
 
 export function subscribeDownloadControl(
-  listener: (state: DownloadControlState) => void
+  listener: (state: DownloadControlState) => void,
+  key?: string
 ) {
-  listeners.add(listener);
-  listener(getDownloadControlState());
-  return () => listeners.delete(listener);
+  const resolved = resolveKey(key);
+  getListeners(resolved).add(listener);
+  listener(getDownloadControlState(resolved));
+  return () => getListeners(resolved).delete(listener);
 }
 
 export function beginControlledDownload(
-  downloadActions: DownloadControlActions
+  downloadActions: DownloadControlActions,
+  key?: string
 ) {
-  actions = downloadActions;
-  state = {
+  const resolved = resolveKey(key);
+  actionsByKey.set(resolved, downloadActions);
+  states.set(resolved, {
     active: true,
     paused: false,
     pauseRequested: false,
     actionPending: false,
     canPause: Boolean(downloadActions.pause && downloadActions.resume),
     canCancel: Boolean(downloadActions.cancel),
-  };
-  emit();
+  });
+  emit(resolved);
 }
 
 export function updateControlledDownload(
   patch: Partial<
     Pick<DownloadControlState, "paused" | "pauseRequested" | "actionPending">
-  >
+  >,
+  key?: string
 ) {
-  state = { ...state, ...patch };
-  emit();
+  const resolved = resolveKey(key);
+  states.set(resolved, { ...getState(resolved), ...patch });
+  emit(resolved);
 }
 
-export function endControlledDownload() {
-  actions = {};
-  state = defaultState;
-  emit();
+export function endControlledDownload(key?: string) {
+  const resolved = resolveKey(key);
+  actionsByKey.delete(resolved);
+  states.set(resolved, { ...defaultState });
+  emit(resolved);
 }
 
-export async function pauseControlledDownload() {
+export async function pauseControlledDownload(key?: string) {
+  const resolved = resolveKey(key);
+  const state = getState(resolved);
+  const actions = actionsByKey.get(resolved);
   if (
     !state.active ||
     state.pauseRequested ||
     state.actionPending ||
-    !actions.pause
+    !actions?.pause
   ) {
     return;
   }
-  updateControlledDownload({ pauseRequested: true, actionPending: true });
+  updateControlledDownload(
+    { pauseRequested: true, actionPending: true },
+    resolved
+  );
   try {
     await actions.pause();
   } catch (error) {
-    updateControlledDownload({ pauseRequested: state.paused });
+    updateControlledDownload({ pauseRequested: state.paused }, resolved);
     throw error;
   } finally {
-    updateControlledDownload({ actionPending: false });
+    updateControlledDownload({ actionPending: false }, resolved);
   }
 }
 
-export async function resumeControlledDownload() {
+export async function resumeControlledDownload(key?: string) {
+  const resolved = resolveKey(key);
+  const state = getState(resolved);
+  const actions = actionsByKey.get(resolved);
   if (
     !state.active ||
     !state.pauseRequested ||
     state.actionPending ||
-    !actions.resume
+    !actions?.resume
   ) {
     return;
   }
-  updateControlledDownload({ pauseRequested: false, actionPending: true });
+  updateControlledDownload(
+    { pauseRequested: false, actionPending: true },
+    resolved
+  );
   try {
     await actions.resume();
   } catch (error) {
-    updateControlledDownload({ pauseRequested: state.paused });
+    updateControlledDownload({ pauseRequested: state.paused }, resolved);
     throw error;
   } finally {
-    updateControlledDownload({ actionPending: false });
+    updateControlledDownload({ actionPending: false }, resolved);
   }
 }
 
-export async function cancelControlledDownload() {
-  if (!state.active || !actions.cancel) return;
+export async function cancelControlledDownload(key?: string) {
+  const resolved = resolveKey(key);
+  const state = getState(resolved);
+  const actions = actionsByKey.get(resolved);
+  if (!state.active || !actions?.cancel) return;
   await actions.cancel();
 }

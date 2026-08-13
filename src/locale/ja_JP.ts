@@ -106,6 +106,11 @@ export const ja_JP: typeof zh_CN = {
   SETTING_GENERAL: "全般",
   SETTING_GAME: "ゲーム",
   SETTING_VIDEO: "ビデオ",
+  SETTING_GLOBAL: "グローバル設定",
+  SETTING_GAME_WINE: "カスタム Wine",
+  SETTING_GAME_WINE_SHARED: "グローバルに従う",
+  SETTING_GAME_WINE_DESC:
+    "このゲーム専用にダウンロード済みの Wine バージョンを選択します。「グローバルに従う」を選ぶとランチャー全体の Wine を使用します。",
   LANGUAGE_LOCALE_NAME: "日本語",
   SETTING_UI_LOCALE: "ランチャー言語",
   SETTING_THEME_COLOR: "Launcher Theme Color",
@@ -176,6 +181,11 @@ export const ja_JP: typeof zh_CN = {
   UPDATE_PROMPT_IGNORE: "更新無視",
   SETTING_CHECK_UPDATE: "YAAGL更新を確認する",
   SETTING_CHECK_GAME_UPDATE: "ゲーム更新を確認する",
+  SETTING_GAME_UPDATE_AVAILABLE: "ゲームに新しいバージョンがあります",
+  SETTING_GAME_UPDATE_AVAILABLE_DESC:
+    "ゲームに新しいバージョンがあります。今すぐインストールしますか？",
+  SETTING_CONFIRM_INSTALL: "インストールを確認",
+  SETTING_CANCEL_INSTALL: "インストールをキャンセル",
   ALREADY_LATEST_VERSION: "既に最新バージョンを使用しています。",
   UPDATE_LAUNCHER: "ランチャー更新",
   INIT_ENVIRONMENT: "Initialize Environment",
@@ -223,5 +233,6 @@ export const ja_JP: typeof zh_CN = {
   SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   CHECK_GAME_UPDATE_FAILED: "Check game update failed",
-  CHECK_GAME_UPDATE_FAILED_DESC: "Cannot connect to update server. Please check your network and try again.",
+  CHECK_GAME_UPDATE_FAILED_DESC:
+    "Cannot connect to update server. Please check your network and try again.",
 };

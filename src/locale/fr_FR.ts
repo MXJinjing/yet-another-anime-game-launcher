@@ -107,6 +107,11 @@ export const fr_FR: typeof zh_CN = {
   SETTING_GENERAL: "Général",
   SETTING_GAME: "Jeu",
   SETTING_VIDEO: "Vidéo",
+  SETTING_GLOBAL: "Paramètres globaux",
+  SETTING_GAME_WINE: "Wine personnalisé",
+  SETTING_GAME_WINE_SHARED: "Suivre le global",
+  SETTING_GAME_WINE_DESC:
+    "Choisissez une version de Wine téléchargée uniquement pour ce jeu ; « Suivre le global » utilise le Wine du lanceur.",
   LANGUAGE_LOCALE_NAME: "Français",
   SETTING_UI_LOCALE: "Langue de l’interface utilisateur du lanceur",
   SETTING_THEME_COLOR: "Launcher Theme Color",
@@ -131,10 +136,10 @@ export const fr_FR: typeof zh_CN = {
   SETTING_ADVANCED: "Avancé",
   SETTING_ADVANCED_ALERT:
     "NE CHANGEZ RIEN, à moins que vous sachiez ce que vous faites.",
-  SETTING_ADVANCED_VISIBLE:    "Les paramètres avancés sont maintenant disponibles.",
+  SETTING_ADVANCED_VISIBLE:
+    "Les paramètres avancés sont maintenant disponibles.",
   SETTING_ENABLE_ADVANCED: en.SETTING_ENABLE_ADVANCED,
   SETTING_OPEN_SHADERS_FOLDER: en.SETTING_OPEN_SHADERS_FOLDER,
-
 
   NO_ENOUGH_DISKSPACE: "Pas assez d’espace libre sur le disque.",
   NO_ENOUGH_DISKSPACE_DESC:
@@ -181,6 +186,11 @@ export const fr_FR: typeof zh_CN = {
   UPDATE_PROMPT_IGNORE: "Ignorer la mise à jour",
   SETTING_CHECK_UPDATE: "Rechercher des mises à jour YAAGL",
   SETTING_CHECK_GAME_UPDATE: "Rechercher des mises à jour du jeu",
+  SETTING_GAME_UPDATE_AVAILABLE: "Nouvelle version du jeu disponible",
+  SETTING_GAME_UPDATE_AVAILABLE_DESC:
+    "Une nouvelle version du jeu est disponible. Installer maintenant ?",
+  SETTING_CONFIRM_INSTALL: "Confirmer l'installation",
+  SETTING_CANCEL_INSTALL: "Annuler l'installation",
   ALREADY_LATEST_VERSION: "Vous utilisez déjà la dernière version.",
   UPDATE_LAUNCHER: "Mettre à jour le lanceur",
   INIT_ENVIRONMENT: "Initialize Environment",
@@ -228,5 +238,6 @@ export const fr_FR: typeof zh_CN = {
   SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   CHECK_GAME_UPDATE_FAILED: "Check game update failed",
-  CHECK_GAME_UPDATE_FAILED_DESC: "Cannot connect to update server. Please check your network and try again.",
+  CHECK_GAME_UPDATE_FAILED_DESC:
+    "Cannot connect to update server. Please check your network and try again.",
 };

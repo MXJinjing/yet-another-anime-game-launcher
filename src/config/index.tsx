@@ -7,6 +7,7 @@ import {
   TabList,
   Tabs,
 } from "@hope-ui/solid";
+import { JSXElement, Show } from "solid-js";
 import { Locale } from "../locale";
 import { Wine, WineDistribution } from "../wine";
 import { Config } from "./config-def";
@@ -32,13 +33,21 @@ import { GeneralTab } from "./tabs/general-tab";
 import { LicensesTab } from "./tabs/licenses-tab";
 import { VideoTab } from "./tabs/video-tab";
 import { WineTab } from "./tabs/wine-tab";
+import { GameWineTab } from "./tabs/game-wine-tab";
 
+/**
+ * `scope` selects which tabs the settings modal shows:
+ * - "global": General / Wine / Licenses. Wine environment controls (distro
+ *   install/uninstall/reset) are managed here.
+ * - "game": Game / Video, plus Wine only when per-game Wine props are
+ *   supplied. Multi-game settings are stored per-game (see src/utils/neu.ts
+ *   namespaced storage) and default to the global values when the per-game
+ *   override is missing; single-game settings use the existing global keys.
+ */
 export async function createConfiguration({
   wine,
   wineDistroId,
   wineInstalled,
-  gameInstalled,
-  gameVersion,
   locale,
   gameInstallDir,
   configForChannelClient,
@@ -49,12 +58,15 @@ export async function createConfiguration({
   onWineDistroInitialized,
   onGameInstallDirChange,
   onResetWineEnv,
+  wineTag,
+  wineOptions,
+  onWineTagChange,
+  modalTitle,
+  scope = "global",
 }: {
   wine: Wine;
-  wineDistroId: string;
-  wineInstalled: () => boolean;
-  gameInstalled: () => boolean;
-  gameVersion?: () => string;
+  wineDistroId?: string;
+  wineInstalled?: () => boolean;
   locale: Locale;
   gameInstallDir: () => string;
   onGameInstallDirChange?: (path: string) => Promise<void>;
@@ -63,31 +75,44 @@ export async function createConfiguration({
     config: Partial<Config>
   ) => Promise<ChannelClientConfigUI>;
   onCheckUpdate: () => void;
-  actionDisabled: () => boolean;
-  onEnableWineDistro: (
+  actionDisabled?: () => boolean;
+  onEnableWineDistro?: (
     distro: WineDistribution,
     onDone: (distro: WineDistribution) => void
   ) => void;
-  onUninstallWineDistro: (
+  onUninstallWineDistro?: (
     distro: WineDistribution,
     onDone: (distro: WineDistribution) => void
   ) => void;
   onWineDistroInitialized?: (
     onDone: (distro: WineDistribution) => void
   ) => void;
-  onResetWineEnv: () => Promise<void>;
+  onResetWineEnv?: () => Promise<void>;
+  wineTag?: () => string;
+  wineOptions?: { tag: string; displayName: string }[];
+  onWineTagChange?: (tag: string) => void;
+  modalTitle?: () => string;
+  scope?: "game" | "global";
 }) {
   const config: Partial<Config> = {};
-  const [WD, wineDistroConfig] = await createWineDistroConfig({
-    locale,
-    config,
-    wineInstalled,
-    wineDistroId,
-    wineActionDisabled: actionDisabled,
-    onEnableWineDistro,
-    onUninstallWineDistro,
-  });
-  onWineDistroInitialized?.(wineDistroConfig.markEnabled);
+  const wineInstalledSafe = wineInstalled ?? (() => true);
+  const actionDisabledSafe = actionDisabled ?? (() => false);
+  let WD: () => JSXElement = () => null;
+  if (scope == "global") {
+    const [wineDistroConfigUI, wineDistroConfig] = await createWineDistroConfig(
+      {
+        locale,
+        config,
+        wineInstalled: wineInstalledSafe,
+        wineDistroId: wineDistroId ?? "",
+        wineActionDisabled: actionDisabledSafe,
+        onEnableWineDistro: onEnableWineDistro ?? (() => undefined),
+        onUninstallWineDistro: onUninstallWineDistro ?? (() => undefined),
+      }
+    );
+    WD = wineDistroConfigUI;
+    onWineDistroInitialized?.(wineDistroConfig.markEnabled);
+  }
   const [MH] = await createMetalHUDConfig({ locale, config });
   const [R] = await createRetinaConfig({ locale, config });
   const [LC] = await createLeftCmdConfig({ locale, config });
@@ -96,7 +121,6 @@ export async function createConfiguration({
     config,
     gameInstallDir,
     onGameInstallDirChange,
-    actionDisabled,
   });
 
   const [UL] = await createLocaleConfig({ locale, config });
@@ -131,82 +155,100 @@ export async function createConfiguration({
     typeof channelClientConfig === "function"
       ? undefined
       : channelClientConfig.video;
-  const displayGameVersion = () => {
-    const version = gameVersion?.() ?? "0.0.0";
-    return version == "0.0.0"
-      ? locale.get("SETTING_GAME_VERSION_NOT_INSTALLED")
-      : version;
-  };
+  const showGameWineTab =
+    scope == "game" && Boolean(wineTag && wineOptions && onWineTagChange);
 
   return {
     UI: function (props: {
       onClose: (action: "check-integrity" | "close") => void;
       onOpenLogs: () => void;
       actionDisabled: () => boolean;
-      onCheckGameUpdate: () => void;
     }) {
       return (
         <ModalContent height={570} width={1000} maxWidth={1000}>
           <ModalCloseButton />
-          <ModalHeader>{locale.get("SETTING")}</ModalHeader>
+          <ModalHeader>{modalTitle?.() ?? locale.get("SETTING")}</ModalHeader>
           <ModalBody pb={20}>
             <Tabs orientation="vertical" h="100%" variant={"pills"}>
               <TabList minW={120}>
-                <Tab>{locale.get("SETTING_GENERAL")}</Tab>
-                <Tab>{locale.get("SETTING_GAME")}</Tab>
-                <Tab>{locale.get("SETTING_VIDEO")}</Tab>
-                <Tab>Wine</Tab>
-                <Tab>{locale.get("SETTING_LICENSES")}</Tab>
+                <Show when={scope == "global"}>
+                  <Tab>{locale.get("SETTING_GENERAL")}</Tab>
+                </Show>
+                <Show when={scope == "game"}>
+                  <Tab>{locale.get("SETTING_GAME")}</Tab>
+                  <Tab>{locale.get("SETTING_VIDEO")}</Tab>
+                  <Show when={showGameWineTab}>
+                    <Tab>Wine</Tab>
+                  </Show>
+                </Show>
+                <Show when={scope == "global"}>
+                  <Tab>Wine</Tab>
+                  <Tab>{locale.get("SETTING_LICENSES")}</Tab>
+                </Show>
               </TabList>
-              <GeneralTab
-                locale={locale}
-                wine={wine}
-                wineInstalled={wineInstalled}
-                gameInstallDir={gameInstallDir}
-                onCheckUpdate={onCheckUpdate}
-                onOpenLogs={() => {
-                  props.onClose("close");
-                  props.onOpenLogs();
-                }}
-                LeftCmdConfig={LC}
-                DownloadServerConfig={DS}
-                LocaleConfig={UL}
-                ThemeColorConfig={TC}
-              />
-              <GameTab
-                locale={locale}
-                displayGameVersion={displayGameVersion}
-                gameInstalled={gameInstalled}
-                actionDisabled={props.actionDisabled}
-                gameProxyEnabled={gameProxyEnabled}
-                onCheckGameUpdate={props.onCheckGameUpdate}
-                onCheckIntegrity={() => props.onClose("check-integrity")}
-                GameInstallDirConfig={GID}
-                ProxyEnabledConfig={PRE}
-                ProxyHostConfig={PRH}
-                ChannelClientConfig={ChannelClientConfig}
-              />
-              <VideoTab
-                locale={locale}
-                RetinaConfig={R}
-                PreferredMaxFpsConfig={PMF}
-                MetalHUDConfig={MH}
-                ChannelClientVideoConfig={ChannelClientVideoConfig}
-                VsyncDisableConfig={VS}
-                MetalFxUpscaleConfig={MFX}
-                ReShadeConfig={RS}
-                config={config}
-              />
-              <WineTab
-                locale={locale}
-                wine={wine}
-                wineInstalled={wineInstalled}
-                winePrefix={wine.prefix}
-                WineDistroConfig={WD}
-                onResetWineEnv={onResetWineEnv}
-                wineActionDisabled={actionDisabled}
-              />
-              <LicensesTab locale={locale} />
+              <Show when={scope == "global"}>
+                <GeneralTab
+                  locale={locale}
+                  wine={wine}
+                  wineInstalled={wineInstalledSafe}
+                  gameInstallDir={gameInstallDir}
+                  onCheckUpdate={onCheckUpdate}
+                  onOpenLogs={() => {
+                    props.onClose("close");
+                    props.onOpenLogs();
+                  }}
+                  LeftCmdConfig={LC}
+                  DownloadServerConfig={DS}
+                  LocaleConfig={UL}
+                  ThemeColorConfig={TC}
+                />
+              </Show>
+              <Show when={scope == "game"}>
+                <GameTab
+                  locale={locale}
+                  gameProxyEnabled={gameProxyEnabled}
+                  GameInstallDirConfig={GID}
+                  ProxyEnabledConfig={PRE}
+                  ProxyHostConfig={PRH}
+                  ChannelClientConfig={ChannelClientConfig}
+                />
+                <VideoTab
+                  locale={locale}
+                  RetinaConfig={R}
+                  PreferredMaxFpsConfig={PMF}
+                  MetalHUDConfig={MH}
+                  ChannelClientVideoConfig={ChannelClientVideoConfig}
+                  VsyncDisableConfig={VS}
+                  MetalFxUpscaleConfig={MFX}
+                  ReShadeConfig={RS}
+                  config={config}
+                />
+                <Show when={showGameWineTab}>
+                  <GameWineTab
+                    locale={locale}
+                    wine={wine}
+                    wineInstalled={wineInstalledSafe}
+                    winePrefix={wine.prefix}
+                    wineTag={wineTag}
+                    wineOptions={wineOptions}
+                    onWineTagChange={onWineTagChange}
+                    onResetWineEnv={onResetWineEnv ?? (async () => undefined)}
+                    wineActionDisabled={actionDisabledSafe}
+                  />
+                </Show>
+              </Show>
+              <Show when={scope == "global"}>
+                <WineTab
+                  locale={locale}
+                  wine={wine}
+                  wineInstalled={wineInstalledSafe}
+                  winePrefix={wine.prefix}
+                  WineDistroConfig={WD}
+                  onResetWineEnv={onResetWineEnv ?? (async () => undefined)}
+                  wineActionDisabled={actionDisabledSafe}
+                />
+                <LicensesTab locale={locale} />
+              </Show>
             </Tabs>
           </ModalBody>
         </ModalContent>

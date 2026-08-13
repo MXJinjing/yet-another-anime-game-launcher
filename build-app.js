@@ -16,7 +16,8 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   let bundleId;
   let appDistributionName;
   let includeSophon = false;
-  switch (process.env["YAAGL_CHANNEL_CLIENT"]) {
+  const channel = process.env["YAAGL_CHANNEL_CLIENT"] ?? "yaaglcn";
+  switch (channel) {
     case "hk4ecn":
       bundleId = config.applicationId;
       appDistributionName = config.cli.binaryName;
@@ -25,6 +26,18 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
     case "hk4eos":
       bundleId = config.applicationId + ".os";
       appDistributionName = config.cli.binaryName + " OS";
+      includeSophon = true;
+      break;
+    case "yaaglos":
+      bundleId = config.applicationId + ".os";
+      appDistributionName = "Yaagl OS";
+      config.modes.window.title = "Yaagl OS";
+      includeSophon = true;
+      break;
+    case "yaaglcn":
+      bundleId = config.applicationId + ".cn";
+      appDistributionName = "Yaagl CN";
+      config.modes.window.title = "Yaagl CN";
       includeSophon = true;
       break;
     case "hk4euniversal":
@@ -66,7 +79,7 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
       config.modes.window.icon = "/src/icons/ZZZ_Bang.cr.png";
       break;
     default:
-      throw new Error("YAAGL_CHANNEL_CLIENT env required");
+      throw new Error(`Unknown YAAGL_CHANNEL_CLIENT: ${channel}`);
   }
   if (process.env["YAAGL_TEST"]) {
     bundleId += ".test";
@@ -77,12 +90,12 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
     config
   );
   try {
-    await execa("pnpm", ["exec", "tsc"]); // do typecheck first
+    await execa("./node_modules/.bin/tsc"); // do typecheck first
     await execa("rm", ["-rf", "./.tmp"]);
-    await execa("pnpm", ["exec", "vite", "build"]);
+    await execa("./node_modules/.bin/vite", ["build"]);
     await execa("cp", ["./neutralino.js", "./dist/neutralino.js"]);
     // run neu build command
-    await execa("pnpm", ["exec", "neu", "build"]);
+    await execa("./node_modules/.bin/neu", ["build"]);
   } finally {
     await execa("mv", [
       "-f",

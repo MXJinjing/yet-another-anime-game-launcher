@@ -32,7 +32,9 @@ async function detectRefreshRate(): Promise<number> {
     if (displays.length > 0 && displays[0].refreshRate > 0) {
       return displays[0].refreshRate;
     }
-  } catch {}
+  } catch {
+    // Refresh rate detection is best-effort; fall back to 60.
+  }
   return 60;
 }
 
@@ -48,7 +50,9 @@ export default async function ({
   let stored = 0;
   try {
     stored = Math.round(parseFloat(await getKey(CONFIG_KEY)));
-  } catch {}
+  } catch {
+    // No stored value yet; treat as unset.
+  }
   if (!stored || stored < 30 || stored > 360) {
     stored = 0;
   }
@@ -78,7 +82,12 @@ export default async function ({
 
   const options = () => {
     const list = [
-      { label: `${locale.get("SETTING_PREFERRED_MAX_FPS_AUTO")} (${displayRate} Hz)`, value: "0" },
+      {
+        label: `${locale.get(
+          "SETTING_PREFERRED_MAX_FPS_AUTO"
+        )} (${displayRate} Hz)`,
+        value: "0",
+      },
     ];
     for (const p of PRESETS) {
       if (p === displayRate) continue;

@@ -106,6 +106,11 @@ export const vi_VN: typeof zh_CN = {
   SETTING_GENERAL: "Cài đặt chung",
   SETTING_GAME: "Trò chơi",
   SETTING_VIDEO: "Video",
+  SETTING_GLOBAL: "Cài đặt chung",
+  SETTING_GAME_WINE: "Wine tùy chỉnh",
+  SETTING_GAME_WINE_SHARED: "Theo toàn cục",
+  SETTING_GAME_WINE_DESC:
+    "Chọn một phiên bản Wine đã tải xuống chỉ cho trò chơi này; 'Theo toàn cục' dùng Wine chung của trình khởi động.",
   LANGUAGE_LOCALE_NAME: "Tiếng Việt",
   SETTING_UI_LOCALE: "Ngôn ngữ trình khởi động",
   SETTING_THEME_COLOR: "Launcher Theme Color",
@@ -175,6 +180,11 @@ export const vi_VN: typeof zh_CN = {
   UPDATE_PROMPT_IGNORE: "Bỏ qua cập nhật",
   SETTING_CHECK_UPDATE: "Kiểm tra cập nhật YAAGL",
   SETTING_CHECK_GAME_UPDATE: "Kiểm tra cập nhật trò chơi",
+  SETTING_GAME_UPDATE_AVAILABLE: "Có phiên bản mới của trò chơi",
+  SETTING_GAME_UPDATE_AVAILABLE_DESC:
+    "Có phiên bản mới của trò chơi. Cài đặt ngay?",
+  SETTING_CONFIRM_INSTALL: "Xác nhận cài đặt",
+  SETTING_CANCEL_INSTALL: "Hủy cài đặt",
   ALREADY_LATEST_VERSION: "Bạn đang sử dụng phiên bản mới nhất.",
   UPDATE_LAUNCHER: "Cập nhật Launcher",
   INIT_ENVIRONMENT: "Initialize Environment",
@@ -222,5 +232,6 @@ export const vi_VN: typeof zh_CN = {
   SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   CHECK_GAME_UPDATE_FAILED: "Check game update failed",
-  CHECK_GAME_UPDATE_FAILED_DESC: "Cannot connect to update server. Please check your network and try again.",
+  CHECK_GAME_UPDATE_FAILED_DESC:
+    "Cannot connect to update server. Please check your network and try again.",
 };

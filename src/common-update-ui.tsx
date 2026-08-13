@@ -88,11 +88,7 @@ export function createCommonUpdateUI(
                 </Center>
               }
             >
-              <Box
-                role="button"
-                title={locale.get("LOG_VIEWER_OPEN_HINT")}
-                onClick={openLogs}
-              >
+              <Box>
                 <Progress value={progress()} indeterminate={progress() == 0}>
                   <ProgressIndicator animated striped />
                 </Progress>

@@ -104,6 +104,11 @@ export const ru_RU: typeof zh_CN = {
   SETTING_GENERAL: "Основные",
   SETTING_GAME: "Игра",
   SETTING_VIDEO: "Видео",
+  SETTING_GLOBAL: "Глобальные настройки",
+  SETTING_GAME_WINE: "Свой Wine",
+  SETTING_GAME_WINE_SHARED: "Следовать глобальному",
+  SETTING_GAME_WINE_DESC:
+    "Выберите загруженную версию Wine только для этой игры; «Следовать глобальному» использует общий Wine лаунчера.",
   LANGUAGE_LOCALE_NAME: "Русский",
   SETTING_UI_LOCALE: "Язык лаунчера",
   SETTING_THEME_COLOR: "Launcher Theme Color",
@@ -175,6 +180,11 @@ export const ru_RU: typeof zh_CN = {
   UPDATE_PROMPT_IGNORE: "Пропустить обновление",
   SETTING_CHECK_UPDATE: "Проверить обновления YAAGL",
   SETTING_CHECK_GAME_UPDATE: "Проверить обновления игры",
+  SETTING_GAME_UPDATE_AVAILABLE: "Доступна новая версия игры",
+  SETTING_GAME_UPDATE_AVAILABLE_DESC:
+    "Доступна новая версия игры. Установить сейчас?",
+  SETTING_CONFIRM_INSTALL: "Подтвердить установку",
+  SETTING_CANCEL_INSTALL: "Отменить установку",
   ALREADY_LATEST_VERSION: "Вы уже используете последнюю версию.",
   UPDATE_LAUNCHER: "Обновить лаунчер",
   INIT_ENVIRONMENT: "Initialize Environment",
@@ -222,5 +232,6 @@ export const ru_RU: typeof zh_CN = {
   SETTING_DOWNLOAD_SPEED_LIMIT_ENABLED: "Enable download speed limit",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   CHECK_GAME_UPDATE_FAILED: "Check game update failed",
-  CHECK_GAME_UPDATE_FAILED_DESC: "Cannot connect to update server. Please check your network and try again.",
+  CHECK_GAME_UPDATE_FAILED_DESC:
+    "Cannot connect to update server. Please check your network and try again.",
 };

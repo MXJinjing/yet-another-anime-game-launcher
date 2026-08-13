@@ -1,0 +1,158 @@
+.hoyoplay-game-library {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 40px;
+  overflow-y: auto;
+  background: rgba(6, 7, 11, 0.74);
+  backdrop-filter: blur(18px);
+}
+
+.hoyoplay-library-title {
+  margin: 0 0 24px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+
+.hoyoplay-library-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 24px;
+}
+
+.hoyoplay-library-card {
+  position: relative;
+  width: 340px;
+  height: 480px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  cursor: pointer;
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+    inset 0 -80px 80px -40px rgba(0, 0, 0, 0.85), 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.hoyoplay-library-card:hover {
+  transform: translateY(-4px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+    inset 0 -80px 80px -40px rgba(0, 0, 0, 0.85),
+    0 12px 32px rgba(255, 255, 255, 0.12);
+}
+
+.hoyoplay-library-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 55%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+
+.hoyoplay-library-card-icon {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2;
+  width: 56px;
+  height: 56px;
+  padding: 2px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.hoyoplay-library-card-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.hoyoplay-library-card-info {
+  position: absolute;
+  left: 84px;
+  bottom: 20px;
+  z-index: 2;
+  text-align: left;
+}
+
+.hoyoplay-library-card-info strong {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+}
+
+.hoyoplay-library-card-info small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.hoyoplay-library-installed {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #36d97d;
+  box-shadow: 0 0 8px rgba(54, 217, 125, 0.9);
+}
+
+.hoyoplay-library-button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin-top: 20px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.hoyoplay-library-button:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.hoyoplay-library-button.active {
+  background: rgba(255, 221, 67, 0.92);
+  color: #111418;
+}
+
+.hoyoplay-library-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.hoyoplay-library-icon::before {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 2px;
+  box-shadow: 10px 0 0 currentColor, 0 10px 0 currentColor,
+    10px 10px 0 currentColor;
+}
+
+@media (max-width: 900px) {
+  .hoyoplay-library-card {
+    width: 260px;
+    height: 380px;
+  }
+}
