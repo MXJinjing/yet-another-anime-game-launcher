@@ -1,8 +1,5 @@
 import {
   Box,
-  Checkbox,
-  FormControl,
-  FormLabel,
   Input,
   InputGroup,
   Select,
@@ -18,6 +15,7 @@ import {
 } from "@hope-ui/solid";
 import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "../locale";
+import { SettingSwitch } from "../components/setting-switch";
 import { Config, NOOP } from "./config-def";
 import { assertValueDefined, getKey, setKey } from "@utils";
 
@@ -159,17 +157,12 @@ export async function createDownloadServerConfig({
   return [
     function UI() {
       return [
-        <FormControl id="downloadProxy">
-          <FormLabel>{locale.get("SETTING_DOWNLOAD_PROXY")}</FormLabel>
-          <Box>
-            <Checkbox
-              checked={proxyEnabled()}
-              size="md"
-              onChange={() => setProxyEnabled(x => !x)}
-            >
-              {locale.get("SETTING_ENABLED")}
-            </Checkbox>
-          </Box>
+        <SettingSwitch
+          id="downloadProxy"
+          label={locale.get("SETTING_DOWNLOAD_PROXY")}
+          checked={proxyEnabled()}
+          onChange={setProxyEnabled}
+        >
           <Show when={proxyEnabled()}>
             <Box mt={"$2"}>
               <InputGroup>
@@ -184,18 +177,13 @@ export async function createDownloadServerConfig({
               </Text>
             </Box>
           </Show>
-        </FormControl>,
-        <FormControl id="downloadSpeedLimit">
-          <FormLabel>{locale.get("SETTING_DOWNLOAD_SPEED_LIMIT")}</FormLabel>
-          <Box>
-            <Checkbox
-              checked={speedLimitEnabled()}
-              size="md"
-              onChange={() => setSpeedLimitEnabled(x => !x)}
-            >
-              {locale.get("SETTING_ENABLED")}
-            </Checkbox>
-          </Box>
+        </SettingSwitch>,
+        <SettingSwitch
+          id="downloadSpeedLimit"
+          label={locale.get("SETTING_DOWNLOAD_SPEED_LIMIT")}
+          checked={speedLimitEnabled()}
+          onChange={setSpeedLimitEnabled}
+        >
           <Show when={speedLimitEnabled()}>
             <Box mt={"$2"} display="flex" alignItems="center" gap={"$2"}>
               <Input
@@ -241,7 +229,7 @@ export async function createDownloadServerConfig({
               </Select>
             </Box>
           </Show>
-        </FormControl>,
+        </SettingSwitch>,
       ];
     },
   ] as const;

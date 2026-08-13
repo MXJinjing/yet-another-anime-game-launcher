@@ -1,16 +1,9 @@
-import {
-  Box,
-  Button,
-  Checkbox,
-  FormControl,
-  FormLabel,
-  Input,
-  Text,
-} from "@hope-ui/solid";
+import { Box, Button, Input } from "@hope-ui/solid";
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey, log } from "@utils";
 import { Config, NOOP } from "@config/config-def";
+import { SettingSwitch } from "../../../../components/setting-switch";
 import { revertMhypBaseReplacement } from "../../../mhy/patch";
 
 declare module "@config/config-def" {
@@ -80,26 +73,20 @@ export default async function ({
   return [
     function UI() {
       return (
-        <FormControl id="workaround4">
-          <FormLabel>{locale.get("SETTING_WORKAROUND4")}</FormLabel>
-          <Text userSelect={"none"} size="xs" mb={"$2"}>
-            {locale.get("SETTING_WORKAROUND4_DESC")}
-          </Text>
-          <Box mb={"$2"}>
-            <Checkbox
-              checked={enabled()}
-              onChange={() => setEnabled(x => !x)}
-              size="md"
-            >
-              {locale.get("SETTING_ENABLED")}
-            </Checkbox>
-          </Box>
+        <SettingSwitch
+          id="workaround4"
+          label={locale.get("SETTING_WORKAROUND4")}
+          description={locale.get("SETTING_WORKAROUND4_DESC")}
+          checked={enabled()}
+          onChange={setEnabled}
+        >
           <Input
             value={pathValue()}
             placeholder="/Users/you/Downloads/old_mhypbase.dll"
             disabled={!enabled()}
             onChange={e => setPathValue(e.currentTarget.value)}
             size="sm"
+            mt={"$2"}
           />
           <Box mt={"$2"}>
             <Button
@@ -150,7 +137,7 @@ export default async function ({
               {locale.get("SETTING_WORKAROUND4_REVERT_BTN")}
             </Button>
           </Box>
-        </FormControl>
+        </SettingSwitch>
       );
     },
   ] as const;

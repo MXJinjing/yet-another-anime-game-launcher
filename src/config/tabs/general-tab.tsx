@@ -14,6 +14,7 @@ import { CURRENT_YAAGL_VERSION } from "../../constants";
 import { Locale } from "../../locale";
 import { exec2, resolve } from "../../utils";
 import { Wine } from "../../wine";
+import { HostsHelperControl } from "../hosts-helper";
 
 export function GeneralTab(props: {
   locale: Locale;
@@ -35,12 +36,14 @@ export function GeneralTab(props: {
         style={{ "grid-template-columns": "65% 35%" }}
       >
         <Box alignSelf="stretch" overflowY="scroll" pr={20}>
-          <VStack spacing={"$4"}>
+          <VStack spacing={"$6"}>
             <props.ThemeColorConfig />
             <Divider />
             <props.LeftCmdConfig />
             <Divider />
             <props.DownloadServerConfig />
+            <Divider />
+            <HostsHelperControl locale={props.locale} />
             <Divider />
             <props.LocaleConfig />
             <FormControl>
@@ -49,7 +52,7 @@ export function GeneralTab(props: {
             </FormControl>
           </VStack>
         </Box>
-        <VStack spacing={"$1"} alignItems="start" alignSelf="start" pl={20}>
+        <VStack spacing={"$2"} alignItems="start" alignSelf="start" pl={20}>
           <Heading level="1" ml={12} mb={"$4"}>
             {props.locale.get("SETTING_QUICK_ACTIONS")}
           </Heading>

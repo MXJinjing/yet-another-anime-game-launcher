@@ -24,7 +24,7 @@ export function WineTab(props: {
 }) {
   return (
     <TabPanel flex={1} px={20} pt={0} pb={0} h="100%" overflowY="auto">
-      <VStack spacing={"$4"} w="100%" alignItems="stretch">
+      <VStack spacing={"$6"} w="100%" alignItems="stretch">
         <FormControl>
           <FormLabel>{props.locale.get("SETTING_WINE_STATUS")}</FormLabel>
           <Text userSelect={"none"}>
@@ -64,9 +64,7 @@ export function WineTab(props: {
               variant="ghost"
               size="sm"
               disabled={!props.wineInstalled()}
-              onClick={() =>
-                props.wine.exec2("winecfg", [], {}, "/dev/null")
-              }
+              onClick={() => props.wine.exec2("winecfg", [], {}, "/dev/null")}
             >
               {props.locale.get("SETTING_OPEN_WINECFG")}
             </Button>

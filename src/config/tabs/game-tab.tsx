@@ -12,7 +12,7 @@ export function GameTab(props: {
 }) {
   return (
     <TabPanel flex={1} px={20} pt={0} pb={0} h="100%" overflowY="auto">
-      <VStack spacing={"$4"} w="100%" alignItems="start">
+      <VStack spacing={"$6"} w="100%" alignItems="start">
         <props.GameInstallDirConfig />
         <Divider />
         <props.ProxyEnabledConfig />

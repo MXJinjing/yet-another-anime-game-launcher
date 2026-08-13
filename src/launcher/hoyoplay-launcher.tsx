@@ -73,6 +73,7 @@ export type HoyoplayGame = {
   client: ChannelClient;
   config: Config;
   ConfigurationUI: (props: {
+    opened: boolean;
     onClose: (action: "check-integrity" | "close") => void;
     onOpenLogs: () => void;
     actionDisabled: () => boolean;
@@ -849,31 +850,25 @@ export async function createHoyoplayLauncher({
           </section>
         </Show>
 
-        <Modal
-          opened={!!nativeSettingsGame()}
-          onClose={closeNativeSettings}
-          scrollBehavior="inside"
-        >
-          <ModalOverlay />
-          <Show when={nativeSettingsGame()}>
-            {game => {
-              const UI = game().ConfigurationUI;
-              return (
-                <UI
-                  onOpenLogs={openLogs}
-                  actionDisabled={actionDisabled}
-                  onClose={action => {
-                    const savedGame = game();
-                    closeNativeSettings();
-                    if (action === "check-integrity") {
-                      startCheckIntegrity(savedGame);
-                    }
-                  }}
-                />
-              );
-            }}
-          </Show>
-        </Modal>
+        <Show when={nativeSettingsGame()}>
+          {game => {
+            const UI = game().ConfigurationUI;
+            return (
+              <UI
+                opened
+                onOpenLogs={openLogs}
+                actionDisabled={actionDisabled}
+                onClose={action => {
+                  const savedGame = game();
+                  closeNativeSettings();
+                  if (action === "check-integrity") {
+                    startCheckIntegrity(savedGame);
+                  }
+                }}
+              />
+            );
+          }}
+        </Show>
 
         <Modal
           opened={!!updatePromptGame()}
@@ -936,24 +931,15 @@ export async function createHoyoplayLauncher({
           </Show>
         </Modal>
 
-        <Modal
+        <GlobalConfigurationUI
           opened={globalSettingsOpen()}
-          onClose={() => {
+          onOpenLogs={openLogs}
+          actionDisabled={actionDisabled}
+          onClose={action => {
             setGlobalSettingsOpen(false);
             void refreshThemeColor();
           }}
-          scrollBehavior="inside"
-        >
-          <ModalOverlay />
-          <GlobalConfigurationUI
-            onOpenLogs={openLogs}
-            actionDisabled={actionDisabled}
-            onClose={action => {
-              setGlobalSettingsOpen(false);
-              void refreshThemeColor();
-            }}
-          />
-        </Modal>
+        />
 
         <GameUninstallDialog />
         <LogViewer />

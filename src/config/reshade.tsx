@@ -1,13 +1,8 @@
-import {
-  FormControl,
-  FormLabel,
-  Box,
-  Checkbox,
-  Button,
-} from "@hope-ui/solid";
+import { Box, Button } from "@hope-ui/solid";
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey, exec, resolve } from "@utils";
+import { SettingSwitch } from "../components/setting-switch";
 import { Config } from "./config-def";
 
 declare module "./config-def" {
@@ -66,28 +61,19 @@ export default async function ({
       }
 
       return (
-        <FormControl>
-          <FormLabel>ReShade</FormLabel>
-          <Box>
-            <Checkbox
-              checked={value()}
-              onChange={() => setValue((x) => !x)}
-              size="md"
-              disabled={disabled}
-            >
-              {locale.get("SETTING_ENABLED")}
-            </Checkbox>
-          </Box>
+        <SettingSwitch
+          id="reshade"
+          label="ReShade"
+          checked={value()}
+          onChange={setValue}
+          disabled={disabled}
+        >
           <Box mt="$2">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={openShadersFolder}
-            >
+            <Button size="sm" variant="ghost" onClick={openShadersFolder}>
               {locale.get("SETTING_OPEN_SHADERS_FOLDER")}
             </Button>
           </Box>
-        </FormControl>
+        </SettingSwitch>
       );
     },
   ] as const;

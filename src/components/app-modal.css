@@ -9,6 +9,7 @@
     var(--app-modal-max-width, 460px),
     calc(100vw - 40px)
   ) !important;
+  height: var(--app-modal-height, auto);
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-radius: 16px !important;
   background: rgba(6, 7, 11, 0.96) !important;
@@ -38,6 +39,90 @@
   justify-content: flex-end !important;
   gap: 10px !important;
   padding: 4px 24px 22px !important;
+}
+
+.app-modal-content .hope-form-label {
+  margin-bottom: 8px !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1.45 !important;
+}
+
+.app-modal-content .hope-tabs__tab {
+  min-height: 40px;
+  padding: 10px 14px !important;
+  border-radius: 8px !important;
+  color: rgba(255, 255, 255, 0.62) !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+}
+
+.app-modal-content .hope-tabs__tab:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
+.app-modal-content .hope-tabs__tab[aria-selected="true"] {
+  color: var(
+    --hoyoplay-accent,
+    var(--hope-colors-primary11, #ffd834)
+  ) !important;
+  background: rgba(255, 221, 67, 0.14) !important;
+}
+
+.app-modal-content .hope-divider {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.app-modal-content .hope-input,
+.app-modal-content .hope-select__trigger {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.app-modal-content .hope-input::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.app-modal-content .hope-button {
+  border-radius: 8px !important;
+}
+
+.app-modal-content .hoyoplay-setting-row {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.app-modal-content .hoyoplay-setting-row select {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.app-modal-content .hoyoplay-settings-muted {
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+
+.app-modal-content .hosts-helper-control .hope-text {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.app-modal-content .hosts-helper-control .hope-button {
+  min-height: 32px;
+  padding: 0 12px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.app-modal-content .hosts-helper-control .hope-button:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+}
+
+.app-modal-body-settings {
+  padding: 8px 20px 20px !important;
 }
 
 .app-modal-close {

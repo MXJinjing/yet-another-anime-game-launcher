@@ -51,7 +51,13 @@ export function HostsHelperControl(props: { locale: Locale }) {
   });
 
   return (
-    <VStack spacing={"$2"} alignItems="start" mt={"$2"} w="100%">
+    <VStack
+      class="hosts-helper-control"
+      spacing={"$2"}
+      alignItems="start"
+      mt={"$2"}
+      w="100%"
+    >
       <Box>
         <Text size="xs" color="$neutral11" userSelect="none">
           {props.locale.get("SETTING_HOSTS_HELPER")}

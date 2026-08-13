@@ -27,6 +27,15 @@ if (typeof Neutralino == "undefined") {
   if (import.meta.env.PROD) {
     document.addEventListener("contextmenu", event => event.preventDefault());
   }
+  render(
+    () => (
+      <div class="app-boot">
+        <div class="app-boot-spinner" />
+      </div>
+    ),
+    document.getElementById("root") as HTMLElement
+  );
+  Neutralino.window.show();
   createApp()
     .then(UI => {
       render(

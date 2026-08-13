@@ -1,8 +1,8 @@
-import { FormControl, FormLabel, Box, Checkbox } from "@hope-ui/solid";
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey } from "@utils";
 import { Config, NOOP } from "@config/config-def";
+import { SettingSwitch } from "../../../../components/setting-switch";
 
 declare module "@config/config-def" {
   interface Config {
@@ -47,18 +47,12 @@ export default async function ({
   return [
     function UI() {
       return (
-        <FormControl>
-          <FormLabel>{locale.get("SETTING_TURN_ON_STEAM_PATCH")}</FormLabel>
-          <Box>
-            <Checkbox
-              checked={value()}
-              onChange={() => setValue(x => !x)}
-              size="md"
-            >
-              {locale.get("SETTING_ENABLED")}
-            </Checkbox>
-          </Box>
-        </FormControl>
+        <SettingSwitch
+          id="steamPatch"
+          label={locale.get("SETTING_TURN_ON_STEAM_PATCH")}
+          checked={value()}
+          onChange={setValue}
+        />
       );
     },
   ] as const;

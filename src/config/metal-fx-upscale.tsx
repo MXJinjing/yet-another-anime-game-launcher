@@ -1,8 +1,9 @@
-import { FormControl, FormLabel, Box, Checkbox, Text, HStack, IconButton } from "@hope-ui/solid";
+import { Box, HStack, IconButton, Text } from "@hope-ui/solid";
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey } from "@utils";
 import { createIcon } from "@hope-ui/solid";
+import { SettingSwitch } from "../components/setting-switch";
 import { Config } from "./config-def";
 
 declare module "./config-def" {
@@ -50,7 +51,11 @@ export default async function ({
 
   try {
     config.metalFxFactor = parseFloat(await getKey(FACTOR_KEY));
-    if (isNaN(config.metalFxFactor) || config.metalFxFactor < MIN_FACTOR || config.metalFxFactor > MAX_FACTOR) {
+    if (
+      isNaN(config.metalFxFactor) ||
+      config.metalFxFactor < MIN_FACTOR ||
+      config.metalFxFactor > MAX_FACTOR
+    ) {
       config.metalFxFactor = DEFAULT_FACTOR;
     }
   } catch {
@@ -97,23 +102,19 @@ export default async function ({
       const disabled = opts?.disabled ?? !config.advancedEnable;
 
       return (
-        <FormControl>
-          <FormLabel>{locale.get("SETTING_METALFX_UPSCALE")}</FormLabel>
-          <Box>
-            <Checkbox
-              checked={enabled()}
-              onChange={() => setEnabled(x => !x)}
-              size="md"
-              disabled={disabled}
-            >
-              {locale.get("SETTING_ENABLED")}
-            </Checkbox>
-          </Box>
+        <SettingSwitch
+          id="metalFxUpscale"
+          label={locale.get("SETTING_METALFX_UPSCALE")}
+          checked={enabled()}
+          onChange={setEnabled}
+          disabled={disabled}
+        >
           {enabled() ? (
             <Box mt="$3">
               <HStack justifyContent="space-between" mb="$1">
                 <Text fontSize="sm">
-                  {locale.get("SETTING_METALFX_FACTOR")}: {factor().toFixed(2)}x ({MIN_FACTOR.toFixed(1)}x–{MAX_FACTOR.toFixed(1)}x)
+                  {locale.get("SETTING_METALFX_FACTOR")}: {factor().toFixed(2)}x
+                  ({MIN_FACTOR.toFixed(1)}x–{MAX_FACTOR.toFixed(1)}x)
                 </Text>
                 <IconButton
                   size="xs"
@@ -136,7 +137,7 @@ export default async function ({
               />
             </Box>
           ) : null}
-        </FormControl>
+        </SettingSwitch>
       );
     },
   ] as const;

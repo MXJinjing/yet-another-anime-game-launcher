@@ -1,6 +1,6 @@
-import { Box, Checkbox, FormControl, FormLabel } from "@hope-ui/solid";
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "../locale";
+import { SettingSwitch } from "../components/setting-switch";
 import { Config, NOOP } from "./config-def";
 import { assertValueDefined, getKey, setKey } from "@utils";
 
@@ -45,18 +45,12 @@ export async function createProxyEnabledConfig({
   return [
     function UI() {
       return (
-        <FormControl id="proxyEnabled">
-          <FormLabel>{locale.get("SETTING_PROXY_ENABLED")}</FormLabel>
-          <Box>
-            <Checkbox
-              checked={value()}
-              size="md"
-              onChange={() => setValue(x => !x)}
-            >
-              {locale.get("SETTING_ENABLED")}
-            </Checkbox>
-          </Box>
-        </FormControl>
+        <SettingSwitch
+          id="proxyEnabled"
+          label={locale.get("SETTING_PROXY_ENABLED")}
+          checked={value()}
+          onChange={setValue}
+        />
       );
     },
     value,

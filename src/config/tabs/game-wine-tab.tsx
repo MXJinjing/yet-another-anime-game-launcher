@@ -26,7 +26,7 @@ export function GameWineTab(props: {
 }) {
   return (
     <TabPanel flex={1} px={20} pt={0} pb={0} h="100%" overflowY="auto">
-      <VStack spacing={"$4"} w="100%" alignItems="stretch">
+      <VStack spacing={"$6"} w="100%" alignItems="stretch">
         <Show
           when={props.wineTag && props.wineOptions && props.onWineTagChange}
         >

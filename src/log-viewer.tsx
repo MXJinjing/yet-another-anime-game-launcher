@@ -1,7 +1,6 @@
 import {
   Box,
   Button,
-  Checkbox,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -9,6 +8,7 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  Switch,
   Text,
 } from "@hope-ui/solid";
 import {
@@ -106,13 +106,13 @@ export function createLogViewer(locale: Locale) {
               </Box>
             </ModalBody>
             <ModalFooter justifyContent="space-between">
-              <Checkbox
+              <Switch
                 checked={followScroll()}
                 size="sm"
                 onChange={() => setFollowScroll(x => !x)}
               >
                 {locale.get("LOG_VIEWER_FOLLOW_SCROLL")}
-              </Checkbox>
+              </Switch>
               <Box>
                 <Button variant="ghost" size="sm" mr={"$2"} onClick={copyLogs}>
                   {locale.get("LOG_VIEWER_COPY")}

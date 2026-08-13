@@ -1,7 +1,7 @@
-import { FormControl, FormLabel, Box, Checkbox } from "@hope-ui/solid";
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey } from "@utils";
+import { SettingSwitch } from "../components/setting-switch";
 import { Config, NOOP } from "./config-def";
 
 declare module "./config-def" {
@@ -45,18 +45,12 @@ export async function createRetinaConfig({
   return [
     function UI() {
       return (
-        <FormControl id="retina">
-          <FormLabel>{locale.get("SETTING_RETINA")}</FormLabel>
-          <Box>
-            <Checkbox
-              checked={value()}
-              size="md"
-              onChange={() => setValue(x => !x)}
-            >
-              {locale.get("SETTING_ENABLED")}
-            </Checkbox>
-          </Box>
-        </FormControl>
+        <SettingSwitch
+          id="retina"
+          label={locale.get("SETTING_RETINA")}
+          checked={value()}
+          onChange={setValue}
+        />
       );
     },
   ] as const;

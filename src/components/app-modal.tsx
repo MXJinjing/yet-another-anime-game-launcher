@@ -43,6 +43,8 @@ export function AppModal({
   children,
   footer,
   maxWidth = 460,
+  height,
+  bodyClass,
 }: {
   opened: boolean;
   onClose: () => void;
@@ -50,6 +52,8 @@ export function AppModal({
   children: JSXElement;
   footer?: JSXElement;
   maxWidth?: number | string;
+  height?: number | string;
+  bodyClass?: string;
 }) {
   return (
     <Modal opened={opened} onClose={onClose} centered scrollBehavior="inside">
@@ -60,12 +64,14 @@ export function AppModal({
           {
             "--app-modal-max-width":
               typeof maxWidth === "number" ? `${maxWidth}px` : maxWidth,
+            "--app-modal-height":
+              typeof height === "number" ? `${height}px` : height ?? "auto",
           } as JSX.CSSProperties
         }
       >
         <ModalCloseButton class="app-modal-close" />
         <ModalHeader>{title}</ModalHeader>
-        <ModalBody>{children}</ModalBody>
+        <ModalBody class={bodyClass}>{children}</ModalBody>
         {footer ? <ModalFooter>{footer}</ModalFooter> : null}
       </ModalContent>
     </Modal>
