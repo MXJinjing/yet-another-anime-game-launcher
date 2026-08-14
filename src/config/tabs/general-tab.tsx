@@ -1,92 +1,31 @@
-import {
-  Box,
-  Button,
-  Divider,
-  FormControl,
-  FormLabel,
-  Heading,
-  TabPanel,
-  Text,
-  VStack,
-} from "@hope-ui/solid";
+import { Divider, TabPanel, VStack } from "@hope-ui/solid";
 import { JSXElement } from "solid-js";
-import { CURRENT_YAAGL_VERSION } from "../../constants";
 import { Locale } from "../../locale";
-import { exec2, resolve } from "../../utils";
-import { Wine } from "../../wine";
-import { HostsHelperControl } from "../hosts-helper";
 
 export function GeneralTab(props: {
   locale: Locale;
-  wine: Wine;
-  wineInstalled: () => boolean;
-  gameInstallDir: () => string;
-  onCheckUpdate: () => void;
-  onOpenLogs: () => void;
+  DisableVideoBackgroundConfig: () => JSXElement;
   LeftCmdConfig: () => JSXElement;
   DownloadServerConfig: () => JSXElement;
   LocaleConfig: () => JSXElement;
   ThemeColorConfig: () => JSXElement;
+  HostsHelperConfig: () => JSXElement;
 }) {
   return (
     <TabPanel flex={1} px={20} pt={0} pb={0} h="100%" overflowY="auto">
-      <Box
-        h="100%"
-        display="grid"
-        style={{ "grid-template-columns": "65% 35%" }}
-      >
-        <Box alignSelf="stretch" overflowY="scroll" pr={20}>
-          <VStack spacing={"$6"}>
-            <props.ThemeColorConfig />
-            <Divider />
-            <props.LeftCmdConfig />
-            <Divider />
-            <props.DownloadServerConfig />
-            <Divider />
-            <HostsHelperControl locale={props.locale} />
-            <Divider />
-            <props.LocaleConfig />
-            <FormControl>
-              <FormLabel>{props.locale.get("SETTING_YAAGL_VERSION")}</FormLabel>
-              <Text userSelect={"none"}>{CURRENT_YAAGL_VERSION}</Text>
-            </FormControl>
-          </VStack>
-        </Box>
-        <VStack spacing={"$2"} alignItems="start" alignSelf="start" pl={20}>
-          <Heading level="1" ml={12} mb={"$4"}>
-            {props.locale.get("SETTING_QUICK_ACTIONS")}
-          </Heading>
-          <Button variant="ghost" size="sm" onClick={props.onOpenLogs}>
-            {props.locale.get("LOG_VIEWER_OPEN_ACTION")}
-          </Button>
-          <Divider />
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!props.wineInstalled()}
-            onClick={() =>
-              props.wine.openCmdWindow({
-                gameDir: props.gameInstallDir(),
-              })
-            }
-          >
-            {props.locale.get("SETTING_OPEN_CMD")}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={async () =>
-              await exec2(["open", resolve("./")], {}, false, "/dev/null")
-            }
-          >
-            {props.locale.get("SETTING_OPEN_YAAGL_DIR")}
-          </Button>
-          <Divider />
-          <Button variant="ghost" size="sm" onClick={props.onCheckUpdate}>
-            {props.locale.get("SETTING_CHECK_UPDATE")}
-          </Button>
-        </VStack>
-      </Box>
+      <VStack spacing={"$6"} w="100%" alignItems="stretch">
+        <props.ThemeColorConfig />
+        <Divider />
+        <props.DisableVideoBackgroundConfig />
+        <Divider />
+        <props.LocaleConfig />
+        <Divider />
+        <props.LeftCmdConfig />
+        <Divider />
+        <props.DownloadServerConfig />
+        <Divider />
+        <props.HostsHelperConfig />
+      </VStack>
     </TabPanel>
   );
 }

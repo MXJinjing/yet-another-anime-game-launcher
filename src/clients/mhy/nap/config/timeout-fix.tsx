@@ -46,10 +46,14 @@ export default async function ({
 
   return [
     function UI() {
+      const description = locale.currentLanguage.startsWith("zh")
+        ? "启用 Wine 超时绕过，缓解启动或网络连接超时问题。"
+        : "Enable Wine timeout bypass to reduce startup or network timeout issues.";
       return (
         <SettingSwitch
           id="timeoutFix"
           label={locale.get("SETTING_TIMEOUT_FIX")}
+          description={description}
           checked={value()}
           onChange={setValue}
         />

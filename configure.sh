@@ -71,3 +71,30 @@ if [ ! -f bin/neutralino-mac_arm64 ]; then
 fi
 
 curl -sSL https://github.com/neutralinojs/neutralino.js/releases/download/v3.9.0/neutralino.js > neutralino.js
+
+# The yaagl-neutralinojs fork server (v4.11.0) implements the legacy
+# filesystem API names (removeFile/moveFile/copyFile), while the stock
+# neutralino.js 3.x client sends the new names (remove/move/copy).
+# Remap the client's method names so they match the fork server.
+python3 - <<'PY'
+import sys
+
+path = "neutralino.js"
+with open(path, encoding="utf-8") as f:
+    s = f.read()
+
+for old, new in (
+    ('l("filesystem.remove",', 'l("filesystem.removeFile",'),
+    ('l("filesystem.move",', 'l("filesystem.moveFile",'),
+    ('l("filesystem.copy",', 'l("filesystem.copyFile",'),
+):
+    if old in s:
+        s = s.replace(old, new, 1)
+    elif new not in s:
+        sys.exit(f"pattern not found in {path}: {old}")
+
+with open(path, "w", encoding="utf-8") as f:
+    f.write(s)
+
+print("OK: remapped filesystem method names in neutralino.js")
+PY

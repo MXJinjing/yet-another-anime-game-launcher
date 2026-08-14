@@ -1,24 +1,8 @@
-import {
-  Box,
-  FormControl,
-  FormLabel,
-  Icon,
-  Select,
-  SelectContent,
-  SelectIcon,
-  SelectListbox,
-  SelectOption,
-  SelectOptionIndicator,
-  SelectOptionText,
-  SelectPlaceholder,
-  SelectTrigger,
-  SelectValue,
-  Input,
-  HStack,
-} from "@hope-ui/solid";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { FormControl, FormLabel, Input, HStack } from "@hope-ui/solid";
+import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "../locale";
 import { getKey, setKey, assertValueDefined } from "../utils";
+import { AppSelect } from "../components/app-select";
 
 // Radix presets (light variants - matching the launcher's color theme)
 import amber from "@radix-ui/colors/amber.css?inline";
@@ -143,8 +127,14 @@ function generateColorScale(
     [`primary8`]: `hsl(${baseH}, ${sat}%, 55%)`,
     [`primary9`]: `hsl(${baseH}, ${sat}%, ${baseL}%)`,
     [`primary10`]: `hsl(${baseH}, ${sat}%, ${Math.max(baseL - 8, 30)}%)`,
-    [`primary11`]: `hsl(${baseH}, ${Math.min(sat * 0.85, 90)}%, ${Math.max(baseL - 16, 20)}%)`,
-    [`primary12`]: `hsl(${baseH}, ${Math.min(sat * 0.5, 60)}%, ${Math.max(baseL - 24, 12)}%)`,
+    [`primary11`]: `hsl(${baseH}, ${Math.min(sat * 0.85, 90)}%, ${Math.max(
+      baseL - 16,
+      20
+    )}%)`,
+    [`primary12`]: `hsl(${baseH}, ${Math.min(sat * 0.5, 60)}%, ${Math.max(
+      baseL - 24,
+      12
+    )}%)`,
   };
 }
 
@@ -188,15 +178,17 @@ function hexToHsl(hex: string): { h: number; s: number; l: number } {
         break;
     }
   }
-  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+  return {
+    h: Math.round(h * 360),
+    s: Math.round(s * 100),
+    l: Math.round(l * 100),
+  };
 }
 
 /**
  * Apply theme color by writing CSS custom properties to document root.
  */
-export function applyThemeColor(
-  scale: Record<string, string>
-): void {
+export function applyThemeColor(scale: Record<string, string>): void {
   const root = document.body;
   for (let i = 1; i <= 12; i++) {
     const key = `primary${i}`;
@@ -235,8 +227,7 @@ export default async function createThemeColorConfig({
   const [customColor, setCustomColor] = createSignal("#FFB224");
 
   const isCustom = () => value().startsWith("custom:");
-  const selectedPreset = () =>
-    isCustom() ? "custom" : value();
+  const selectedPreset = () => (isCustom() ? "custom" : value());
 
   // Initialize customColor from saved value if it's a custom one
   if (isCustom()) {
@@ -287,10 +278,10 @@ export default async function createThemeColorConfig({
     function UI() {
       return (
         <FormControl>
-          <FormLabel>{locale.get("SETTING_THEME_COLOR")}</FormLabel>
-          <HStack spacing="$3">
-            <Box flex={1}>
-              <Select
+          <HStack w="100%" justifyContent="space-between" alignItems="center">
+            <FormLabel mb={0}>{locale.get("SETTING_THEME_COLOR")}</FormLabel>
+            <HStack spacing="$3">
+              <AppSelect
                 value={selectedPreset()}
                 onChange={(v: string) => {
                   if (v === "custom") {
@@ -299,62 +290,43 @@ export default async function createThemeColorConfig({
                     setValue(v);
                   }
                 }}
-              >
-                <SelectTrigger>
-                  <SelectPlaceholder>Choose color</SelectPlaceholder>
-                  <SelectValue />
-                  <SelectIcon />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectListbox>
-                    <For each={PRESET_COLORS}>
-                      {(item) => (
-                        <SelectOption value={item.id}>
-                          <HStack spacing="$2">
-                            <Icon color={item.color} boxSize="$4">
-                              <svg viewBox="0 0 24 24" fill="currentColor">
-                                <circle cx="12" cy="12" r="10" />
-                              </svg>
-                            </Icon>
-                            <SelectOptionText>{item.label}</SelectOptionText>
-                          </HStack>
-                          <SelectOptionIndicator />
-                        </SelectOption>
-                      )}
-                    </For>
-                    <SelectOption value="custom">
-                      <SelectOptionText>
-                        {locale.get("SETTING_THEME_COLOR_CUSTOM")}
-                      </SelectOptionText>
-                      <SelectOptionIndicator />
-                    </SelectOption>
-                  </SelectListbox>
-                </SelectContent>
-              </Select>
-            </Box>
-            <Show when={isCustom()}>
-              <Input
-                type="color"
-                value={customColor()}
-                onChange={(e: Event) => {
-                  const input = e.target as HTMLInputElement;
-                  const newColor = input.value;
-                  setCustomColor(newColor);
-                  setValue(`custom:${newColor}`);
-                }}
-                w="42px"
-                h="42px"
-                p="2px"
-                border="none"
-                cursor="pointer"
-                style={{
-                  "-webkit-appearance": "none",
-                  "-moz-appearance": "none",
-                  appearance: "none",
-                  background: "transparent",
-                }}
+                width={180}
+                options={[
+                  ...PRESET_COLORS.map(item => ({
+                    value: item.id,
+                    label: item.label,
+                    color: item.color,
+                  })),
+                  {
+                    value: "custom",
+                    label: locale.get("SETTING_THEME_COLOR_CUSTOM"),
+                  },
+                ]}
               />
-            </Show>
+              <Show when={isCustom()}>
+                <Input
+                  type="color"
+                  value={customColor()}
+                  onChange={(e: Event) => {
+                    const input = e.target as HTMLInputElement;
+                    const newColor = input.value;
+                    setCustomColor(newColor);
+                    setValue(`custom:${newColor}`);
+                  }}
+                  w="42px"
+                  h="38px"
+                  p="2px"
+                  border="none"
+                  cursor="pointer"
+                  style={{
+                    "-webkit-appearance": "none",
+                    "-moz-appearance": "none",
+                    appearance: "none",
+                    background: "transparent",
+                  }}
+                />
+              </Show>
+            </HStack>
           </HStack>
         </FormControl>
       );

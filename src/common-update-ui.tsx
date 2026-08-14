@@ -1,7 +1,7 @@
-import { Button, Progress, ProgressIndicator, Center } from "@hope-ui/solid";
+import { Button, Center } from "@hope-ui/solid";
 import { Box, VStack, Image } from "@hope-ui/solid";
 import { createSignal, onMount, Show } from "solid-js";
-import { fatal, _safeRelaunch } from "./utils";
+import { fatal, isConnectionError, _safeRelaunch } from "./utils";
 import { log, logerror } from "./utils";
 import { Locale, LocaleTextKey } from "./locale";
 import { UPDATE_UI_IMAGE } from "./clients";
@@ -59,6 +59,16 @@ export function createCommonUpdateUI(
             setDone(true);
             return;
           }
+          if (isConnectionError(e)) {
+            await logerror(e instanceof Error ? e.message : String(e));
+            await locale.alert(
+              "CHECK_GAME_UPDATE_FAILED",
+              "CHECK_GAME_UPDATE_FAILED_DESC",
+              [],
+              "danger"
+            );
+            return;
+          }
           await logerror(e instanceof Error ? e.message : String(e));
           await fatal(e);
         });
@@ -88,11 +98,13 @@ export function createCommonUpdateUI(
                 </Center>
               }
             >
-              <Box>
-                <Progress value={progress()} indeterminate={progress() == 0}>
-                  <ProgressIndicator animated striped />
-                </Progress>
-              </Box>
+              <Center>
+                <Box fontSize="26px" fontWeight="800" color="white">
+                  {progress() > 0
+                    ? `${Math.round(progress())}%`
+                    : locale.get("PROCESSING")}
+                </Box>
+              </Center>
             </Show>
           </Box>
         </VStack>

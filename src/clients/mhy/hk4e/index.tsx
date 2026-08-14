@@ -1,7 +1,9 @@
 import { batch, createSignal } from "solid-js";
+import { Divider } from "@hope-ui/solid";
 import { CommonUpdateProgram } from "@common-update-ui";
 import {
   ChannelClient,
+  ChannelClientBackground,
   ChannelClientInstallState,
 } from "../../../channel-client";
 import { Server } from "@constants";
@@ -43,6 +45,8 @@ import createMhypBaseReplacement from "./config/mhypbase-replacement";
 import createPatchOff from "./config/patch-off";
 import createSteamPatch from "./config/steam-patch";
 import createBlockNet from "./config/block-net";
+import { getDefaultBlockHostsText } from "../block-hosts";
+import { CN_BLOCK_URL, OS_BLOCK_URL } from "../../secret";
 import createResolution from "./config/resolution";
 import createTimeoutFix from "./config/timeout-fix";
 import { createEnableHDRConfig } from "./config/enable-hdr";
@@ -51,7 +55,11 @@ import {
   VoicePackNames,
   HoyoConnectGameBackgroundType,
 } from "../launcher-info";
-import { getLatestAdvInfo, getLatestVersionInfo } from "../hyp-connect";
+import {
+  getLatestAdvInfo,
+  getLatestVersionInfo,
+  mapBackgroundsToUiContent,
+} from "../hyp-connect";
 
 // no need to check supported version
 // const CURRENT_SUPPORTED_VERSION = "4.8.0";
@@ -75,15 +83,18 @@ export async function createHK4EChannelClient({
   let video_url: string;
   let theme_url: string;
   let bg_type: HoyoConnectGameBackgroundType;
+  let backgrounds: ChannelClientBackground[] = [];
   let isAdvFallback = false;
   try {
-    const advInfo = await getLatestAdvInfo(locale, server);
+    const advInfos = await getLatestAdvInfo(locale, server);
+    const advInfo = advInfos[0];
     background = advInfo.background.url;
     icon = advInfo.icon.url;
     icon_link = advInfo.icon.link;
     video_url = advInfo.video.url;
     theme_url = advInfo.theme.url;
     bg_type = advInfo.type;
+    backgrounds = mapBackgroundsToUiContent(advInfos);
   } catch {
     log("Failed to fetch adv info, using fallback UI");
     isAdvFallback = true;
@@ -93,6 +104,13 @@ export async function createHK4EChannelClient({
     video_url = "";
     theme_url = "";
     bg_type = HoyoConnectGameBackgroundType.BACKGROUND_TYPE_UNSPECIFIED;
+  }
+  // Preload every background image so the switcher can fade between them
+  // without waiting on the network during a switch.
+  for (const bg of backgrounds) {
+    if (bg.background) {
+      waitImageReady(bg.background).catch(() => undefined);
+    }
   }
   const IS_VIDEO_BG =
     !isAdvFallback &&
@@ -208,6 +226,7 @@ export async function createHK4EChannelClient({
       background: background, // Always show image
       background_video: IS_VIDEO_BG ? video_url : undefined,
       background_theme: IS_VIDEO_BG ? theme_url : undefined,
+      backgrounds,
       url: icon_link,
       channelName: isAdvFallback ? server.id : undefined,
       fallbackBackground: isAdvFallback ? fallbackBg : undefined,
@@ -396,14 +415,31 @@ export async function createHK4EChannelClient({
       });
       const [PO] = await createPatchOff({ locale, config });
       const [SP] = await createSteamPatch({ locale, config });
-      const [BN] = await createBlockNet({ locale, config });
+      const blockUrl = server.id == "hk4e_global" ? OS_BLOCK_URL : CN_BLOCK_URL;
+      const defaultHosts = [
+        { domain: blockUrl, ip: "0.0.0.0" },
+        { domain: blockUrl, ip: "::1" },
+      ];
+      const [BN] = await createBlockNet({
+        locale,
+        config,
+        defaultHostsText: getDefaultBlockHostsText(defaultHosts),
+      });
       const [HDR] = await createEnableHDRConfig({ locale, config });
       const [RES] = await createResolution({ locale, config });
       const [TF] = await createTimeoutFix({ locale, config });
 
       return {
         game() {
-          return [<W4 />, <PO />, <SP />, <BN />, <TF />];
+          return [
+            <PO />,
+            <SP />,
+            <TF />,
+            <Divider />,
+            <BN />,
+            <Divider />,
+            <W4 />,
+          ];
         },
         video() {
           return [<RES />, <HDR />];

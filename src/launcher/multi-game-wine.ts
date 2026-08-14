@@ -1,12 +1,15 @@
 import type { CommonUpdateProgram } from "../common-update-ui";
 import {
   build,
+  downloadPercent,
   exec,
   exec2,
+  formatDownloadSpeed,
   generateRandomString,
   getKey,
   humanFileSize,
   mkdirp,
+  removeFileIfExists,
   resolve,
   rmrf_dangerously,
   setKey,
@@ -17,6 +20,7 @@ import {
   xattrRemove,
 } from "@utils";
 import type { Aria2 } from "@aria2";
+import { isDownloadCancelledError } from "../download-control";
 import {
   getWineDistributions,
   isWineDistroInstalled,
@@ -336,20 +340,33 @@ export async function* ensureMultiGameGameWine({
       `wine.tar.${isXZ ? "xz" : "gz"}`
     )
   );
-  for await (const progress of aria2.doStreamingDownload({
-    uri: distro.remoteUrl,
-    absDst: wineTarPath,
-    downloadKey,
-  })) {
-    yield [
-      "setProgress",
-      Number((progress.completedLength * BigInt(100)) / progress.totalLength),
-    ];
-    yield [
-      "setStateText",
-      "DOWNLOADING_ENVIRONMENT_SPEED",
-      `${humanFileSize(Number(progress.downloadSpeed))}`,
-    ];
+  try {
+    for await (const progress of aria2.doStreamingDownload({
+      uri: distro.remoteUrl,
+      absDst: wineTarPath,
+      downloadKey,
+    })) {
+      yield [
+        "setProgress",
+        Number((progress.completedLength * BigInt(100)) / progress.totalLength),
+      ];
+      yield [
+        "setStateText",
+        "DOWNLOADING_ENVIRONMENT_SPEED",
+        formatDownloadSpeed(Number(progress.downloadSpeed)),
+        `${humanFileSize(Number(progress.completedLength))}`,
+        `${humanFileSize(Number(progress.totalLength))}`,
+        downloadPercent(progress.completedLength, progress.totalLength),
+      ];
+    }
+  } catch (error) {
+    if (isDownloadCancelledError(error)) {
+      // Restore the original per-game Wine state: drop the partial download
+      // and the (possibly empty) Wine root so a retry starts clean.
+      await removeFileIfExists(wineTarPath);
+      await rmrf_dangerously(wineRoot);
+    }
+    throw error;
   }
 
   yield ["setStateText", "EXTRACT_ENVIRONMENT"];

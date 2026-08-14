@@ -1,20 +1,8 @@
-import {
-  FormControl,
-  FormLabel,
-  Select,
-  SelectContent,
-  SelectIcon,
-  SelectListbox,
-  SelectOption,
-  SelectOptionIndicator,
-  SelectOptionText,
-  SelectPlaceholder,
-  SelectTrigger,
-  SelectValue,
-} from "@hope-ui/solid";
-import { createEffect, createSignal, For } from "solid-js";
+import { FormControl, FormLabel, HStack } from "@hope-ui/solid";
+import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey } from "@utils";
+import { AppSelect } from "../components/app-select";
 import { Config } from "./config-def";
 
 declare module "./config-def" {
@@ -100,26 +88,20 @@ export default async function ({
     function UI() {
       return (
         <FormControl>
-          <FormLabel>{locale.get("SETTING_PREFERRED_MAX_FPS")}</FormLabel>
-          <Select value={value()} onChange={setValue}>
-            <SelectTrigger>
-              <SelectPlaceholder>Choose an option</SelectPlaceholder>
-              <SelectValue />
-              <SelectIcon />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectListbox>
-                <For each={options()}>
-                  {item => (
-                    <SelectOption value={item.value}>
-                      <SelectOptionText>{item.label}</SelectOptionText>
-                      <SelectOptionIndicator />
-                    </SelectOption>
-                  )}
-                </For>
-              </SelectListbox>
-            </SelectContent>
-          </Select>
+          <HStack w="100%" justifyContent="space-between" alignItems="center">
+            <FormLabel mb={0}>
+              {locale.get("SETTING_PREFERRED_MAX_FPS")}
+            </FormLabel>
+            <AppSelect
+              value={value()}
+              onChange={setValue}
+              width={180}
+              options={options().map(item => ({
+                value: item.value,
+                label: item.label,
+              }))}
+            />
+          </HStack>
         </FormControl>
       );
     },

@@ -5,6 +5,7 @@ import { Locale } from "@locale";
 import { withStorageNamespace } from "@utils";
 import { Wine, WineDistribution } from "@wine";
 import { createSignal } from "solid-js";
+import { reportBootProgress } from "../boot-progress";
 import { ChannelClient } from "../channel-client";
 import { Config } from "../config/config-def";
 import { createClient as createGenshinOsClient } from "../clients/hk4eos";
@@ -93,7 +94,12 @@ export async function createMultiGameLauncher({
   const actionDisabledRef = { current: () => false };
   const games: HoyoplayGame[] = [];
 
-  for (const spec of specs) {
+  for (const [index, spec] of specs.entries()) {
+    reportBootProgress(
+      "正在初始化游戏客户端",
+      66 + Math.round((index / Math.max(1, specs.length)) * 30),
+      spec.title
+    );
     const wineRef: MultiGameWineRef = { current: baseWine };
     const gameWine = createMultiGameWineProxy(wineRef);
     const client = await withStorageNamespace(spec.namespace, async () =>
@@ -137,6 +143,7 @@ export async function createMultiGameLauncher({
     });
   }
 
+  reportBootProgress("正在初始化游戏客户端", 96);
   return createHoyoplayLauncher({
     games,
     showLibrary: true,

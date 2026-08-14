@@ -1,21 +1,10 @@
-import {
-  Box,
-  Input,
-  InputGroup,
-  Select,
-  SelectContent,
-  SelectIcon,
-  SelectListbox,
-  SelectOption,
-  SelectOptionIndicator,
-  SelectOptionText,
-  SelectTrigger,
-  SelectValue,
-  Text,
-} from "@hope-ui/solid";
+import { Box, Input, InputGroup, Text } from "@hope-ui/solid";
 import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "../locale";
+import { AppSelect } from "../components/app-select";
 import { SettingSwitch } from "../components/setting-switch";
+import { MAX_CONCURRENT_DOWNLOADS_KEY } from "../download-budget";
+import { reloadConfig } from "../download-queue";
 import { Config, NOOP } from "./config-def";
 import { assertValueDefined, getKey, setKey } from "@utils";
 
@@ -26,6 +15,7 @@ declare module "./config-def" {
     downloadSpeedLimitEnabled: boolean;
     downloadSpeedLimitValue: number;
     downloadSpeedLimitUnit: DownloadSpeedLimitUnit;
+    downloadMaxConcurrent: number;
   }
 }
 
@@ -81,6 +71,16 @@ export async function createDownloadServerConfig({
     config.downloadSpeedLimitUnit = "K";
   }
 
+  try {
+    const concurrent = Number(await getKey(MAX_CONCURRENT_DOWNLOADS_KEY));
+    config.downloadMaxConcurrent =
+      Number.isFinite(concurrent) && concurrent >= 0
+        ? Math.floor(concurrent)
+        : 0;
+  } catch {
+    config.downloadMaxConcurrent = 0;
+  }
+
   const [proxyEnabled, setProxyEnabled] = createSignal(
     config.downloadProxyEnabled
   );
@@ -95,18 +95,24 @@ export async function createDownloadServerConfig({
     config.downloadSpeedLimitUnit
   );
 
+  const [maxConcurrent, setMaxConcurrent] = createSignal(
+    config.downloadMaxConcurrent
+  );
+
   async function onSave(apply: boolean) {
     assertValueDefined(config.downloadProxyEnabled);
     assertValueDefined(config.downloadProxyHost);
     assertValueDefined(config.downloadSpeedLimitEnabled);
     assertValueDefined(config.downloadSpeedLimitValue);
     assertValueDefined(config.downloadSpeedLimitUnit);
+    assertValueDefined(config.downloadMaxConcurrent);
     if (!apply) {
       setProxyEnabled(config.downloadProxyEnabled);
       setProxyHost(config.downloadProxyHost);
       setSpeedLimitEnabled(config.downloadSpeedLimitEnabled);
       setSpeedLimitValue(config.downloadSpeedLimitValue);
       setSpeedLimitUnit(config.downloadSpeedLimitUnit);
+      setMaxConcurrent(config.downloadMaxConcurrent);
       return NOOP;
     }
 
@@ -121,12 +127,17 @@ export async function createDownloadServerConfig({
       config.downloadProxyHost = proxyHost();
       await setKey(DOWNLOAD_PROXY_HOST_KEY, config.downloadProxyHost);
     }
+
+    // Track whether any download budget setting changed so the shared queue
+    // can be reloaded once at the end (proxy settings are not part of it).
+    let downloadConfigChanged = false;
     if (config.downloadSpeedLimitEnabled != speedLimitEnabled()) {
       config.downloadSpeedLimitEnabled = speedLimitEnabled();
       await setKey(
         DOWNLOAD_SPEED_LIMIT_ENABLED_KEY,
         config.downloadSpeedLimitEnabled ? "true" : "false"
       );
+      downloadConfigChanged = true;
     }
     if (config.downloadSpeedLimitValue != speedLimitValue()) {
       config.downloadSpeedLimitValue = speedLimitValue();
@@ -134,6 +145,7 @@ export async function createDownloadServerConfig({
         DOWNLOAD_SPEED_LIMIT_VALUE_KEY,
         String(config.downloadSpeedLimitValue)
       );
+      downloadConfigChanged = true;
     }
     if (config.downloadSpeedLimitUnit != speedLimitUnit()) {
       config.downloadSpeedLimitUnit = speedLimitUnit();
@@ -141,6 +153,19 @@ export async function createDownloadServerConfig({
         DOWNLOAD_SPEED_LIMIT_UNIT_KEY,
         config.downloadSpeedLimitUnit
       );
+      downloadConfigChanged = true;
+    }
+    if (config.downloadMaxConcurrent != maxConcurrent()) {
+      config.downloadMaxConcurrent = maxConcurrent();
+      await setKey(
+        MAX_CONCURRENT_DOWNLOADS_KEY,
+        String(config.downloadMaxConcurrent)
+      );
+      downloadConfigChanged = true;
+    }
+    if (downloadConfigChanged) {
+      // Apply speed limit / concurrency changes to active downloads.
+      await reloadConfig();
     }
     return NOOP;
   }
@@ -151,6 +176,7 @@ export async function createDownloadServerConfig({
     speedLimitEnabled();
     speedLimitValue();
     speedLimitUnit();
+    maxConcurrent();
     onSave(true);
   });
 
@@ -198,38 +224,52 @@ export async function createDownloadServerConfig({
                   }
                 }}
               />
-              <Select
+              <AppSelect
                 value={speedLimitUnit()}
                 onChange={value => {
                   if (isDownloadSpeedLimitUnit(value)) {
                     setSpeedLimitUnit(value);
                   }
                 }}
-              >
-                <SelectTrigger width="100px">
-                  <SelectValue />
-                  <SelectIcon />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectListbox>
-                    <SelectOption value="K">
-                      <SelectOptionText>KB/s</SelectOptionText>
-                      <SelectOptionIndicator />
-                    </SelectOption>
-                    <SelectOption value="M">
-                      <SelectOptionText>MB/s</SelectOptionText>
-                      <SelectOptionIndicator />
-                    </SelectOption>
-                    <SelectOption value="G">
-                      <SelectOptionText>GB/s</SelectOptionText>
-                      <SelectOptionIndicator />
-                    </SelectOption>
-                  </SelectListbox>
-                </SelectContent>
-              </Select>
+                width={100}
+                options={[
+                  { value: "K", label: "KB/s" },
+                  { value: "M", label: "MB/s" },
+                  { value: "G", label: "GB/s" },
+                ]}
+              />
             </Box>
           </Show>
         </SettingSwitch>,
+        <Box mt={"$3"}>
+          <Text
+            class="download-max-concurrent-label"
+            size="sm"
+            fontWeight="bold"
+            userSelect={"none"}
+          >
+            {locale.get("SETTING_MAX_CONCURRENT_DOWNLOADS")}
+          </Text>
+          <Box mt={"$2"} display="flex" alignItems="center" gap={"$2"}>
+            <Input
+              id="downloadMaxConcurrent"
+              type="number"
+              min={0}
+              step={1}
+              value={String(maxConcurrent())}
+              width="120px"
+              onChange={e => {
+                const value = Number(e.currentTarget.value);
+                if (Number.isFinite(value) && value >= 0) {
+                  setMaxConcurrent(Math.floor(value));
+                }
+              }}
+            />
+          </Box>
+          <Text userSelect={"none"} size="xs" mt={"$1"}>
+            {locale.get("SETTING_MAX_CONCURRENT_DOWNLOADS_DESC")}
+          </Text>
+        </Box>,
       ];
     },
   ] as const;

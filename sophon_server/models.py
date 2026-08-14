@@ -6,6 +6,7 @@ class GameOperationRequest(BaseModel):
     gamedir: str
     game_type: Literal["hk4e", "nap"]
     tempdir: Optional[str] = None
+    download_speed_limit: int = 0  # bytes/s, 0 = unlimited
 
 class InstallRequest(GameOperationRequest):
     install_reltype: str  # "os", "cn", or "bb"
@@ -15,6 +16,10 @@ class UpdateRequest(GameOperationRequest):
 
 class RepairRequest(GameOperationRequest):
     repair_mode: str  # "quick" or "reliable"
+
+
+class LimitRequest(BaseModel):
+    download_speed_limit: int = 0  # bytes/s, 0 = unlimited
 
 
 class TaskResponse(BaseModel):

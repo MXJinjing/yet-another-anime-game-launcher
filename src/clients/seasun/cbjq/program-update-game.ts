@@ -1,5 +1,5 @@
 import { join } from "path-browserify";
-import { Aria2 } from "@aria2";
+import { Aria2, Aria2OverallProgress } from "@aria2";
 import { CommonUpdateProgram } from "@common-update-ui";
 import { readFile, setKey, removeFileIfExists, writeFile } from "@utils";
 import { LauncherResourceData } from "./launcher-info";
@@ -56,6 +56,8 @@ export async function* updateGameProgram({
     await removeFileIfExists(localPath);
   }
   let count = 0;
+  // Track overall progress so the button's percentage covers every added pak.
+  const overall = new Aria2OverallProgress();
   for (const { remoteName, hash } of toAdd) {
     const localPath = join(gameDir, remoteName);
     const remotePath = join(server.dlc, resourceData.pathOffset, hash).replace(
@@ -68,11 +70,9 @@ export async function* updateGameProgram({
       uri: remotePath,
       absDst: localPath,
     })) {
-      yield [
-        "setProgress",
-        Number((progress.completedLength * BigInt(100)) / progress.totalLength),
-      ];
+      yield ["setProgress", overall.step(progress)];
     }
+    overall.finishFile();
     count++;
   }
   setKey("patched", null);

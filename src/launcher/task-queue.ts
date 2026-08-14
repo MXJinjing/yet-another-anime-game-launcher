@@ -4,11 +4,18 @@ import {
   isDownloadFailedError,
 } from "../download-control";
 import { Locale, LocaleTextKey } from "@locale";
-import { fatal, log, logerror } from "@utils";
+import { fatal, isConnectionError, log, logerror } from "@utils";
 import { Accessor, Setter, createSignal } from "solid-js";
 import { notificationService } from "@hope-ui/solid";
 
-const SKIP_LOG_STATE_KEYS = new Set(["DOWNLOADING_ENVIRONMENT_SPEED"]);
+// DOWNLOADING_FILE_PROGRESS now also fires on every file start (so the UI
+// updates the current file / file index immediately), which would otherwise
+// flood the log with one line per file. The progress itself is still visible
+// in the download panel.
+const SKIP_LOG_STATE_KEYS = new Set([
+  "DOWNLOADING_ENVIRONMENT_SPEED",
+  "DOWNLOADING_FILE_PROGRESS",
+]);
 
 type TaskEntry = {
   fn: () => CommonUpdateProgram;
@@ -68,7 +75,7 @@ export function createTaskQueueState({
             notificationService.show({
               status: "success",
               title: locale.get(taskName),
-              description: "已完成",
+              description: locale.get("NOTIFICATION_TASK_COMPLETED"),
             });
           }
         } catch (e) {
@@ -79,7 +86,7 @@ export function createTaskQueueState({
               notificationService.show({
                 status: "warning",
                 title: locale.get(taskName),
-                description: "已取消",
+                description: locale.get("NOTIFICATION_TASK_CANCELLED"),
               });
             }
             setStatusArgs(null);
@@ -93,15 +100,28 @@ export function createTaskQueueState({
               notificationService.show({
                 status: "danger",
                 title: locale.get(taskName),
-                description: `已失败 — ${errorMessage}`,
+                description: locale.get("NOTIFICATION_TASK_FAILED"),
               });
             } else {
               notificationService.show({
                 status: "danger",
-                title: "Download failed",
-                description: errorMessage,
+                title: locale.get("NOTIFICATION_TASK_FAILED_TITLE"),
+                description: locale.get("NOTIFICATION_TASK_FAILED"),
               });
             }
+            setStatusArgs(null);
+            setBusy(false);
+            continue;
+          }
+          if (isConnectionError(e)) {
+            await logerror(e instanceof Error ? e.message : String(e));
+            notificationService.show({
+              status: "danger",
+              title: taskName
+                ? locale.get(taskName)
+                : locale.get("CHECK_GAME_UPDATE_FAILED"),
+              description: locale.get("CHECK_GAME_UPDATE_FAILED_DESC"),
+            });
             setStatusArgs(null);
             setBusy(false);
             continue;
@@ -235,7 +255,7 @@ export function createConcurrentTaskQueueState({
         notificationService.show({
           status: "success",
           title: locale.get(taskName),
-          description: "已完成",
+          description: locale.get("NOTIFICATION_TASK_COMPLETED"),
         });
       }
     } catch (e) {
@@ -245,7 +265,7 @@ export function createConcurrentTaskQueueState({
           notificationService.show({
             status: "warning",
             title: locale.get(taskName),
-            description: "已取消",
+            description: locale.get("NOTIFICATION_TASK_CANCELLED"),
           });
         }
         state.setStatusArgs(null);
@@ -256,15 +276,25 @@ export function createConcurrentTaskQueueState({
           notificationService.show({
             status: "danger",
             title: locale.get(taskName),
-            description: `已失败 — ${errorMessage}`,
+            description: locale.get("NOTIFICATION_TASK_FAILED"),
           });
         } else {
           notificationService.show({
             status: "danger",
-            title: "Download failed",
-            description: errorMessage,
+            title: locale.get("NOTIFICATION_TASK_FAILED_TITLE"),
+            description: locale.get("NOTIFICATION_TASK_FAILED"),
           });
         }
+        state.setStatusArgs(null);
+      } else if (isConnectionError(e)) {
+        await logerror(e instanceof Error ? e.message : String(e));
+        notificationService.show({
+          status: "danger",
+          title: taskName
+            ? locale.get(taskName)
+            : locale.get("CHECK_GAME_UPDATE_FAILED"),
+          description: locale.get("CHECK_GAME_UPDATE_FAILED_DESC"),
+        });
         state.setStatusArgs(null);
       } else {
         await logerror(e instanceof Error ? e.message : String(e));

@@ -1,16 +1,4 @@
-import {
-  Box,
-  Button,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  Switch,
-  Text,
-} from "@hope-ui/solid";
+import { Switch } from "@hope-ui/solid";
 import {
   createEffect,
   createMemo,
@@ -18,10 +6,12 @@ import {
   For,
   onCleanup,
 } from "solid-js";
+import { AppModal, AppModalButton } from "./components/app-modal";
 import { Locale } from "./locale";
 import { getRuntimeLogFilePath } from "./log-file";
 import { RuntimeLogEntry, subscribeRuntimeLogs } from "./runtime-log";
 import { exec2 } from "./utils";
+import "./log-viewer.css";
 
 export function createLogViewer(locale: Locale) {
   const [opened, setOpened] = createSignal(false);
@@ -61,67 +51,33 @@ export function createLogViewer(locale: Locale) {
     openLogs: () => setOpened(true),
     LogViewer() {
       return (
-        <Modal opened={opened()} onClose={() => setOpened(false)} size="xl">
-          <ModalOverlay />
-          <ModalContent maxWidth={900}>
-            <ModalCloseButton />
-            <ModalHeader>{locale.get("LOG_VIEWER_TITLE")}</ModalHeader>
-            <ModalBody pb={20}>
-              <Box
-                ref={logContainer}
-                height={420}
-                overflowY="auto"
-                bg="$neutral3"
-                border="1px solid $neutral6"
-                borderRadius={6}
-                p={"$3"}
-                fontFamily="monospace"
-                fontSize={12}
-                userSelect="text"
-                style={{ "white-space": "pre-wrap", cursor: "text" }}
-              >
-                <For
-                  each={formattedEntries()}
-                  fallback={
-                    <Text color="$neutral10">
-                      {locale.get("LOG_VIEWER_EMPTY")}
-                    </Text>
-                  }
-                >
-                  {entry => (
-                    <Box
-                      userSelect="text"
-                      color={
-                        entry.level === "ERROR"
-                          ? "$danger11"
-                          : entry.level === "WARNING"
-                          ? "$warning11"
-                          : "$neutral12"
-                      }
-                    >
-                      {entry.text}
-                    </Box>
-                  )}
-                </For>
-              </Box>
-            </ModalBody>
-            <ModalFooter justifyContent="space-between">
+        <AppModal
+          opened={opened()}
+          onClose={() => setOpened(false)}
+          title={locale.get("LOG_VIEWER_TITLE")}
+          maxWidth={900}
+          height={620}
+          bodyClass="app-modal-body-logs"
+          footer={
+            <div class="log-viewer-footer">
               <Switch
                 checked={followScroll()}
-                size="sm"
+                size="md"
                 onChange={() => setFollowScroll(x => !x)}
               >
                 {locale.get("LOG_VIEWER_FOLLOW_SCROLL")}
               </Switch>
-              <Box>
-                <Button variant="ghost" size="sm" mr={"$2"} onClick={copyLogs}>
+              <div class="log-viewer-actions">
+                <AppModalButton
+                  variant="secondary"
+                  onClick={() => void copyLogs()}
+                >
                   {locale.get("LOG_VIEWER_COPY")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                </AppModalButton>
+                <AppModalButton
+                  variant="secondary"
                   onClick={() =>
-                    exec2(
+                    void exec2(
                       ["open", getRuntimeLogFilePath()],
                       {},
                       false,
@@ -130,11 +86,36 @@ export function createLogViewer(locale: Locale) {
                   }
                 >
                   {locale.get("LOG_VIEWER_OPEN_FILE")}
-                </Button>
-              </Box>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
+                </AppModalButton>
+              </div>
+            </div>
+          }
+        >
+          <div class="log-viewer-shell">
+            <div class="log-viewer-console" ref={logContainer}>
+              <For
+                each={formattedEntries()}
+                fallback={
+                  <div class="log-viewer-empty">
+                    {locale.get("LOG_VIEWER_EMPTY")}
+                  </div>
+                }
+              >
+                {entry => (
+                  <div class="log-viewer-line" data-level={entry.level}>
+                    <span class="log-viewer-time">{entry.time}</span>
+                    <span
+                      class={`log-viewer-level log-viewer-level--${entry.level.toLowerCase()}`}
+                    >
+                      {entry.level}
+                    </span>
+                    <span class="log-viewer-message">{entry.message}</span>
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+        </AppModal>
       );
     },
   };

@@ -1,21 +1,8 @@
-import {
-  FormControl,
-  FormLabel,
-  Select,
-  SelectContent,
-  SelectIcon,
-  SelectListbox,
-  SelectOption,
-  SelectOptionIndicator,
-  SelectOptionText,
-  SelectPlaceholder,
-  SelectTrigger,
-  SelectValue,
-  Text,
-} from "@hope-ui/solid";
-import { createEffect, createSignal, For, Show } from "solid-js";
-import { Locale } from "@locale";
+import { Box, FormControl, FormLabel, HStack, Text } from "@hope-ui/solid";
+import { createEffect, createSignal, Show } from "solid-js";
+import { Locale, locales } from "@locale";
 import { setKey } from "@utils";
+import { AppSelect } from "../components/app-select";
 import { Config } from "./config-def";
 
 export default async function ({
@@ -38,33 +25,34 @@ export default async function ({
   return [
     function UI() {
       return [
-        <FormControl id="uiLOCALE">
-          <FormLabel>{locale.get("SETTING_UI_LOCALE")}</FormLabel>
-          <Select value={value()} onChange={setValue}>
-            <SelectTrigger>
-              <SelectPlaceholder>Choose an option</SelectPlaceholder>
-              <SelectValue />
-              <SelectIcon />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectListbox>
-                <For each={locale.supportedLanguages}>
-                  {item => (
-                    <SelectOption value={item.id}>
-                      <SelectOptionText>{item.name}</SelectOptionText>
-                      <SelectOptionIndicator />
-                    </SelectOption>
-                  )}
-                </For>
-              </SelectListbox>
-            </SelectContent>
-          </Select>
-        </FormControl>,
-        <Show when={locale.currentLanguage != value()}>
-          <Text fontSize={11} color={"$blackAlpha8"}>
-            {locale.get("SETTING_RESTART_TO_TAKE_EFFECT")}
-          </Text>
-        </Show>,
+        <Box>
+          <FormControl id="uiLOCALE">
+            <HStack w="100%" justifyContent="space-between" alignItems="center">
+              <FormLabel mb={0}>{locale.get("SETTING_UI_LOCALE")}</FormLabel>
+              <AppSelect
+                value={value()}
+                onChange={setValue}
+                width={180}
+                options={locale.supportedLanguages.map(item => ({
+                  value: item.id,
+                  label: item.name,
+                }))}
+              />
+            </HStack>
+          </FormControl>
+          <Show when={locale.currentLanguage != value()}>
+            <Text fontSize={11} color="$danger9" mt="$1" userSelect="none">
+              {locale.get("SETTING_RESTART_TO_TAKE_EFFECT")}
+            </Text>
+            <Text fontSize={11} color="$danger9" mt="$1" userSelect="none">
+              {
+                (locales[value() as keyof typeof locales] ?? locales.en)[
+                  "SETTING_RESTART_TO_TAKE_EFFECT"
+                ]
+              }
+            </Text>
+          </Show>
+        </Box>,
       ];
     },
   ] as const;

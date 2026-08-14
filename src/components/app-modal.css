@@ -50,13 +50,13 @@
 }
 
 .app-modal-content .hope-tabs__tab {
-  min-height: 40px;
-  padding: 10px 14px !important;
+  min-height: 48px;
+  padding: 12px 16px !important;
   border-radius: 8px !important;
   color: rgba(255, 255, 255, 0.62) !important;
-  font-size: 14px !important;
-  font-weight: 700 !important;
-  line-height: 1.4 !important;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  line-height: 1.3 !important;
 }
 
 .app-modal-content .hope-tabs__tab:hover {
@@ -76,19 +76,107 @@
   border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
+.app-modal-content .hoyoplay-settings-nav {
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+}
+
+.app-modal-content .hoyoplay-settings-nav-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: auto;
+  padding: 12px 8px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.app-modal-content .hoyoplay-settings-nav-button {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.62);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.app-modal-content .hoyoplay-settings-nav-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.88);
+}
+
 .app-modal-content .hope-input,
+.app-modal-content .hope-textarea,
 .app-modal-content .hope-select__trigger {
   background: rgba(255, 255, 255, 0.08) !important;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
   color: rgba(255, 255, 255, 0.9) !important;
 }
 
-.app-modal-content .hope-input::placeholder {
+.app-modal-content input[type="number"] {
+  color-scheme: dark;
+}
+
+.app-modal-content .hope-input-right-addon {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.app-modal-content .hope-input::placeholder,
+.app-modal-content .hope-textarea::placeholder {
   color: rgba(255, 255, 255, 0.4) !important;
 }
 
 .app-modal-content .hope-button {
   border-radius: 8px !important;
+}
+
+.app-modal-content .display-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-modal-content .display-mode-row {
+  min-height: 44px;
+}
+
+.app-modal-content .display-mode-toggle button {
+  min-width: 84px;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.app-modal-content .display-mode-toggle button:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.app-modal-content .display-mode-toggle button.active {
+  color: var(--hoyoplay-accent-text, #111418);
+  background: var(--hoyoplay-accent, var(--hope-colors-primary9, #ffd834));
 }
 
 .app-modal-content .hoyoplay-setting-row {
@@ -199,4 +287,57 @@
   color: #ff9298;
   font-weight: 700;
   line-height: 1.5;
+}
+
+/* Runtime file replacement table — icon buttons.
+   Raw <button> elements keep WebKit's native appearance by default, which
+   ignores background/border/border-radius; `appearance: none` (with the
+   -webkit- prefix) is required so the custom dark styling actually applies
+   in the WKWebView the app runs in. */
+.app-modal-content .runtime-replace-icon-button,
+.app-modal-content .runtime-replace-delete-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.app-modal-content .runtime-replace-icon-button {
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-modal-content .runtime-replace-icon-button:hover {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.app-modal-content .runtime-replace-icon-button:active {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.app-modal-content .runtime-replace-delete-button {
+  color: #ff6b81;
+  background: rgba(255, 82, 82, 0.12);
+}
+
+.app-modal-content .runtime-replace-delete-button:hover {
+  color: #ff8ba1;
+  background: rgba(255, 82, 82, 0.22);
+}
+
+.app-modal-content .runtime-replace-delete-button:active {
+  background: rgba(255, 82, 82, 0.3);
 }

@@ -1,6 +1,6 @@
 import mf from "../constants/mf.reg?raw";
 import wmf from "../constants/wmf.reg?raw";
-import { Aria2 } from "@aria2";
+import { Aria2, Aria2OverallProgress } from "@aria2";
 import { CommonUpdateProgram } from "@common-update-ui";
 import {
   humanFileSize,
@@ -32,7 +32,9 @@ export async function* installMediaFoundation(
   aria2: Aria2,
   wine: Wine
 ): CommonUpdateProgram {
-  for (const dll of MF_DLLS) {
+  // Track overall progress so the button's percentage covers every DLL.
+  const overall = new Aria2OverallProgress();
+  for (const [fileNumber, dll] of MF_DLLS.entries()) {
     yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
     for await (const progress of aria2.doStreamingDownload({
       uri: `https://github.com/Ultimator14/mf-install/raw/master/system32/${dll}.dll`,
@@ -44,19 +46,20 @@ export async function* installMediaFoundation(
         `${dll}.dll.downloading`
       ),
     })) {
-      yield [
-        "setProgress",
-        Number((progress.completedLength * BigInt(100)) / progress.totalLength),
-      ];
+      const current = overall.current(progress);
+      yield ["setProgress", overall.step(progress)];
       yield [
         "setStateText",
         "DOWNLOADING_ENVIRONMENT_SPEED",
         formatDownloadSpeed(Number(progress.downloadSpeed)),
-        `${humanFileSize(Number(progress.completedLength))}`,
-        `${humanFileSize(Number(progress.totalLength))}`,
-        downloadPercent(progress.completedLength, progress.totalLength),
+        `${humanFileSize(Number(current.completed))}`,
+        `${humanFileSize(Number(current.total))}`,
+        downloadPercent(current.completed, current.total),
+        String(fileNumber + 1),
+        String(MF_DLLS.length),
       ];
     }
+    overall.finishFile();
     await forceMove(
       join(
         wine.prefix,

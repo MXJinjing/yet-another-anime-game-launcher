@@ -1,5 +1,5 @@
 import { join, basename } from "path-browserify";
-import { Aria2 } from "@aria2";
+import { Aria2, Aria2OverallProgress } from "@aria2";
 import { CommonUpdateProgram } from "@common-update-ui";
 import { Server } from "@constants";
 import {
@@ -24,12 +24,15 @@ export async function* downloadAndInstallGameProgram({
   gameDir,
   gameVersion,
   server,
+  totalBytes,
 }: {
   gameSegmentZips: string[];
   gameDir: string;
   gameVersion: string;
   aria2: Aria2;
   server: Server;
+  /** Grand total of all segments in bytes, from the version-info API. */
+  totalBytes?: bigint;
 }): CommonUpdateProgram {
   const downloadTmp = join(gameDir, ".ariatmp");
 
@@ -37,12 +40,18 @@ export async function* downloadAndInstallGameProgram({
 
   const deferredCleanup: (() => Promise<void>)[] = [];
 
-  for (const segment of gameSegmentZips) {
+  // Track overall progress so the button's percentage covers every segment.
+  // The grand total from the version-info API makes it accurate up front.
+  const overall = new Aria2OverallProgress(totalBytes);
+  for (const [fileNumber, segment] of gameSegmentZips.entries()) {
     deferredCleanup.push(
       yield* downloadOrRecover(
         aria2,
         segment,
-        join(downloadTmp, basename(segment))
+        join(downloadTmp, basename(segment)),
+        overall,
+        fileNumber + 1,
+        gameSegmentZips.length
       )
     );
   }
@@ -81,7 +90,10 @@ cps=${server.cps}`
 async function* downloadOrRecover(
   aria2: Aria2,
   remoteUrl: string,
-  localTempUrl: string
+  localTempUrl: string,
+  overall: Aria2OverallProgress,
+  fileNumber: number,
+  fileCount: number
 ): CommonUpdateProgram<() => Promise<void>> {
   try {
     await getKey(
@@ -100,22 +112,21 @@ async function* downloadOrRecover(
         continue;
       }
       gameFileStart = true;
+      const current = overall.current(progress);
+      yield ["setProgress", overall.step(progress)];
       yield [
         "setStateText",
         "DOWNLOADING_FILE_PROGRESS",
         basename(remoteUrl),
         formatDownloadSpeed(Number(progress.downloadSpeed)),
-        humanFileSize(Number(progress.completedLength)),
-        humanFileSize(Number(progress.totalLength)),
-        downloadPercent(progress.completedLength, progress.totalLength),
-      ];
-      yield [
-        "setProgress",
-        Number(
-          (progress.completedLength * BigInt(10000)) / progress.totalLength
-        ) / 100,
+        humanFileSize(Number(current.completed)),
+        humanFileSize(Number(current.total)),
+        downloadPercent(current.completed, current.total),
+        String(fileNumber),
+        String(fileCount),
       ];
     }
+    overall.finishFile();
     await setKey(
       `predownloaded_${(await sha1sum(basename(remoteUrl))).slice(0, 32)}`,
       "1"

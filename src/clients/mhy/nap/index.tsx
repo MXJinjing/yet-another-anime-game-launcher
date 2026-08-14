@@ -1,7 +1,9 @@
 import { batch, createSignal } from "solid-js";
+import { Divider } from "@hope-ui/solid";
 import { CommonUpdateProgram } from "@common-update-ui";
 import {
   ChannelClient,
+  ChannelClientBackground,
   ChannelClientInstallState,
 } from "../../../channel-client";
 import { Server } from "../../../constants";
@@ -38,6 +40,8 @@ import {
 import createPatchOff from "./config/patch-off";
 import createResolution from "./config/resolution";
 import createBlockNet from "./config/block-net";
+import { getDefaultBlockHostsText } from "../block-hosts";
+import { NAP_CN_BLOCK_URL, NAP_OS_BLOCK_URL } from "../../secret";
 import createSteamPatch from "./config/steam-patch";
 import createTimeoutFix from "./config/timeout-fix";
 import createMhypBaseReplacement from "../hk4e/config/mhypbase-replacement";
@@ -47,7 +51,11 @@ import {
   HoyoConnectGamePackages,
   VoicePackNames,
 } from "../launcher-info";
-import { getLatestAdvInfo, getLatestVersionInfo } from "../hyp-connect";
+import {
+  getLatestAdvInfo,
+  getLatestVersionInfo,
+  mapBackgroundsToUiContent,
+} from "../hyp-connect";
 
 // no need to check supported version
 // const CURRENT_SUPPORTED_VERSION = "3.0.0";
@@ -78,15 +86,18 @@ export async function createNAPChannelClient({
   let video_url: string;
   let theme_url: string;
   let bg_type: HoyoConnectGameBackgroundType;
+  let backgrounds: ChannelClientBackground[] = [];
   let isAdvFallback = false;
   try {
-    const advInfo = await getLatestAdvInfo(locale, server);
+    const advInfos = await getLatestAdvInfo(locale, server);
+    const advInfo = advInfos[0];
     background = advInfo.background.url;
     icon = advInfo.icon.url;
     icon_link = advInfo.icon.link;
     video_url = advInfo.video.url;
     theme_url = advInfo.theme.url;
     bg_type = advInfo.type;
+    backgrounds = mapBackgroundsToUiContent(advInfos);
   } catch {
     isAdvFallback = true;
     background = "";
@@ -96,6 +107,13 @@ export async function createNAPChannelClient({
     theme_url = "";
     bg_type = HoyoConnectGameBackgroundType.BACKGROUND_TYPE_UNSPECIFIED;
   }
+  // Preload every background image so the switcher can fade between them
+  // without waiting on the network during a switch.
+  for (const bg of backgrounds) {
+    if (bg.background) {
+      waitImageReady(bg.background).catch(() => undefined);
+    }
+  }
   const IS_VIDEO_BG =
     !isAdvFallback &&
     bg_type === HoyoConnectGameBackgroundType.BACKGROUND_TYPE_VIDEO;
@@ -104,7 +122,10 @@ export async function createNAPChannelClient({
   let game_pkgs: { url: string; size: string }[];
   let decompressed_path: string;
   let patches: HoyoConnectGamePackages[];
-  let pre_download: { major: HoyoConnectGamePackages | null; patches: HoyoConnectGamePackages[] };
+  let pre_download: {
+    major: HoyoConnectGamePackages | null;
+    patches: HoyoConnectGamePackages[];
+  };
   try {
     const versionInfo = await getLatestVersionInfo(server);
     GAME_LATEST_VERSION = versionInfo.main.major.version;
@@ -113,7 +134,10 @@ export async function createNAPChannelClient({
     patches = versionInfo.main.patches;
     pre_download = versionInfo.pre_download;
   } catch {
-    await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+    await locale.alert(
+      "CHECK_GAME_UPDATE_FAILED",
+      "CHECK_GAME_UPDATE_FAILED_DESC"
+    );
     GAME_LATEST_VERSION = "0.0.0";
     game_pkgs = [];
     decompressed_path = "";
@@ -158,6 +182,7 @@ export async function createNAPChannelClient({
       background: background, // Always show image
       background_video: IS_VIDEO_BG ? video_url : undefined,
       background_theme: IS_VIDEO_BG ? theme_url : undefined,
+      backgrounds,
       iconImage: icon,
       url: icon_link,
       channelName: isAdvFallback ? server.id : undefined,
@@ -169,17 +194,22 @@ export async function createNAPChannelClient({
     },
     async *install(selection: string): CommonUpdateProgram {
       if (game_pkgs.length === 0) {
-        await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+        await locale.alert(
+          "CHECK_GAME_UPDATE_FAILED",
+          "CHECK_GAME_UPDATE_FAILED_DESC"
+        );
         return;
       }
       try {
         await stats(join(selection, "pkg_version"));
       } catch {
         const freeSpaceGB = await getFreeSpace(selection, "g");
-        const totalSize = game_pkgs
-          .map(x => x.size)
-          .map(parseInt)
-          .reduce((a, b) => a + b, 0);
+        // `Array#map(parseInt)` would pass the index as the radix and yield
+        // NaN, so parse with an explicit base 10 and coerce failures to 0.
+        const totalSize = game_pkgs.reduce(
+          (a, x) => a + (Number.parseInt(x.size, 10) || 0),
+          0
+        );
         const requiredSpaceGB = Math.ceil(totalSize / Math.pow(1024, 3)) * 1.2;
         if (freeSpaceGB < requiredSpaceGB) {
           await locale.alert(
@@ -198,6 +228,7 @@ export async function createNAPChannelClient({
           //   .path,
           gameVersion: GAME_LATEST_VERSION,
           server,
+          totalBytes: BigInt(totalSize),
         });
         // setGameInstalled
         batch(() => {
@@ -295,7 +326,10 @@ export async function createNAPChannelClient({
     },
     async *update() {
       if (patches.length === 0) {
-        await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+        await locale.alert(
+          "CHECK_GAME_UPDATE_FAILED",
+          "CHECK_GAME_UPDATE_FAILED_DESC"
+        );
         return;
       }
       const updateTarget = patches.find(x => x.version == gameCurrentVersion());
@@ -410,12 +444,28 @@ export async function createNAPChannelClient({
       });
       const [PO] = await createPatchOff({ locale, config });
       const [RES] = await createResolution({ locale, config });
-      const [BN] = await createBlockNet({ locale, config });
+      const blockUrl =
+        server.id == "nap_global" ? NAP_OS_BLOCK_URL : NAP_CN_BLOCK_URL;
+      const defaultHosts = [{ domain: blockUrl, ip: "0.0.0.0" }];
+      const [BN] = await createBlockNet({
+        locale,
+        config,
+        defaultHostsText: getDefaultBlockHostsText(defaultHosts),
+      });
       const [SP] = await createSteamPatch({ locale, config });
       const [TF] = await createTimeoutFix({ locale, config });
 
       return function () {
-        return [<W4 />, <PO />, <RES />, <BN />, <SP />, <TF />];
+        return [
+          <PO />,
+          <RES />,
+          <SP />,
+          <TF />,
+          <Divider />,
+          <BN />,
+          <Divider />,
+          <W4 />,
+        ];
       };
     },
   };

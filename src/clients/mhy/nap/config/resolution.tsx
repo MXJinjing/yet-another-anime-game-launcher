@@ -1,12 +1,4 @@
-import {
-  Button,
-  ButtonGroup,
-  FormControl,
-  FormLabel,
-  Input,
-  HStack,
-  VStack,
-} from "@hope-ui/solid";
+import { FormControl, FormLabel, Input, HStack, VStack } from "@hope-ui/solid";
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined, getKey, setKey } from "@utils";
@@ -90,38 +82,57 @@ export default async function ({
     function UI() {
       return (
         <FormControl>
-          <FormLabel>{locale.get("SETTING_DISPLAY_MODE")}</FormLabel>
-          <VStack spacing={"$2"} alignItems="stretch">
-            <ButtonGroup attached size="sm">
-              <Button
-                variant={windowed() ? "ghost" : "solid"}
-                onClick={() => setWindowed(false)}
+          <VStack spacing={"$6"} alignItems="stretch">
+            <HStack
+              class="display-mode-row"
+              w="100%"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <FormLabel mb={0}>{locale.get("SETTING_DISPLAY_MODE")}</FormLabel>
+              <div
+                class="display-mode-toggle"
+                role="group"
+                aria-label={locale.get("SETTING_DISPLAY_MODE")}
               >
-                {locale.get("SETTING_DISPLAY_MODE_FULLSCREEN")}
-              </Button>
-              <Button
-                variant={windowed() ? "solid" : "ghost"}
-                onClick={() => setWindowed(true)}
-              >
-                {locale.get("SETTING_DISPLAY_MODE_WINDOWED")}
-              </Button>
-            </ButtonGroup>
-            <FormLabel>{locale.get("SETTING_WINDOW_RESOLUTION")}</FormLabel>
-            <HStack spacing={"$2"}>
-              <Input
-                value={width()}
-                type="number"
-                min={1}
-                disabled={!windowed()}
-                onChange={e => setWidth(e.currentTarget.value)}
-              />
-              <Input
-                value={height()}
-                type="number"
-                min={1}
-                disabled={!windowed()}
-                onChange={e => setHeight(e.currentTarget.value)}
-              />
+                <button
+                  type="button"
+                  classList={{ active: !windowed() }}
+                  onClick={() => setWindowed(false)}
+                >
+                  {locale.get("SETTING_DISPLAY_MODE_FULLSCREEN")}
+                </button>
+                <button
+                  type="button"
+                  classList={{ active: windowed() }}
+                  onClick={() => setWindowed(true)}
+                >
+                  {locale.get("SETTING_DISPLAY_MODE_WINDOWED")}
+                </button>
+              </div>
+            </HStack>
+            <HStack w="100%" justifyContent="space-between" alignItems="center">
+              <FormLabel mb={0}>
+                {locale.get("SETTING_WINDOW_RESOLUTION")}
+              </FormLabel>
+              <HStack spacing="$2">
+                <Input
+                  width="96px"
+                  value={width()}
+                  type="number"
+                  min={1}
+                  disabled={!windowed()}
+                  onChange={e => setWidth(e.currentTarget.value)}
+                />
+                <Input
+                  width="96px"
+                  value={height()}
+                  type="number"
+                  min={1}
+                  disabled={!windowed()}
+                  onChange={e => setHeight(e.currentTarget.value)}
+                />
+              </HStack>
             </HStack>
           </VStack>
         </FormControl>

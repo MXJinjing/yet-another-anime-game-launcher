@@ -1,14 +1,38 @@
-import { log } from "@utils";
+import {
+  ConnectionError,
+  getActiveStorageNamespace,
+  getKeyOrDefault,
+  isConnectionErrorMessage,
+  log,
+} from "@utils";
+import {
+  DOWNLOAD_SPEED_LIMIT_ENABLED_KEY,
+  DOWNLOAD_SPEED_LIMIT_UNIT_KEY,
+  DOWNLOAD_SPEED_LIMIT_VALUE_KEY,
+  speedLimitConfigToBps,
+} from "./download-budget";
+import {
+  registerStream,
+  unregisterStream,
+  updateStream,
+} from "./download-queue";
 import {
   beginControlledDownload,
   DownloadCancelledError,
   endControlledDownload,
 } from "./download-control";
 
+// Client-side record of tasks whose cancellation was requested through the
+// download-queue manager (the per-game cancel path uses a local flag inside
+// streamOperationProgress instead). Kept so a server "job_error(cancelled)"
+// surfaces as DownloadCancelledError instead of a generic failure.
+const cancelledTaskIds = new Set<string>();
+
 interface GameOperationOptions {
   gamedir: string;
   game_type: string; // "hk4e" or "nap"
   tempdir?: string; // sophon manifest and intermediate files
+  download_speed_limit?: number; // bytes/s, 0 = unlimited
 }
 
 export interface SophonInstallOptions extends GameOperationOptions {
@@ -84,20 +108,69 @@ export class SophonClient {
   ): Promise<string> {
     log(`Starting ${type} operation with options: ${JSON.stringify(options)}`);
 
-    const response = await fetch(`${this.baseUrl}/api/${type}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(options),
-    });
+    const enabled =
+      (await getKeyOrDefault(DOWNLOAD_SPEED_LIMIT_ENABLED_KEY, "false")) ===
+      "true";
+    const value = Number(
+      await getKeyOrDefault(DOWNLOAD_SPEED_LIMIT_VALUE_KEY, "0")
+    );
+    const unit = await getKeyOrDefault(DOWNLOAD_SPEED_LIMIT_UNIT_KEY, "K");
+    const bps = speedLimitConfigToBps(enabled, value, unit);
+    const body = JSON.stringify({ ...options, download_speed_limit: bps });
+
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}/api/${type}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body,
+      });
+    } catch (error) {
+      throw new ConnectionError(
+        `Failed to reach the Sophon server while starting ${type}: ${error}`
+      );
+    }
 
     if (!response.ok) {
-      throw new Error(`${type} request failed: ${response.statusText}`);
+      throw new ConnectionError(
+        `${type} request failed: ${response.statusText}`
+      );
     }
 
     const result: SophonOperationResponse = await response.json();
-    return result.task_id;
+    const taskId = result.task_id;
+
+    registerStream({
+      id: `sophon:${taskId}`,
+      kind: "sophon",
+      taskId,
+      key: getActiveStorageNamespace() ?? undefined,
+      title: `${type} (${options.game_type})`,
+      status: "active",
+      progress: 0,
+      speed: 0,
+      downloaded: 0,
+      total: 0,
+      canPause: true,
+      canResume: true,
+      canCancel: true,
+      pause: async () => {
+        await this.pauseTask(taskId);
+      },
+      resume: async () => {
+        await this.resumeTask(taskId);
+      },
+      cancel: async () => {
+        await this.cancelTask(taskId);
+      },
+      setSpeedLimit: async (bps: number) => {
+        await this.setDownloadSpeedLimit(bps);
+      },
+    });
+
+    return taskId;
   }
 
   async startInstallation(options: SophonInstallOptions): Promise<string> {
@@ -122,7 +195,6 @@ export class SophonClient {
     let isCompleted = false;
     let error: string | null = null;
     let cancelled = false;
-    let downloadControlActive = false;
     let messageResolver: ((value: unknown) => void) | null = null;
 
     ws.onopen = () => {
@@ -158,53 +230,92 @@ export class SophonClient {
       isCompleted = true;
     };
 
-    // Wait for connection
-    while (!isConnected && !error) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    if (error) {
-      throw new Error(error);
-    }
-
-    while (!isCompleted || messageQueue.length > 0) {
-      if (messageQueue.length > 0) {
-        // Array is not empty. message is not null.
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const message = messageQueue.shift()!;
-        const isDownloadProgress =
-          message.type === "chunk_progress" ||
-          message.type === "ldiff_download_complete";
-        if (isDownloadProgress && !downloadControlActive) {
-          beginControlledDownload({
-            cancel: async () => {
-              cancelled = true;
-              await this.cancelOperation(taskId);
-            },
-          });
-          downloadControlActive = true;
-        } else if (!isDownloadProgress && downloadControlActive) {
-          endControlledDownload();
-          downloadControlActive = false;
-        }
-        yield message;
-
-        if (message.type === "error" || message.type === "job_error") {
-          if (cancelled) {
-            throw new DownloadCancelledError();
-          }
-          throw new Error(message.error || "Operation failed");
-        }
-      } else {
-        await new Promise(resolve => {
-          messageResolver = resolve;
-        });
+    // Keep the download control active for the whole operation so the UI can
+    // offer cancel consistently (and doesn't flicker between download/install
+    // states) during non-download phases like file allocation, hashing, or
+    // diffing between files. The server checks the cancel event between every
+    // chunk, so cancelling outside the pure download phase still aborts the
+    // operation promptly.
+    beginControlledDownload({
+      pause: async () => {
+        await this.pauseOperation(taskId);
+      },
+      resume: async () => {
+        await this.resumeOperation(taskId);
+      },
+      cancel: async () => {
+        cancelled = true;
+        await this.cancelOperation(taskId);
+      },
+    });
+    try {
+      // Wait for connection
+      while (!isConnected && !error) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
-    }
 
-    ws.close();
-    if (downloadControlActive) {
+      if (error) {
+        throw new ConnectionError(error);
+      }
+
+      while (!isCompleted || messageQueue.length > 0) {
+        if (messageQueue.length > 0) {
+          // Array is not empty. message is not null.
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          const message = messageQueue.shift()!;
+
+          if (message.overall_progress) {
+            const op = message.overall_progress;
+            const progressPatch: {
+              progress?: number;
+              speed?: number;
+              downloaded?: number;
+              total?: number;
+            } = {};
+            if (typeof op.overall_percent === "number") {
+              progressPatch.progress = op.overall_percent;
+            }
+            if (typeof op.download_speed === "number") {
+              progressPatch.speed = op.download_speed;
+            }
+            if (typeof op.downloaded_size === "number") {
+              progressPatch.downloaded = op.downloaded_size;
+            }
+            if (typeof op.total_size === "number") {
+              progressPatch.total = op.total_size;
+            }
+            if (Object.keys(progressPatch).length > 0) {
+              updateStream(`sophon:${taskId}`, {
+                ...progressPatch,
+                canPause: true,
+                canResume: true,
+                canCancel: true,
+              });
+            }
+          }
+
+          yield message;
+
+          if (message.type === "error" || message.type === "job_error") {
+            if (cancelled || cancelledTaskIds.has(taskId)) {
+              throw new DownloadCancelledError();
+            }
+            const messageError = message.error || "Operation failed";
+            throw isConnectionErrorMessage(messageError)
+              ? new ConnectionError(messageError)
+              : new Error(messageError);
+          }
+        } else {
+          await new Promise(resolve => {
+            messageResolver = resolve;
+          });
+        }
+      }
+    } finally {
+      ws.close();
       endControlledDownload();
+      unregisterStream(`sophon:${taskId}`);
+      cancelledTaskIds.delete(taskId);
     }
     if (cancelled) {
       throw new DownloadCancelledError();
@@ -222,17 +333,93 @@ export class SophonClient {
     }
   }
 
+  async pauseOperation(taskId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}/pause`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to pause operation: ${response.statusText}`);
+    }
+  }
+
+  async resumeOperation(taskId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}/resume`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to resume operation: ${response.statusText}`);
+    }
+  }
+
+  async pauseTask(taskId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}/pause`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to pause task: ${response.statusText}`);
+    }
+  }
+
+  async resumeTask(taskId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}/resume`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to resume task: ${response.statusText}`);
+    }
+  }
+
+  async cancelTask(taskId: string): Promise<void> {
+    cancelledTaskIds.add(taskId);
+    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to cancel task: ${response.statusText}`);
+    }
+  }
+
+  async setDownloadSpeedLimit(bps: number): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/limit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ download_speed_limit: bps }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to set download speed limit: ${response.statusText}`
+      );
+    }
+  }
+
   async getLatestOnlineGameInfo(
     reltype: "os" | "cn" | "bb",
     game: string
   ): Promise<SophonOnlineGameInfo> {
     // Currently only supports "hk4e" for game, "os", "cn", or "bb" for reltype
-    const response = await fetch(
-      `${this.baseUrl}/api/game/online_info?game=${game}&reltype=${reltype}`
-    );
+    let response: Response;
+    try {
+      response = await fetch(
+        `${this.baseUrl}/api/game/online_info?game=${game}&reltype=${reltype}`
+      );
+    } catch (error) {
+      throw new ConnectionError(
+        `Failed to reach the Sophon server while fetching game info: ${error}`
+      );
+    }
 
     if (!response.ok) {
-      throw new Error(`Failed to get game info: ${response.statusText}`);
+      throw new ConnectionError(
+        `Failed to get game info: ${response.statusText}`
+      );
     }
 
     return response.json();
@@ -272,7 +459,7 @@ export async function createSophonRetry(
   }
 
   await client.healthCheck({ logFailures: true });
-  throw new Error(
+  throw new ConnectionError(
     `Failed to create sophon client after retries${
       lastError ? `: ${lastError}` : ""
     }`

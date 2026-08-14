@@ -15,6 +15,9 @@ class InstallProgressHandler:
         self.download_speed = 0
         self._speed_thread = None
         self.last_broadcasted = time.time()
+        self.current_file_index = 0
+        self.total_file_count = 0
+        self.file_index_by_name = {}
 
     def _speed_calculator_worker(self):
         while self.task_id not in self.tasks or self.tasks[self.task_id].status != "running":
@@ -56,13 +59,18 @@ class InstallProgressHandler:
     def download_summary(self, game_version: str, download_size: int, download_file_count: int, download_categories: List[str]):
         self.download_speed = 0
         self.downloaded_size = 0
+        self.current_file_index = 0
+        self.total_file_count = download_file_count
+        self.file_index_by_name = {}
         self.conn_manager.send_message_threadsafe({
             "type": "download_summary",
             "task_id": self.task_id,
             "game_version": game_version,
             "download_size": download_size,
             "download_file_count": download_file_count,
-            "download_categories": download_categories
+            "download_categories": download_categories,
+            "current_file_index": self.current_file_index,
+            "total_file_count": self.total_file_count
         }, self.task_id)
         self.download_size = download_size
         self._calculate_speed()
@@ -81,6 +89,8 @@ class InstallProgressHandler:
                 "current_byte": current_byte,
                 "total_bytes": total_bytes, # don't use other things than chunk_size because it is not compressed size
                 "chunk_size": chunk_size,
+                "current_file_index": self.file_index_by_name.get(filename, self.current_file_index),
+                "total_file_count": self.total_file_count,
                 "overall_progress": {
                     "downloaded_size": self.downloaded_size,
                     "total_size": self.download_size,
@@ -91,10 +101,14 @@ class InstallProgressHandler:
             print(f"Current progress: {self.downloaded_size}/{self.download_size} bytes ({(self.downloaded_size / self.download_size) * 100 if self.download_size > 0 else 0:.2f}%)")
 
     def file_download_start(self, filename: str):
+        self.current_file_index += 1
+        self.file_index_by_name[filename] = self.current_file_index
         self.conn_manager.send_message_threadsafe({
             "type": "file_download_start",
             "task_id": self.task_id,
-            "filename": filename
+            "filename": filename,
+            "current_file_index": self.current_file_index,
+            "total_file_count": self.total_file_count
         }, self.task_id)
 
     def file_download_skipped(self, filename: str, reason: str):
@@ -197,19 +211,28 @@ class UpdateProgressHandler(InstallProgressHandler):
         self.downloaded_size = 0
         self.download_size = total_size
         self.download_speed = 0
+        self.current_file_index = 0
+        self.total_file_count = total_files
+        self.file_index_by_name = {}
         self.conn_manager.send_message_threadsafe({
             "type": "ldiff_download_summary",
             "task_id": self.task_id,
             "ldiff_file_count": total_files,
-            "ldiff_total_size": total_size
+            "ldiff_total_size": total_size,
+            "current_file_index": self.current_file_index,
+            "total_file_count": self.total_file_count
         }, self.task_id)
         self._calculate_ldiff_speed()
 
     def ldiff_download_start(self, filename: str):
+        self.current_file_index += 1
+        self.file_index_by_name[filename] = self.current_file_index
         self.conn_manager.send_message_threadsafe({
             "type": "ldiff_download_start",
             "task_id": self.task_id,
             "filename": filename,
+            "current_file_index": self.current_file_index,
+            "total_file_count": self.total_file_count
         }, self.task_id)
 
     def ldiff_download_skipped(self, filename: str, reason: str):
@@ -227,6 +250,8 @@ class UpdateProgressHandler(InstallProgressHandler):
             "task_id": self.task_id,
             "filename": filename,
             "file_size": file_size,
+            "current_file_index": self.file_index_by_name.get(filename, self.current_file_index),
+            "total_file_count": self.total_file_count,
             "overall_progress": {
                 "downloaded_size": self.downloaded_size,
                 "total_size": self.download_size,

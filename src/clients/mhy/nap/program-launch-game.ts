@@ -17,6 +17,7 @@ import { Config } from "@config";
 import { normalizeHttpProxy } from "@config/proxy";
 import { putLocal, patchProgram, patchRevertProgram } from "../patch";
 import { NAP_CN_BLOCK_URL, NAP_OS_BLOCK_URL } from "../../secret";
+import { buildBlockHosts } from "../block-hosts";
 import {
   blockPrivilegedHosts,
   legacyBlockHosts,
@@ -36,6 +37,11 @@ export async function* launchGameProgram({
   config: Config;
   server: Server;
 }): CommonUpdateProgram {
+  const blockUrl =
+    server.id == "nap_global" ? NAP_OS_BLOCK_URL : NAP_CN_BLOCK_URL;
+  const blockHosts = config.blockNet
+    ? buildBlockHosts(config, [{ domain: blockUrl, ip: "0.0.0.0" }])
+    : [];
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "PATCHING"];
 
@@ -64,10 +70,9 @@ cd /d "${wine.toWinePath(gameDir)}"
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
 
     if (config.blockNet) {
-      const blockUrl =
-        server.id == "nap_global" ? NAP_OS_BLOCK_URL : NAP_CN_BLOCK_URL;
-      const hosts: [string, string][] = [[blockUrl, "0.0.0.0"]];
-      await blockPrivilegedHosts(hosts, 20, () => legacyBlockHosts(hosts, 20));
+      await blockPrivilegedHosts(blockHosts, 20, () =>
+        legacyBlockHosts(blockHosts, 20)
+      );
     }
 
     await wine.exec2(
@@ -85,7 +90,13 @@ cd /d "${wine.toWinePath(gameDir)}"
               DXMT_LOG_PATH: yaaglDir,
               DXMT_CONFIG_FILE: join(yaaglDir, "dxmt.conf"),
               GST_PLUGIN_FEATURE_RANK: "atdec:MAX,avdec_h264:MAX",
-              DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${config.preferredMaxFps};${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${config.metalFxEnable ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};` : ""}`,
+              DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${
+                config.preferredMaxFps
+              };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${
+                config.metalFxEnable
+                  ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};`
+                  : ""
+              }`,
               DXMT_METALFX_SPATIAL_SWAPCHAIN: config.metalFxEnable ? "1" : "",
             }
           : {

@@ -1,0 +1,105 @@
+.app-modal-body-about {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 36px 44px 44px !important;
+}
+
+.about-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.about-icon {
+  width: 88px;
+  height: 88px;
+  border-radius: 22px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.about-name {
+  margin-top: 4px;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.about-detail {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.about-github {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  margin-top: 10px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(18, 21, 28, 0.72);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.about-github:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.about-license-link {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.55);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.about-license-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Version line with a check-for-updates button on its right. */
+.about-version-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.about-check-update {
+  padding: 4px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(18, 21, 28, 0.72);
+  color: rgba(255, 255, 255, 0.75);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.about-check-update:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}

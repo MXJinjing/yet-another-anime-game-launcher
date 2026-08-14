@@ -94,7 +94,9 @@ export async function createBH3ChannelClient({
   let pre_download_game: LauncherResourceData["data"]["pre_download_game"];
   let size: string;
   try {
-    const versionInfo: LauncherResourceData = await getLatestVersionInfo(server);
+    const versionInfo: LauncherResourceData = await getLatestVersionInfo(
+      server
+    );
     GAME_LATEST_VERSION = versionInfo.data.game.latest.version;
     diffs = versionInfo.data.game.diffs;
     decompressed_path = versionInfo.data.game.latest.decompressed_path;
@@ -102,7 +104,10 @@ export async function createBH3ChannelClient({
     size = versionInfo.data.game.latest.size;
     pre_download_game = versionInfo.data.pre_download_game;
   } catch {
-    await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+    await locale.alert(
+      "CHECK_GAME_UPDATE_FAILED",
+      "CHECK_GAME_UPDATE_FAILED_DESC"
+    );
     GAME_LATEST_VERSION = "0.0.0";
     diffs = [];
     decompressed_path = "";
@@ -156,7 +161,10 @@ export async function createBH3ChannelClient({
     },
     async *install(selection: string): CommonUpdateProgram {
       if (!path) {
-        await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+        await locale.alert(
+          "CHECK_GAME_UPDATE_FAILED",
+          "CHECK_GAME_UPDATE_FAILED_DESC"
+        );
         return;
       }
       try {
@@ -270,7 +278,10 @@ export async function createBH3ChannelClient({
     },
     async *update() {
       if (diffs.length === 0) {
-        await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+        await locale.alert(
+          "CHECK_GAME_UPDATE_FAILED",
+          "CHECK_GAME_UPDATE_FAILED_DESC"
+        );
         return;
       }
       const updateTarget = diffs.find(x => x.version == gameCurrentVersion());

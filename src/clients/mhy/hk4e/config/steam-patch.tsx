@@ -46,10 +46,14 @@ export default async function ({
 
   return [
     function UI() {
+      const description = locale.currentLanguage.startsWith("zh")
+        ? "通过 Steam 运行库启动游戏，解决部分启动器兼容问题。"
+        : "Launch through Steam runtime libraries to work around compatibility issues.";
       return (
         <SettingSwitch
           id="steamPatch"
           label={locale.get("SETTING_TURN_ON_STEAM_PATCH")}
+          description={description}
           checked={value()}
           onChange={setValue}
         />

@@ -180,6 +180,7 @@ function storageKeyHash(value: string) {
 function shouldNamespaceStorageKey(key: string) {
   return (
     key == "game_install_dir" ||
+    key == "hoyoplay_bg" ||
     key == "patched" ||
     key == "predownloaded_all" ||
     key.startsWith("predownloaded_") ||
@@ -187,6 +188,8 @@ function shouldNamespaceStorageKey(key: string) {
     key == "config_retina" ||
     key == "config_block_net" ||
     key == "config_block_net_duration" ||
+    key == "config_block_net_hosts" ||
+    key == "config_runtime_replacements" ||
     key == "config_hk4e_enable_hdr" ||
     key == "config_metalfx_enable" ||
     key == "config_metalfx_factor" ||

@@ -1,5 +1,5 @@
 import { eq } from "semver";
-import { Aria2 } from "@aria2";
+import { Aria2, Aria2OverallProgress } from "@aria2";
 import { CommonUpdateProgram } from "@common-update-ui";
 import {
   mkdirp,
@@ -80,24 +80,27 @@ export async function* checkAndDownloadDXVK(aria2: Aria2): CommonUpdateProgram {
 
   await mkdirp("./dxvk");
   yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
-  for (const file of DXVK_FILES) {
+  // Track overall progress so the button's percentage covers every DLL.
+  const overall = new Aria2OverallProgress();
+  for (const [fileNumber, file] of DXVK_FILES.entries()) {
     for await (const progress of aria2.doStreamingDownload({
       uri: `https://github.com/3Shain/winecx/releases/download/gi-wine-1.0/${file}`,
       absDst: resolve(`./dxvk/${file}`),
     })) {
-      yield [
-        "setProgress",
-        Number((progress.completedLength * BigInt(100)) / progress.totalLength),
-      ];
+      const current = overall.current(progress);
+      yield ["setProgress", overall.step(progress)];
       yield [
         "setStateText",
         "DOWNLOADING_ENVIRONMENT_SPEED",
         formatDownloadSpeed(Number(progress.downloadSpeed)),
-        `${humanFileSize(Number(progress.completedLength))}`,
-        `${humanFileSize(Number(progress.totalLength))}`,
-        downloadPercent(progress.completedLength, progress.totalLength),
+        `${humanFileSize(Number(current.completed))}`,
+        `${humanFileSize(Number(current.total))}`,
+        downloadPercent(current.completed, current.total),
+        String(fileNumber + 1),
+        String(DXVK_FILES.length),
       ];
     }
+    overall.finishFile();
   }
 
   setKey("installed_dxvk_version", CURRENT_DXVK_VERSION);

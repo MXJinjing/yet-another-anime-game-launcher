@@ -1,5 +1,5 @@
 import { join } from "path-browserify";
-import { Aria2 } from "@aria2";
+import { Aria2, Aria2OverallProgress } from "@aria2";
 import { CommonUpdateProgram } from "@common-update-ui";
 import { log, md5, stats, readAllLines, setKey } from "@utils";
 
@@ -58,6 +58,8 @@ export async function* checkIntegrityProgram({
     return;
   }
   count = 0;
+  // Track overall progress so the button's percentage covers every fixed file.
+  const overall = new Aria2OverallProgress();
   for (const { remoteName } of toFix) {
     const localPath = join(gameDir, remoteName);
     const remotePath = join(remoteDir, remoteName).replace(":/", "://"); //....join: wtf?
@@ -67,11 +69,9 @@ export async function* checkIntegrityProgram({
       uri: remotePath,
       absDst: localPath,
     })) {
-      yield [
-        "setProgress",
-        Number((progress.completedLength * BigInt(100)) / progress.totalLength),
-      ];
+      yield ["setProgress", overall.step(progress)];
     }
+    overall.finishFile();
     count++;
   }
 }

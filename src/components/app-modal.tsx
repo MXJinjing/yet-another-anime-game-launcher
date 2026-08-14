@@ -7,45 +7,41 @@ import {
   ModalHeader,
   ModalOverlay,
 } from "@hope-ui/solid";
-import { JSXElement } from "solid-js";
+import { createEffect, JSXElement } from "solid-js";
 import type { JSX } from "solid-js";
 import "./app-modal.css";
+import "./app-modal-motion.css";
 
 export type AppModalButtonVariant = "primary" | "secondary" | "danger";
 
-export function AppModalButton({
-  variant = "secondary",
-  disabled,
-  onClick,
-  children,
-}: {
+export function AppModalButton(props: {
   variant?: AppModalButtonVariant;
   disabled?: boolean;
   onClick?: () => void;
   children: JSXElement;
 }) {
+  let ref: HTMLButtonElement | undefined;
+  createEffect(() => {
+    if (ref) ref.disabled = Boolean(props.disabled);
+  });
   return (
     <button
-      class={`app-modal-button app-modal-button--${variant}`}
+      ref={el => {
+        ref = el;
+      }}
+      class={`app-modal-button app-modal-button--${
+        props.variant ?? "secondary"
+      }`}
       type="button"
-      disabled={disabled}
-      onClick={onClick}
+      disabled={props.disabled}
+      onClick={props.onClick}
     >
-      {children}
+      {props.children}
     </button>
   );
 }
 
-export function AppModal({
-  opened,
-  onClose,
-  title,
-  children,
-  footer,
-  maxWidth = 460,
-  height,
-  bodyClass,
-}: {
+export function AppModal(props: {
   opened: boolean;
   onClose: () => void;
   title: JSXElement;
@@ -55,24 +51,39 @@ export function AppModal({
   height?: number | string;
   bodyClass?: string;
 }) {
+  // NOTE: keep all reads through `props.*`. Destructuring a reactive prop
+  // evaluates it once when the component is created, freezing dynamic content
+  // such as modal titles, bodies, and footer buttons.
   return (
-    <Modal opened={opened} onClose={onClose} centered scrollBehavior="inside">
+    <Modal
+      opened={props.opened}
+      onClose={props.onClose}
+      centered
+      scrollBehavior="inside"
+      closeOnOverlayClick={false}
+      closeOnEsc={true}
+      motionPreset="scale"
+    >
       <ModalOverlay class="app-modal-overlay" />
       <ModalContent
         class="app-modal-content"
         style={
           {
             "--app-modal-max-width":
-              typeof maxWidth === "number" ? `${maxWidth}px` : maxWidth,
+              typeof props.maxWidth === "number"
+                ? `${props.maxWidth}px`
+                : props.maxWidth ?? "460px",
             "--app-modal-height":
-              typeof height === "number" ? `${height}px` : height ?? "auto",
+              typeof props.height === "number"
+                ? `${props.height}px`
+                : props.height ?? "auto",
           } as JSX.CSSProperties
         }
       >
         <ModalCloseButton class="app-modal-close" />
-        <ModalHeader>{title}</ModalHeader>
-        <ModalBody class={bodyClass}>{children}</ModalBody>
-        {footer ? <ModalFooter>{footer}</ModalFooter> : null}
+        <ModalHeader>{props.title}</ModalHeader>
+        <ModalBody class={props.bodyClass}>{props.children}</ModalBody>
+        {props.footer ? <ModalFooter>{props.footer}</ModalFooter> : null}
       </ModalContent>
     </Modal>
   );

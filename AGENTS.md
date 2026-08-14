@@ -35,3 +35,7 @@ Yaagl (Yet Another Anime Game Launcher) is a macOS desktop launcher built with N
 ## Security & Configuration Tips
 - `secret.ts` and `*.secret.ts` are gitignored; regenerate with `./configure.sh`. Never commit secrets or tokens.
 - Add a new game as a file in `src/clients/`, then register its channel in `build-all.sh`.
+
+## Verification Timing (IMPORTANT)
+- Do NOT automatically run `pnpm exec tsc`, `pnpm run lint`, or `pnpm run format-check` right after modifying code.
+- Only run these checks when the user explicitly asks to build (`pnpm build`, `pnpm run build-<channel>`, `node build-app.js`, `./build-all.sh`, or similar), immediately before the build.

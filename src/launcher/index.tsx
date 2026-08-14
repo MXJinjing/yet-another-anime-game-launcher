@@ -7,6 +7,7 @@ import { ChannelClient } from "../channel-client";
 import { Config } from "../config/config-def";
 import { createHoyoplayLauncher, HoyoplayGame } from "./hoyoplay-launcher";
 import { SINGLE_GAME_CHANNEL_META } from "./single-game-specs";
+import { reportBootProgress } from "../boot-progress";
 
 export async function createLauncher({
   wine,
@@ -42,6 +43,7 @@ export async function createLauncher({
     throw new Error(`Unknown single-game channel: ${channel}`);
   }
   const actionDisabledRef = { current: () => false };
+  reportBootProgress("正在初始化游戏客户端", 80, meta.title);
   const { UI: ConfigurationUI, config } = await createConfiguration({
     wine,
     wineInstalled,

@@ -49,7 +49,7 @@ export async function getThemeColorHex(): Promise<string> {
   }
 }
 
-export function getContrastText(hex: string): "#111418" | "#ffffff" {
+export function getContrastText(hex: string): "#333333" | "#ffffff" {
   const { r, g, b } = hexToRgb(hex);
   const toLinear = (c: number) => {
     const s = c / 255;
@@ -61,5 +61,5 @@ export function getContrastText(hex: string): "#111418" | "#ffffff" {
   const L = 0.2126 * R + 0.7152 * G + 0.0722 * B;
   const contrastWithDark = (L + 0.05) / 0.05;
   const contrastWithWhite = 1.05 / (L + 0.05);
-  return contrastWithDark >= contrastWithWhite ? "#111418" : "#ffffff";
+  return contrastWithDark >= contrastWithWhite ? "#333333" : "#ffffff";
 }

@@ -123,34 +123,32 @@ export function LicensesTab(props: { locale: Locale }) {
     selectedLicense() == 0 ? MIT_LICENSE_TEXT : STEAM_LICENSE_TEXT;
 
   return (
-    <TabPanel flex={1} px={20} pt={0} pb={0} h="100%" overflowY="auto">
-      <Tabs
-        h="100%"
-        display="flex"
-        flexDirection="column"
-        index={selectedLicense()}
-        onChange={setSelectedLicense}
-      >
-        <HStack mb={"$4"} justifyContent="space-between">
-          <TabList>
-            <Tab>MIT</Tab>
-            <Tab>Steam</Tab>
-          </TabList>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => Neutralino.clipboard.writeText(licenseText())}
-          >
-            {props.locale.get("LICENSE_COPY")}
-          </Button>
-        </HStack>
-        <TabPanel px={0} pt={0} pb={0} overflowY="auto">
-          <MITLicense />
-        </TabPanel>
-        <TabPanel px={0} pt={0} pb={0} overflowY="auto">
-          <SteamLicense />
-        </TabPanel>
-      </Tabs>
-    </TabPanel>
+    <Tabs
+      h="100%"
+      display="flex"
+      flexDirection="column"
+      index={selectedLicense()}
+      onChange={setSelectedLicense}
+    >
+      <HStack mb={"$4"} justifyContent="space-between">
+        <TabList>
+          <Tab>MIT</Tab>
+          <Tab>Steam</Tab>
+        </TabList>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => Neutralino.clipboard.writeText(licenseText())}
+        >
+          {props.locale.get("LICENSE_COPY")}
+        </Button>
+      </HStack>
+      <TabPanel px={0} pt={0} pb={0} overflowY="auto">
+        <MITLicense />
+      </TabPanel>
+      <TabPanel px={0} pt={0} pb={0} overflowY="auto">
+        <SteamLicense />
+      </TabPanel>
+    </Tabs>
   );
 }

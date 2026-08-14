@@ -1,5 +1,5 @@
 import { join, basename, dirname } from "path-browserify";
-import { Aria2 } from "@aria2";
+import { Aria2, Aria2OverallProgress } from "@aria2";
 import { CommonUpdateProgram } from "@common-update-ui";
 import { Server } from "../server";
 import {
@@ -19,13 +19,19 @@ export async function* downloadAndInstallGameProgram({
   resourceData,
   gameDir,
   server,
+  totalBytes,
 }: {
   resourceData: LauncherResourceData;
   gameDir: string;
   aria2: Aria2;
   server: Server;
+  /** Grand total of all paks in bytes, from the launcher resource data. */
+  totalBytes?: bigint;
 }): CommonUpdateProgram {
   let index = 0;
+  // Track overall progress so the button's percentage covers every pak.
+  // The known grand total makes it accurate from the very first byte.
+  const overall = new Aria2OverallProgress(totalBytes);
   for (const pak of resourceData.paks) {
     await mkdirp(join(gameDir, dirname(pak.name)));
     // TODO: change this to concurrent
@@ -34,7 +40,8 @@ export async function* downloadAndInstallGameProgram({
       join(server.dlc, resourceData.pathOffset, pak.hash).replace(":/", "://"), //....join: wtf?
       join(gameDir, pak.name),
       index++,
-      resourceData.paks.length
+      resourceData.paks.length,
+      overall
     );
   }
 
@@ -46,7 +53,8 @@ async function* downloadOrRecover(
   remoteUrl: string,
   localUrl: string,
   fileIndex: number,
-  totalFileCount: number
+  totalFileCount: number,
+  overall: Aria2OverallProgress
 ): CommonUpdateProgram<void> {
   try {
     await stats(localUrl);
@@ -63,21 +71,20 @@ async function* downloadOrRecover(
         continue;
       }
       gameFileStart = true;
+      const current = overall.current(progress);
+      yield ["setProgress", overall.step(progress)];
       yield [
         "setStateText",
         "DOWNLOADING_FILE_PROGRESS",
-        basename(remoteUrl) + `(${fileIndex}/${totalFileCount})`,
+        basename(remoteUrl),
         formatDownloadSpeed(Number(progress.downloadSpeed)),
-        humanFileSize(Number(progress.completedLength)),
-        humanFileSize(Number(progress.totalLength)),
-        downloadPercent(progress.completedLength, progress.totalLength),
-      ];
-      yield [
-        "setProgress",
-        Number(
-          (progress.completedLength * BigInt(10000)) / progress.totalLength
-        ) / 100,
+        humanFileSize(Number(current.completed)),
+        humanFileSize(Number(current.total)),
+        downloadPercent(current.completed, current.total),
+        String(fileIndex + 1),
+        String(totalFileCount),
       ];
     }
+    overall.finishFile();
   }
 }

@@ -51,7 +51,7 @@ export function WineTab(props: {
             <Button
               variant="ghost"
               size="sm"
-              disabled={!props.wineInstalled()}
+              disabled={!props.wineInstalled() || props.wineActionDisabled()}
               onClick={() =>
                 props.wine.openCmdWindow({
                   gameDir: props.winePrefix,
@@ -63,7 +63,7 @@ export function WineTab(props: {
             <Button
               variant="ghost"
               size="sm"
-              disabled={!props.wineInstalled()}
+              disabled={!props.wineInstalled() || props.wineActionDisabled()}
               onClick={() => props.wine.exec2("winecfg", [], {}, "/dev/null")}
             >
               {props.locale.get("SETTING_OPEN_WINECFG")}

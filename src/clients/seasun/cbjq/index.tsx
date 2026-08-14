@@ -130,11 +130,18 @@ export async function createCBJQChannelClient({
       try {
         await stats(local_manifest);
       } catch {
+        const totalBytes = BigInt(
+          resourceData.paks.reduce(
+            (a, p) => a + Math.trunc(Number(p.sizeInBytes) || 0),
+            0
+          )
+        );
         yield* downloadAndInstallGameProgram({
           aria2,
           gameDir: selection,
           resourceData,
           server,
+          totalBytes,
         });
         // setGameInstalled
         batch(() => {

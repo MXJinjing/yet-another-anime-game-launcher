@@ -24,6 +24,7 @@ import {
   revertMhypBaseReplacement,
 } from "../patch";
 import { CN_BLOCK_URL, OS_BLOCK_URL } from "../../secret";
+import { buildBlockHosts } from "../block-hosts";
 import {
   blockPrivilegedHosts,
   legacyBlockHosts,
@@ -145,18 +146,41 @@ export async function* launchGameProgram({
   config: Config;
   server: Server;
 }): CommonUpdateProgram {
+  const blockUrl = server.id == "hk4e_global" ? OS_BLOCK_URL : CN_BLOCK_URL;
+  const blockHosts = config.blockNet
+    ? buildBlockHosts(config, [
+        { domain: blockUrl, ip: "0.0.0.0" },
+        { domain: blockUrl, ip: "::1" },
+      ])
+    : [];
   yield* launchProgress(0, LAUNCH_PROGRESS_STEPS, "启动阶段：开始准备运行环境");
 
-  yield* launchProgress(1, LAUNCH_PROGRESS_STEPS, "启动阶段：应用 Wine 启动参数");
+  yield* launchProgress(
+    1,
+    LAUNCH_PROGRESS_STEPS,
+    "启动阶段：应用 Wine 启动参数"
+  );
   await wine.setProps(config);
   if (config.hk4eEnableHDR) {
-    yield* launchProgress(2, LAUNCH_PROGRESS_STEPS, "启动阶段：写入 HDR 注册表配置");
+    yield* launchProgress(
+      2,
+      LAUNCH_PROGRESS_STEPS,
+      "启动阶段：写入 HDR 注册表配置"
+    );
     await applyHDRRegistry({ wine, server });
   }
 
-  yield* launchProgress(3, LAUNCH_PROGRESS_STEPS, "启动阶段：写入显示模式注册表配置");
+  yield* launchProgress(
+    3,
+    LAUNCH_PROGRESS_STEPS,
+    "启动阶段：写入显示模式注册表配置"
+  );
   await applyDisplayModeRegistry(wine, server, config);
-  yield* launchProgress(4, LAUNCH_PROGRESS_STEPS, "启动阶段：等待 Wine 服务空闲");
+  yield* launchProgress(
+    4,
+    LAUNCH_PROGRESS_STEPS,
+    "启动阶段：等待 Wine 服务空闲"
+  );
   await wine.waitUntilServerOff();
 
   yield* launchProgress(5, LAUNCH_PROGRESS_STEPS, "启动阶段：生成游戏启动脚本");
@@ -174,24 +198,31 @@ cd /d "${wine.toWinePath(gameDir)}"
   yield* patchProgram(gameDir, wine, server, config, { start: 60, end: 70 });
   // Workaround #4 is intentionally temporary: install the user-provided
   // mhypbase.dll only for this launch, then restore the original afterward.
-  yield* launchProgress(7, LAUNCH_PROGRESS_STEPS, "启动阶段：检查 mhypbase.dll 临时替换");
+  yield* launchProgress(
+    7,
+    LAUNCH_PROGRESS_STEPS,
+    "启动阶段：检查 mhypbase.dll 临时替换"
+  );
   const mhypBaseReplaced = await applyMhypBaseReplacement(gameDir, config);
   yield* launchProgress(8, LAUNCH_PROGRESS_STEPS, "启动阶段：准备游戏日志目录");
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
   try {
-    yield* launchProgress(9, LAUNCH_PROGRESS_STEPS, "启动阶段：准备启动游戏进程");
+    yield* launchProgress(
+      9,
+      LAUNCH_PROGRESS_STEPS,
+      "启动阶段：准备启动游戏进程"
+    );
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
 
     if (config.blockNet) {
-      yield* launchProgress(10, LAUNCH_PROGRESS_STEPS, "启动阶段：应用断网启动 hosts 规则");
-      const blockUrl = server.id == "hk4e_global" ? OS_BLOCK_URL : CN_BLOCK_URL;
-      const hosts: [string, string][] = [
-        [blockUrl, "0.0.0.0"],
-        [blockUrl, "::1"],
-      ];
-      await blockPrivilegedHosts(hosts, config.blockNetDuration, () =>
-        legacyBlockHosts(hosts, config.blockNetDuration)
+      yield* launchProgress(
+        10,
+        LAUNCH_PROGRESS_STEPS,
+        "启动阶段：应用断网启动 hosts 规则"
+      );
+      await blockPrivilegedHosts(blockHosts, config.blockNetDuration, () =>
+        legacyBlockHosts(blockHosts, config.blockNetDuration)
       );
     }
 
@@ -212,7 +243,13 @@ cd /d "${wine.toWinePath(gameDir)}"
           ? {
               WINEESYNC: "1",
               DXMT_LOG_PATH: yaaglDir,
-              DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${config.preferredMaxFps};${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${config.metalFxEnable ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};` : ""}`,
+              DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${
+                config.preferredMaxFps
+              };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${
+                config.metalFxEnable
+                  ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};`
+                  : ""
+              }`,
               DXMT_METALFX_SPATIAL_SWAPCHAIN: config.metalFxEnable ? "1" : "",
               DXMT_CONFIG_FILE: join(yaaglDir, "dxmt.conf"),
               GST_PLUGIN_FEATURE_RANK: "atdec:MAX,avdec_h264:MAX",

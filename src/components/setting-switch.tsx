@@ -16,6 +16,7 @@ export function SettingSwitch(props: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
+  control?: JSXElement;
   children?: JSXElement;
 }) {
   return (
@@ -32,15 +33,18 @@ export function SettingSwitch(props: {
             <Text class="setting-switch-description">{props.description}</Text>
           ) : null}
         </Box>
-        <Switch
-          checked={props.checked}
-          disabled={props.disabled}
-          aria-label={props.label}
-          size="lg"
-          onChange={(e: Event) =>
-            props.onChange((e.currentTarget as HTMLInputElement).checked)
-          }
-        />
+        <div class="setting-switch-controls">
+          {props.control}
+          <Switch
+            checked={props.checked}
+            disabled={props.disabled}
+            aria-label={props.label}
+            size="lg"
+            onChange={(e: Event) =>
+              props.onChange((e.currentTarget as HTMLInputElement).checked)
+            }
+          />
+        </div>
       </HStack>
       {props.children}
     </FormControl>

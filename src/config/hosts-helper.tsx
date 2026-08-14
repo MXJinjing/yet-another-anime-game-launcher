@@ -1,5 +1,12 @@
-import { Box, Button, HStack, Text, VStack } from "@hope-ui/solid";
-import { createSignal, onMount } from "solid-js";
+import {
+  Button,
+  FormControl,
+  FormLabel,
+  HStack,
+  Text,
+  VStack,
+} from "@hope-ui/solid";
+import { createSignal, onMount, Show } from "solid-js";
 import { Locale } from "@locale";
 import {
   getPrivilegedHostsHelperStatus,
@@ -7,6 +14,20 @@ import {
   PrivilegedHostsHelperStatus,
   uninstallPrivilegedHostsHelper,
 } from "../privileged-hosts";
+
+export async function checkHostsHelperInstalled(locale: Locale) {
+  const status = await getPrivilegedHostsHelperStatus();
+  if (status == "not-installed" || status == "error") {
+    locale.alert(
+      "SETTING_HOSTS_HELPER",
+      status == "not-installed"
+        ? "SETTING_HOSTS_HELPER_STATUS_NOT_INSTALLED"
+        : "SETTING_HOSTS_HELPER_STATUS_ERROR",
+      [],
+      "warning"
+    );
+  }
+}
 
 function statusKey(status: PrivilegedHostsHelperStatus) {
   switch (status) {
@@ -51,42 +72,42 @@ export function HostsHelperControl(props: { locale: Locale }) {
   });
 
   return (
-    <VStack
-      class="hosts-helper-control"
-      spacing={"$2"}
-      alignItems="start"
-      mt={"$2"}
-      w="100%"
-    >
-      <Box>
-        <Text size="xs" color="$neutral11" userSelect="none">
-          {props.locale.get("SETTING_HOSTS_HELPER")}
-        </Text>
-        <Text size="xs" color="$neutral11" userSelect="none">
-          {props.locale.get(statusKey(status()))}
-        </Text>
-      </Box>
-      <HStack spacing={"$2"}>
-        <Button
-          size="xs"
-          variant="ghost"
-          disabled={busy() || status() == "running"}
-          onClick={() => run(installPrivilegedHostsHelper)}
-        >
-          {props.locale.get("SETTING_HOSTS_HELPER_INSTALL")}
-        </Button>
-        <Button
-          size="xs"
-          variant="ghost"
-          colorScheme="danger"
-          disabled={busy() || status() == "not-installed"}
-          onClick={() => run(uninstallPrivilegedHostsHelper)}
-        >
-          {props.locale.get("SETTING_HOSTS_HELPER_UNINSTALL")}
-        </Button>
-        <Button size="xs" variant="ghost" disabled={busy()} onClick={refresh}>
-          {props.locale.get("SETTING_HOSTS_HELPER_REFRESH")}
-        </Button>
+    <FormControl class="hosts-helper-control" w="100%">
+      <HStack w="100%" justifyContent="space-between" alignItems="center">
+        <VStack spacing={"$1"} alignItems="start">
+          <FormLabel mb={0}>
+            {props.locale.get("SETTING_HOSTS_HELPER")}
+          </FormLabel>
+          <Text size="xs" color="$neutral11" userSelect="none">
+            {props.locale.get(statusKey(status()))}
+          </Text>
+        </VStack>
+        <HStack spacing={"$2"}>
+          <Show when={status() != "running" && status() != "installed-stopped"}>
+            <Button
+              size="xs"
+              variant="ghost"
+              disabled={busy()}
+              onClick={() => run(installPrivilegedHostsHelper)}
+            >
+              {props.locale.get("SETTING_HOSTS_HELPER_INSTALL")}
+            </Button>
+          </Show>
+          <Show when={status() != "not-installed"}>
+            <Button
+              size="xs"
+              variant="ghost"
+              colorScheme="danger"
+              disabled={busy()}
+              onClick={() => run(uninstallPrivilegedHostsHelper)}
+            >
+              {props.locale.get("SETTING_HOSTS_HELPER_UNINSTALL")}
+            </Button>
+          </Show>
+          <Button size="xs" variant="ghost" disabled={busy()} onClick={refresh}>
+            {props.locale.get("SETTING_HOSTS_HELPER_REFRESH")}
+          </Button>
+        </HStack>
       </HStack>
       <Text
         size="xs"
@@ -96,6 +117,6 @@ export function HostsHelperControl(props: { locale: Locale }) {
       >
         {error()}
       </Text>
-    </VStack>
+    </FormControl>
   );
 }

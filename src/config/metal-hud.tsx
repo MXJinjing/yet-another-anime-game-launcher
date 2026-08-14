@@ -44,10 +44,13 @@ export async function createMetalHUDConfig({
 
   return [
     function UI() {
+      const label = locale.currentLanguage.startsWith("zh")
+        ? "启用 Metal HUD"
+        : "Enable Metal HUD";
       return (
         <SettingSwitch
           id="metalHud"
-          label={locale.get("SETTING_MTL_HUD")}
+          label={label}
           checked={value()}
           onChange={setValue}
         />

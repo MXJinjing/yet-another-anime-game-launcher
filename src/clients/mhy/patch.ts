@@ -1,5 +1,11 @@
 import { gt } from "semver";
-import { dirname, join } from "path-browserify";
+import {
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve as resolvePath,
+} from "path-browserify";
 import {
   CommonProgressUICommand,
   CommonUpdateProgram,
@@ -15,6 +21,8 @@ import {
   setKey,
   cp,
   resolve,
+  readFile,
+  writeFile,
   removeFileIfExists,
   fileOrDirExists,
   getKeyOrDefault,
@@ -294,29 +302,51 @@ export async function* patchRevertProgram(
 }
 
 // ---------------------------------------------------------------------------
-// Workaround #4: replace the game's bundled mhypbase.dll with a user-provided
-// older version. Some game versions (notably 6.7) immediately exit during an
-// offline launch because the bundled mhypbase.dll version is incompatible
-// with the launcher's offline-launch flow; replacing it with an older
-// version (manually supplied by the user) restores offline-launch ability.
+// Generic runtime file replacement. The launcher only backs up and restores
+// files selected by the user; it does not bundle or redistribute any game
+// files. Each enabled row is validated before anything is touched, so an
+// invalid row fails the whole launch with an explicit error.
 //
-// Legal posture: the launcher DOES NOT redistribute the replacement file.
-// The user supplies a path (via Settings -> Launch Fix #4) to a file that
-// they themselves acquired. The launcher only:
-//   1. verifies the two files differ (byte-level `cmp`)
-//   2. backs up the game's current file as <file>.yaagl-replaced.bak
-//   3. copies the user-supplied file into the game directory
-//
-// Reverting (when the user clears or changes the path) restores the backup.
-//
-// This runs OUTSIDE the `patchProgram` / `patched` storage gate so the
-// user can change the path at any time and have it take effect on the next
-// launch — independent of whether the one-time `patched` flag is set.
+// Backups use <target>.yaagl-runtime.bak, and temporary copies use
+// <target>.yaagl-runtime.tmp. A small manifest in the game directory lets
+// revert restore every backup without scanning the entire game tree.
 // ---------------------------------------------------------------------------
 
-const MHYPBASE_FILE = "mhypbase.dll";
-const MHYPBASE_BAK_SUFFIX = ".yaagl-replaced.bak";
-const MHYPBASE_TMP_SUFFIX = ".yaagl-new.tmp";
+export type RuntimeReplacementEntry = {
+  enabled: boolean;
+  targetRelativePath: string;
+  replacementPath: string;
+};
+
+export type RuntimeReplacementManifest = {
+  gameDir: string;
+  backups: Array<{
+    targetRelativePath: string;
+    backupRelativePath: string;
+  }>;
+};
+
+type RuntimeReplacementPlan = {
+  entry: RuntimeReplacementEntry;
+  targetRelativePath: string;
+  target: string;
+  backup: string;
+  tmp: string;
+  source: string;
+};
+
+type RuntimeReplacementConfigShape = {
+  runtimeReplacementsEnabled?: boolean;
+  runtimeReplacements?: RuntimeReplacementEntry[];
+  workaround4?: boolean;
+  mhypBaseReplacementPath?: string;
+};
+
+const RUNTIME_BAK_SUFFIX = ".yaagl-runtime.bak";
+const RUNTIME_TMP_SUFFIX = ".yaagl-runtime.tmp";
+const LEGACY_BAK_SUFFIX = ".yaagl-replaced.bak";
+const LEGACY_TMP_SUFFIX = ".yaagl-new.tmp";
+const RUNTIME_MANIFEST_FILE = ".yaagl-runtime-replacements.json";
 
 // Returns true if the two files have different bytes (or if the source
 // exists and the destination does not). Returns false if (a) the source
@@ -346,108 +376,373 @@ async function isFile(path: string): Promise<boolean> {
   }
 }
 
+function normalizePathSeparators(path: string): string {
+  return path.trim().replaceAll("\\", "/");
+}
+
 function trimTrailingSlash(path: string): string {
   return path.replace(/\/+$/, "");
 }
 
 function samePath(a: string, b: string): boolean {
-  return trimTrailingSlash(resolve(a)) === trimTrailingSlash(resolve(b));
+  return (
+    trimTrailingSlash(resolvePath(a)) === trimTrailingSlash(resolvePath(b))
+  );
 }
 
-async function restoreMhypBaseBackup(target: string, backup: string) {
+function isRuntimeReplacementEntry(
+  value: unknown
+): value is RuntimeReplacementEntry {
+  if (!value || typeof value != "object") return false;
+  const entry = value as Partial<RuntimeReplacementEntry>;
+  return (
+    typeof entry.enabled == "boolean" &&
+    typeof entry.targetRelativePath == "string" &&
+    typeof entry.replacementPath == "string"
+  );
+}
+
+function getRuntimeReplacementConfig(config: Config): {
+  enabled: boolean;
+  entries: RuntimeReplacementEntry[];
+} {
+  const runtimeConfig = config as Config & RuntimeReplacementConfigShape;
+  if (typeof runtimeConfig.runtimeReplacementsEnabled == "boolean") {
+    return {
+      enabled: runtimeConfig.runtimeReplacementsEnabled,
+      entries: (runtimeConfig.runtimeReplacements ?? []).filter(
+        isRuntimeReplacementEntry
+      ),
+    };
+  }
+
+  const legacyPath = runtimeConfig.mhypBaseReplacementPath?.trim() ?? "";
+  if (runtimeConfig.workaround4 && legacyPath) {
+    return {
+      enabled: true,
+      entries: [
+        {
+          enabled: true,
+          targetRelativePath: "mhypbase.dll",
+          replacementPath: legacyPath,
+        },
+      ],
+    };
+  }
+  return { enabled: false, entries: [] };
+}
+
+export function isSafeTargetRelativePath(
+  targetRelativePath: string,
+  gameDir: string
+): boolean {
+  const target = normalizePathSeparators(targetRelativePath);
+  if (!target) return false;
+  if (isAbsolute(target) || /^[A-Za-z]:[/\\]/.test(target)) return false;
+  const base = resolvePath(gameDir);
+  const resolved = resolvePath(base, target);
+  const rel = relative(base, resolved);
+  return rel != "" && !rel.startsWith("..") && !isAbsolute(rel);
+}
+
+function resolveReplacementCandidates(
+  gameDir: string,
+  replacementPath: string
+): string[] {
+  const normalized = normalizePathSeparators(replacementPath);
+  if (!normalized) return [];
+  if (isAbsolute(normalized) || /^[A-Za-z]:[/\\]/.test(normalized)) {
+    return [resolvePath(normalized)];
+  }
+  // Relative replacement paths are tried against the game directory first,
+  // then against the launcher directory.
+  return [resolvePath(gameDir, normalized), resolve(normalized)];
+}
+
+async function findFirstExistingFile(
+  paths: string[]
+): Promise<string | undefined> {
+  for (const path of paths) {
+    if (await isFile(path)) return path;
+  }
+  return undefined;
+}
+
+async function restoreRuntimeBackup(target: string, backup: string) {
   if (await fileOrDirExists(backup)) {
     await forceMove(backup, target);
-    await log(`restoreMhypBaseBackup: restored ${target} from ${backup}`);
+    await log(`restoreRuntimeBackup: restored ${target} from ${backup}`);
   }
+}
+
+function runtimeManifestPath(gameDir: string): string {
+  return join(gameDir, RUNTIME_MANIFEST_FILE);
+}
+
+async function readRuntimeManifest(
+  gameDir: string
+): Promise<RuntimeReplacementManifest | null> {
+  try {
+    const raw = await readFile(runtimeManifestPath(gameDir));
+    const parsed = JSON.parse(raw) as Partial<RuntimeReplacementManifest>;
+    if (
+      !parsed ||
+      typeof parsed.gameDir != "string" ||
+      !Array.isArray(parsed.backups)
+    ) {
+      return null;
+    }
+    return parsed as RuntimeReplacementManifest;
+  } catch {
+    return null;
+  }
+}
+
+async function writeRuntimeManifest(
+  gameDir: string,
+  backups: RuntimeReplacementManifest["backups"]
+) {
+  await writeFile(
+    runtimeManifestPath(gameDir),
+    JSON.stringify({ gameDir, backups })
+  );
+}
+
+async function restoreRuntimeManifest(gameDir: string): Promise<boolean> {
+  const manifest = await readRuntimeManifest(gameDir);
+  if (!manifest || !samePath(manifest.gameDir, gameDir)) return false;
+  const backups = manifest.backups.filter(
+    record =>
+      record &&
+      typeof record.targetRelativePath == "string" &&
+      typeof record.backupRelativePath == "string"
+  );
+  for (const record of backups) {
+    const targetRelativePath = normalizePathSeparators(
+      record.targetRelativePath
+    );
+    const backupRelativePath = normalizePathSeparators(
+      record.backupRelativePath
+    );
+    const target = join(gameDir, targetRelativePath);
+    const backup = join(gameDir, backupRelativePath);
+    await restoreRuntimeBackup(target, backup);
+    await removeFileIfExists(target + RUNTIME_TMP_SUFFIX);
+  }
+  await removeFileIfExists(runtimeManifestPath(gameDir));
+  return true;
+}
+
+async function findRuntimeFiles(
+  gameDir: string,
+  suffixes: string[]
+): Promise<string[]> {
+  const results = await Promise.all(
+    suffixes.map(suffix =>
+      exec(["find", gameDir, "-type", "f", "-name", `*${suffix}`], {}, false)
+    )
+  );
+  return results.flatMap(result =>
+    result.stdOut
+      .split("\n")
+      .map(line => line.trim())
+      .filter(Boolean)
+  );
+}
+
+async function restoreRuntimeBackupsFromScan(gameDir: string) {
+  const backupFiles = await findRuntimeFiles(gameDir, [
+    RUNTIME_BAK_SUFFIX,
+    LEGACY_BAK_SUFFIX,
+  ]);
+  for (const backup of backupFiles) {
+    const suffix = backup.endsWith(LEGACY_BAK_SUFFIX)
+      ? LEGACY_BAK_SUFFIX
+      : RUNTIME_BAK_SUFFIX;
+    const target = backup.slice(0, -suffix.length);
+    await restoreRuntimeBackup(target, backup);
+    await removeFileIfExists(target + RUNTIME_TMP_SUFFIX);
+    if (suffix == LEGACY_BAK_SUFFIX) {
+      await removeFileIfExists(target + LEGACY_TMP_SUFFIX);
+    }
+  }
+  const tmpFiles = await findRuntimeFiles(gameDir, [
+    RUNTIME_TMP_SUFFIX,
+    LEGACY_TMP_SUFFIX,
+  ]);
+  for (const tmp of tmpFiles) {
+    await removeFileIfExists(tmp);
+  }
+  await removeFileIfExists(runtimeManifestPath(gameDir));
+}
+
+async function restoreLegacyMhypBaseBackups(gameDir: string) {
+  const target = join(gameDir, "mhypbase.dll");
+  await restoreRuntimeBackup(target, target + LEGACY_BAK_SUFFIX);
+  await restoreRuntimeBackup(target, target + RUNTIME_BAK_SUFFIX);
+  await removeFileIfExists(target + LEGACY_TMP_SUFFIX);
+  await removeFileIfExists(target + RUNTIME_TMP_SUFFIX);
+}
+
+async function buildRuntimeReplacementPlans(
+  gameDir: string,
+  entries: RuntimeReplacementEntry[]
+): Promise<RuntimeReplacementPlan[]> {
+  const failures: string[] = [];
+  const plans: RuntimeReplacementPlan[] = [];
+  const seenTargets = new Set<string>();
+
+  for (const [index, entry] of entries.entries()) {
+    if (!entry.enabled) continue;
+    const targetRelativePath = normalizePathSeparators(
+      entry.targetRelativePath
+    );
+    const replacementPath = entry.replacementPath.trim();
+    const label = `第 ${index + 1} 行 (target="${
+      entry.targetRelativePath
+    }", replacement="${replacementPath}")`;
+
+    if (!isSafeTargetRelativePath(targetRelativePath, gameDir)) {
+      failures.push(`目标路径无效：${label}`);
+      continue;
+    }
+    if (!replacementPath) {
+      failures.push(`缺少替换文件：${label}`);
+      continue;
+    }
+
+    const target = join(gameDir, targetRelativePath);
+    const backup = target + RUNTIME_BAK_SUFFIX;
+    const tmp = target + RUNTIME_TMP_SUFFIX;
+    const legacyBackup = target + LEGACY_BAK_SUFFIX;
+    const legacyTmp = target + LEGACY_TMP_SUFFIX;
+    const source = await findFirstExistingFile(
+      resolveReplacementCandidates(gameDir, replacementPath)
+    );
+    if (!source) {
+      failures.push(`替换文件不存在：${label}`);
+      continue;
+    }
+    if (!(await isFile(target))) {
+      failures.push(`待替换文件不存在：${label}`);
+      continue;
+    }
+    if (
+      samePath(source, target) ||
+      samePath(source, backup) ||
+      samePath(source, tmp) ||
+      samePath(source, legacyBackup) ||
+      samePath(source, legacyTmp)
+    ) {
+      failures.push(`替换文件指向目标或其备份：${label}`);
+      continue;
+    }
+
+    const normalizedTarget = resolvePath(target);
+    if (seenTargets.has(normalizedTarget)) {
+      failures.push(`重复目标路径：${label}`);
+      continue;
+    }
+    seenTargets.add(normalizedTarget);
+    plans.push({
+      entry,
+      targetRelativePath,
+      target,
+      backup,
+      tmp,
+      source,
+    });
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`运行时文件替换配置无效：${failures.join("；")}`);
+  }
+  return plans;
 }
 
 export async function applyMhypBaseReplacement(
   gameDir: string,
   config: Config
 ): Promise<boolean> {
-  const target = join(gameDir, MHYPBASE_FILE);
-  const backup = join(gameDir, MHYPBASE_FILE + MHYPBASE_BAK_SUFFIX);
-  const tmp = join(gameDir, MHYPBASE_FILE + MHYPBASE_TMP_SUFFIX);
-
-  // Toggle off or no path set -> restore original so the game boots clean.
-  if (!config.workaround4) {
-    await restoreMhypBaseBackup(target, backup);
+  const runtime = getRuntimeReplacementConfig(config);
+  if (!runtime.enabled || runtime.entries.length == 0) {
+    await revertMhypBaseReplacement(gameDir);
     return false;
   }
 
-  const source = config.mhypBaseReplacementPath?.trim();
-  if (!source) {
-    await restoreMhypBaseBackup(target, backup);
+  // Restore any leftovers from a previous launch before applying the new set.
+  await revertMhypBaseReplacement(gameDir);
+  const plans = await buildRuntimeReplacementPlans(gameDir, runtime.entries);
+  if (plans.length == 0) {
+    await revertMhypBaseReplacement(gameDir);
     return false;
   }
 
-  if (!(await isFile(source))) {
-    await log(
-      `applyMhypBaseReplacement: source path is not a file, skipping: ${source}`
-    );
-    return false;
-  }
-
-  if (!(await isFile(target))) {
-    await log(
-      `applyMhypBaseReplacement: target mhypbase.dll is missing, skipping: ${target}`
-    );
-    return false;
-  }
-
-  if (samePath(source, target) || samePath(source, backup)) {
-    await log(
-      `applyMhypBaseReplacement: source path points at the game file or backup, skipping: ${source}`
-    );
-    return false;
-  }
-
-  if (!(await filesDiffer(source, target))) {
-    const hasBackup = await fileOrDirExists(backup);
-    await log(
-      `applyMhypBaseReplacement: target already matches source, restore after launch: ${hasBackup}`
-    );
-    return hasBackup;
-  }
-
+  const appliedBackups: RuntimeReplacementManifest["backups"] = [];
+  let applied = false;
   try {
-    await removeFileIfExists(tmp);
-    await cp(source, tmp);
-    if (await filesDiffer(source, tmp)) {
-      throw new Error(`temporary copy verification failed: ${tmp}`);
-    }
+    // Write the manifest before touching any file so a crash mid-apply still
+    // leaves a complete list for revert.
+    await writeRuntimeManifest(
+      gameDir,
+      plans.map(plan => ({
+        targetRelativePath: plan.targetRelativePath,
+        backupRelativePath: plan.targetRelativePath + RUNTIME_BAK_SUFFIX,
+      }))
+    );
+    for (const plan of plans) {
+      await restoreRuntimeBackup(plan.target, plan.backup);
+      await restoreRuntimeBackup(plan.target, plan.target + LEGACY_BAK_SUFFIX);
+      await removeFileIfExists(plan.tmp);
 
-    // Only back up the original once; never overwrite a known-good original.
-    if (await fileOrDirExists(backup)) {
+      if (!(await filesDiffer(plan.source, plan.target))) {
+        await log(
+          `applyRuntimeReplacements: target already matches source, skipping: ${plan.target}`
+        );
+        continue;
+      }
+
+      await cp(plan.source, plan.tmp);
+      if (await filesDiffer(plan.source, plan.tmp)) {
+        throw new Error(`临时副本校验失败：${plan.tmp}`);
+      }
+      await forceMove(plan.target, plan.backup);
+      await forceMove(plan.tmp, plan.target);
+      applied = true;
+      appliedBackups.push({
+        targetRelativePath: plan.targetRelativePath,
+        backupRelativePath: plan.targetRelativePath + RUNTIME_BAK_SUFFIX,
+      });
       await log(
-        `applyMhypBaseReplacement: existing backup found at ${backup}, not overwriting`
+        `applyRuntimeReplacements: 已临时替换 ${plan.target} <- ${plan.source}`
       );
-    } else {
-      await forceMove(target, backup);
-      await log(`applyMhypBaseReplacement: backed up original to ${backup}`);
     }
 
-    await forceMove(tmp, target);
-    await log(`applyMhypBaseReplacement: temporarily installed ${source}`);
-    return true;
+    await writeRuntimeManifest(gameDir, appliedBackups);
+    return applied;
   } catch (e) {
-    await removeFileIfExists(tmp);
-    await restoreMhypBaseBackup(target, backup);
+    for (const plan of plans) {
+      await removeFileIfExists(plan.tmp);
+      await restoreRuntimeBackup(plan.target, plan.backup);
+    }
+    await writeRuntimeManifest(gameDir, []);
     await log(
-      `applyMhypBaseReplacement: failed and restored original if needed: ${String(
+      `applyRuntimeReplacements: failed and restored applied entries: ${String(
         e
       )}`
     );
-    return false;
+    throw e;
   }
 }
 
 export async function revertMhypBaseReplacement(
   gameDir: string
 ): Promise<void> {
-  const target = join(gameDir, MHYPBASE_FILE);
-  const backup = join(gameDir, MHYPBASE_FILE + MHYPBASE_BAK_SUFFIX);
-  const tmp = join(gameDir, MHYPBASE_FILE + MHYPBASE_TMP_SUFFIX);
-  await removeFileIfExists(tmp);
-  await restoreMhypBaseBackup(target, backup);
+  if (!(await restoreRuntimeManifest(gameDir))) {
+    if (await fileOrDirExists(runtimeManifestPath(gameDir))) {
+      await restoreRuntimeBackupsFromScan(gameDir);
+    } else {
+      await restoreLegacyMhypBaseBackups(gameDir);
+    }
+  }
 }

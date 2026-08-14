@@ -46,10 +46,14 @@ export default async function ({
 
   return [
     function UI() {
+      const description = locale.currentLanguage.startsWith("zh")
+        ? "跳过游戏文件补丁，适合游戏补丁冲突或失效时使用。"
+        : "Skip game file patching when it causes conflicts or fails.";
       return (
         <SettingSwitch
           id="patchOff"
           label={locale.get("SETTING_TURN_OFF_AC_PATCH")}
+          description={description}
           checked={value()}
           onChange={setValue}
         />

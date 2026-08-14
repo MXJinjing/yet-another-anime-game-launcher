@@ -1,4 +1,13 @@
 import { getActiveStorageNamespace } from "./utils/neu";
+import {
+  cancelStream,
+  DownloadStream,
+  getStreams,
+  getStreamsByKey,
+  pauseStream,
+  resumeStream,
+  subscribe,
+} from "./download-queue";
 
 export type DownloadControlState = {
   active: boolean;
@@ -9,29 +18,7 @@ export type DownloadControlState = {
   canCancel: boolean;
 };
 
-type DownloadControlActions = {
-  pause?: () => Promise<void>;
-  resume?: () => Promise<void>;
-  cancel?: () => Promise<void>;
-};
-
-const defaultState: DownloadControlState = {
-  active: false,
-  paused: false,
-  pauseRequested: false,
-  actionPending: false,
-  canPause: false,
-  canCancel: false,
-};
-
 const DEFAULT_KEY = "";
-
-const states = new Map<string, DownloadControlState>();
-const actionsByKey = new Map<string, DownloadControlActions>();
-const listenersByKey = new Map<
-  string,
-  Set<(state: DownloadControlState) => void>
->();
 
 export class DownloadCancelledError extends Error {
   constructor(message = "Download cancelled") {
@@ -65,6 +52,51 @@ function resolveKey(key?: string) {
   return getActiveStorageNamespace() ?? DEFAULT_KEY;
 }
 
+const listenersByKey = new Map<
+  string,
+  Set<(state: DownloadControlState) => void>
+>();
+
+// Transient UI state (in-flight pause/resume) that the queue manager doesn't
+// track. Everything else is derived from the download-queue manager so this
+// module and the download-manager modal always share the same source of truth.
+const pendingByKey = new Map<
+  string,
+  { pauseRequested: boolean; actionPending: boolean }
+>();
+
+let queueUnsubscribe: (() => void) | null = null;
+
+function getPending(key: string) {
+  return (
+    pendingByKey.get(key) ?? { pauseRequested: false, actionPending: false }
+  );
+}
+
+function isTerminal(status: DownloadStream["status"]) {
+  return status === "completed" || status === "error" || status === "cancelled";
+}
+
+function computeState(key: string): DownloadControlState {
+  const streams = getStreamsByKey(key);
+  const pending = getPending(key);
+  const paused = streams.some(stream => stream.status === "paused");
+  return {
+    active: streams.some(stream => !isTerminal(stream.status)),
+    paused,
+    // Pausing from the download manager also flips the primary button to
+    // "paused"/resume; it isn't a transient request in this module.
+    pauseRequested: pending.pauseRequested || paused,
+    actionPending: pending.actionPending,
+    canPause: streams.some(
+      stream => stream.status === "active" && stream.canPause
+    ),
+    canCancel: streams.some(
+      stream => !isTerminal(stream.status) && stream.canCancel
+    ),
+  };
+}
+
 function getListeners(key: string) {
   let set = listenersByKey.get(key);
   if (!set) {
@@ -74,19 +106,31 @@ function getListeners(key: string) {
   return set;
 }
 
-function getState(key: string) {
-  return states.get(key) ?? defaultState;
-}
-
-function emit(key: string) {
-  const snapshot = { ...getState(key) };
+function emitKey(key: string) {
+  const snapshot = { ...computeState(key) };
   for (const listener of getListeners(key)) {
     listener(snapshot);
   }
 }
 
+function ensureQueueSubscription() {
+  if (queueUnsubscribe) return;
+  queueUnsubscribe = subscribe(() => {
+    for (const key of listenersByKey.keys()) {
+      emitKey(key);
+    }
+  });
+}
+
 export function getDownloadControlState(key?: string) {
-  return { ...getState(resolveKey(key)) };
+  return computeState(resolveKey(key));
+}
+
+/** True when any download (per-game or launcher-global) is still in progress,
+ *  including paused-but-not-finished downloads. Used to guard the launcher
+ *  close flow so an active download can't be interrupted silently. */
+export function hasActiveDownloads() {
+  return getStreams().some(stream => !isTerminal(stream.status));
 }
 
 export function subscribeDownloadControl(
@@ -95,101 +139,80 @@ export function subscribeDownloadControl(
 ) {
   const resolved = resolveKey(key);
   getListeners(resolved).add(listener);
-  listener(getDownloadControlState(resolved));
+  ensureQueueSubscription();
+  emitKey(resolved);
   return () => getListeners(resolved).delete(listener);
 }
 
+// Deprecated: download state is derived from the download-queue manager, so
+// these no longer store anything. Kept as no-ops so existing callers (the
+// aria2 / sophon adapters) don't need changes.
 export function beginControlledDownload(
-  downloadActions: DownloadControlActions,
-  key?: string
-) {
-  const resolved = resolveKey(key);
-  actionsByKey.set(resolved, downloadActions);
-  states.set(resolved, {
-    active: true,
-    paused: false,
-    pauseRequested: false,
-    actionPending: false,
-    canPause: Boolean(downloadActions.pause && downloadActions.resume),
-    canCancel: Boolean(downloadActions.cancel),
-  });
-  emit(resolved);
-}
+  _downloadActions: {
+    pause?: () => Promise<void>;
+    resume?: () => Promise<void>;
+    cancel?: () => Promise<void>;
+  },
+  _key?: string
+) {} // eslint-disable-line @typescript-eslint/no-empty-function -- intentional no-op, see above
 
 export function updateControlledDownload(
-  patch: Partial<
+  _patch: Partial<
     Pick<DownloadControlState, "paused" | "pauseRequested" | "actionPending">
   >,
-  key?: string
-) {
-  const resolved = resolveKey(key);
-  states.set(resolved, { ...getState(resolved), ...patch });
-  emit(resolved);
-}
+  _key?: string
+) {} // eslint-disable-line @typescript-eslint/no-empty-function -- intentional no-op, see above
 
-export function endControlledDownload(key?: string) {
-  const resolved = resolveKey(key);
-  actionsByKey.delete(resolved);
-  states.set(resolved, { ...defaultState });
-  emit(resolved);
-}
+export function endControlledDownload(_key?: string) {} // eslint-disable-line @typescript-eslint/no-empty-function -- intentional no-op, see above
 
 export async function pauseControlledDownload(key?: string) {
   const resolved = resolveKey(key);
-  const state = getState(resolved);
-  const actions = actionsByKey.get(resolved);
-  if (
-    !state.active ||
-    state.pauseRequested ||
-    state.actionPending ||
-    !actions?.pause
-  ) {
-    return;
-  }
-  updateControlledDownload(
-    { pauseRequested: true, actionPending: true },
-    resolved
+  const targets = getStreamsByKey(resolved).filter(
+    stream => stream.status === "active" && stream.canPause
   );
+  if (targets.length === 0) return;
+  pendingByKey.set(resolved, { pauseRequested: true, actionPending: true });
+  emitKey(resolved);
   try {
-    await actions.pause();
-  } catch (error) {
-    updateControlledDownload({ pauseRequested: state.paused }, resolved);
-    throw error;
+    for (const stream of targets) {
+      await pauseStream(stream.id);
+    }
   } finally {
-    updateControlledDownload({ actionPending: false }, resolved);
+    pendingByKey.set(resolved, {
+      ...getPending(resolved),
+      actionPending: false,
+    });
+    emitKey(resolved);
   }
 }
 
 export async function resumeControlledDownload(key?: string) {
   const resolved = resolveKey(key);
-  const state = getState(resolved);
-  const actions = actionsByKey.get(resolved);
-  if (
-    !state.active ||
-    !state.pauseRequested ||
-    state.actionPending ||
-    !actions?.resume
-  ) {
-    return;
-  }
-  updateControlledDownload(
-    { pauseRequested: false, actionPending: true },
-    resolved
+  const targets = getStreamsByKey(resolved).filter(
+    stream => stream.status === "paused" && stream.canResume
   );
+  if (targets.length === 0) return;
+  pendingByKey.set(resolved, { pauseRequested: false, actionPending: true });
+  emitKey(resolved);
   try {
-    await actions.resume();
-  } catch (error) {
-    updateControlledDownload({ pauseRequested: state.paused }, resolved);
-    throw error;
+    for (const stream of targets) {
+      await resumeStream(stream.id);
+    }
   } finally {
-    updateControlledDownload({ actionPending: false }, resolved);
+    pendingByKey.set(resolved, {
+      ...getPending(resolved),
+      actionPending: false,
+    });
+    emitKey(resolved);
   }
 }
 
 export async function cancelControlledDownload(key?: string) {
   const resolved = resolveKey(key);
-  const state = getState(resolved);
-  const actions = actionsByKey.get(resolved);
-  if (!state.active || !actions?.cancel) return;
-  await actions.cancel();
+  const targets = getStreamsByKey(resolved).filter(
+    stream => !isTerminal(stream.status) && stream.canCancel
+  );
+  for (const stream of targets) {
+    await cancelStream(stream.id);
+  }
 }

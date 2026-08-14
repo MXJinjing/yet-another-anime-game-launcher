@@ -1,5 +1,6 @@
 import { Locale } from "@locale";
 import { Server } from "@constants";
+import { ChannelClientBackground } from "../../channel-client";
 import {
   HoyoConnectGameBackground,
   HoyoConnectGameBackgroundType,
@@ -22,7 +23,7 @@ async function fetch(url: string) {
 export async function getLatestAdvInfo(
   locale: Locale,
   server: Server
-): Promise<HoyoConnectGameBackground> {
+): Promise<HoyoConnectGameBackground[]> {
   const ret: HoyoConnectGetAllGameBasicInfoResponse = await (
     await fetch(
       server.adv_url +
@@ -45,7 +46,20 @@ export async function getLatestAdvInfo(
     if (!isAVideo && isBVideo) return 1;
     return 0;
   });
-  return sortedBackgrounds[0];
+  return sortedBackgrounds;
+}
+
+/** Map raw adv backgrounds to the normalized UI shape used by the launcher. */
+export function mapBackgroundsToUiContent(
+  backgrounds: HoyoConnectGameBackground[]
+): ChannelClientBackground[] {
+  return backgrounds.map(bg => ({
+    id: bg.id,
+    background: bg.background.url,
+    background_video: bg.video.url,
+    background_theme: bg.theme.url,
+    type: bg.type,
+  }));
 }
 
 export async function getLatestVersionInfo(

@@ -1,22 +1,10 @@
-import {
-  Box,
-  Button,
-  HStack,
-  Popover,
-  PopoverArrow,
-  PopoverBody,
-  PopoverContent,
-  PopoverFooter,
-  PopoverHeader,
-  PopoverTrigger,
-  Text,
-  VStack,
-} from "@hope-ui/solid";
+import { Box, Button, HStack, Text, VStack } from "@hope-ui/solid";
 import { createSignal, For, Show } from "solid-js";
 import { Locale } from "../locale";
 import { Config } from "./config-def";
 import { getWineDistributions, isWineDistroInstalled } from "@wine";
 import type { WineDistribution } from "@wine";
+import "./wine-distribution.css";
 
 declare module "./config-def" {
   interface Config {
@@ -99,12 +87,12 @@ export async function createWineDistroConfig({
     );
   }
 
-  function getStatusDotColor(distro: WineDistribution) {
+  function getWineDistroStatus(distro: WineDistribution) {
     const installed = installedWineDistroIds().has(distro.id);
     const active = installed && activeWineDistroId() == distro.id;
-    if (active) return "$success9";
-    if (installed) return "$warning9";
-    return "$neutral8";
+    if (active) return "active";
+    if (installed) return "installed";
+    return "not-installed";
   }
 
   async function enableWineDistro(distro: WineDistribution) {
@@ -124,47 +112,62 @@ export async function createWineDistroConfig({
   return [
     function UI() {
       return (
-        <VStack spacing={"$2"} w="100%" alignItems="stretch">
-          <Text fontWeight="$semibold">
+        <VStack
+          class="wine-distribution"
+          spacing={"$2"}
+          w="100%"
+          alignItems="stretch"
+        >
+          <Text class="wine-distribution-heading" fontWeight="$semibold">
             {locale.get("SETTING_WINE_VERSION")}
           </Text>
           <For each={sortedVersions()}>
             {distro => {
-              const installed = () => installedWineDistroIds().has(distro.id);
-              const active = () =>
-                installed() && activeWineDistroId() == distro.id;
+              const status = () => getWineDistroStatus(distro);
+              const installed = () => status() != "not-installed";
+              const active = () => status() == "active";
               return (
                 <Box
-                  bg={active() ? "$success2" : undefined}
-                  border="1px solid"
-                  borderColor={active() ? "$success7" : "$neutral6"}
-                  borderRadius="$sm"
-                  px="$3"
-                  py="$2"
+                  class={`wine-distribution-version-row wine-distribution-version-row--${status()}`}
                 >
-                  <HStack justifyContent="space-between" spacing="$3">
-                    <VStack alignItems="start" spacing={0}>
-                      <HStack spacing="$2">
-                        <Box
-                          w="8px"
-                          h="8px"
-                          borderRadius="$full"
-                          bg={getStatusDotColor(distro)}
-                        />
-                        <Text>{distro.displayName}</Text>
-                      </HStack>
-                      <Text size="sm" color="$neutral11">
+                  <HStack
+                    class="wine-distribution-version-body"
+                    justifyContent="space-between"
+                    spacing="$3"
+                    alignItems="center"
+                  >
+                    <HStack
+                      class="wine-distribution-version-heading"
+                      spacing="$2"
+                      alignItems="center"
+                    >
+                      <Box
+                        class={`wine-distribution-status-dot wine-distribution-status-dot--${status()}`}
+                      />
+                      <Text class="wine-distribution-version-name">
+                        {distro.displayName}
+                      </Text>
+                      <Text
+                        class={`wine-distribution-status-label wine-distribution-status-label--${status()}`}
+                      >
                         {active()
                           ? locale.get("SETTING_WINE_STATUS_ENABLED")
                           : installed()
                           ? locale.get("SETTING_WINE_STATUS_INSTALLED")
                           : locale.get("SETTING_WINE_STATUS_NOT_INSTALLED")}
                       </Text>
-                    </VStack>
-                    <HStack spacing="$2">
+                    </HStack>
+                    <HStack
+                      class="wine-distribution-version-actions"
+                      spacing="$2"
+                    >
                       <Button
+                        class={
+                          active()
+                            ? "wine-distribution-button wine-distribution-button--active"
+                            : "wine-distribution-button wine-distribution-button--primary"
+                        }
                         size="sm"
-                        colorScheme={active() ? "neutral" : "primary"}
                         disabled={active() || wineActionDisabled()}
                         title={
                           wineActionDisabled()
@@ -180,21 +183,19 @@ export async function createWineDistroConfig({
                           : locale.get("SETTING_WINE_INSTALL")}
                       </Button>
                       <Show when={installed() && !active()}>
-                      <Button
-                        size="sm"
-                        colorScheme="danger"
-                        disabled={wineActionDisabled()}
-                        title={
-                          wineActionDisabled()
-                            ? locale.get(
-                                "SETTING_WINE_VERSION_UPDATE_BUSY"
-                              )
-                            : undefined
-                        }
-                        onClick={() => uninstallWineDistro(distro)}
-                      >
-                        {locale.get("SETTING_WINE_UNINSTALL")}
-                      </Button>
+                        <Button
+                          size="sm"
+                          class="wine-distribution-button wine-distribution-button--danger"
+                          disabled={wineActionDisabled()}
+                          title={
+                            wineActionDisabled()
+                              ? locale.get("SETTING_WINE_VERSION_UPDATE_BUSY")
+                              : undefined
+                          }
+                          onClick={() => uninstallWineDistro(distro)}
+                        >
+                          {locale.get("SETTING_WINE_UNINSTALL")}
+                        </Button>
                       </Show>
                     </HStack>
                   </HStack>

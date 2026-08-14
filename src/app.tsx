@@ -34,6 +34,9 @@ import { createCommonUpdateUI } from "./common-update-ui";
 import { createLocale } from "./locale";
 import { createClient } from "./clients";
 import { createSignal, Show, JSXElement } from "solid-js";
+import { reportBootProgress } from "./boot-progress";
+import { AppModal, AppModalButton } from "./components/app-modal";
+import { hasActiveDownloads } from "./download-control";
 import {
   Modal,
   ModalOverlay,
@@ -46,12 +49,15 @@ import {
 } from "@hope-ui/solid";
 
 export async function createApp() {
+  reportBootProgress("正在初始化", 0);
   await setKey("singleton", null);
 
   const aria2_port = 6868;
 
   const locale = await createLocale();
+  reportBootProgress("正在加载本地设置", 8);
   const github = await createGithubEndpoint();
+  reportBootProgress("正在检查网络连接", 14);
   const aria2_session = resolve("./aria2.session");
   await appendFile(aria2_session, "");
   const pid = (await exec(["echo", rawString("$PPID")])).stdOut.split("\n")[0];
@@ -94,14 +100,17 @@ export async function createApp() {
     )
   );
   await log(`Launched aria2 version ${aria2.version.version}`);
+  reportBootProgress("正在启动下载服务", 26);
   const initialUpdateCheck = await createUpdater({
     github,
     aria2,
   });
+  reportBootProgress("正在检查启动器更新", 36);
 
   const ignoredVersion = await getKeyOrDefault("ignore_launcher_update", "");
 
   const wineStatus = await checkWine(github);
+  reportBootProgress("正在检测 Wine 环境", 48);
   const prefixPath = resolve("./wineprefix"); // CHECK: hardcoded path?
 
   let showPromptSignal: (v: boolean) => void;
@@ -124,6 +133,7 @@ export async function createApp() {
     prefix: prefixPath,
     distro: wineStatus.wineDistribution,
   });
+  reportBootProgress("正在准备 Wine 环境", 58);
 
   async function resetWineEnv() {
     await wine.killAll();
@@ -134,15 +144,33 @@ export async function createApp() {
   let closeGameProcessesOnExit = true;
   let handlingWindowClose = false;
 
-  async function confirmCloseWhileGameRuns() {
-    const out = await Neutralino.os.showMessageBox(
-      locale.get("GAME_RUNNING_CLOSE_TITLE"),
-      locale.get("GAME_RUNNING_CLOSE_DESC"),
-      "YES_NO_CANCEL"
-    );
-    if (out == "YES") return "CLOSE_GAME";
-    if (out == "NO") return "KEEP_GAME";
-    return "CANCEL";
+  // Shared AppModal-based close confirmation, reused for both "a download is
+  // still running" and "a game is still running". `closePrompt` holds which
+  // confirmation is currently shown; the windowClose handler awaits the
+  // resolved decision. While it is pending, handlingWindowClose stays true so
+  // further close clicks are ignored.
+  const [closePrompt, setClosePrompt] = createSignal<
+    "download" | "game" | null
+  >(null);
+  let closePromptResolve:
+    | ((decision: "EXIT" | "CANCEL" | "CLOSE_GAME" | "KEEP_GAME") => void)
+    | undefined;
+
+  function waitForClosePrompt(
+    kind: "download" | "game"
+  ): Promise<"EXIT" | "CANCEL" | "CLOSE_GAME" | "KEEP_GAME"> {
+    return new Promise(resolve => {
+      closePromptResolve = resolve;
+      setClosePrompt(kind);
+    });
+  }
+
+  function resolveClosePrompt(
+    decision: "EXIT" | "CANCEL" | "CLOSE_GAME" | "KEEP_GAME"
+  ) {
+    setClosePrompt(null);
+    closePromptResolve?.(decision);
+    closePromptResolve = undefined;
   }
 
   await Neutralino.events.on("windowClose", async () => {
@@ -151,8 +179,12 @@ export async function createApp() {
     let shouldExit = false;
     try {
       closeGameProcessesOnExit = true;
+      if (hasActiveDownloads()) {
+        const decision = await waitForClosePrompt("download");
+        if (decision == "CANCEL") return;
+      }
       if (gameRunning) {
-        const decision = await confirmCloseWhileGameRuns();
+        const decision = await waitForClosePrompt("game");
         if (decision == "CANCEL") return;
         closeGameProcessesOnExit = decision == "CLOSE_GAME";
       }
@@ -191,6 +223,7 @@ export async function createApp() {
     }
     return true;
   });
+  reportBootProgress("正在初始化运行环境", 66);
   const channel = import.meta.env.YAAGL_CHANNEL_CLIENT || "hk4ecn";
   const isMergedChannel = channel == "yaaglos" || channel == "yaaglcn";
   let MainApp: () => JSXElement;
@@ -262,12 +295,14 @@ export async function createApp() {
     },
   };
   if (isMergedChannel) {
+    reportBootProgress("正在初始化游戏客户端", 66);
     MainApp = await createMultiGameLauncher({
       ...sharedLauncherProps,
       aria2,
       specs: channel == "yaaglcn" ? MULTI_GAME_CN_GAME_SPECS : undefined,
     });
   } else {
+    reportBootProgress("正在初始化游戏客户端", 66);
     MainApp = await createLauncher({
       ...sharedLauncherProps,
       aria2,
@@ -279,6 +314,7 @@ export async function createApp() {
       }),
     });
   }
+  reportBootProgress("初始化完成", 100);
 
   return function AppRoot() {
     const [updaterComponent, setUpdaterComponent] =
@@ -353,6 +389,65 @@ export async function createApp() {
             </ModalContent>
           </Modal>
         </Show>
+        {/* Shared close confirmation, reused for downloads-in-progress and
+            games-still-running. Rendered outside the updater Show so it's
+            available even while a launcher update UI replaces MainApp. Its
+            own X button and Esc are intentionally inert (onClose is a no-op);
+            only the footer buttons decide. */}
+        <AppModal
+          opened={closePrompt() != null}
+          onClose={() => undefined}
+          title={
+            closePrompt() == "game"
+              ? locale.get("GAME_RUNNING_CLOSE_TITLE")
+              : locale.get("DOWNLOAD_RUNNING_CLOSE_TITLE")
+          }
+          footer={
+            closePrompt() == "game" ? (
+              <>
+                <AppModalButton
+                  variant="secondary"
+                  onClick={() => resolveClosePrompt("CANCEL")}
+                >
+                  {locale.get("SETTING_CANCEL")}
+                </AppModalButton>
+                <AppModalButton
+                  variant="secondary"
+                  onClick={() => resolveClosePrompt("KEEP_GAME")}
+                >
+                  {locale.get("GAME_RUNNING_CLOSE_KEEP")}
+                </AppModalButton>
+                <AppModalButton
+                  variant="danger"
+                  onClick={() => resolveClosePrompt("CLOSE_GAME")}
+                >
+                  {locale.get("GAME_RUNNING_CLOSE_EXIT")}
+                </AppModalButton>
+              </>
+            ) : (
+              <>
+                <AppModalButton
+                  variant="secondary"
+                  onClick={() => resolveClosePrompt("CANCEL")}
+                >
+                  {locale.get("SETTING_CANCEL")}
+                </AppModalButton>
+                <AppModalButton
+                  variant="danger"
+                  onClick={() => resolveClosePrompt("EXIT")}
+                >
+                  {locale.get("DOWNLOAD_RUNNING_CLOSE_EXIT")}
+                </AppModalButton>
+              </>
+            )
+          }
+        >
+          <div class="app-modal-message">
+            {closePrompt() == "game"
+              ? locale.get("GAME_RUNNING_CLOSE_DESC")
+              : locale.get("DOWNLOAD_RUNNING_CLOSE_DESC")}
+          </div>
+        </AppModal>
       </>
     );
   };

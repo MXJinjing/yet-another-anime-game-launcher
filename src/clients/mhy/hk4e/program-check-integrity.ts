@@ -27,11 +27,58 @@ export async function* checkIntegrityProgram({
 
   yield ["setStateText", "SCANNING_FILES", "0", "0"];
 
+  let currentFileIndex = 0;
+  let totalFileCount = 0;
   for await (const progress of sophon.streamOperationProgress(taskId)) {
     switch (progress.type) {
       case "auto_update_start":
         yield ["setStateText", "UPDATING"];
         yield ["setUndeterminedProgress"];
+        break;
+
+      case "repair_summary":
+        totalFileCount = progress.total_files ?? 0;
+        currentFileIndex = 0;
+        break;
+
+      case "download_summary":
+        totalFileCount = progress.download_file_count ?? 0;
+        currentFileIndex = 0;
+        break;
+
+      case "file_download_start":
+        currentFileIndex += 1;
+        yield [
+          "setStateText",
+          "DOWNLOADING_FILE_PROGRESS",
+          "",
+          "",
+          "",
+          "",
+          "",
+          String(progress.current_file_index ?? currentFileIndex),
+          String(progress.total_file_count ?? totalFileCount),
+        ];
+        break;
+
+      case "ldiff_download_summary":
+        totalFileCount = progress.ldiff_file_count ?? 0;
+        currentFileIndex = 0;
+        break;
+
+      case "ldiff_download_start":
+        currentFileIndex += 1;
+        yield [
+          "setStateText",
+          "DOWNLOADING_FILE_PROGRESS",
+          basename(progress.filename),
+          "",
+          "",
+          "",
+          "",
+          String(progress.current_file_index ?? currentFileIndex),
+          String(progress.total_file_count ?? totalFileCount),
+        ];
         break;
 
       case "delete_file":
@@ -61,6 +108,8 @@ export async function* checkIntegrityProgram({
               progress.overall_progress.downloaded_size,
               progress.overall_progress.total_size
             ),
+            String(progress.current_file_index ?? currentFileIndex),
+            String(progress.total_file_count ?? totalFileCount),
           ];
           yield [
             "setProgress",
@@ -81,11 +130,24 @@ export async function* checkIntegrityProgram({
         break;
 
       case "chunk_progress":
-        log(`Chunk progress: ${progress.chunk_size} bytes downloaded`);
+        log(
+          `下载中 ${basename(progress.filename)}：${humanFileSize(
+            progress.overall_progress.downloaded_size
+          )}/${humanFileSize(
+            progress.overall_progress.total_size
+          )}（${downloadPercent(
+            progress.overall_progress.downloaded_size,
+            progress.overall_progress.total_size
+          )}%），速度 ${formatDownloadSpeed(
+            progress.overall_progress.download_speed
+          )}，文件 ${progress.current_file_index ?? currentFileIndex}/${
+            progress.total_file_count ?? totalFileCount
+          }`
+        );
         yield [
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
-          basename(progress.filename),
+          "",
           formatDownloadSpeed(progress.overall_progress.download_speed),
           humanFileSize(progress.overall_progress.downloaded_size),
           humanFileSize(progress.overall_progress.total_size),
@@ -93,6 +155,8 @@ export async function* checkIntegrityProgram({
             progress.overall_progress.downloaded_size,
             progress.overall_progress.total_size
           ),
+          String(progress.current_file_index ?? currentFileIndex),
+          String(progress.total_file_count ?? totalFileCount),
         ];
 
         yield [

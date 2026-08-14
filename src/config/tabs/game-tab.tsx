@@ -8,19 +8,21 @@ export function GameTab(props: {
   GameInstallDirConfig: () => JSXElement;
   ProxyEnabledConfig: () => JSXElement;
   ProxyHostConfig: () => JSXElement;
-  ChannelClientConfig: () => JSXElement;
+  MetalHUDConfig: () => JSXElement;
 }) {
   return (
     <TabPanel flex={1} px={20} pt={0} pb={0} h="100%" overflowY="auto">
       <VStack spacing={"$6"} w="100%" alignItems="start">
         <props.GameInstallDirConfig />
         <Divider />
-        <props.ProxyEnabledConfig />
-        <Show when={props.gameProxyEnabled()}>
-          <props.ProxyHostConfig />
-        </Show>
+        <VStack spacing={0} w="100%" alignItems="start">
+          <props.ProxyEnabledConfig />
+          <Show when={props.gameProxyEnabled()}>
+            <props.ProxyHostConfig />
+          </Show>
+        </VStack>
         <Divider />
-        <props.ChannelClientConfig />
+        <props.MetalHUDConfig />
       </VStack>
     </TabPanel>
   );

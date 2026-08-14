@@ -47,7 +47,11 @@ export async function createProxyHostConfig({
       return (
         <Box mt={"$2"} w="100%">
           <InputGroup>
-            <Input value={value()} onChange={e => setValue(e.target.value)} />
+            <Input
+              value={value()}
+              placeholder="127.0.0.1:8080"
+              onChange={e => setValue(e.target.value)}
+            />
           </InputGroup>
           <Text userSelect={"none"} size="xs" mt={"$1"}>
             {locale.get("SETTING_PROXY_DESC")}

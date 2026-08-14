@@ -4,6 +4,11 @@ import { HopeProvider, NotificationsProvider } from "@hope-ui/solid";
 import { amber } from "@radix-ui/colors";
 
 import { fatal } from "./utils";
+import {
+  getBootProgress,
+  getBootText,
+  reportBootProgress,
+} from "./boot-progress";
 
 function createPlates(
   tag: string,
@@ -30,14 +35,20 @@ if (typeof Neutralino == "undefined") {
   render(
     () => (
       <div class="app-boot">
-        <div class="app-boot-spinner" />
+        <div class="app-boot-main">
+          <div class="app-boot-spinner" />
+          <div class="app-boot-text">{getBootText()}</div>
+          <div class="app-boot-percent">{Math.round(getBootProgress())}%</div>
+        </div>
       </div>
     ),
     document.getElementById("root") as HTMLElement
   );
   Neutralino.window.show();
+  reportBootProgress("正在初始化", 0);
   createApp()
     .then(UI => {
+      reportBootProgress("正在进入主界面", 100);
       render(
         () => (
           <HopeProvider
@@ -58,5 +69,8 @@ if (typeof Neutralino == "undefined") {
       );
       Neutralino.window.show();
     })
-    .catch(fatal);
+    .catch(error => {
+      reportBootProgress("初始化失败", 100, String(error));
+      fatal(error);
+    });
 }

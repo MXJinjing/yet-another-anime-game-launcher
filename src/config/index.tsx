@@ -20,19 +20,22 @@ import { createProxyHostConfig } from "@config/proxy-host";
 import { ChannelClientConfigUI } from "../channel-client";
 import { createDownloadServerConfig } from "./download-server";
 import createThemeColorConfig from "./theme-color";
+import { createDisableVideoBackgroundConfig } from "./disable-video-background";
+import { createDebugModeConfig } from "./debug-mode";
+import { HostsHelperControl } from "./hosts-helper";
 // Advanced tab moved into VideoTab
 import { GameTab } from "./tabs/game-tab";
 import { GeneralTab } from "./tabs/general-tab";
-import { LicensesTab } from "./tabs/licenses-tab";
+import { LaunchTab } from "./tabs/launch-tab";
 import { VideoTab } from "./tabs/video-tab";
 import { WineTab } from "./tabs/wine-tab";
 import { GameWineTab } from "./tabs/game-wine-tab";
 
 /**
  * `scope` selects which tabs the settings modal shows:
- * - "global": General / Wine / Licenses. Wine environment controls (distro
+ * - "global": General / Wine. Wine environment controls (distro
  *   install/uninstall/reset) are managed here.
- * - "game": Game / Video, plus Wine only when per-game Wine props are
+ * - "game": Game / Video / Launch, plus Wine only when per-game Wine props are
  *   supplied. Multi-game settings are stored per-game (see src/utils/neu.ts
  *   namespaced storage) and default to the global values when the per-game
  *   override is missing; single-game settings use the existing global keys.
@@ -138,6 +141,9 @@ export async function createConfiguration({
   const [PRH] = await createProxyHostConfig({ locale, config });
   const [DS] = await createDownloadServerConfig({ locale, config });
   const [TC] = await createThemeColorConfig({ locale, config });
+  const [DVB, isVideoBackgroundDisabled] =
+    await createDisableVideoBackgroundConfig({ locale, config });
+  const [DBC] = await createDebugModeConfig({ locale });
 
   const channelClientConfig = await configForChannelClient(locale, config);
   const ChannelClientConfig =
@@ -157,17 +163,14 @@ export async function createConfiguration({
       onClose: (action: "check-integrity" | "close") => void;
       onOpenLogs: () => void;
       actionDisabled: () => boolean;
+      onOpenAbout?: () => void;
+      onOpenLicense?: () => void;
+      /** Render only the settings content, for embedding inside a shared modal host. */
+      contentOnly?: boolean;
     }) {
-      return (
-        <AppModal
-          opened={props.opened}
-          onClose={() => props.onClose("close")}
-          title={modalTitle?.() ?? locale.get("SETTING")}
-          maxWidth={1000}
-          height={600}
-          bodyClass="app-modal-body-settings"
-        >
-          <Tabs orientation="vertical" h="100%" variant={"pills"}>
+      const content = (
+        <Tabs orientation="vertical" h="100%" variant={"pills"}>
+          <div class="hoyoplay-settings-nav">
             <TabList minW={120}>
               <Show when={scope == "global"}>
                 <Tab>{locale.get("SETTING_GENERAL")}</Tab>
@@ -175,83 +178,119 @@ export async function createConfiguration({
               <Show when={scope == "game"}>
                 <Tab>{locale.get("SETTING_GAME")}</Tab>
                 <Tab>{locale.get("SETTING_VIDEO")}</Tab>
+                <Tab>
+                  {locale.currentLanguage.startsWith("zh") ? "启动" : "Launch"}
+                </Tab>
                 <Show when={showGameWineTab}>
                   <Tab>Wine</Tab>
                 </Show>
               </Show>
               <Show when={scope == "global"}>
                 <Tab>Wine</Tab>
-                <Tab>{locale.get("SETTING_LICENSES")}</Tab>
               </Show>
             </TabList>
-            <Show when={scope == "global"}>
-              <GeneralTab
+            <Show
+              when={
+                scope == "global" &&
+                props.onOpenAbout != null &&
+                props.onOpenLicense != null
+              }
+            >
+              <div class="hoyoplay-settings-nav-bottom">
+                <button
+                  class="hoyoplay-settings-nav-button"
+                  type="button"
+                  onClick={() => props.onOpenAbout?.()}
+                >
+                  {locale.currentLanguage.startsWith("zh")
+                    ? "关于 Yaagl"
+                    : "About Yaagl"}
+                </button>
+                <button
+                  class="hoyoplay-settings-nav-button"
+                  type="button"
+                  onClick={() => props.onOpenLicense?.()}
+                >
+                  License
+                </button>
+              </div>
+            </Show>
+          </div>
+          <Show when={scope == "global"}>
+            <GeneralTab
+              locale={locale}
+              DisableVideoBackgroundConfig={DVB}
+              LeftCmdConfig={LC}
+              DownloadServerConfig={DS}
+              LocaleConfig={UL}
+              ThemeColorConfig={TC}
+              HostsHelperConfig={() => <HostsHelperControl locale={locale} />}
+            />
+          </Show>
+          <Show when={scope == "game"}>
+            <GameTab
+              locale={locale}
+              gameProxyEnabled={gameProxyEnabled}
+              GameInstallDirConfig={GID}
+              ProxyEnabledConfig={PRE}
+              ProxyHostConfig={PRH}
+              MetalHUDConfig={MH}
+            />
+            <VideoTab
+              locale={locale}
+              RetinaConfig={R}
+              PreferredMaxFpsConfig={PMF}
+              ChannelClientVideoConfig={ChannelClientVideoConfig}
+              VsyncDisableConfig={VS}
+              MetalFxUpscaleConfig={MFX}
+              ReShadeConfig={RS}
+              config={config}
+            />
+            <LaunchTab
+              ChannelClientConfig={ChannelClientConfig}
+              DebugModeConfig={DBC}
+            />
+            <Show when={showGameWineTab}>
+              <GameWineTab
                 locale={locale}
-                wine={wine}
-                wineInstalled={wineInstalledSafe}
-                gameInstallDir={gameInstallDir}
-                onCheckUpdate={onCheckUpdate}
-                onOpenLogs={() => {
-                  props.onClose("close");
-                  props.onOpenLogs();
-                }}
-                LeftCmdConfig={LC}
-                DownloadServerConfig={DS}
-                LocaleConfig={UL}
-                ThemeColorConfig={TC}
+                wineTag={wineTag}
+                wineOptions={wineOptions}
+                onWineTagChange={onWineTagChange}
               />
             </Show>
-            <Show when={scope == "game"}>
-              <GameTab
-                locale={locale}
-                gameProxyEnabled={gameProxyEnabled}
-                GameInstallDirConfig={GID}
-                ProxyEnabledConfig={PRE}
-                ProxyHostConfig={PRH}
-                ChannelClientConfig={ChannelClientConfig}
-              />
-              <VideoTab
-                locale={locale}
-                RetinaConfig={R}
-                PreferredMaxFpsConfig={PMF}
-                MetalHUDConfig={MH}
-                ChannelClientVideoConfig={ChannelClientVideoConfig}
-                VsyncDisableConfig={VS}
-                MetalFxUpscaleConfig={MFX}
-                ReShadeConfig={RS}
-                config={config}
-              />
-              <Show when={showGameWineTab}>
-                <GameWineTab
-                  locale={locale}
-                  wine={wine}
-                  wineInstalled={wineInstalledSafe}
-                  winePrefix={wine.prefix}
-                  wineTag={wineTag}
-                  wineOptions={wineOptions}
-                  onWineTagChange={onWineTagChange}
-                  onResetWineEnv={onResetWineEnv ?? (async () => undefined)}
-                  wineActionDisabled={actionDisabledSafe}
-                />
-              </Show>
-            </Show>
-            <Show when={scope == "global"}>
-              <WineTab
-                locale={locale}
-                wine={wine}
-                wineInstalled={wineInstalledSafe}
-                winePrefix={wine.prefix}
-                WineDistroConfig={WD}
-                onResetWineEnv={onResetWineEnv ?? (async () => undefined)}
-                wineActionDisabled={actionDisabledSafe}
-              />
-              <LicensesTab locale={locale} />
-            </Show>
-          </Tabs>
+          </Show>
+          <Show when={scope == "global"}>
+            <WineTab
+              locale={locale}
+              wine={wine}
+              wineInstalled={wineInstalledSafe}
+              winePrefix={wine.prefix}
+              WineDistroConfig={WD}
+              onResetWineEnv={onResetWineEnv ?? (async () => undefined)}
+              wineActionDisabled={actionDisabledSafe}
+            />
+          </Show>
+        </Tabs>
+      );
+      if (props.contentOnly) {
+        return content;
+      }
+      return (
+        <AppModal
+          opened={props.opened}
+          onClose={() => props.onClose("close")}
+          title={modalTitle?.() ?? locale.get("SETTING")}
+          maxWidth={800}
+          height={600}
+          bodyClass="app-modal-body-settings"
+        >
+          {content}
         </AppModal>
       );
     },
     config: config as Config,
+    /** Reactive accessor for the global "disable video background" toggle. */
+    disableVideoBackground: isVideoBackgroundDisabled,
   };
 }
 

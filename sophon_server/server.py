@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from utils import *
 from models import *
 from tasks import *
+from rate_limiter import limiter
 
 # Disable SSL verification
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -27,6 +28,7 @@ main_event_loop: AbstractEventLoop = None
 manager: ConnectionManager = None
 tasks: Dict[str, TaskStatus] = {}
 task_cancel_events: Dict[str, threading.Event] = {}
+task_pause_events: Dict[str, threading.Event] = {}
 
 
 def terminate_with_process(pid: int):
@@ -45,18 +47,23 @@ def terminate_with_process(pid: int):
 def run_task(task_type: Literal["install", "repair", "update"], request: Union[InstallRequest, RepairRequest, UpdateRequest]):
     task_id = str(uuid.uuid4())
 
+    # Apply the per-task download speed limit (bytes/s, 0 = unlimited) so the
+    # download is throttled from the moment the task starts.
+    limiter.set_rate(request.download_speed_limit)
+
     tasks[task_id] = TaskStatus(
         task_id=task_id,
         status="pending",
     )
     task_cancel_events[task_id] = threading.Event()
+    task_pause_events[task_id] = threading.Event()
 
     if task_type == "install":
-        run_task_in_thread(manager, tasks, task_id, perform_install, manager, tasks, task_id, request, task_cancel_events[task_id])
+        run_task_in_thread(manager, tasks, task_id, perform_install, manager, tasks, task_id, request, task_cancel_events[task_id], task_pause_events[task_id])
     elif task_type == "repair":
-        run_task_in_thread(manager, tasks, task_id, perform_repair, manager, tasks, task_id, request, task_cancel_events[task_id])
+        run_task_in_thread(manager, tasks, task_id, perform_repair, manager, tasks, task_id, request, task_cancel_events[task_id], task_pause_events[task_id])
     elif task_type == "update":
-        run_task_in_thread(manager, tasks, task_id, perform_update, manager, tasks, task_id, request, task_cancel_events[task_id])
+        run_task_in_thread(manager, tasks, task_id, perform_update, manager, tasks, task_id, request, task_cancel_events[task_id], task_pause_events[task_id])
     else:
         return TaskResponse(
             task_id=task_id,
@@ -89,6 +96,26 @@ async def cancel_task(task_id: str):
     if task_id in tasks:
         task_cancel_events[task_id].set()
     return {"message": f"Task {task_id} cancelled"}
+
+
+@app.post("/api/tasks/{task_id}/pause")
+async def pause_task(task_id: str):
+    if task_id in tasks:
+        task_pause_events[task_id].set()
+    return {"message": f"Task {task_id} paused"}
+
+
+@app.post("/api/tasks/{task_id}/resume")
+async def resume_task(task_id: str):
+    if task_id in tasks:
+        task_pause_events[task_id].clear()
+    return {"message": f"Task {task_id} resumed"}
+
+@app.post("/api/limit")
+async def set_download_speed_limit(request: LimitRequest):
+    limiter.set_rate(request.download_speed_limit)
+    return {"ok": True}
+
 
 @app.get("/api/game/online_info")
 async def get_online_game_info(reltype: str, game: Literal["nap", "hk4e"]) -> OnlineGameInfo:

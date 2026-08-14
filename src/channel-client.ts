@@ -11,6 +11,14 @@ export type ChannelClientConfigUI =
       video?: () => JSXElement;
     };
 
+export type ChannelClientBackground = {
+  id?: string;
+  background?: string;
+  background_video?: string;
+  background_theme?: string;
+  type?: string;
+};
+
 export interface ChannelClient {
   installState: () => ChannelClientInstallState;
   installDir: () => string;
@@ -24,6 +32,8 @@ export interface ChannelClient {
     background?: string;
     background_video?: string;
     background_theme?: string;
+    /** All fetched backgrounds for the multi-background switcher. */
+    backgrounds?: ChannelClientBackground[];
     url: string;
     iconImage?: string;
     launchButtonLocation?: "left" | "right";

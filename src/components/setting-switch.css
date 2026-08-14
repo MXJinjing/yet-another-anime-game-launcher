@@ -6,6 +6,13 @@
   min-height: 44px;
 }
 
+.setting-switch-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .setting-switch-label {
   margin-bottom: 0 !important;
   color: rgba(255, 255, 255, 0.92) !important;

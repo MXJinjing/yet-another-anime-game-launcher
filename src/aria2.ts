@@ -7,8 +7,17 @@ import {
   updateControlledDownload,
 } from "./download-control";
 import {
+  registerStream,
+  unregisterStream,
+  updateStream,
+  pauseStream,
+  resumeStream,
+  cancelStream,
+} from "./download-queue";
+import {
   downloadPercent,
   formatDownloadSpeed,
+  getActiveStorageNamespace,
   getKeyOrDefault,
   humanFileSize,
   log,
@@ -227,79 +236,110 @@ export async function createAria2({
       }
       return status;
     }
+    async function pauseRaw() {
+      const status = await syncDownloadPauseState();
+      if (!status) return;
+      if (status.status == "paused") return;
+      if (status.status == "active" || status.status == "waiting") {
+        try {
+          await rpc.forcePause(gid);
+        } catch (error) {
+          const refreshedStatus = await syncDownloadPauseState();
+          if (refreshedStatus?.status == "paused" || !refreshedStatus) {
+            return;
+          }
+          throw error;
+        }
+        updateControlledDownload({ pauseRequested: true }, options.downloadKey);
+        return;
+      }
+      await log(
+        status.status == "error"
+          ? `下载任务已失败，无法暂停：${basename(
+              options.absDst
+            )}（${formatAria2DownloadError(status)}）`
+          : `忽略暂停请求：${basename(options.absDst)} 当前 aria2 状态为 ${
+              status.status
+            }`
+      );
+    }
+    async function resumeRaw() {
+      const status = await syncDownloadPauseState();
+      if (!status) return;
+      if (status.status == "active" || status.status == "waiting") return;
+      if (status.status == "paused") {
+        try {
+          await rpc.unpause(gid);
+        } catch (error) {
+          const refreshedStatus = await syncDownloadPauseState();
+          if (
+            refreshedStatus?.status == "active" ||
+            refreshedStatus?.status == "waiting" ||
+            !refreshedStatus
+          ) {
+            return;
+          }
+          throw error;
+        }
+        updateControlledDownload(
+          { paused: false, pauseRequested: false },
+          options.downloadKey
+        );
+        return;
+      }
+      await log(
+        status.status == "error"
+          ? `下载任务已失败，无法继续：${basename(
+              options.absDst
+            )}（${formatAria2DownloadError(status)}）`
+          : `忽略继续请求：${basename(options.absDst)} 当前 aria2 状态为 ${
+              status.status
+            }`
+      );
+    }
+    async function cancelRaw() {
+      cancelled = true;
+      try {
+        await rpc.forceRemove(gid);
+      } catch (error) {
+        await log(`取消下载时 aria2 已无活动任务：${String(error)}`);
+      }
+    }
+    async function setSpeedLimitRaw(bps: number) {
+      await rpc.changeOption(gid, {
+        "max-download-limit": String(Math.floor(bps)),
+      });
+    }
+    const streamId = `aria2:${gid}`;
+    registerStream({
+      id: streamId,
+      kind: "aria2",
+      taskId: gid,
+      key: options.downloadKey ?? getActiveStorageNamespace() ?? undefined,
+      title: basename(options.absDst),
+      status: "active",
+      progress: 0,
+      speed: 0,
+      downloaded: 0,
+      total: 0,
+      canPause: true,
+      canResume: true,
+      canCancel: true,
+      pause: pauseRaw,
+      resume: resumeRaw,
+      cancel: cancelRaw,
+      setSpeedLimit: setSpeedLimitRaw,
+    });
     beginControlledDownload(
       {
         pause: async () => {
-          const status = await syncDownloadPauseState();
-          if (!status) return;
-          if (status.status == "paused") return;
-          if (status.status == "active" || status.status == "waiting") {
-            try {
-              await rpc.forcePause(gid);
-            } catch (error) {
-              const refreshedStatus = await syncDownloadPauseState();
-              if (refreshedStatus?.status == "paused" || !refreshedStatus) {
-                return;
-              }
-              throw error;
-            }
-            updateControlledDownload(
-              { pauseRequested: true },
-              options.downloadKey
-            );
-            return;
-          }
-          await log(
-            status.status == "error"
-              ? `下载任务已失败，无法暂停：${basename(
-                  options.absDst
-                )}（${formatAria2DownloadError(status)}）`
-              : `忽略暂停请求：${basename(options.absDst)} 当前 aria2 状态为 ${
-                  status.status
-                }`
-          );
+          await pauseStream(streamId);
         },
         resume: async () => {
-          const status = await syncDownloadPauseState();
-          if (!status) return;
-          if (status.status == "active" || status.status == "waiting") return;
-          if (status.status == "paused") {
-            try {
-              await rpc.unpause(gid);
-            } catch (error) {
-              const refreshedStatus = await syncDownloadPauseState();
-              if (
-                refreshedStatus?.status == "active" ||
-                refreshedStatus?.status == "waiting" ||
-                !refreshedStatus
-              ) {
-                return;
-              }
-              throw error;
-            }
-            updateControlledDownload(
-              { paused: false, pauseRequested: false },
-              options.downloadKey
-            );
-            return;
-          }
-          await log(
-            status.status == "error"
-              ? `下载任务已失败，无法继续：${basename(
-                  options.absDst
-                )}（${formatAria2DownloadError(status)}）`
-              : `忽略继续请求：${basename(options.absDst)} 当前 aria2 状态为 ${
-                  status.status
-                }`
-          );
+          await resumeStream(streamId);
         },
         cancel: async () => {
-          cancelled = true;
-          try {
-            await rpc.forceRemove(gid);
-          } catch (error) {
-            await log(`取消下载时 aria2 已无活动任务：${String(error)}`);
-          }
+          await cancelStream(streamId);
         },
       },
       options.downloadKey
@@ -310,6 +350,23 @@ export async function createAria2({
         () => cancelled,
         options.downloadKey
       )) {
+        const total = Number(status.totalLength);
+        const progress =
+          total > 0
+            ? Math.min(
+                100,
+                Math.max(0, (Number(status.completedLength) / total) * 100)
+              )
+            : 0;
+        updateStream(streamId, {
+          progress,
+          speed: Number(status.downloadSpeed),
+          downloaded: Number(status.completedLength),
+          total,
+          canPause: true,
+          canResume: true,
+          canCancel: true,
+        });
         const now = Date.now();
         if (now >= nextProgressLogAt) {
           await log(
@@ -327,6 +384,7 @@ export async function createAria2({
         yield status;
       }
     } finally {
+      unregisterStream(streamId);
       endControlledDownload(options.downloadKey);
     }
     await log(`下载进度 100%：${basename(options.absDst)}`);
@@ -342,6 +400,51 @@ export async function createAria2({
 export type Aria2 = ReturnType<typeof createAria2> extends Promise<infer T>
   ? T
   : never;
+
+/** Tracks overall progress across a sequence of `doStreamingDownload` calls so
+ *  the reported percentage covers the whole set, not just the current file.
+ *
+ *  Feed each streamed status to `step()`/`current()` and call `finishFile()`
+ *  after every file's stream completes. When the grand total is known up front
+ *  (e.g. from the version-info API) pass it to the constructor so the
+ *  percentage is correct from the very first byte. */
+export class Aria2OverallProgress {
+  private completed = BigInt(0);
+  private knownTotal: bigint | null;
+  private runningTotal = BigInt(0);
+  private lastTotal = BigInt(0);
+
+  constructor(totalBytes?: bigint) {
+    this.knownTotal = totalBytes ?? null;
+  }
+
+  /** Returns { completed, total } including the current status. */
+  current(status: { completedLength: bigint; totalLength: bigint }): {
+    completed: bigint;
+    total: bigint;
+  } {
+    this.lastTotal = status.totalLength;
+    const total = this.knownTotal ?? this.runningTotal + status.totalLength;
+    return {
+      completed: this.completed + status.completedLength,
+      total,
+    };
+  }
+
+  /** Returns the overall percent (0-100) including the current status. */
+  step(status: { completedLength: bigint; totalLength: bigint }): number {
+    const { completed, total } = this.current(status);
+    return Number((completed * BigInt(10000)) / total) / 100;
+  }
+
+  /** Adds the just-finished file's size to the running totals. */
+  finishFile(): void {
+    this.completed += this.lastTotal;
+    if (this.knownTotal === null) {
+      this.runningTotal += this.lastTotal;
+    }
+  }
+}
 
 export async function createAria2Retry({
   host,

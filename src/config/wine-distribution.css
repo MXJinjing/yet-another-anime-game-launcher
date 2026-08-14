@@ -1,0 +1,190 @@
+.wine-distribution {
+  width: 100%;
+}
+
+.wine-distribution-heading {
+  margin-bottom: 2px;
+  color: rgba(255, 255, 255, 0.96) !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+}
+
+.wine-distribution-version-row {
+  padding: 14px 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 8px 24px rgba(0, 0, 0, 0.18) !important;
+  backdrop-filter: blur(10px);
+}
+
+.wine-distribution-version-row--active {
+  border-color: rgba(54, 217, 125, 0.42) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(54, 217, 125, 0.12),
+    rgba(255, 255, 255, 0.05)
+  ) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 8px 28px rgba(54, 217, 125, 0.1) !important;
+}
+
+.wine-distribution-version-row--installed {
+  border-color: rgba(255, 216, 52, 0.36) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 216, 52, 0.09),
+    rgba(255, 255, 255, 0.05)
+  ) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 28px rgba(255, 216, 52, 0.06) !important;
+}
+
+.wine-distribution-version-body {
+  width: 100%;
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.wine-distribution-version-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wine-distribution-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.38);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+}
+
+.wine-distribution-status-dot--active {
+  background: #36d97d;
+  box-shadow: 0 0 0 3px rgba(54, 217, 125, 0.14),
+    0 0 10px rgba(54, 217, 125, 0.45);
+}
+
+.wine-distribution-status-dot--installed {
+  background: #ffd834;
+  box-shadow: 0 0 0 3px rgba(255, 216, 52, 0.13),
+    0 0 8px rgba(255, 216, 52, 0.35);
+}
+
+.wine-distribution-version-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wine-distribution-status-label {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.58) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0 !important;
+}
+
+.wine-distribution-status-label--active {
+  border-color: rgba(54, 217, 125, 0.36) !important;
+  background: rgba(54, 217, 125, 0.14) !important;
+  color: #36d97d !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.wine-distribution-status-label--installed {
+  border-color: rgba(255, 216, 52, 0.32) !important;
+  background: rgba(255, 216, 52, 0.12) !important;
+  color: #ffd834 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.wine-distribution-version-actions {
+  flex: 0 0 auto;
+}
+
+.wine-distribution-version-row .hope-button {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 13px !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.wine-distribution-version-row .hope-button:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.24) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #fff !important;
+}
+
+.wine-distribution-version-row .hope-button:disabled {
+  cursor: default !important;
+  opacity: 0.55 !important;
+}
+
+.wine-distribution-button--primary:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  background: var(--hoyoplay-accent, #ffd834) !important;
+  color: var(--hoyoplay-accent-text, #111418) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 6px 18px rgba(0, 0, 0, 0.24) !important;
+}
+
+.wine-distribution-version-row
+  .wine-distribution-button--primary:not(:disabled):hover {
+  border-color: rgba(255, 255, 255, 0.32) !important;
+  background: var(--hoyoplay-accent, #ffd834) !important;
+  color: var(--hoyoplay-accent-text, #111418) !important;
+  filter: brightness(1.08);
+}
+
+.wine-distribution-version-row .wine-distribution-button--active {
+  border-color: rgba(54, 217, 125, 0.4) !important;
+  background: rgba(54, 217, 125, 0.14) !important;
+  color: #36d97d !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.wine-distribution-version-row .wine-distribution-button--active:disabled {
+  border-color: rgba(54, 217, 125, 0.4) !important;
+  background: rgba(54, 217, 125, 0.14) !important;
+  color: #36d97d !important;
+  opacity: 1 !important;
+}
+
+.wine-distribution-version-row
+  .wine-distribution-button--danger:not(:disabled) {
+  border-color: rgba(229, 72, 77, 0.72) !important;
+  background: #e5484d !important;
+  color: #fff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 6px 18px rgba(229, 72, 77, 0.26) !important;
+}
+
+.wine-distribution-version-row
+  .wine-distribution-button--danger:not(:disabled):hover {
+  border-color: rgba(255, 255, 255, 0.32) !important;
+  background: #f2555a !important;
+  color: #fff !important;
+}
