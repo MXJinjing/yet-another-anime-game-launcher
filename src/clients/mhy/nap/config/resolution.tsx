@@ -1,7 +1,8 @@
 import { FormControl, FormLabel, Input, HStack, VStack } from "@hope-ui/solid";
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
-import { assertValueDefined, getKey, setKey } from "@utils";
+import { assertValueDefined } from "@runtime/assertions";
+import { getKey, setKey } from "@runtime/storage";
 import { Config, NOOP } from "@config/config-def";
 
 declare module "@config/config-def" {

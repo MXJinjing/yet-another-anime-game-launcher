@@ -1,17 +1,11 @@
 import { join } from "path-browserify";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "@constants";
-import {
-  mkdirp,
-  removeFile,
-  writeFile,
-  resolve,
-  log,
-  wait,
-  forceMove,
-  stats,
-  exec,
-} from "@utils";
+import { log } from "@logging/logger";
+import { removeFile, resolve, stats, writeFile } from "@platform/neutralino";
+import { wait } from "@runtime/async";
+import { exec } from "@runtime/command-runner";
+import { forceMove, mkdirp } from "@runtime/macos-filesystem";
 import { Wine } from "@wine";
 import { Config } from "@config";
 import { normalizeHttpProxy } from "@config/proxy";
@@ -29,7 +23,7 @@ export async function* launchGameProgram({
   wine: Wine;
   config: Config;
   server: Server;
-}): CommonUpdateProgram {
+}): TaskProgram {
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "PATCHING"];
 

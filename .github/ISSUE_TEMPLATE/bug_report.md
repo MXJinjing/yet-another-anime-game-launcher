@@ -26,6 +26,6 @@ Add any other context about the problem here.
 
 **Logs (if any)**
 
-> If it's related to the launcher, upload `neutralinojs.log` in Yaagl Data Directory 
+> If it's related to the launcher, upload `neutralinojs.log` in Yaaglm Data Directory
 
-> If it's related to the game, upload `logs/game_{timestamp}.log in Yaagl Data Directory
+> If it's related to the game, upload `logs/game_{timestamp}.log in Yaaglm Data Directory

@@ -1,6 +1,8 @@
 import threading
 import time
 
+from task_errors import TaskCancelledError
+
 
 class RateLimiter:
     """Process-wide, thread-safe token bucket rate limiter (bytes/s).
@@ -39,29 +41,33 @@ class RateLimiter:
         self._tokens = min(self._tokens + elapsed * self._rate, float(self._rate))
         self._last_refill = now
 
-    def acquire(self, n: int):
+    def acquire(self, n: int, cancel_event=None, pause_event=None):
         """Block until `n` bytes of quota are available; rate 0 returns at once."""
         if n <= 0:
             return
+        remaining = float(n)
         with self._condition:
-            if self._rate <= 0:
-                return
-            self._refill()
-            if self._tokens >= n:
-                self._tokens -= n
-                return
-            # The bucket never holds more than one second of rate, so a
-            # single request can be larger than the bucket. Wait until the
-            # shortfall has been earned and consume it immediately; any
-            # excess becomes debt that later refills repay, keeping the
-            # long-run average at `rate`. Early wakeups (e.g. from set_rate)
-            # just create a little extra debt, so this is always safe.
-            shortfall = n - self._tokens
-            self._condition.wait(shortfall / self._rate)
-            if self._rate <= 0:
-                return
-            self._refill()
-            self._tokens -= n
+            while remaining > 0:
+                if cancel_event and cancel_event.is_set():
+                    raise TaskCancelledError("cancelled")
+                if pause_event and pause_event.is_set():
+                    self._condition.wait(0.2)
+                    continue
+                if self._rate <= 0:
+                    return
+                self._refill()
+                consumed = min(remaining, self._tokens)
+                self._tokens -= consumed
+                remaining -= consumed
+                if remaining <= 0:
+                    return
+
+                # Recalculate after every wake-up. This prevents concurrent
+                # waiters from all consuming the same future tokens and keeps
+                # cancellation/pause checks in curl callbacks responsive.
+                next_segment = min(remaining, float(self._rate))
+                shortfall = max(0.0, next_segment - self._tokens)
+                self._condition.wait(min(0.2, shortfall / self._rate))
 
 
 # Module-level singleton shared by all download workers and the /api/limit endpoint.

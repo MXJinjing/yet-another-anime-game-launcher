@@ -81,6 +81,7 @@ import pycurl
 import concurrent.futures
 
 from rate_limiter import limiter
+from task_errors import TaskCancelledError
 
 if TYPE_CHECKING:
 	from os import PathLike
@@ -104,17 +105,22 @@ def force_memory_release():
 	gc.collect()
 	_ = c_malloc_zone_pressure_relief(None, 1)
 
+def raise_if_cancelled(cancel_event):
+	if cancel_event and cancel_event.is_set():
+		raise TaskCancelledError("cancelled")
+
 def wait_if_paused(pause_event, cancel_event=None):
 	"""Block while a pause request is active; returns as soon as the
 	operation is resumed (or when no pause is in effect). A cancel
 	request made while paused is also honoured so cancelling still works
 	without having to resume first."""
+	raise_if_cancelled(cancel_event)
 	if pause_event is None:
 		return
 	while pause_event.is_set():
-		if cancel_event and cancel_event.is_set():
-			return
+		raise_if_cancelled(cancel_event)
 		time.sleep(0.2)
+	raise_if_cancelled(cancel_event)
 
 # Run only in compiled binary
 RUN_MEMORY_HACK = True
@@ -251,7 +257,7 @@ def compare_game_versions(lhs: str, rhs: str) -> int:
 	)
 
 def hpatchz_patch_file(oldfile: pathlib.Path, dstfile: pathlib.Path, patchfile: pathlib.Path,
-		p_offset: int, p_len: int, timeout: int = 50):
+		p_offset: int, p_len: int, timeout: int = 50, cancel_event = None):
 	"""
 	Patches a file, throws an exception upon failure
 	One ldiff file may contain multiple patches, thus the offset
@@ -259,6 +265,7 @@ def hpatchz_patch_file(oldfile: pathlib.Path, dstfile: pathlib.Path, patchfile: 
 	Returns `True` on success, `False` on timeout
 	"""
 
+	raise_if_cancelled(cancel_event)
 	pfile_in = None   # keep alive until functoin exit
 
 	# Extract the relevant patch section
@@ -269,6 +276,7 @@ def hpatchz_patch_file(oldfile: pathlib.Path, dstfile: pathlib.Path, patchfile: 
 	pfile_out = tempfile.NamedTemporaryFile("wb")
 	pfile_out.write(pfile_in.read(p_len))
 	pfile_out.flush()
+	raise_if_cancelled(cancel_event)
 
 	proc = subprocess.Popen(
 		# -f: overwrite the target (temporary) file
@@ -276,16 +284,31 @@ def hpatchz_patch_file(oldfile: pathlib.Path, dstfile: pathlib.Path, patchfile: 
 		stdout=subprocess.PIPE, stderr=subprocess.PIPE,
 		text=True
 	)
-	# Wait for the process to exit
-	# This usually takes < 100 ms
-	try:
-		pout, perr = proc.communicate(timeout=timeout)
-	except subprocess.TimeoutExpired:
-		proc.terminate()
-		pout, perr = proc.communicate()
-		dstfile.unlink(True) # maybe stuck at writing
-		warnlog(f"hpatchz timeout ({timeout} s) reached on file '{dstfile.name}'.")
-		return False
+	# Wait in short intervals so cancellation can terminate hpatchz without
+	# allowing its temporary output to replace the original game file.
+	deadline = time.monotonic() + timeout
+	while True:
+		if cancel_event and cancel_event.is_set():
+			proc.terminate()
+			try:
+				proc.communicate(timeout=5)
+			except subprocess.TimeoutExpired:
+				proc.kill()
+				proc.communicate()
+			dstfile.unlink(True)
+			raise TaskCancelledError("cancelled")
+		remaining = deadline - time.monotonic()
+		if remaining <= 0:
+			proc.terminate()
+			pout, perr = proc.communicate()
+			dstfile.unlink(True) # maybe stuck at writing
+			warnlog(f"hpatchz timeout ({timeout} s) reached on file '{dstfile.name}'.")
+			return False
+		try:
+			pout, perr = proc.communicate(timeout=min(0.2, remaining))
+			break
+		except subprocess.TimeoutExpired:
+			continue
 
 	retcode = proc.returncode
 	if retcode != 0 or perr != "":
@@ -893,10 +916,9 @@ class SophonClient:
 		return download_size_total
 
 
-	def _download_file_resume(self, url: str, dstfile: pathlib.Path, dstsize: int):
+	def _download_file_resume(self, url: str, dstfile: pathlib.Path, dstsize: int, cancel_event = None, pause_event = None, progress_callback = None):
+		raise_if_cancelled(cancel_event)
 		filesize = try_get_file_size(dstfile)
-		if filesize == dstsize:
-			return
 		if filesize > dstsize:
 			if OPT.dry_run:
 				warnlog(f"[remove corrupted file '{dstfile.name}'")
@@ -904,18 +926,31 @@ class SophonClient:
 				warnlog(f"Removing corrupted file: {dstfile.name}")
 				dstfile.unlink()
 				filesize = 0
+		if progress_callback and filesize > 0:
+			progress_callback(filesize)
+		if filesize == dstsize:
+			return
 
 		errCnt = 0
 		errLogs = []
 		while True: # run up to 5 times
+			raise_if_cancelled(cancel_event)
 			buffer = BytesIO()
 			c = pycurl.Curl()
 			c.setopt(c.URL, url)
 			if filesize > 0:
 				c.setopt(c.RANGE, f"{filesize}-")
 			def write_callback(data):
-				limiter.acquire(len(data))
+				wait_if_paused(pause_event, cancel_event)
+				limiter.acquire(
+					len(data),
+					cancel_event=cancel_event,
+					pause_event=pause_event,
+				)
+				wait_if_paused(pause_event, cancel_event)
 				buffer.write(data)
+				if progress_callback:
+					progress_callback(len(data))
 				return len(data)
 
 			c.setopt(c.WRITEFUNCTION, write_callback)
@@ -924,7 +959,6 @@ class SophonClient:
 			try:
 				c.perform()
 				response_code = c.getinfo(c.RESPONSE_CODE)
-				c.close()
 
 				if response_code == 416:
 					# 416: Out of range. Our _tmp file is already complete.
@@ -932,7 +966,12 @@ class SophonClient:
 					return
 
 				break
+			except TaskCancelledError:
+				raise
 			except pycurl.error as e:
+				if progress_callback and buffer.tell() > 0:
+					progress_callback(-buffer.tell())
+				raise_if_cancelled(cancel_event)
 				errno, errstr = e.args
 				errCnt += 1
 				errLogs.append(f"Error {errno}: {errstr}")
@@ -940,9 +979,14 @@ class SophonClient:
 					abortlog(f"Cannot download file '{dstfile.name}': " + ", ".join(errLogs))
 				else:
 					warnlog(f"Error {errno}: {errstr}. Retrying ({errCnt}/5)...")
-					time.sleep(10)
-				return
+					if cancel_event and cancel_event.wait(10):
+						raise TaskCancelledError("cancelled")
+					elif cancel_event is None:
+						time.sleep(10)
+			finally:
+				c.close()
 
+		raise_if_cancelled(cancel_event)
 		with dstfile.open("ab") as fh:
 			fh.write(buffer.getvalue())
 
@@ -954,8 +998,9 @@ class SophonClient:
 		Returns `True` if the file is (now) present.
 		"""
 
+		total_download_bytes = sum(chunk.compressed_size for chunk in file_info.chunks)
 		if install_progress_handler:
-			install_progress_handler.file_download_start(file_info.filename)
+			install_progress_handler.file_download_start(file_info.filename, total_download_bytes)
 
 		if file_info.flags == 64:
 			# Created as soon a file is put inside
@@ -984,7 +1029,7 @@ class SophonClient:
 		size_mib = bytes_to_MiB(file_info.size)
 		infolog(f"Downloading '{filename.name}', {size_mib} MiB, {len(file_info.chunks)} chunks")
 		if install_progress_handler:
-			install_progress_handler.chunk_download_progress(filename.name, len(file_info.chunks), 0, 0.0, 0, file_info.size, 0)
+			install_progress_handler.chunk_download_progress(file_info.filename, len(file_info.chunks), 0, 0.0, 0, file_info.size, 0)
 
 		if OPT.disallow_download:
 			warnlog(f"NOT downloading chunks for {filename.name}")
@@ -999,39 +1044,50 @@ class SophonClient:
 				# File was already downloaded but not moved (e.g. out of space)
 				break
 
-			fh = dstfile.open("wb")
-			# Download all chunks
-			for chunk in file_info.chunks:
-				wait_if_paused(pause_event, cancel_event)
-				if cancel_event and cancel_event.is_set():
+			with dstfile.open("wb") as fh:
+				# Download all chunks. Closing this handle before integrity
+				# verification also flushes every decompressed write to disk.
+				for chunk in file_info.chunks:
+					wait_if_paused(pause_event, cancel_event)
+					cfname = tempdir(chunk.chunk_id) # compressed file path
+
+					if chunk.offset != bytes_written:
+						warnlog("\t Unexpected offset. Seek may fail.")
+
+					# Download chunk if not already done
+					self._download_file_resume(
+						CHUNK_URL_PREFIX + "/" + chunk.chunk_id,
+						cfname,
+						chunk.compressed_size,
+						cancel_event=cancel_event,
+						pause_event=pause_event,
+						progress_callback=(
+							lambda byte_count: install_progress_handler.file_transfer_progress(
+								file_info.filename,
+								byte_count,
+								total_download_bytes,
+							)
+							if install_progress_handler else None
+						),
+					)
+
+					# Write chunk to file
+					with cfname.open("rb") as zfh:
+						reader = zstandard.ZstdDecompressor().stream_reader(zfh)
+						data = reader.read()
+						fh.seek(chunk.offset)
+						fh.write(data)
+						bytes_written += len(data)
+
+					debuglog(f"\t Progress: {(bytes_written * 100 / file_info.size):2.0f} % | "
+					         + f" {bytes_to_MiB(bytes_written)} / {size_mib} MiB", end="\r")
 					if install_progress_handler:
-						install_progress_handler.file_download_error(filename.name)
-					return False
-				cfname = tempdir(chunk.chunk_id) # compressed file path
+						install_progress_handler.chunk_download_progress(
+							file_info.filename, len(file_info.chunks), chunk.chunk_id, bytes_written * 100 / file_info.size, bytes_written, file_info.size, chunk.compressed_size)
+					del data, reader, zfh, cfname
 
-				if chunk.offset != bytes_written:
-					warnlog("\t Unexpected offset. Seek may fail.")
-
-				# Download chunk if not already done
-				self._download_file_resume(CHUNK_URL_PREFIX + "/" + chunk.chunk_id, cfname, chunk.compressed_size)
-
-				# Write chunk to file
-				with cfname.open("rb") as zfh:
-					reader = zstandard.ZstdDecompressor().stream_reader(zfh)
-					data = reader.read()
-					fh.seek(chunk.offset)
-					fh.write(data)
-					bytes_written += len(data)
-
-				debuglog(f"\t Progress: {(bytes_written * 100 / file_info.size):2.0f} % | "
-				         + f" {bytes_to_MiB(bytes_written)} / {size_mib} MiB", end="\r")
-				if install_progress_handler:
-					install_progress_handler.chunk_download_progress(
-						filename.name, len(file_info.chunks), chunk.chunk_id, bytes_written * 100 / file_info.size, bytes_written, file_info.size, chunk.compressed_size)
-				del data, reader, zfh, cfname
-
-				if RUN_MEMORY_HACK:
-					force_memory_release()
+					if RUN_MEMORY_HACK:
+						force_memory_release()
 			print("") # Keep the last "100 %" line
 
 		# Verify file integrity
@@ -1057,7 +1113,7 @@ class SophonClient:
 		gamefile.parent.mkdir(parents=True, exist_ok=True)
 		shutil.move(dstfile, gamefile)
 		if install_progress_handler:
-			install_progress_handler.file_download_complete(filename.name, file_info.size)
+			install_progress_handler.file_download_complete(file_info.filename, file_info.size)
 		return True
 
 
@@ -1132,7 +1188,7 @@ class SophonClient:
 		return pinfo
 
 
-	def _download_ldiff_file(self, ldiff_dir: pathlib.Path, v: manifest_ldiff_pb2.DiffFileInfo, progress_handler = None, pause_event = None):
+	def _download_ldiff_file(self, ldiff_dir: pathlib.Path, v: manifest_ldiff_pb2.DiffFileInfo, progress_handler = None, cancel_event = None, pause_event = None):
 		"""
 		Helper function to download one diff file.
 
@@ -1165,6 +1221,8 @@ class SophonClient:
 			if progress_handler:
 				progress_handler.ldiff_download_skipped(v.filename, "not modified")
 			return None # The file was not modified in the new version
+		if progress_handler:
+			progress_handler.ldiff_download_start(v.filename, pinfo.patch_size)
 
 		# Check whether the file is ready for patching
 		while True: # run once
@@ -1224,8 +1282,23 @@ class SophonClient:
 			return None
 
 		DIFF_URL_PREFIX = self.di_diffs.category_json["diff_download"]["url_prefix"]
-		wait_if_paused(pause_event)
-		self._download_file_resume(DIFF_URL_PREFIX + "/" + pinfo.patch_id, tmp_file, pinfo.patch_size)
+		wait_if_paused(pause_event, cancel_event)
+		self._download_file_resume(
+			DIFF_URL_PREFIX + "/" + pinfo.patch_id,
+			tmp_file,
+			pinfo.patch_size,
+			cancel_event=cancel_event,
+			pause_event=pause_event,
+			progress_callback=(
+				lambda byte_count: progress_handler.ldiff_transfer_progress(
+					v.filename,
+					byte_count,
+					pinfo.patch_size,
+				)
+				if progress_handler else None
+			),
+		)
+		raise_if_cancelled(cancel_event)
 		debuglog("Download done")
 
 		# Verify patch file size (TODO: what's the purpose of the file name?)
@@ -1239,7 +1312,7 @@ class SophonClient:
 		return ldiffname.name
 
 
-	def _apply_ldiff_file(self, ldiff_dir: pathlib.Path, v: manifest_ldiff_pb2.DiffFileInfo, progress_handler = None):
+	def _apply_ldiff_file(self, ldiff_dir: pathlib.Path, v: manifest_ldiff_pb2.DiffFileInfo, progress_handler = None, cancel_event = None):
 		"""
 		Helper function to apply one diff file.
 		"""
@@ -1273,10 +1346,26 @@ class SophonClient:
 			abortlog(f"Diff file {ldiffname.name} is missing. Please redownload.")
 
 		# Apply the patch file
-		done = hpatchz_patch_file(gamefile, dstfile, ldiffname, pinfo.patch_offset, pinfo.patch_length)
+		raise_if_cancelled(cancel_event)
+		done = hpatchz_patch_file(
+			gamefile,
+			dstfile,
+			ldiffname,
+			pinfo.patch_offset,
+			pinfo.patch_length,
+			cancel_event=cancel_event,
+		)
 		if not done:
 			# retry with longer timeout
-			done = hpatchz_patch_file(gamefile, dstfile, ldiffname, pinfo.patch_offset, pinfo.patch_length, 300)
+			done = hpatchz_patch_file(
+				gamefile,
+				dstfile,
+				ldiffname,
+				pinfo.patch_offset,
+				pinfo.patch_length,
+				300,
+				cancel_event=cancel_event,
+			)
 
 		# Verify patched file integrity (NOTE: hpatchz might already have checked it)
 		assert dstfile.stat().st_size == v.size
@@ -1295,10 +1384,11 @@ class SophonClient:
 			infolog(f"[move patched '{dstfile.name}' -> game dir]")
 			return
 
+		raise_if_cancelled(cancel_event)
 		shutil.move(dstfile, gamefile)
 
 
-	def apply_or_prepare_ldiff_files(self, progress_handler = None, pause_event = None):
+	def apply_or_prepare_ldiff_files(self, progress_handler = None, cancel_event = None, pause_event = None):
 		"""
 		Downloads the ldiff files and patches the destination file if not predownload.
 		Requires self.load_manifest(CATEGORY)
@@ -1343,8 +1433,14 @@ class SophonClient:
 			# TODO: Download one file an apply the patches to all files that make use of it
 			# Motivation: less space consumption by temporary files
 
-			wait_if_paused(pause_event)
-			downloaded = self._download_ldiff_file(ldiff_dir, v, progress_handler=progress_handler, pause_event=pause_event)
+			wait_if_paused(pause_event, cancel_event)
+			downloaded = self._download_ldiff_file(
+				ldiff_dir,
+				v,
+				progress_handler=progress_handler,
+				cancel_event=cancel_event,
+				pause_event=pause_event,
+			)
 			if RUN_MEMORY_HACK:
 				force_memory_release()
 			if downloaded:
@@ -1353,7 +1449,12 @@ class SophonClient:
 					# Normal case: update the file
 					if progress_handler:
 						progress_handler.ldiff_patch_start(v.filename)
-					self._apply_ldiff_file(ldiff_dir, v, progress_handler=progress_handler)
+					self._apply_ldiff_file(
+						ldiff_dir,
+						v,
+						progress_handler=progress_handler,
+						cancel_event=cancel_event,
+					)
 					if progress_handler:
 						progress_handler.ldiff_patch_complete(v.filename)
 					if RUN_MEMORY_HACK:
@@ -1445,11 +1546,10 @@ class SophonClient:
 			while err_cnt < 5:
 				try:
 					wait_if_paused(pause_event, cancel_event)
-					if cancel_event and cancel_event.is_set():
-						progress_handler.job_error("cancelled")
-						raise Exception("Installation cancelled")
 					self.download_game_file(v, install_progress_handler=progress_handler, cancel_event=cancel_event, pause_event=pause_event)
 					break
+				except TaskCancelledError:
+					raise
 				except Exception as e:
 					err_cnt += 1
 					err_logs.append(str(e))
@@ -1544,10 +1644,7 @@ class SophonClient:
 		import threading
 		lock = threading.Lock()
 		def _verify_file(v):
-			if cancel_event and cancel_event.is_set():
-				if repair_progress_handler:
-					repair_progress_handler.job_error("cancelled")
-				raise Exception("Repair cancelled")
+			wait_if_paused(pause_event, cancel_event)
 
 			reason = None
 			gamefile = gamedir(v.filename)

@@ -1,18 +1,15 @@
 import { join } from "path-browserify";
-import {
-  CommonProgressUICommand,
-  CommonUpdateProgram,
-} from "../../../common-update-ui";
+import type { TaskProgram, TaskProgressCommand } from "@tasks/task-program";
 import { Server } from "../../../constants";
+import { log } from "@logging/logger";
 import {
-  mkdirp,
   removeFile,
-  writeFile,
   resolve,
-  log,
-  utf16le,
   writeBinary,
-} from "../../../utils";
+  writeFile,
+} from "@platform/neutralino";
+import { utf16le } from "@runtime/binary";
+import { mkdirp } from "@runtime/macos-filesystem";
 import { Wine } from "../../../wine";
 import { Config } from "@config";
 import { normalizeHttpProxy } from "@config/proxy";
@@ -28,7 +25,7 @@ import { buildBlockHosts } from "../block-hosts";
 import {
   blockPrivilegedHosts,
   legacyBlockHosts,
-} from "../../../privileged-hosts";
+} from "../../../system/privileged-hosts";
 import hk4eHDRGlobalReg from "../../../constants/hk4e_hdr_os.reg?raw";
 import hk4eHDRCnReg from "../../../constants/hk4e_hdr_cn.reg?raw";
 import { gt } from "semver";
@@ -117,7 +114,7 @@ function* launchProgress(
   current: number,
   total: number,
   message: string
-): Generator<CommonProgressUICommand> {
+): Generator<TaskProgressCommand> {
   yield ["setProgress", Math.round((current / total) * 100)];
   yield ["setRawStateText", message];
 }
@@ -128,7 +125,7 @@ function* revertProgress(
   current: number,
   total: number,
   message: string
-): Generator<CommonProgressUICommand> {
+): Generator<TaskProgressCommand> {
   yield ["setProgress", Math.round((current / total) * 100)];
   yield ["setRawStateText", message];
 }
@@ -145,7 +142,7 @@ export async function* launchGameProgram({
   wine: Wine;
   config: Config;
   server: Server;
-}): CommonUpdateProgram {
+}): TaskProgram {
   const blockUrl = server.id == "hk4e_global" ? OS_BLOCK_URL : CN_BLOCK_URL;
   const blockHosts = config.blockNet
     ? buildBlockHosts(config, [

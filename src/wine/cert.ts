@@ -1,5 +1,5 @@
 import { WINE_INF_CERT_STR } from "../clients/secret";
-import { readAllLines, writeFile } from "@utils";
+import { readAllLines, writeFile } from "@platform/neutralino";
 
 export async function addCertsToWine(wineBinaryDir: string) {
   const searchLoc = "; URL Associations";

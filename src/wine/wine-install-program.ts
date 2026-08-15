@@ -1,24 +1,19 @@
 import { Aria2 } from "@aria2";
-import { CommonUpdateProgram, createCommonUpdateUI } from "@common-update-ui";
-import { Locale } from "@locale";
+import type { TaskProgram } from "@tasks/task-program";
+import { removeFile, removeFileIfExists, resolve } from "@platform/neutralino";
+import { tar_extract, tar_extract_directory } from "@runtime/archive";
+import { generateRandomString } from "@runtime/binary";
+import { exec } from "@runtime/command-runner";
 import {
-  rmrf_dangerously,
-  humanFileSize,
-  formatDownloadSpeed,
   downloadPercent,
-  tar_extract,
-  removeFile,
-  removeFileIfExists,
-  xattrRemove,
-  setKey,
-  exec,
-  generateRandomString,
-  resolve,
-  tar_extract_directory,
-} from "@utils";
-import { isDownloadCancelledError } from "../download-control";
+  formatDownloadSpeed,
+  humanFileSize,
+} from "@runtime/format";
+import { rmrf_dangerously, xattrRemove } from "@runtime/macos-filesystem";
+import { setKey } from "@runtime/storage";
+import { isDownloadCancelledError } from "../download/control";
 import { ENSURE_HOSTS } from "../clients/secret";
-import { ensureHosts } from "../hosts";
+import { ensureHosts } from "../system/hosts";
 import {
   createWine,
   ensureActiveWineCompatLink,
@@ -29,25 +24,24 @@ import { installMediaFoundation } from "./mf";
 import { WineDistribution } from "./distro";
 import { addCertsToWine } from "./cert";
 
-export async function createWineInstallProgram({
+/**
+ * Returns the install task. Rendering it is the composition layer's concern.
+ */
+export function createWineInstallProgram({
   aria2,
   wineAbsPrefix,
   wineDistro,
-  locale,
 }: {
   aria2: Aria2;
-  locale: Locale;
   wineAbsPrefix: string;
   wineDistro: WineDistribution;
-}) {
-  return createCommonUpdateUI(locale, () =>
-    installWineEnvironmentProgram({
-      aria2,
-      wineAbsPrefix,
-      wineDistro,
-      activate: true,
-    })
-  );
+}): TaskProgram {
+  return installWineEnvironmentProgram({
+    aria2,
+    wineAbsPrefix,
+    wineDistro,
+    activate: true,
+  });
 }
 
 export async function* installWineEnvironmentProgram({
@@ -62,7 +56,7 @@ export async function* installWineEnvironmentProgram({
   wineDistro: WineDistribution;
   activate?: boolean;
   finishMessage?: boolean;
-}): CommonUpdateProgram {
+}): TaskProgram {
   const wineBinaryDir = getWineInstallDir(wineDistro.id);
   const wineBinaryTmpDir = `${wineBinaryDir}.installing`;
   const installedBefore = await isWineDistroInstalled(wineDistro.id);
@@ -146,7 +140,7 @@ export async function* configureWineEnvironmentProgram({
   aria2: Aria2;
   wineAbsPrefix: string;
   wineDistro: WineDistribution;
-}): CommonUpdateProgram {
+}): TaskProgram {
   yield ["setUndeterminedProgress"];
   await ensureHosts(ENSURE_HOSTS);
 

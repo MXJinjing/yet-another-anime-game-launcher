@@ -11,9 +11,9 @@ import { th_TH } from "./th_TH";
 import {
   prompt as uprompt,
   promptUpdate as upromptUpdate,
-  formatString,
-  getKey,
-} from "../utils";
+} from "../platform/neutralino";
+import { formatString } from "../runtime/format";
+import { getKey } from "../runtime/storage";
 import { notificationService } from "@hope-ui/solid";
 
 export type LocaleTextKey = keyof typeof zh_CN;

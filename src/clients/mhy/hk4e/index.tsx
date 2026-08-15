@@ -1,6 +1,6 @@
 import { batch, createSignal } from "solid-js";
 import { Divider } from "@hope-ui/solid";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import {
   ChannelClient,
   ChannelClientBackground,
@@ -8,20 +8,14 @@ import {
 } from "../../../channel-client";
 import { Server } from "@constants";
 import { Locale } from "@locale";
-import {
-  assertValueDefined,
-  exec,
-  getFreeSpace,
-  getKey,
-  getKeyOrDefault,
-  log,
-  rawString,
-  setKey,
-  spawn,
-  stats,
-  timeout,
-  waitImageReady,
-} from "@utils";
+import { log } from "@logging/logger";
+import { stats } from "@platform/neutralino";
+import { rawString } from "@platform/shell";
+import { assertValueDefined } from "@runtime/assertions";
+import { timeout, waitImageReady } from "@runtime/async";
+import { exec, spawn } from "@runtime/command-runner";
+import { getFreeSpace } from "@runtime/macos-filesystem";
+import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
 import { join } from "path-browserify";
 import { gt, lt, SemVer } from "semver";
 import { Config } from "@config";
@@ -40,7 +34,7 @@ import {
   checkAndDownloadDXMT,
   checkAndDownloadDXVK,
   checkAndDownloadReshade,
-} from "../../../downloadable-resource";
+} from "@wine/runtime-resources";
 import createMhypBaseReplacement from "./config/mhypbase-replacement";
 import createPatchOff from "./config/patch-off";
 import createSteamPatch from "./config/steam-patch";
@@ -183,7 +177,7 @@ export async function createHK4EChannelClient({
     return installedVersion;
   }
 
-  async function* updateToLatest(): CommonUpdateProgram<boolean> {
+  async function* updateToLatest(): TaskProgram<boolean> {
     if (!updateRequired()) return true;
 
     const currentVersion = gameCurrentVersion();
@@ -221,6 +215,7 @@ export async function createHK4EChannelClient({
     showPredownloadPrompt,
     installDir: _gameInstallDir,
     gameVersion: gameCurrentVersion,
+    latestVersion: () => LATEST_GAME_VERSION,
     updateRequired,
     uiContent: {
       background: background, // Always show image
@@ -236,7 +231,7 @@ export async function createHK4EChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
-    async *install(selection: string): CommonUpdateProgram {
+    async *install(selection: string): TaskProgram {
       try {
         await stats(join(selection, "pkg_version"));
       } catch {
@@ -430,7 +425,7 @@ export async function createHK4EChannelClient({
       const [TF] = await createTimeoutFix({ locale, config });
 
       return {
-        game() {
+        launch() {
           return [
             <PO />,
             <SP />,

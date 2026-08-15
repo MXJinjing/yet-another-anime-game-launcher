@@ -3,7 +3,7 @@ import { createApp } from "./app";
 import { HopeProvider, NotificationsProvider } from "@hope-ui/solid";
 import { amber } from "@radix-ui/colors";
 
-import { fatal } from "./utils";
+import { fatal } from "./runtime";
 import {
   getBootProgress,
   getBootText,
@@ -45,10 +45,10 @@ if (typeof Neutralino == "undefined") {
     document.getElementById("root") as HTMLElement
   );
   Neutralino.window.show();
-  reportBootProgress("正在初始化", 0);
+  reportBootProgress("BOOT_INITIALIZING", 0);
   createApp()
     .then(UI => {
-      reportBootProgress("正在进入主界面", 100);
+      reportBootProgress("BOOT_ENTERING_MAIN_SCREEN", 100);
       render(
         () => (
           <HopeProvider
@@ -70,7 +70,7 @@ if (typeof Neutralino == "undefined") {
       Neutralino.window.show();
     })
     .catch(error => {
-      reportBootProgress("初始化失败", 100, String(error));
+      reportBootProgress("BOOT_INITIALIZATION_FAILED", 100, String(error));
       fatal(error);
     });
 }

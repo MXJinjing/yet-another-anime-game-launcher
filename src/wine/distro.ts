@@ -1,6 +1,6 @@
-import { exec, fileOrDirExists, getKey, resolve, setKey } from "@utils";
-import { DEFAULT_WINE_DISTRO_TAG } from "../clients";
-import { Github } from "../github";
+import { fileOrDirExists, resolve } from "@platform/neutralino";
+import { exec } from "@runtime/command-runner";
+import { getKey, setKey } from "@runtime/storage";
 import {
   ensureActiveWineCompatLink,
   getWineInstallDir,
@@ -96,14 +96,18 @@ export type WineStatus =
       wineDistribution: WineDistribution;
     };
 
-export async function checkWine(github: Github): Promise<WineStatus> {
+/**
+ * Reads the persisted Wine state for the distribution selected by the channel.
+ * The channel owns this default, so Wine never imports client registration/UI.
+ */
+export async function checkWine(
+  defaultWineDistroTag: string
+): Promise<WineStatus> {
   const wine_versions = await getWineDistributions();
-  const defaultDistro = wine_versions.find(
-    x => x.id == DEFAULT_WINE_DISTRO_TAG
-  );
+  const defaultDistro = wine_versions.find(x => x.id == defaultWineDistroTag);
   if (!defaultDistro) {
     throw new Error(
-      "can not find default wine version: " + DEFAULT_WINE_DISTRO_TAG
+      "can not find default wine version: " + defaultWineDistroTag
     );
   }
   try {

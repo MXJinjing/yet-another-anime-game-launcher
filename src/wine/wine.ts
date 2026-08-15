@@ -1,20 +1,18 @@
+import { log } from "../logging/logger";
 import {
-  exec as unixExec,
-  exec2 as unixExec2,
-  getKey,
-  log,
-  setKey,
-  arrayFind,
-  getCPUInfo,
-  build,
-  generateRandomString,
-  stats,
-  resolve,
-  writeFile,
   fileOrDirExists,
+  getCPUInfo,
   removeFileIfExists,
-  rmrf_dangerously,
-} from "@utils";
+  resolve,
+  stats,
+  writeFile,
+} from "@platform/neutralino";
+import { build } from "@platform/shell";
+import { arrayFind } from "@runtime/assertions";
+import { generateRandomString } from "@runtime/binary";
+import { exec as unixExec, exec2 as unixExec2 } from "@runtime/command-runner";
+import { rmrf_dangerously } from "@runtime/macos-filesystem";
+import { getKey, setKey } from "@runtime/storage";
 import { dirname, join } from "path-browserify";
 import type { WineDistribution, WineDistributionAttributes } from "./distro";
 

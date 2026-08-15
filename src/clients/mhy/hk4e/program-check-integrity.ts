@@ -1,16 +1,16 @@
 import { basename, join } from "path-browserify";
 import { Sophon } from "@sophon";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
+import { log } from "@logging/logger";
+import { readAllLines, stats } from "@platform/neutralino";
 import {
   downloadPercent,
   formatDownloadSpeed,
-  log,
-  md5,
-  stats,
-  readAllLines,
-  setKey,
   humanFileSize,
-} from "@utils";
+} from "@runtime/format";
+import { md5 } from "@runtime/patching";
+import { setKey } from "@runtime/storage";
+import { createTransferProgressTracker } from "./download-progress";
 
 export async function* checkIntegrityProgram({
   sophon,
@@ -18,7 +18,7 @@ export async function* checkIntegrityProgram({
 }: {
   gameDir: string;
   sophon: Sophon;
-}): CommonUpdateProgram {
+}): TaskProgram {
   const taskId = await sophon.startRepair({
     gamedir: gameDir,
     game_type: "hk4e",
@@ -29,6 +29,7 @@ export async function* checkIntegrityProgram({
 
   let currentFileIndex = 0;
   let totalFileCount = 0;
+  const transferProgress = createTransferProgressTracker();
   for await (const progress of sophon.streamOperationProgress(taskId)) {
     switch (progress.type) {
       case "auto_update_start":
@@ -52,10 +53,7 @@ export async function* checkIntegrityProgram({
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           "",
-          "",
-          "",
-          "",
-          "",
+          ...transferProgress.current(),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];
@@ -72,10 +70,7 @@ export async function* checkIntegrityProgram({
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           basename(progress.filename),
-          "",
-          "",
-          "",
-          "",
+          ...transferProgress.current(),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];
@@ -101,13 +96,7 @@ export async function* checkIntegrityProgram({
             "setStateText",
             "DOWNLOADING_FILE_PROGRESS",
             basename(progress.filename),
-            formatDownloadSpeed(progress.overall_progress.download_speed),
-            humanFileSize(progress.overall_progress.downloaded_size),
-            humanFileSize(progress.overall_progress.total_size),
-            downloadPercent(
-              progress.overall_progress.downloaded_size,
-              progress.overall_progress.total_size
-            ),
+            ...transferProgress.update(progress),
             String(progress.current_file_index ?? currentFileIndex),
             String(progress.total_file_count ?? totalFileCount),
           ];
@@ -148,13 +137,7 @@ export async function* checkIntegrityProgram({
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           "",
-          formatDownloadSpeed(progress.overall_progress.download_speed),
-          humanFileSize(progress.overall_progress.downloaded_size),
-          humanFileSize(progress.overall_progress.total_size),
-          downloadPercent(
-            progress.overall_progress.downloaded_size,
-            progress.overall_progress.total_size
-          ),
+          ...transferProgress.update(progress),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import sophon_api
 from rate_limiter import RateLimiter
+from task_errors import TaskCancelledError
 
 
 class RateLimiterTests(unittest.TestCase):
@@ -125,6 +126,74 @@ class RateLimiterTests(unittest.TestCase):
         # And the limiter must actually have transferred a meaningful amount.
         self.assertGreaterEqual(total, rate * elapsed * 0.5)
 
+    def test_concurrent_waiters_do_not_consume_the_same_tokens(self):
+        rate = 100
+        limiter = RateLimiter(rate)
+        limiter.acquire(rate)  # drain the initial bucket
+        barrier = threading.Barrier(4)
+        completed_at = []
+        lock = threading.Lock()
+
+        def worker():
+            barrier.wait()
+            limiter.acquire(20)
+            with lock:
+                completed_at.append(time.monotonic())
+
+        threads = [threading.Thread(target=worker) for _ in range(3)]
+        for thread in threads:
+            thread.start()
+        barrier.wait()
+        started_at = time.monotonic()
+        for thread in threads:
+            thread.join(2)
+
+        self.assertTrue(all(not thread.is_alive() for thread in threads))
+        self.assertEqual(len(completed_at), 3)
+        # Three 20-byte requests require about 0.6s after the bucket is empty.
+        self.assertGreaterEqual(max(completed_at) - started_at, 0.45)
+        with limiter._condition:
+            self.assertGreaterEqual(limiter._tokens, 0)
+
+    def test_pause_stops_a_large_acquire_until_resumed(self):
+        limiter = RateLimiter(100)
+        limiter.acquire(100)
+        pause_event = threading.Event()
+        pause_event.set()
+        completed = threading.Event()
+
+        def worker():
+            limiter.acquire(100, pause_event=pause_event)
+            completed.set()
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        self.assertFalse(completed.wait(0.4))
+        pause_event.clear()
+        self.assertTrue(completed.wait(1.5))
+        thread.join(1)
+
+    def test_cancel_interrupts_a_large_acquire(self):
+        limiter = RateLimiter(100)
+        limiter.acquire(100)
+        cancel_event = threading.Event()
+        result = {}
+
+        def worker():
+            try:
+                limiter.acquire(1000, cancel_event=cancel_event)
+            except Exception as error:
+                result["error"] = error
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        time.sleep(0.1)
+        cancel_event.set()
+        thread.join(0.6)
+
+        self.assertFalse(thread.is_alive())
+        self.assertIsInstance(result.get("error"), TaskCancelledError)
+
     def test_module_singleton_is_shared(self):
         import rate_limiter
 
@@ -170,7 +239,9 @@ class DownloadFileResumeTests(unittest.TestCase):
                 patch.object(sophon_api.pycurl, "Curl", return_value=curl),
                 patch.object(sophon_api, "limiter") as mock_limiter,
             ):
-                mock_limiter.acquire.side_effect = lambda n: acquired.append(n)
+                mock_limiter.acquire.side_effect = (
+                    lambda n, **_kwargs: acquired.append(n)
+                )
                 sophon_api.SophonClient()._download_file_resume(
                     "https://example.com/chunk", dstfile, 13
                 )
@@ -216,6 +287,45 @@ class DownloadFileResumeTests(unittest.TestCase):
                 )
         curl_mock.assert_not_called()
         mock_limiter.acquire.assert_not_called()
+
+    def test_transient_curl_error_retries_instead_of_returning(self):
+        curl, captured, calls = self._make_curl(response_code=200)
+        curl.perform.side_effect = [
+            sophon_api.pycurl.error(7, "first failure"),
+            sophon_api.pycurl.error(7, "second failure"),
+            None,
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            dstfile = pathlib.Path(tmp) / "out.bin"
+            with (
+                patch.object(sophon_api.pycurl, "Curl", return_value=curl),
+                patch.object(sophon_api.time, "sleep"),
+            ):
+                sophon_api.SophonClient()._download_file_resume(
+                    "https://example.com/chunk", dstfile, 1
+                )
+        self.assertEqual(curl.perform.call_count, 3)
+
+    def test_cancel_from_write_callback_is_not_retried(self):
+        curl, captured, calls = self._make_curl(response_code=200)
+        cancel_event = threading.Event()
+
+        def perform():
+            cancel_event.set()
+            captured["write_callback"](b"data")
+
+        curl.perform.side_effect = perform
+        with tempfile.TemporaryDirectory() as tmp:
+            dstfile = pathlib.Path(tmp) / "out.bin"
+            with patch.object(sophon_api.pycurl, "Curl", return_value=curl):
+                with self.assertRaises(TaskCancelledError):
+                    sophon_api.SophonClient()._download_file_resume(
+                        "https://example.com/chunk",
+                        dstfile,
+                        4,
+                        cancel_event=cancel_event,
+                    )
+        self.assertEqual(curl.perform.call_count, 1)
 
 
 if __name__ == "__main__":

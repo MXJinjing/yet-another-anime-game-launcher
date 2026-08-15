@@ -140,7 +140,7 @@ textarea,
 .hoyoplay-bg-switcher {
   position: absolute;
   z-index: 2;
-  top: 24px;
+  top: 30px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -237,12 +237,6 @@ textarea,
   background: rgba(6, 7, 11, 0.74);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(18px);
-}
-
-/* When the game library is open its background fills the whole page,
-   so make the rail translucent to let it show through underneath. */
-.hoyoplay-game-rail--library {
-  background: rgba(6, 7, 11, 0.32);
 }
 
 .hoyoplay-orbit-button,
@@ -348,6 +342,11 @@ textarea,
   position: absolute;
   z-index: 1;
   inset: 0 0 0 76px;
+  pointer-events: none;
+}
+
+.hoyoplay-stage.library-open {
+  z-index: 3;
 }
 
 .hoyoplay-action-area {
@@ -468,6 +467,15 @@ textarea,
 
 .hoyoplay-menu-item:hover {
   background: rgba(255, 255, 255, 0.12);
+}
+
+.hoyoplay-menu-item-danger {
+  color: #ff7777;
+}
+
+.hoyoplay-menu-item-danger:hover {
+  color: #ff9a9a;
+  background: rgba(120, 32, 42, 0.7);
 }
 
 .hoyoplay-menu-item:disabled {
@@ -593,6 +601,75 @@ textarea,
 
 .hoyoplay-download-bar {
   margin-bottom: 10px;
+}
+
+.hoyoplay-download-progress {
+  position: relative;
+  height: 3px;
+  margin: -3px 0 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.hoyoplay-download-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--hoyoplay-accent, #ffffff);
+  transition: width 180ms ease-out;
+}
+
+.hoyoplay-download-progress-fill.indeterminate {
+  width: 34%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--hoyoplay-accent, #ffffff),
+    transparent
+  );
+  animation: hoyoplay-download-progress-marquee 1.15s ease-in-out infinite;
+}
+
+.hoyoplay-download-progress-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -5px 0 10px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hoyoplay-download-progress-info span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hoyoplay-download-progress-percent {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 800;
+}
+
+@keyframes hoyoplay-download-progress-marquee {
+  from {
+    transform: translateX(-300%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hoyoplay-download-progress-fill.indeterminate {
+    animation: none;
+    width: 100%;
+    opacity: 0.7;
+  }
 }
 
 .hoyoplay-download-title {
@@ -963,6 +1040,29 @@ textarea,
   white-space: nowrap;
 }
 
+.download-queue-item-phase {
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-queue-item-status {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.download-queue-total-percent {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 .download-queue-item-task {
   display: flex;
   align-items: baseline;
@@ -1047,6 +1147,66 @@ textarea,
   gap: 8px;
 }
 
+.download-queue-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.download-queue-engine {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.download-queue-files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.download-queue-file {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.download-queue-file-header,
+.download-queue-file-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.download-queue-file-name {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-queue-file-progress {
+  width: 100%;
+  opacity: 0.9;
+}
+
+.download-queue-action--expand {
+  color: rgba(255, 255, 255, 0.72);
+}
+
 .download-queue-action {
   -webkit-appearance: none;
   appearance: none;
@@ -1077,14 +1237,6 @@ textarea,
 .download-queue-action--cancel:hover {
   color: #ffb1b5;
   background: rgba(229, 72, 77, 0.24);
-}
-
-/* Max concurrent downloads label inside settings modal */
-.app-modal-content .download-max-concurrent-label {
-  color: rgba(255, 255, 255, 0.92) !important;
-  font-size: 15px !important;
-  font-weight: 700 !important;
-  line-height: 1.45 !important;
 }
 
 /* Download manager hint shown while a launcher-global task runs */

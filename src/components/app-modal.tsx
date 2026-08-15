@@ -50,6 +50,7 @@ export function AppModal(props: {
   maxWidth?: number | string;
   height?: number | string;
   bodyClass?: string;
+  contentClass?: string;
 }) {
   // NOTE: keep all reads through `props.*`. Destructuring a reactive prop
   // evaluates it once when the component is created, freezing dynamic content
@@ -66,7 +67,9 @@ export function AppModal(props: {
     >
       <ModalOverlay class="app-modal-overlay" />
       <ModalContent
-        class="app-modal-content"
+        class={`app-modal-content${
+          props.contentClass ? ` ${props.contentClass}` : ""
+        }`}
         style={
           {
             "--app-modal-max-width":

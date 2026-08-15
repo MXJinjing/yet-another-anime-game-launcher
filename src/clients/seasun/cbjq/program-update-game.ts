@@ -1,7 +1,8 @@
 import { join } from "path-browserify";
 import { Aria2, Aria2OverallProgress } from "@aria2";
-import { CommonUpdateProgram } from "@common-update-ui";
-import { readFile, setKey, removeFileIfExists, writeFile } from "@utils";
+import type { TaskProgram } from "@tasks/task-program";
+import { readFile, removeFileIfExists, writeFile } from "@platform/neutralino";
+import { setKey } from "@runtime/storage";
 import { LauncherResourceData } from "./launcher-info";
 import { Server } from "../server";
 
@@ -15,7 +16,7 @@ export async function* updateGameProgram({
   gameDir: string;
   server: Server;
   aria2: Aria2;
-}): CommonUpdateProgram {
+}): TaskProgram {
   yield ["setUndeterminedProgress"];
   const local_manifest = join(gameDir, "manifest.json");
   const localResourceData: LauncherResourceData = await readFile(

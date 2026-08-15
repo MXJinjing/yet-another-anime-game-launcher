@@ -1,4 +1,5 @@
 import tempfile
+import threading
 import unittest
 from unittest.mock import ANY, MagicMock, patch
 
@@ -42,6 +43,29 @@ class PredownloadAvailabilityTests(unittest.TestCase):
                     tasks._perform_update(MagicMock(), request)
 
         client.retrieve_API_keys.assert_not_called()
+
+    def test_update_forwards_cancel_and_pause_to_ldiff(self):
+        client = MagicMock()
+        client.rel_type = "os"
+        cancel_event = threading.Event()
+        pause_event = threading.Event()
+
+        with tempfile.TemporaryDirectory() as game_dir:
+            request = UpdateRequest(
+                gamedir=game_dir,
+                game_type="hk4e",
+                predownload=True,
+            )
+            with patch.object(tasks, "SophonClient", return_value=client):
+                tasks._perform_update(
+                    MagicMock(), request, cancel_event, pause_event
+                )
+
+        client.apply_or_prepare_ldiff_files.assert_called_once_with(
+            progress_handler=ANY,
+            cancel_event=cancel_event,
+            pause_event=pause_event,
+        )
 
 
 class RepairWorkflowTests(unittest.TestCase):
@@ -109,6 +133,7 @@ class RepairWorkflowTests(unittest.TestCase):
             "game",
             repair_progress_handler=ANY,
             cancel_event=None,
+            pause_event=None,
         )
 
 

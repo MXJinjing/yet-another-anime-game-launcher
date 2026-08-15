@@ -1,17 +1,17 @@
 import { join } from "path-browserify";
-import { CommonUpdateProgram } from "../../../common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "../../../constants";
+import { log } from "@logging/logger";
 import {
-  mkdirp,
+  readBinary,
   removeFile,
+  resolve,
   writeBinary,
   writeFile,
-  readBinary,
-  resolve,
-  utf16le,
-  log,
-  getKeyOrDefault,
-} from "../../../utils";
+} from "@platform/neutralino";
+import { utf16le } from "@runtime/binary";
+import { mkdirp } from "@runtime/macos-filesystem";
+import { getKeyOrDefault } from "@runtime/storage";
 import { Wine } from "../../../wine";
 import { Config } from "@config";
 import { normalizeHttpProxy } from "@config/proxy";
@@ -21,7 +21,7 @@ import { buildBlockHosts } from "../block-hosts";
 import {
   blockPrivilegedHosts,
   legacyBlockHosts,
-} from "../../../privileged-hosts";
+} from "../../../system/privileged-hosts";
 import { gt } from "semver";
 
 export async function* launchGameProgram({
@@ -36,7 +36,7 @@ export async function* launchGameProgram({
   wine: Wine;
   config: Config;
   server: Server;
-}): CommonUpdateProgram {
+}): TaskProgram {
   const blockUrl =
     server.id == "nap_global" ? NAP_OS_BLOCK_URL : NAP_CN_BLOCK_URL;
   const blockHosts = config.blockNet

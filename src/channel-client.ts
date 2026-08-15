@@ -1,14 +1,14 @@
 import { JSXElement } from "solid-js";
-import { CommonUpdateProgram } from "./common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import { Config } from "./config";
 import { Locale } from "./locale";
 
 export type ChannelClientInstallState = "INSTALLED" | "NOT_INSTALLED";
 export type ChannelClientConfigUI =
-  | (() => JSXElement)
+  | ((props?: { onOpenGlobalSettings?: () => void }) => JSXElement)
   | {
-      game: () => JSXElement;
-      video?: () => JSXElement;
+      launch: (props?: { onOpenGlobalSettings?: () => void }) => JSXElement;
+      video?: (props?: { onOpenGlobalSettings?: () => void }) => JSXElement;
     };
 
 export type ChannelClientBackground = {
@@ -23,6 +23,8 @@ export interface ChannelClient {
   installState: () => ChannelClientInstallState;
   installDir: () => string;
   gameVersion?: () => string;
+  /** Latest normal-release version targeted by install/update tasks. */
+  latestVersion?: () => string;
 
   showPredownloadPrompt: () => boolean;
   updateRequired: () => boolean;
@@ -46,12 +48,12 @@ export interface ChannelClient {
 
   dismissPredownload(): void;
 
-  update(): CommonUpdateProgram;
-  install(path: string): CommonUpdateProgram;
-  predownload(): CommonUpdateProgram;
-  launch(config: Config): CommonUpdateProgram;
-  checkIntegrity(): CommonUpdateProgram;
-  init(config: Config): CommonUpdateProgram;
+  update(): TaskProgram;
+  install(path: string): TaskProgram;
+  predownload(): TaskProgram;
+  launch(config: Config): TaskProgram;
+  checkIntegrity(): TaskProgram;
+  init(config: Config): TaskProgram;
   changeInstallDir?(path: string): Promise<void>;
   createConfig(
     locale: Locale,

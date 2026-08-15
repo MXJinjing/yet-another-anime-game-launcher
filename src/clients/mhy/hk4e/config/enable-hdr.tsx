@@ -1,6 +1,7 @@
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
-import { assertValueDefined, getKey, setKey } from "@utils";
+import { assertValueDefined } from "@runtime/assertions";
+import { getKey, setKey } from "@runtime/storage";
 import { Config, NOOP } from "@config/config-def";
 import { SettingSwitch } from "../../../../components/setting-switch";
 

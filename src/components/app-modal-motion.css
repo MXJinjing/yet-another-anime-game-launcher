@@ -28,6 +28,15 @@
     transform 180ms cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
+/* Global settings/about/license share one mounted modal. Animate its bounds
+   while the route-specific body is swapped so navigation does not resize the
+   window abruptly. */
+.app-modal-content.global-modal-content {
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    max-width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .app-modal-overlay.hope-modal-fade-transition-enter,
 .app-modal-overlay.hope-modal-fade-transition-exit-to {
   opacity: 0 !important;
@@ -56,7 +65,8 @@
   .hope-modal__content-container.hope-modal-scale-transition-exit-active
     .app-modal-content,
   .app-modal-overlay.hope-modal-fade-transition-enter-active,
-  .app-modal-overlay.hope-modal-fade-transition-exit-active {
+  .app-modal-overlay.hope-modal-fade-transition-exit-active,
+  .app-modal-content.global-modal-content {
     transition-duration: 1ms !important;
   }
 }

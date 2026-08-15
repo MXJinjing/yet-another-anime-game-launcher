@@ -1,6 +1,6 @@
 import { batch, createSignal } from "solid-js";
 import { Divider } from "@hope-ui/solid";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import {
   ChannelClient,
   ChannelClientBackground,
@@ -8,17 +8,13 @@ import {
 } from "../../../channel-client";
 import { Server } from "@constants";
 import { Locale } from "@locale";
-import {
-  assertValueDefined,
-  exec,
-  getFreeSpace,
-  getKey,
-  getKeyOrDefault,
-  log,
-  setKey,
-  stats,
-  waitImageReady,
-} from "@utils";
+import { log } from "@logging/logger";
+import { stats } from "@platform/neutralino";
+import { assertValueDefined } from "@runtime/assertions";
+import { waitImageReady } from "@runtime/async";
+import { exec } from "@runtime/command-runner";
+import { getFreeSpace } from "@runtime/macos-filesystem";
+import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
 import { join } from "path-browserify";
 import { gt, lt } from "semver";
 import { Config } from "@config";
@@ -37,7 +33,7 @@ import {
   checkAndDownloadDXVK,
   checkAndDownloadJadeite,
   checkAndDownloadReshade,
-} from "../../../downloadable-resource";
+} from "@wine/runtime-resources";
 import { getGameVersion2019 } from "../unity";
 import {
   HoyoConnectGameBackgroundType,
@@ -166,6 +162,7 @@ export async function createHKRPGChannelClient({
     showPredownloadPrompt,
     installDir: _gameInstallDir,
     gameVersion: gameCurrentVersion,
+    latestVersion: () => GAME_LATEST_VERSION,
     updateRequired,
     uiContent: {
       background: background, // Always show image
@@ -180,7 +177,7 @@ export async function createHKRPGChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
-    async *install(selection: string): CommonUpdateProgram {
+    async *install(selection: string): TaskProgram {
       if (game_pkgs.length === 0) {
         await locale.alert(
           "CHECK_GAME_UPDATE_FAILED",

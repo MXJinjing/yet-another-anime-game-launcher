@@ -1,4 +1,6 @@
-import { binaryPatternSearch, md5, readBinary } from "@utils";
+import { readBinary } from "@platform/neutralino";
+import { binaryPatternSearch } from "@runtime/binary";
+import { md5 } from "@runtime/patching";
 import { join } from "path-browserify";
 
 export async function getGameVersion(gameDataDir: string, offset = 0x88) {

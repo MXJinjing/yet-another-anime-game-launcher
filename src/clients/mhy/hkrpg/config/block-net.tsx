@@ -1,10 +1,12 @@
-import { Box, Button, HStack, Textarea } from "@hope-ui/solid";
+import { Box, Button, HStack, Text, Textarea } from "@hope-ui/solid";
 import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "@locale";
-import { assertValueDefined, getKey, setKey } from "@utils";
+import { assertValueDefined } from "@runtime/assertions";
+import { getKey, setKey } from "@runtime/storage";
 import { Config, NOOP } from "@config/config-def";
 import { SettingSwitch } from "../../../../components/setting-switch";
-import { checkHostsHelperInstalled } from "@config/hosts-helper";
+import { getPrivilegedHostsHelperStatus } from "@system/privileged-hosts";
+import type { PrivilegedHostsHelperStatus } from "@system/privileged-hosts";
 
 declare module "@config/config-def" {
   interface Config {
@@ -40,6 +42,16 @@ export default async function ({
 
   const [value, setValue] = createSignal(config.blockNet);
   const [hostsText, setHostsText] = createSignal(storedHostsText);
+  const [hostsHelperStatus, setHostsHelperStatus] =
+    createSignal<PrivilegedHostsHelperStatus>();
+
+  async function refreshHostsHelperStatus() {
+    try {
+      setHostsHelperStatus(await getPrivilegedHostsHelperStatus());
+    } catch {
+      setHostsHelperStatus("error");
+    }
+  }
 
   async function onSave(apply: boolean) {
     assertValueDefined(config.blockNet);
@@ -66,8 +78,16 @@ export default async function ({
     onSave(true);
   });
 
+  createEffect(() => {
+    if (value()) {
+      void refreshHostsHelperStatus();
+    } else {
+      setHostsHelperStatus(undefined);
+    }
+  });
+
   return [
-    function UI() {
+    function UI(props?: { onOpenGlobalSettings?: () => void }) {
       const description = locale.currentLanguage.startsWith("zh")
         ? "临时写入 hosts 屏蔽指定域名，游戏结束后自动还原。"
         : "Temporarily block domains via hosts and restore after the game exits.";
@@ -79,7 +99,6 @@ export default async function ({
           checked={value()}
           onChange={next => {
             setValue(next);
-            if (next) void checkHostsHelperInstalled(locale);
           }}
           control={
             <Show when={value()}>
@@ -93,6 +112,33 @@ export default async function ({
             </Show>
           }
         >
+          <Show when={value() && hostsHelperStatus() === "not-installed"}>
+            <Box
+              mt="$2"
+              display="flex"
+              alignItems="center"
+              flexWrap="wrap"
+              gap="$1"
+            >
+              <Text size="xs" color="$warning10" userSelect="none">
+                {locale.currentLanguage.startsWith("zh")
+                  ? "hosts权限助手未安装，每次启动需要输入密码，"
+                  : "The hosts permission helper is not installed; a password will be required on every launch."}
+              </Text>
+              <Show when={props?.onOpenGlobalSettings}>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  colorScheme="warning"
+                  onClick={() => props?.onOpenGlobalSettings?.()}
+                >
+                  {locale.currentLanguage.startsWith("zh")
+                    ? "点击前往全局设置"
+                    : "Go to Global Settings"}
+                </Button>
+              </Show>
+            </Box>
+          </Show>
           <Show when={value()}>
             <Box mt="$2">
               <Textarea

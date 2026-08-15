@@ -1,6 +1,6 @@
 import { batch, createSignal } from "solid-js";
 import { Divider } from "@hope-ui/solid";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import {
   ChannelClient,
   ChannelClientBackground,
@@ -8,17 +8,13 @@ import {
 } from "../../../channel-client";
 import { Server } from "../../../constants";
 import { Locale } from "../../../locale";
-import {
-  assertValueDefined,
-  exec,
-  getFreeSpace,
-  getKey,
-  getKeyOrDefault,
-  md5,
-  setKey,
-  stats,
-  waitImageReady,
-} from "@utils";
+import { stats } from "@platform/neutralino";
+import { assertValueDefined } from "@runtime/assertions";
+import { waitImageReady } from "@runtime/async";
+import { exec } from "@runtime/command-runner";
+import { getFreeSpace } from "@runtime/macos-filesystem";
+import { md5 } from "@runtime/patching";
+import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
 import { join } from "path-browserify";
 import { gt, lt } from "semver";
 import { Config } from "@config";
@@ -36,7 +32,7 @@ import {
   checkAndDownloadDXMT,
   checkAndDownloadDXVK,
   checkAndDownloadReshade,
-} from "../../../downloadable-resource";
+} from "@wine/runtime-resources";
 import createPatchOff from "./config/patch-off";
 import createResolution from "./config/resolution";
 import createBlockNet from "./config/block-net";
@@ -177,6 +173,7 @@ export async function createNAPChannelClient({
     showPredownloadPrompt,
     installDir: _gameInstallDir,
     gameVersion: gameCurrentVersion,
+    latestVersion: () => GAME_LATEST_VERSION,
     updateRequired,
     uiContent: {
       background: background, // Always show image
@@ -192,7 +189,7 @@ export async function createNAPChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
-    async *install(selection: string): CommonUpdateProgram {
+    async *install(selection: string): TaskProgram {
       if (game_pkgs.length === 0) {
         await locale.alert(
           "CHECK_GAME_UPDATE_FAILED",

@@ -1,17 +1,15 @@
 import { join, basename, dirname } from "path-browserify";
 import { Aria2, Aria2OverallProgress } from "@aria2";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "../server";
+import { log } from "@logging/logger";
+import { removeFile, stats, writeFile } from "@platform/neutralino";
 import {
-  humanFileSize,
-  formatDownloadSpeed,
   downloadPercent,
-  log,
-  mkdirp,
-  removeFile,
-  stats,
-  writeFile,
-} from "@utils";
+  formatDownloadSpeed,
+  humanFileSize,
+} from "@runtime/format";
+import { mkdirp } from "@runtime/macos-filesystem";
 import { LauncherResourceData } from "./launcher-info";
 
 export async function* downloadAndInstallGameProgram({
@@ -27,7 +25,7 @@ export async function* downloadAndInstallGameProgram({
   server: Server;
   /** Grand total of all paks in bytes, from the launcher resource data. */
   totalBytes?: bigint;
-}): CommonUpdateProgram {
+}): TaskProgram {
   let index = 0;
   // Track overall progress so the button's percentage covers every pak.
   // The known grand total makes it accurate from the very first byte.
@@ -55,7 +53,7 @@ async function* downloadOrRecover(
   fileIndex: number,
   totalFileCount: number,
   overall: Aria2OverallProgress
-): CommonUpdateProgram<void> {
+): TaskProgram<void> {
   try {
     await stats(localUrl);
   } catch (e) {

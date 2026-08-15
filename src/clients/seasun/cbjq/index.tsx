@@ -1,23 +1,18 @@
 import { batch, createSignal } from "solid-js";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import {
   ChannelClient,
   ChannelClientInstallState,
 } from "../../../channel-client";
 import { Server } from "../server";
 import { Locale } from "@locale";
-import {
-  assertValueDefined,
-  exec,
-  getFreeSpace,
-  getKey,
-  getKeyOrDefault,
-  log,
-  readFile,
-  setKey,
-  stats,
-  waitImageReady,
-} from "@utils";
+import { log } from "@logging/logger";
+import { readFile, stats } from "@platform/neutralino";
+import { assertValueDefined } from "@runtime/assertions";
+import { waitImageReady } from "@runtime/async";
+import { exec } from "@runtime/command-runner";
+import { getFreeSpace } from "@runtime/macos-filesystem";
+import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
 import { join } from "path-browserify";
 import { gt, lt } from "semver";
 import { Config } from "@config";
@@ -36,7 +31,7 @@ import {
   checkAndDownloadDXVK,
   checkAndDownloadJadeite,
   checkAndDownloadReshade,
-} from "../../../downloadable-resource";
+} from "@wine/runtime-resources";
 // import { getGameVersion } from "../unity";
 import { LauncherResourceData } from "./launcher-info";
 import { checkIntegrityProgram } from "./program-check-integrity";
@@ -112,6 +107,7 @@ export async function createCBJQChannelClient({
     showPredownloadPrompt,
     installDir: _gameInstallDir,
     gameVersion: gameCurrentVersion,
+    latestVersion: () => GAME_LATEST_VERSION,
     updateRequired,
     uiContent: {
       background: isUiFallback ? "" : server.background_url,
@@ -125,7 +121,7 @@ export async function createCBJQChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
-    async *install(selection: string): CommonUpdateProgram {
+    async *install(selection: string): TaskProgram {
       const local_manifest = join(selection, "manifest.json");
       try {
         await stats(local_manifest);

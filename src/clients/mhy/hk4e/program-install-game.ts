@@ -1,13 +1,14 @@
 import { join, basename } from "path-browserify";
 import { SophonClient } from "@sophon";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "@constants";
+import { log } from "@logging/logger";
 import {
   downloadPercent,
   formatDownloadSpeed,
   humanFileSize,
-  log,
-} from "@utils";
+} from "@runtime/format";
+import { createTransferProgressTracker } from "./download-progress";
 
 export async function* downloadAndInstallGameProgram({
   sophonClient,
@@ -17,7 +18,7 @@ export async function* downloadAndInstallGameProgram({
   sophonClient: SophonClient;
   gameDir: string;
   installReltype: string;
-}): CommonUpdateProgram {
+}): TaskProgram {
   yield ["setUndeterminedProgress"];
   log("Starting game installation process...");
 
@@ -30,6 +31,7 @@ export async function* downloadAndInstallGameProgram({
 
   let currentFileIndex = 0;
   let totalFileCount = 0;
+  const transferProgress = createTransferProgressTracker();
   for await (const progress of sophonClient.streamOperationProgress(taskId)) {
     switch (progress.type) {
       case "job_start":
@@ -51,10 +53,7 @@ export async function* downloadAndInstallGameProgram({
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           "",
-          "",
-          "",
-          "",
-          "",
+          ...transferProgress.current(),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];
@@ -79,13 +78,7 @@ export async function* downloadAndInstallGameProgram({
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           "",
-          formatDownloadSpeed(progress.overall_progress.download_speed),
-          humanFileSize(progress.overall_progress.downloaded_size),
-          humanFileSize(progress.overall_progress.total_size),
-          downloadPercent(
-            progress.overall_progress.downloaded_size,
-            progress.overall_progress.total_size
-          ),
+          ...transferProgress.update(progress),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];

@@ -1,13 +1,13 @@
 # Repository Guidelines
 
 ## Project Overview
-Yaagl (Yet Another Anime Game Launcher) is a macOS desktop launcher built with Neutralinojs, a SolidJS + TypeScript (Vite) UI, and a Python "Sophon" sidecar server. Each supported game/region is a channel selected at build time via the `YAAGL_CHANNEL_CLIENT` environment variable.
+Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher built with Neutralinojs, a SolidJS + TypeScript (Vite) UI, and a Python "Sophon" sidecar server. Each supported game/region is a channel selected at build time via the `YAAGL_CHANNEL_CLIENT` environment variable.
 
 ## Project Structure & Module Organization
 - `src/` — Frontend source (TS/TSX): `clients/` per-channel game configs; `config/` launcher settings; `launcher/` game library, launch, and task-queue logic; `utils/` helpers with co-located tests; `locale/`, `icons/`, `assets/` for i18n, icons, and static assets.
 - `sophon_server/` — Python sidecar (uv-managed; `pyproject.toml`, `uv.lock`).
 - `sidecar/` — bundled binaries (aria2, 7z, hpatchz, xdelta, built Sophon server).
-- `bin/`, `external/`, `dist/`, `yaaglwd*/` — generated artifacts; gitignored, never commit them.
+- `bin/`, `external/`, `dist/`, `dev/` — generated artifacts; gitignored, never commit them.
 - Root scripts: `configure.sh`, `build-app.js`, `build-all.sh`, `build-sophon.sh`.
 
 ## Build, Test, and Development Commands

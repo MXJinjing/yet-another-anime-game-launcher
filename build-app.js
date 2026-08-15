@@ -16,7 +16,7 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   let bundleId;
   let appDistributionName;
   let includeSophon = false;
-  const channel = process.env["YAAGL_CHANNEL_CLIENT"] ?? "yaaglcn";
+  const channel = process.env["YAAGL_CHANNEL_CLIENT"] ?? "mhycn";
   switch (channel) {
     case "hk4ecn":
       bundleId = config.applicationId;
@@ -28,16 +28,16 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
       appDistributionName = config.cli.binaryName + " OS";
       includeSophon = true;
       break;
-    case "yaaglos":
+    case "mhyos":
       bundleId = config.applicationId + ".os";
-      appDistributionName = "Yaagl OS";
-      config.modes.window.title = "Yaagl OS";
+      appDistributionName = "Yaaglm OS";
+      config.modes.window.title = "Yaaglm OS";
       includeSophon = true;
       break;
-    case "yaaglcn":
+    case "mhycn":
       bundleId = config.applicationId + ".cn";
-      appDistributionName = "Yaagl CN";
-      config.modes.window.title = "Yaagl CN";
+      appDistributionName = "Yaaglm CN";
+      config.modes.window.title = "Yaaglm CN";
       includeSophon = true;
       break;
     case "hk4euniversal":
@@ -48,17 +48,17 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
     case "hkrpgcn":
       bundleId = config.applicationId + ".hkrpg.cn";
       appDistributionName = config.cli.binaryName + " HSR";
-      config.modes.window.icon = "/src/icons/March7th.cr.png";
+      config.modes.window.icon = "/src/assets/March7th.cr.png";
       break;
     case "hkrpgos":
       bundleId = config.applicationId + ".hkrpg.os";
       appDistributionName = config.cli.binaryName + " HSR OS";
-      config.modes.window.icon = "/src/icons/March7th.cr.png";
+      config.modes.window.icon = "/src/assets/March7th.cr.png";
       break;
     case "bh3glb":
       bundleId = config.applicationId + ".bh3.glb";
       appDistributionName = config.cli.binaryName + " Honkai Global";
-      config.modes.window.icon = "/src/icons/Elysia.cr.png";
+      config.modes.window.icon = "/src/assets/Elysia.cr.png";
       break;
     case "cbjq":
       bundleId = config.applicationId + ".scz.os";
@@ -71,12 +71,12 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
     case "napos":
       bundleId = config.applicationId + ".nap.os";
       appDistributionName = config.cli.binaryName + " ZZZ OS";
-      config.modes.window.icon = "/src/icons/ZZZ_Bang.cr.png";
+      config.modes.window.icon = "/src/assets/ZZZ_Bang.cr.png";
       break;
     case "napcn":
       bundleId = config.applicationId + ".nap.cn";
       appDistributionName = config.cli.binaryName + " ZZZ";
-      config.modes.window.icon = "/src/icons/ZZZ_Bang.cr.png";
+      config.modes.window.icon = "/src/assets/ZZZ_Bang.cr.png";
       break;
     default:
       throw new Error(`Unknown YAAGL_CHANNEL_CLIENT: ${channel}`);
@@ -105,37 +105,41 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   }
 
   const appname = config.cli.binaryName;
-  const binaryName = `${config.cli.binaryName}-mac_arm64`;
+  const buildArch = process.env["YAAGL_BUILD_ARCH"] ?? "arm64";
+  if (!new Set(["arm64", "x64", "universal"]).has(buildArch)) {
+    throw new Error(`Unknown YAAGL_BUILD_ARCH: ${buildArch}`);
+  }
+  const binaryName = `${config.cli.binaryName}-mac_${buildArch}`;
+  const releaseDir = path.resolve(process.cwd(), "release", buildArch);
+  const appBundlePath = path.resolve(
+    releaseDir,
+    `${appDistributionName}.app`
+  );
 
   // read package.json
   const pkg = await fs.readJSON(path.resolve(process.cwd(), "package.json"));
-  // remove old app folder
-  await rimraf(path.resolve(process.cwd(), `${appDistributionName}.app`));
-  // create app folder
-  await fs.mkdir(path.resolve(process.cwd(), `${appDistributionName}.app`));
-  await fs.mkdir(
-    path.resolve(process.cwd(), `${appDistributionName}.app`, "Contents")
-  );
+  // Keep every generated app under its architecture-specific release folder.
+  await fs.ensureDir(releaseDir);
+  await rimraf(appBundlePath);
+  await fs.mkdir(appBundlePath);
+  await fs.mkdir(path.resolve(appBundlePath, "Contents"));
   await fs.mkdir(
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "MacOS"
     )
   );
   await fs.mkdir(
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "Resources"
     )
   );
   await fs.mkdir(
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "Resources",
       ".storage"
@@ -145,8 +149,7 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   await fs.move(
     path.resolve(process.cwd(), "dist", appname, binaryName),
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "MacOS",
       binaryName
@@ -154,15 +157,13 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   );
   await fs.rename(
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "MacOS",
       binaryName
     ),
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "MacOS",
       appname
@@ -177,8 +178,7 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   await fs.copy(
     path.resolve(process.cwd(), "dist", appname, resourcesFile),
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "Resources",
       resourcesFile
@@ -205,8 +205,7 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   // save icns file
   await fs.writeFile(
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "Resources",
       "icon.icns"
@@ -216,14 +215,13 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
 
   // create an empty icon file in the app folder
   // await fs.ensureFile(
-  //   path.resolve(process.cwd(), `${appDistributionName}.app`, "Icon")
+  //   path.resolve(appBundlePath, "Icon")
   // );
 
   //
   await fs.writeFile(
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "MacOS",
       "parameterized"
@@ -241,8 +239,7 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
 
   await fs.chmod(
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "MacOS",
       "parameterized"
@@ -251,8 +248,7 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
   );
   await fs.chmod(
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "MacOS",
       appname
@@ -261,8 +257,7 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
   );
   // copy sidecar
   const sidecarDst = path.resolve(
-    process.cwd(),
-    `${appDistributionName}.app`,
+    appBundlePath,
     `Contents`,
     `Resources`,
     `sidecar`
@@ -285,15 +280,15 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
     path.resolve(
       process.cwd(),
       "sidecar",
-      "yaagl-hosts-helper",
-      "yaagl-hosts-helper.c"
+      "yaaglm-hosts-helper",
+      "yaaglm-hosts-helper.c"
     ),
     "-o",
     path.resolve(
       process.cwd(),
       "sidecar",
-      "yaagl-hosts-helper",
-      "yaagl-hosts-helper"
+      "yaaglm-hosts-helper",
+      "yaaglm-hosts-helper"
     ),
   ]);
   await fs.copy(path.resolve(process.cwd(), `sidecar`), sidecarDst, {
@@ -326,8 +321,7 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
   // create info.plist file
   await fs.writeFile(
     path.resolve(
-      process.cwd(),
-      `${appDistributionName}.app`,
+      appBundlePath,
       "Contents",
       "Info.plist"
     ),
@@ -365,4 +359,5 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
     </dict>
     </plist>`
   );
+  console.log(`Built ${appBundlePath}`);
 })();

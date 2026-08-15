@@ -1,0 +1,341 @@
+.hoyoplay-game-library {
+  --hoyoplay-library-card-width: 291px;
+  --hoyoplay-library-card-height: 164px;
+  --hoyoplay-library-bottom-space: 24px;
+  --hoyoplay-library-title-gap: 30px;
+  --hoyoplay-library-title-height: 58px;
+  --hoyoplay-library-fade-height: 64px;
+  --hoyoplay-library-panel-height: calc(
+    var(--hoyoplay-library-card-height) + var(--hoyoplay-library-bottom-space) +
+      var(--hoyoplay-library-title-gap) + var(--hoyoplay-library-title-height) +
+      var(--hoyoplay-library-fade-height)
+  );
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: auto;
+}
+
+.hoyoplay-game-library,
+.hoyoplay-game-library * {
+  box-sizing: border-box;
+}
+
+.hoyoplay-library-dismiss {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  bottom: var(--hoyoplay-library-panel-height);
+  left: 0;
+  padding: 0;
+  border: 0;
+  cursor: default;
+  background: transparent;
+}
+
+.hoyoplay-library-panel {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--hoyoplay-library-panel-height);
+  overflow: hidden;
+}
+
+.hoyoplay-library-glass {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+      110% 130% at 50% 112%,
+      color-mix(in srgb, var(--hoyoplay-accent, #ffd834) 5%, transparent) 0%,
+      transparent 66%
+    ),
+    linear-gradient(
+      to top,
+      color-mix(
+          in srgb,
+          var(--hoyoplay-accent, #ffd834) 5%,
+          rgba(2, 3, 6, 0.88)
+        )
+        0%,
+      color-mix(
+          in srgb,
+          var(--hoyoplay-accent, #ffd834) 5%,
+          rgba(3, 4, 8, 0.76)
+        )
+        50%,
+      rgba(4, 5, 9, 0.36) 76%,
+      rgba(4, 5, 9, 0) 100%
+    );
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-mask-image: linear-gradient(
+    to top,
+    #000 0%,
+    #000 62%,
+    rgba(0, 0, 0, 0.74) 80%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to top,
+    #000 0%,
+    #000 62%,
+    rgba(0, 0, 0, 0.74) 80%,
+    transparent 100%
+  );
+  animation: hoyoplay-library-glass-in 520ms ease-out both;
+}
+
+.hoyoplay-library-title {
+  position: absolute;
+  z-index: 2;
+  bottom: calc(
+    var(--hoyoplay-library-bottom-space) + var(--hoyoplay-library-card-height) +
+      var(--hoyoplay-library-title-gap)
+  );
+  left: 34px;
+  height: var(--hoyoplay-library-title-height);
+  display: flex;
+  align-items: flex-end;
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+  animation: hoyoplay-library-content-in 360ms 90ms ease-out both;
+}
+
+.hoyoplay-library-scroll {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 34px var(--hoyoplay-library-bottom-space);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  animation: hoyoplay-library-content-in 360ms 90ms ease-out both;
+}
+
+.hoyoplay-library-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.hoyoplay-library-grid {
+  min-width: max-content;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.hoyoplay-library-card {
+  position: relative;
+  width: var(--hoyoplay-library-card-width);
+  height: var(--hoyoplay-library-card-height);
+  flex: 0 0 var(--hoyoplay-library-card-width);
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  color: #fff;
+  background-color: rgba(18, 20, 28, 0.82);
+  background-position: center;
+  background-size: cover;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    0 8px 21px rgba(0, 0, 0, 0.42);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.hoyoplay-library-card:hover {
+  transform: translateY(-3px);
+  box-shadow: inset 0 0 0 2px var(--hoyoplay-accent, #ffd834),
+    0 13px 27px rgba(0, 0, 0, 0.5);
+}
+
+.hoyoplay-library-card:focus-visible {
+  outline: 2px solid var(--hoyoplay-accent, #ffd834);
+  outline-offset: 3px;
+}
+
+.hoyoplay-library-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 56%;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.92),
+    rgba(0, 0, 0, 0.5) 48%,
+    transparent
+  );
+}
+
+.hoyoplay-library-card-icon {
+  position: absolute;
+  z-index: 2;
+  left: 11px;
+  bottom: 11px;
+  width: 36px;
+  height: 36px;
+  padding: 1px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.32);
+}
+
+.hoyoplay-library-card-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+.hoyoplay-library-card-info {
+  position: absolute;
+  z-index: 2;
+  right: 11px;
+  bottom: 13px;
+  left: 56px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.hoyoplay-library-card-info strong {
+  display: block;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #fff;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.78);
+  white-space: nowrap;
+}
+
+.hoyoplay-library-card-info small {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.hoyoplay-library-status {
+  position: absolute;
+  z-index: 3;
+  left: 40px;
+  bottom: 40px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid rgba(8, 10, 14, 0.9);
+  border-radius: 50%;
+  background: #36d97d;
+  box-shadow: 0 0 8px rgba(54, 217, 125, 0.9);
+}
+
+.hoyoplay-library-status.is-missing {
+  background: #9aa0a6;
+  box-shadow: 0 0 8px rgba(154, 160, 166, 0.6);
+}
+
+.hoyoplay-library-button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin-top: 20px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.hoyoplay-library-button:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.hoyoplay-library-button.active {
+  color: var(--hoyoplay-accent-text, #333333);
+  background: var(--hoyoplay-accent, #ffd834);
+}
+
+.hoyoplay-library-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.hoyoplay-library-icon::before {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+  box-shadow: 10px 0 0 currentColor, 0 10px 0 currentColor,
+    10px 10px 0 currentColor;
+}
+
+@keyframes hoyoplay-library-glass-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes hoyoplay-library-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-height: 680px) {
+  .hoyoplay-game-library {
+    --hoyoplay-library-card-width: 262px;
+    --hoyoplay-library-card-height: 147px;
+    --hoyoplay-library-bottom-space: 18px;
+    --hoyoplay-library-title-gap: 24px;
+    --hoyoplay-library-fade-height: 52px;
+  }
+}
+
+@media (max-width: 900px) {
+  .hoyoplay-library-title {
+    left: 24px;
+  }
+
+  .hoyoplay-library-scroll {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hoyoplay-library-glass,
+  .hoyoplay-library-title,
+  .hoyoplay-library-scroll,
+  .hoyoplay-library-panel,
+  .hoyoplay-library-card {
+    animation: none;
+    transition: none;
+  }
+}

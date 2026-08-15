@@ -1,25 +1,23 @@
 import { join, basename } from "path-browserify";
 import { Sophon } from "@sophon";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "@constants";
+import { log } from "@logging/logger";
+import { fileOrDirExists } from "@platform/neutralino";
+import { exec } from "@runtime/command-runner";
 import {
   downloadPercent,
   formatDownloadSpeed,
-  log,
-  mkdirp,
   humanFileSize,
-  setKey,
-  exec,
-  fileOrDirExists,
-} from "@utils";
+} from "@runtime/format";
+import { mkdirp } from "@runtime/macos-filesystem";
+import { setKey } from "@runtime/storage";
 import { gte } from "semver";
+import { createTransferProgressTracker } from "./download-progress";
 
 //https://stackoverflow.com/a/69399958
 
-async function* downloadAndPatch(
-  sophon: Sophon,
-  gameDir: string
-): CommonUpdateProgram {
+async function* downloadAndPatch(sophon: Sophon, gameDir: string): TaskProgram {
   // Predownload downloads diffs without applying,
   // doesn't delete any files, and download new files
   // We don't have to check about predownloads as the
@@ -36,6 +34,7 @@ async function* downloadAndPatch(
   yield ["setStateText", "ALLOCATING_FILE"];
   let currentFileIndex = 0;
   let totalFileCount = 0;
+  const transferProgress = createTransferProgressTracker();
   for await (const progress of sophon.streamOperationProgress(taskId)) {
     switch (progress.type) {
       case "delete_file":
@@ -57,10 +56,7 @@ async function* downloadAndPatch(
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           "",
-          "",
-          "",
-          "",
-          "",
+          ...transferProgress.current(),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];
@@ -77,10 +73,7 @@ async function* downloadAndPatch(
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           basename(progress.filename),
-          "",
-          "",
-          "",
-          "",
+          ...transferProgress.current(),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];
@@ -91,13 +84,7 @@ async function* downloadAndPatch(
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           basename(progress.filename),
-          formatDownloadSpeed(progress.overall_progress.download_speed),
-          humanFileSize(progress.overall_progress.downloaded_size),
-          humanFileSize(progress.overall_progress.total_size),
-          downloadPercent(
-            progress.overall_progress.downloaded_size,
-            progress.overall_progress.total_size
-          ),
+          ...transferProgress.update(progress),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];
@@ -126,13 +113,7 @@ async function* downloadAndPatch(
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           "",
-          formatDownloadSpeed(progress.overall_progress.download_speed),
-          humanFileSize(progress.overall_progress.downloaded_size),
-          humanFileSize(progress.overall_progress.total_size),
-          downloadPercent(
-            progress.overall_progress.downloaded_size,
-            progress.overall_progress.total_size
-          ),
+          ...transferProgress.update(progress),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];
@@ -164,7 +145,7 @@ export async function* updateGameProgram({
   gameDir: string;
   server: Server;
   updatedGameVersion: string;
-}): CommonUpdateProgram {
+}): TaskProgram {
   yield ["setStateText", "UPDATING"];
   // 3.6.0
   if (gte(updatedGameVersion, "3.6.0")) {
@@ -217,10 +198,7 @@ export async function* updateGameProgram({
   // Writing config.ini is done in python script
 }
 
-async function* predownload(
-  sophon: Sophon,
-  gameDir: string
-): CommonUpdateProgram {
+async function* predownload(sophon: Sophon, gameDir: string): TaskProgram {
   const downloadTmp = join(gameDir, ".tmp");
   const taskId = await sophon.startUpdate({
     gamedir: gameDir,
@@ -232,6 +210,7 @@ async function* predownload(
   yield ["setStateText", "ALLOCATING_FILE"];
   let currentFileIndex = 0;
   let totalFileCount = 0;
+  const transferProgress = createTransferProgressTracker();
   for await (const progress of sophon.streamOperationProgress(taskId)) {
     switch (progress.type) {
       case "ldiff_download_summary":
@@ -245,10 +224,7 @@ async function* predownload(
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           basename(progress.filename),
-          "",
-          "",
-          "",
-          "",
+          ...transferProgress.current(),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];
@@ -259,13 +235,7 @@ async function* predownload(
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           basename(progress.filename),
-          formatDownloadSpeed(progress.overall_progress.download_speed),
-          humanFileSize(progress.overall_progress.downloaded_size),
-          humanFileSize(progress.overall_progress.total_size),
-          downloadPercent(
-            progress.overall_progress.downloaded_size,
-            progress.overall_progress.total_size
-          ),
+          ...transferProgress.update(progress),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];
@@ -294,13 +264,7 @@ async function* predownload(
           "setStateText",
           "DOWNLOADING_FILE_PROGRESS",
           "",
-          formatDownloadSpeed(progress.overall_progress.download_speed),
-          humanFileSize(progress.overall_progress.downloaded_size),
-          humanFileSize(progress.overall_progress.total_size),
-          downloadPercent(
-            progress.overall_progress.downloaded_size,
-            progress.overall_progress.total_size
-          ),
+          ...transferProgress.update(progress),
           String(progress.current_file_index ?? currentFileIndex),
           String(progress.total_file_count ?? totalFileCount),
         ];

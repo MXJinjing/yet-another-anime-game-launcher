@@ -5,6 +5,7 @@ from progress_handlers import InstallProgressHandler, RepairProgressHandler, Upd
 from models import InstallRequest, RepairRequest, UpdateRequest, TaskStatus, OnlineGameInfo
 from utils import ConnectionManager
 from sophon_api import Options, SophonClient, compare_game_versions, force_memory_release, RUN_MEMORY_HACK, WORKER_CNT, warnlog, wait_if_paused
+from task_errors import TaskCancelledError
 
 
 def update_config_ini_version(gamedir: pathlib.Path, version: str):
@@ -88,11 +89,10 @@ def perform_install(manager: ConnectionManager, tasks: Dict[str, TaskStatus], ta
         while err_cnt < 5:
             try:
                 wait_if_paused(pause_event, cancel_event)
-                if cancel_event and cancel_event.is_set():
-                    progress.job_error("cancelled")
-                    raise Exception("Installation cancelled")
                 cli.download_game_file(v, install_progress_handler=progress, cancel_event=cancel_event, pause_event=pause_event)
                 break
+            except TaskCancelledError:
+                raise
             except Exception as e:
                 err_cnt += 1
                 err_logs.append(str(e))
@@ -243,7 +243,12 @@ def _perform_update(
     if not options.predownload:
         cli.process_deletefiles(progress_handler=progress)
 
-    cli.apply_or_prepare_ldiff_files(progress_handler=progress, pause_event=pause_event)
+    wait_if_paused(pause_event, cancel_event)
+    cli.apply_or_prepare_ldiff_files(
+        progress_handler=progress,
+        cancel_event=cancel_event,
+        pause_event=pause_event,
+    )
     cli.diff_download_new_files(progress_handler=progress, cancel_event=cancel_event, pause_event=pause_event)
 
     if not options.predownload:

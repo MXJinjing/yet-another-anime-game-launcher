@@ -2,7 +2,9 @@ import { Box, Button, Checkbox, HStack, Input } from "@hope-ui/solid";
 import { isAbsolute, relative, resolve as resolvePath } from "path-browserify";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { Locale } from "@locale";
-import { assertValueDefined, getKey, setKey, log } from "@utils";
+import { log } from "@logging/logger";
+import { assertValueDefined } from "@runtime/assertions";
+import { getKey, setKey } from "@runtime/storage";
 import { Config, NOOP } from "@config/config-def";
 import { SettingSwitch } from "../../../../components/setting-switch";
 import {

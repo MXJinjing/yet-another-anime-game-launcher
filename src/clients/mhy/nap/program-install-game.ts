@@ -1,22 +1,19 @@
 import { join, basename } from "path-browserify";
 import { Aria2, Aria2OverallProgress } from "@aria2";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "@constants";
+import { removeFile, stats, writeFile } from "@platform/neutralino";
+import { rawString } from "@platform/shell";
+import { doStreamUnzip } from "@runtime/archive";
+import { sha1sum } from "@runtime/binary";
+import { exec } from "@runtime/command-runner";
 import {
-  mkdirp,
-  humanFileSize,
-  formatDownloadSpeed,
   downloadPercent,
-  doStreamUnzip,
-  removeFile,
-  writeFile,
-  getKey,
-  sha1sum,
-  stats,
-  setKey,
-  exec,
-  rawString,
-} from "@utils";
+  formatDownloadSpeed,
+  humanFileSize,
+} from "@runtime/format";
+import { mkdirp } from "@runtime/macos-filesystem";
+import { getKey, setKey } from "@runtime/storage";
 
 export async function* downloadAndInstallGameProgram({
   aria2,
@@ -33,7 +30,7 @@ export async function* downloadAndInstallGameProgram({
   server: Server;
   /** Grand total of all segments in bytes, from the version-info API. */
   totalBytes?: bigint;
-}): CommonUpdateProgram {
+}): TaskProgram {
   const downloadTmp = join(gameDir, ".ariatmp");
 
   await mkdirp(downloadTmp);
@@ -94,7 +91,7 @@ async function* downloadOrRecover(
   overall: Aria2OverallProgress,
   fileNumber: number,
   fileCount: number
-): CommonUpdateProgram<() => Promise<void>> {
+): TaskProgram<() => Promise<void>> {
   try {
     await getKey(
       `predownloaded_${(await sha1sum(basename(remoteUrl))).slice(0, 32)}`

@@ -115,6 +115,9 @@ export interface HoyoConnectGameDisplay {
     thumbnail: HoyoConnectImage;
     logo: HoyoConnectImage;
     icon: HoyoConnectImage;
+    shortcut?: HoyoConnectImage;
+    wpf_icon?: HoyoConnectImage;
+    top_left_logo?: HoyoConnectImage;
   };
   display_status: string;
 }

@@ -26,7 +26,7 @@ export default defineConfig({
     rollupOptions: {},
   },
   test: {
-    include: ["src/**/*.spec.ts"],
+    include: ["test/**/*.spec.ts", "test/**/*.spec.tsx"],
     environment: "node",
   },
 });

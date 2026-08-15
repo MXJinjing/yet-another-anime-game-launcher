@@ -1,23 +1,19 @@
 import { dirname, join } from "path-browserify";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
+import { log } from "@logging/logger";
 import {
-  writeBinary,
-  forceMove,
-  removeFile,
-  log,
-  getKey,
-  setKey,
-  cp,
-  resolve,
-  removeFileIfExists,
   fileOrDirExists,
-  getKeyOrDefault,
-  mkdirp,
-  xdelta3,
-} from "@utils";
+  removeFile,
+  removeFileIfExists,
+  resolve,
+  writeBinary,
+} from "@platform/neutralino";
+import { cp, forceMove, mkdirp } from "@runtime/macos-filesystem";
+import { xdelta3 } from "@runtime/patching";
+import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
 import { Config } from "@config";
 import { Wine } from "@wine";
-import { DXMT_FILES, DXVK_FILES } from "src/downloadable-resource";
+import { DXMT_FILES, DXVK_FILES } from "@wine/runtime-resources";
 
 export async function putLocal(url: string, dest: string) {
   return await writeBinary(dest, await (await fetch(url)).arrayBuffer());
@@ -27,7 +23,7 @@ export async function* patchProgram(
   gameDir: string,
   wine: Wine,
   config: Config
-): CommonUpdateProgram {
+): TaskProgram {
   if ((await getKeyOrDefault("patched", "NOTFOUND")) != "NOTFOUND") {
     return;
   }
@@ -52,7 +48,7 @@ export async function* patchRevertProgram(
   gameDir: string,
   wine: Wine,
   config: Config
-): CommonUpdateProgram {
+): TaskProgram {
   try {
     await getKey("patched");
   } catch {

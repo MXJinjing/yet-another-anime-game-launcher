@@ -76,6 +76,12 @@ def run_task(task_type: Literal["install", "repair", "update"], request: Union[I
         message="Task started"
     )
 
+@app.post("/api/limit")
+async def set_download_speed_limit(request: LimitRequest):
+    limiter.set_rate(request.download_speed_limit)
+    return {"ok": True}
+
+
 @app.post("/api/{task_type}")
 async def handle_game_operation(task_type: Literal["install", "repair", "update"], request: Union[InstallRequest, RepairRequest, UpdateRequest]) -> TaskResponse:
     return run_task(task_type, request)
@@ -111,12 +117,6 @@ async def resume_task(task_id: str):
         task_pause_events[task_id].clear()
     return {"message": f"Task {task_id} resumed"}
 
-@app.post("/api/limit")
-async def set_download_speed_limit(request: LimitRequest):
-    limiter.set_rate(request.download_speed_limit)
-    return {"ok": True}
-
-
 @app.get("/api/game/online_info")
 async def get_online_game_info(reltype: str, game: Literal["nap", "hk4e"]) -> OnlineGameInfo:
     return fetch_online_game_info(reltype, game)
@@ -131,7 +131,26 @@ async def health_check():
 @app.websocket("/ws/{task_id}")
 async def websocket_endpoint(websocket: WebSocket, task_id: str):
     await websocket.accept()
-    manager.connect(task_id, websocket)
+    has_cached_terminal = manager.connect(task_id, websocket)
+    task = tasks.get(task_id)
+    if task and not has_cached_terminal:
+        if task.status == "completed":
+            manager.send_message_threadsafe({
+                "type": "job_end",
+                "task_id": task_id,
+            }, task_id)
+        elif task.status == "failed":
+            manager.send_message_threadsafe({
+                "type": "error",
+                "task_id": task_id,
+                "error": task.error or "Operation failed",
+            }, task_id)
+        elif task.status == "cancelled":
+            manager.send_message_threadsafe({
+                "type": "job_error",
+                "task_id": task_id,
+                "error": "cancelled",
+            }, task_id)
 
     try:
         while True:
@@ -142,7 +161,7 @@ async def websocket_endpoint(websocket: WebSocket, task_id: str):
     except WebSocketDisconnect:
         pass
     finally:
-        manager.disconnect(task_id)
+        manager.disconnect(task_id, websocket)
 
 
 @app.on_event("startup")

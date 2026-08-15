@@ -27,16 +27,8 @@ server_secret.ts
 **/*.secret.ts
 **/secret.ts
 
-/yaaglwd
-/yaaglwdcn
-/yaaglwdos
-/bh3glb
-/hkrpgcn
-/hkrpgos
-/cbjq
-/cbjqcn
-/napcn
-/napos
+/dev/
+
 
 /sidecar/sophon_server
 **/__pycache__

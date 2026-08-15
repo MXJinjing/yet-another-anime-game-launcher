@@ -1,16 +1,14 @@
 import mf from "../constants/mf.reg?raw";
 import wmf from "../constants/wmf.reg?raw";
 import { Aria2, Aria2OverallProgress } from "@aria2";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
+import { removeFile, resolve, writeFile } from "@platform/neutralino";
 import {
-  humanFileSize,
-  formatDownloadSpeed,
   downloadPercent,
-  forceMove,
-  removeFile,
-  writeFile,
-  resolve,
-} from "@utils";
+  formatDownloadSpeed,
+  humanFileSize,
+} from "@runtime/format";
+import { forceMove } from "@runtime/macos-filesystem";
 import { join } from "path-browserify";
 import { Wine } from "./wine";
 
@@ -31,7 +29,7 @@ const MF_SRVS = ["colorcnv", "msmpeg2adec", "msmpeg2vdec"];
 export async function* installMediaFoundation(
   aria2: Aria2,
   wine: Wine
-): CommonUpdateProgram {
+): TaskProgram {
   // Track overall progress so the button's percentage covers every DLL.
   const overall = new Aria2OverallProgress();
   for (const [fileNumber, dll] of MF_DLLS.entries()) {

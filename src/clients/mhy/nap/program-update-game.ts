@@ -1,27 +1,26 @@
 import { join, basename } from "path-browserify";
-import { Aria2 } from "../../../aria2";
-import { CommonUpdateProgram } from "../../../common-update-ui";
+import { Aria2 } from "../../../integrations/aria2";
+import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "../../../constants";
 import {
-  mkdirp,
-  humanFileSize,
-  formatDownloadSpeed,
-  downloadPercent,
-  doStreamUnzip,
-  removeFile,
-  writeFile,
-  hpatchz,
-  forceMove,
-  readAllLinesIfExists,
-  removeFileIfExists,
-  getKey,
-  stats,
-  setKey,
-  exec,
-  getKeyOrDefault,
   fileOrDirExists,
-  sha1sum,
-} from "@utils";
+  readAllLinesIfExists,
+  removeFile,
+  removeFileIfExists,
+  stats,
+  writeFile,
+} from "@platform/neutralino";
+import { doStreamUnzip } from "@runtime/archive";
+import { sha1sum } from "@runtime/binary";
+import { exec } from "@runtime/command-runner";
+import {
+  downloadPercent,
+  formatDownloadSpeed,
+  humanFileSize,
+} from "@runtime/format";
+import { forceMove, mkdirp } from "@runtime/macos-filesystem";
+import { hpatchz } from "@runtime/patching";
+import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
 import { gte } from "semver";
 
 //https://stackoverflow.com/a/69399958
@@ -30,7 +29,7 @@ async function* downloadAndPatch(
   updateFileZip: string,
   gameDir: string,
   aria2: Aria2
-): CommonUpdateProgram {
+): TaskProgram {
   const downloadTmp = join(gameDir, ".ariatmp");
   await mkdirp(downloadTmp);
   const updateFileTmp = join(downloadTmp, basename(updateFileZip));
@@ -135,7 +134,7 @@ export async function* updateGameProgram({
   aria2: Aria2;
   server: Server;
   updateVoicePackZips: string[];
-}): CommonUpdateProgram {
+}): TaskProgram {
   yield ["setStateText", "UPDATING"];
 
   yield* downloadAndPatch(updateFileZip, gameDir, aria2);
@@ -159,7 +158,7 @@ async function* predownload(
   updateFileZip: string,
   gameDir: string,
   aria2: Aria2
-): CommonUpdateProgram {
+): TaskProgram {
   const downloadTmp = join(gameDir, ".ariatmp");
   await mkdirp(downloadTmp);
   const updateFileTmp = join(downloadTmp, basename(updateFileZip));

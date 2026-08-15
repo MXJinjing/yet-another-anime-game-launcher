@@ -1,21 +1,17 @@
 import { batch, createSignal } from "solid-js";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import {
   ChannelClient,
   ChannelClientInstallState,
 } from "../../../channel-client";
 import { Server } from "@constants";
 import { Locale } from "@locale";
-import {
-  assertValueDefined,
-  exec,
-  getFreeSpace,
-  getKey,
-  getKeyOrDefault,
-  setKey,
-  stats,
-  waitImageReady,
-} from "@utils";
+import { stats } from "@platform/neutralino";
+import { assertValueDefined } from "@runtime/assertions";
+import { waitImageReady } from "@runtime/async";
+import { exec } from "@runtime/command-runner";
+import { getFreeSpace } from "@runtime/macos-filesystem";
+import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
 import { join } from "path-browserify";
 import { gt, lt } from "semver";
 import { Config } from "@config";
@@ -34,7 +30,7 @@ import {
   checkAndDownloadDXVK,
   checkAndDownloadJadeite,
   checkAndDownloadReshade,
-} from "../../../downloadable-resource";
+} from "@wine/runtime-resources";
 import { getGameVersion } from "../unity";
 import {
   LauncherContentData,
@@ -147,6 +143,7 @@ export async function createBH3ChannelClient({
     showPredownloadPrompt,
     installDir: _gameInstallDir,
     gameVersion: gameCurrentVersion,
+    latestVersion: () => GAME_LATEST_VERSION,
     updateRequired,
     uiContent: {
       background,
@@ -159,7 +156,7 @@ export async function createBH3ChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
-    async *install(selection: string): CommonUpdateProgram {
+    async *install(selection: string): TaskProgram {
       if (!path) {
         await locale.alert(
           "CHECK_GAME_UPDATE_FAILED",

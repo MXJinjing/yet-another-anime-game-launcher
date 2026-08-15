@@ -6,33 +6,26 @@ import {
   relative,
   resolve as resolvePath,
 } from "path-browserify";
-import {
-  CommonProgressUICommand,
-  CommonUpdateProgram,
-} from "@common-update-ui";
+import type { TaskProgram, TaskProgressCommand } from "@tasks/task-program";
 import { Server } from "@constants";
+import { log } from "@logging/logger";
 import {
-  writeBinary,
-  forceMove,
-  removeFile,
-  exec,
-  log,
-  getKey,
-  setKey,
-  cp,
-  resolve,
-  readFile,
-  writeFile,
-  removeFileIfExists,
   fileOrDirExists,
-  getKeyOrDefault,
-  mkdirp,
-  xdelta3,
-} from "@utils";
+  readFile,
+  removeFile,
+  removeFileIfExists,
+  resolve,
+  writeBinary,
+  writeFile,
+} from "@platform/neutralino";
+import { exec } from "@runtime/command-runner";
+import { cp, forceMove, mkdirp } from "@runtime/macos-filesystem";
+import { xdelta3 } from "@runtime/patching";
+import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
 import { Config } from "@config";
 import { disableUnityFeature } from "./unity";
 import { Wine } from "@wine";
-import { DXMT_FILES, DXVK_FILES } from "src/downloadable-resource";
+import { DXMT_FILES, DXVK_FILES } from "@wine/runtime-resources";
 
 type PatchProgressRange = {
   start: number;
@@ -49,13 +42,13 @@ export async function* patchProgram(
   server: Server,
   config: Config,
   progressRange: PatchProgressRange = { start: 0, end: 0 }
-): CommonUpdateProgram {
+): TaskProgram {
   const progressSpan = progressRange.end - progressRange.start;
   const report = async function* (
     step: number,
     total: number,
     message: string
-  ): AsyncGenerator<CommonProgressUICommand> {
+  ): AsyncGenerator<TaskProgressCommand> {
     if (progressSpan > 0) {
       yield [
         "setProgress",
@@ -224,7 +217,7 @@ export async function* patchRevertProgram(
   wine: Wine,
   server: Server,
   config: Config
-): CommonUpdateProgram {
+): TaskProgram {
   try {
     await getKey("patched");
   } catch {
@@ -249,7 +242,7 @@ export async function* patchRevertProgram(
 
   const report = async function* (
     message: string
-  ): AsyncGenerator<CommonProgressUICommand> {
+  ): AsyncGenerator<TaskProgressCommand> {
     yield ["setRawStateText", `还原阶段：正在还原补丁(${step}/${totalSteps})`];
   };
 
@@ -438,11 +431,68 @@ export function isSafeTargetRelativePath(
 ): boolean {
   const target = normalizePathSeparators(targetRelativePath);
   if (!target) return false;
+  if (
+    [...target].some(char => {
+      const code = char.charCodeAt(0);
+      return code <= 0x1f || code === 0x7f;
+    })
+  )
+    return false;
   if (isAbsolute(target) || /^[A-Za-z]:[/\\]/.test(target)) return false;
   const base = resolvePath(gameDir);
   const resolved = resolvePath(base, target);
   const rel = relative(base, resolved);
   return rel != "" && !rel.startsWith("..") && !isAbsolute(rel);
+}
+
+export type SafeRuntimeManifestRecord = {
+  targetRelativePath: string;
+  target: string;
+  backup: string;
+};
+
+export function resolveSafeRuntimeManifestRecords(
+  gameDir: string,
+  records: unknown[]
+): SafeRuntimeManifestRecord[] | null {
+  const safeRecords: SafeRuntimeManifestRecord[] = [];
+  const seenTargets = new Set<string>();
+  for (const value of records) {
+    if (!value || typeof value != "object") return null;
+    const record = value as { targetRelativePath?: unknown };
+    if (typeof record.targetRelativePath != "string") return null;
+    const targetRelativePath = normalizePathSeparators(
+      record.targetRelativePath
+    );
+    if (!isSafeTargetRelativePath(targetRelativePath, gameDir)) return null;
+    const target = resolvePath(gameDir, targetRelativePath);
+    if (seenTargets.has(target)) return null;
+    seenTargets.add(target);
+    safeRecords.push({
+      targetRelativePath,
+      target,
+      backup: target + RUNTIME_BAK_SUFFIX,
+    });
+  }
+  return safeRecords;
+}
+
+async function hasSymlinkedTargetParent(
+  gameDir: string,
+  targetRelativePath: string
+): Promise<boolean> {
+  const segments = normalizePathSeparators(targetRelativePath).split("/");
+  let current = resolvePath(gameDir);
+  for (const segment of segments.slice(0, -1)) {
+    current = join(current, segment);
+    try {
+      await exec(["test", "-L", current], {}, false);
+      return true;
+    } catch {
+      // `test -L` returns non-zero for a normal directory or a missing path.
+    }
+  }
+  return false;
 }
 
 function resolveReplacementCandidates(
@@ -511,23 +561,28 @@ async function writeRuntimeManifest(
 async function restoreRuntimeManifest(gameDir: string): Promise<boolean> {
   const manifest = await readRuntimeManifest(gameDir);
   if (!manifest || !samePath(manifest.gameDir, gameDir)) return false;
-  const backups = manifest.backups.filter(
-    record =>
-      record &&
-      typeof record.targetRelativePath == "string" &&
-      typeof record.backupRelativePath == "string"
-  );
+  const backups = resolveSafeRuntimeManifestRecords(gameDir, manifest.backups);
+  if (!backups) {
+    await log(
+      "restoreRuntimeManifest: ignored an invalid runtime replacement manifest"
+    );
+    return false;
+  }
+
+  // Validate the entire manifest before moving anything. Besides lexical
+  // traversal checks, reject descendant directory symlinks that could resolve
+  // an otherwise-safe relative path outside the selected game directory.
   for (const record of backups) {
-    const targetRelativePath = normalizePathSeparators(
-      record.targetRelativePath
-    );
-    const backupRelativePath = normalizePathSeparators(
-      record.backupRelativePath
-    );
-    const target = join(gameDir, targetRelativePath);
-    const backup = join(gameDir, backupRelativePath);
-    await restoreRuntimeBackup(target, backup);
-    await removeFileIfExists(target + RUNTIME_TMP_SUFFIX);
+    if (await hasSymlinkedTargetParent(gameDir, record.targetRelativePath)) {
+      await log(
+        `restoreRuntimeManifest: rejected symlinked target parent for ${record.targetRelativePath}`
+      );
+      return false;
+    }
+  }
+  for (const record of backups) {
+    await restoreRuntimeBackup(record.target, record.backup);
+    await removeFileIfExists(record.target + RUNTIME_TMP_SUFFIX);
   }
   await removeFileIfExists(runtimeManifestPath(gameDir));
   return true;

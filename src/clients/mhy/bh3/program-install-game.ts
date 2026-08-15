@@ -1,17 +1,15 @@
 import { join, basename } from "path-browserify";
 import { Aria2 } from "@aria2";
-import { CommonUpdateProgram } from "@common-update-ui";
+import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "@constants";
+import { removeFile, writeFile } from "@platform/neutralino";
+import { doStreamUnzip, extract7z } from "@runtime/archive";
 import {
-  mkdirp,
-  humanFileSize,
-  formatDownloadSpeed,
   downloadPercent,
-  doStreamUnzip,
-  removeFile,
-  writeFile,
-  extract7z,
-} from "@utils";
+  formatDownloadSpeed,
+  humanFileSize,
+} from "@runtime/format";
+import { mkdirp } from "@runtime/macos-filesystem";
 
 export async function* downloadAndInstallGameProgram({
   aria2,
@@ -27,7 +25,7 @@ export async function* downloadAndInstallGameProgram({
   gameVersion: string;
   aria2: Aria2;
   server: Server;
-}): CommonUpdateProgram {
+}): TaskProgram {
   const downloadTmp = join(gameDir, ".ariatmp");
   const gameFileTmp = join(downloadTmp, "game.7z");
   await mkdirp(downloadTmp);

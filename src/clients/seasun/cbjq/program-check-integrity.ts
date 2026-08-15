@@ -1,7 +1,10 @@
 import { join } from "path-browserify";
 import { Aria2 } from "@aria2";
-import { CommonUpdateProgram } from "@common-update-ui";
-import { log, md5, stats, readAllLines, setKey } from "@utils";
+import type { TaskProgram } from "@tasks/task-program";
+import { log } from "@logging/logger";
+import { readAllLines, stats } from "@platform/neutralino";
+import { md5 } from "@runtime/patching";
+import { setKey } from "@runtime/storage";
 import { LauncherResourceData } from "./launcher-info";
 import { Server } from "../server";
 
@@ -15,7 +18,7 @@ export async function* checkIntegrityProgram({
   gameDir: string;
   server: Server;
   aria2: Aria2;
-}): CommonUpdateProgram {
+}): TaskProgram {
   const entries: {
     remoteName: string;
     md5: string;
