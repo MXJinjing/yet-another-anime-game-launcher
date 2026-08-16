@@ -33,14 +33,21 @@ vi.mock("@platform/shell", () => ({
   rawString: (value: string) => ({ _rawString_: value }),
 }));
 
+vi.mock("@platform/neutralino/sidecar", () => ({
+  resolveSidecarPath: async (relativePath: string) =>
+    `./sidecar/arm64/${relativePath}`,
+}));
+
 vi.mock("@platform/neutralino", () => ({
   resolve: (value: string) => value,
   writeFile,
   env,
   readFile,
+  getRuntimeArch: async () => "arm64",
 }));
 
-const HELPER_BINARY = "./sidecar/yaaglm-hosts-helper/yaaglm-hosts-helper";
+const HELPER_BINARY =
+  "./sidecar/arm64/yaaglm-hosts-helper/yaaglm-hosts-helper";
 const INSTALL_SCRIPT = "./sidecar/yaaglm-hosts-helper/install.sh";
 const UNINSTALL_SCRIPT = "./sidecar/yaaglm-hosts-helper/uninstall.sh";
 const BUNDLE_PATH = "/Applications/Yaaglm.app";

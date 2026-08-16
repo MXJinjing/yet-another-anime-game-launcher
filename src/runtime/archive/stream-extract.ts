@@ -4,6 +4,7 @@ import {
   onSpawnedProcess,
   resolve,
 } from "../../platform/neutralino";
+import { resolveSidecarPath } from "../../platform/neutralino/sidecar";
 import { rawString } from "../../platform/shell";
 import { wait } from "../async";
 import { exec, spawn } from "../command-runner";
@@ -78,7 +79,7 @@ export async function* doStreamUn7z(
   let processExitCode = 0;
   const mainFile = sources.find(file => file.endsWith(".001"));
   if (!mainFile) throw new Error("Missing main .001 file for decompression!");
-  const sevenZip = resolve("./sidecar/7z/7zz");
+  const sevenZip = await resolveSidecarPath("7z/7zz");
   const totalLines = Number(
     (
       await exec([
@@ -130,9 +131,9 @@ export async function* doStreamUn7z(
     throw new Error("7z exited with code " + processExitCode);
 }
 
-export function extract7z(source: string, destination: string) {
+export async function extract7z(source: string, destination: string) {
   return exec([
-    resolve("./sidecar/7z/7zz"),
+    await resolveSidecarPath("7z/7zz"),
     "x",
     source,
     `-o${destination}`,

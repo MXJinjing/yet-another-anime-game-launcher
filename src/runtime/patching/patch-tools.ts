@@ -1,4 +1,5 @@
 import { resolve } from "../../platform/neutralino";
+import { resolveSidecarPath } from "../../platform/neutralino/sidecar";
 import { exec } from "../command-runner";
 
 export async function md5(path: string): Promise<string> {
@@ -6,13 +7,13 @@ export async function md5(path: string): Promise<string> {
   return result.stdOut.split("\n")[0];
 }
 
-export function xdelta3(
+export async function xdelta3(
   originalFile: string,
   patchFile: string,
   targetFile: string
 ) {
   return exec([
-    resolve("./sidecar/xdelta/xdelta3"),
+    await resolveSidecarPath("xdelta/xdelta3"),
     "-d",
     "-s",
     originalFile,
@@ -21,13 +22,13 @@ export function xdelta3(
   ]);
 }
 
-export function hpatchz(
+export async function hpatchz(
   originalFile: string,
   patchFile: string,
   targetFile: string
 ) {
   return exec([
-    resolve("./sidecar/hpatchz/hpatchz"),
+    await resolveSidecarPath("hpatchz/hpatchz"),
     "-f",
     originalFile,
     patchFile,

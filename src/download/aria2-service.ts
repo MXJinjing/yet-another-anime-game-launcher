@@ -2,6 +2,7 @@ import { createAria2Retry, type Aria2 } from "../integrations/aria2";
 import { log } from "../logging/logger";
 import { appendFile } from "../platform/neutralino/filesystem";
 import { resolve } from "../platform/neutralino/path";
+import { resolveSidecarPath } from "../platform/neutralino/sidecar";
 import { rawString } from "../platform/shell/command-builder";
 import { exec, spawn } from "../runtime/command-runner";
 import { addTerminationHook } from "../runtime/lifecycle";
@@ -25,8 +26,10 @@ export async function startAria2Service(
   const parentPid = (await exec(["echo", rawString("$PPID")])).stdOut.split(
     "\n"
   )[0];
+  const binaryPath =
+    options.binaryPath ?? (await resolveSidecarPath("aria2/aria2c"));
   const { pid } = await spawn([
-    options.binaryPath ?? "./sidecar/aria2/aria2c",
+    binaryPath,
     "-d",
     "/",
     "--no-conf",

@@ -259,28 +259,43 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
     0o755
   );
   // copy sidecar
+  const sidecarSrc = path.resolve(process.cwd(), `sidecar`);
   const sidecarDst = path.resolve(
     appBundlePath,
     `Contents`,
     `Resources`,
     `sidecar`
   );
-  // copy sophon binary to sidecar
-  if (includeSophon) {
-    await fs.copy(
-      path.resolve(process.cwd(), `sophon_server`, `build`, `server.dist`),
-      path.resolve(sidecarDst, `sophon_server`), {
+  const buildArchs = buildArch == "universal" ? ["arm64", "x64"] : [buildArch];
+  const sophonDistFor = arch =>
+    path.resolve(
+      process.cwd(),
+      `sophon_server`,
+      arch == "x64" ? `build-x64` : `build`,
+      `server.dist`
+    );
+  // Remove potentially existing dev sophon_server from sidecar
+  await fs.remove(path.resolve(process.cwd(), `sidecar`, `sophon_server`));
+  for (const entry of await fs.readdir(sidecarSrc)) {
+    if (entry == "arm64" || entry == "x64") continue;
+    await fs.copy(path.resolve(sidecarSrc, entry), path.resolve(sidecarDst, entry), {
       preserveTimestamps: true,
     });
   }
-  // Remove potentially existing dev sophon_server from sidecar
-  await fs.remove(path.resolve(process.cwd(), `sidecar`, `sophon_server`));
-  // The hosts-helper binary is prebuilt (universal arm64/x86_64) from the
-  // separate yaaglm-hosts-helper project and committed under sidecar/; it is
-  // not compiled here anymore.
-  await fs.copy(path.resolve(process.cwd(), `sidecar`), sidecarDst, {
-    preserveTimestamps: true,
-  });
+  for (const arch of buildArchs) {
+    await fs.copy(
+      path.resolve(sidecarSrc, arch),
+      path.resolve(sidecarDst, arch),
+      { preserveTimestamps: true }
+    );
+    if (includeSophon) {
+      await fs.copy(
+        sophonDistFor(arch),
+        path.resolve(sidecarDst, arch, `sophon_server`),
+        { preserveTimestamps: true }
+      );
+    }
+  }
   // Remove protonextras for hkrpg
   if (["hkrpgcn", "hkrpgos"].includes(process.env["YAAGL_CHANNEL_CLIENT"])) {
     await fs.remove(path.resolve(sidecarDst, "protonextras"));
@@ -355,15 +370,15 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
     "MacOS",
     appname
   );
-  const helperBinaryPath = path.resolve(
-    appBundlePath,
-    "Contents",
-    "Resources",
-    "sidecar",
-    "yaaglm-hosts-helper",
-    "yaaglm-hosts-helper"
+  const helperBinaryPaths = buildArchs.map(arch =>
+    path.resolve(
+      sidecarDst,
+      arch,
+      "yaaglm-hosts-helper",
+      "yaaglm-hosts-helper"
+    )
   );
-  for (const target of [launcherBinaryPath, helperBinaryPath]) {
+  for (const target of [launcherBinaryPath, ...helperBinaryPaths]) {
     await execa("codesign", [
       "--force",
       "--options",
@@ -377,7 +392,14 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
   const sha256 = file =>
     crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
   const launcherSha256 = sha256(launcherBinaryPath);
-  const helperSha256 = sha256(helperBinaryPath);
+  const helperSha256ByArch = {};
+  for (const arch of buildArchs) {
+    helperSha256ByArch[arch] = sha256(
+      path.resolve(sidecarDst, arch, "yaaglm-hosts-helper", "yaaglm-hosts-helper")
+    );
+  }
+  const helperSha256 =
+    helperSha256ByArch[buildArch == "universal" ? "arm64" : buildArch];
 
   await fs.writeJSON(
     path.resolve(
@@ -394,6 +416,7 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
       launcherSha256,
       clientSha256: helperSha256,
       helperSha256,
+      helperSha256ByArch,
     },
     { spaces: 2 }
   );

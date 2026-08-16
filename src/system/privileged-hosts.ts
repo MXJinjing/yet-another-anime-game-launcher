@@ -1,6 +1,13 @@
 import { CURRENT_YAAGL_VERSION } from "@constants";
 import { log, warn } from "../logging/logger";
-import { env, readFile, resolve, writeFile } from "../platform/neutralino";
+import {
+  env,
+  getRuntimeArch,
+  readFile,
+  resolve,
+  writeFile,
+} from "../platform/neutralino";
+import { resolveSidecarPath } from "../platform/neutralino/sidecar";
 import { rawString } from "../platform/shell";
 import { exec } from "../runtime/command-runner";
 import { validateHostEntries } from "./hosts-validation";
@@ -9,7 +16,7 @@ import type { HostEntry } from "./hosts-validation";
 export type { HostEntry } from "./hosts-validation";
 
 const helperPath = () =>
-  resolve("./sidecar/yaaglm-hosts-helper/yaaglm-hosts-helper");
+  resolveSidecarPath("yaaglm-hosts-helper/yaaglm-hosts-helper");
 const installScriptPath = () =>
   resolve("./sidecar/yaaglm-hosts-helper/install.sh");
 const uninstallScriptPath = () =>
@@ -37,6 +44,7 @@ interface BuildManifest {
   version: string;
   appName: string;
   helperSha256?: string;
+  helperSha256ByArch?: Partial<Record<"arm64" | "x64", string>>;
 }
 
 interface HostsHelperContext {
@@ -131,7 +139,7 @@ function helperArgs(
 
 async function requestHelper(args: string[]) {
   try {
-    return await exec([helperPath(), ...args]);
+    return await exec([await helperPath(), ...args]);
   } catch (error) {
     if (parseHelperError(error) == "TAMPERED") {
       tampered = true;
@@ -153,21 +161,25 @@ async function requestStatus(ctx: HostsHelperContext): Promise<string> {
 }
 
 async function ensureLocalHelperBinary() {
-  await exec(["test", "-x", helperPath()]);
+  await exec(["test", "-x", await helperPath()]);
 }
 
 async function installHelper(ctx: HostsHelperContext) {
   await log("Installing YAAGLM privileged hosts helper");
+  const helper = await helperPath();
   // Sanity check: the shipped binary should match what the build recorded in
   // build-manifest.json (the helper source lives in a separate project, so the
   // sidecar binary is a committed artifact that could drift).
   if (ctx.manifest?.helperSha256) {
     try {
-      const out = await exec(["shasum", "-a", "256", helperPath()]);
+      const out = await exec(["shasum", "-a", "256", helper]);
       const actual = (out.stdOut ?? "").trim().split(/\s+/)[0];
-      if (actual != ctx.manifest.helperSha256) {
+      const expected =
+        ctx.manifest.helperSha256ByArch?.[await getRuntimeArch()] ??
+        ctx.manifest.helperSha256;
+      if (actual != expected) {
         await warn(
-          `YAAGLM hosts helper binary hash ${actual} does not match build manifest ${ctx.manifest.helperSha256}; installing anyway (stale sidecar binary?)`
+          `YAAGLM hosts helper binary hash ${actual} does not match build manifest ${expected}; installing anyway (stale sidecar binary?)`
         );
       }
     } catch {
@@ -181,7 +193,7 @@ async function installHelper(ctx: HostsHelperContext) {
       "--bundle",
       ctx.bundlePath!,
       "--helper",
-      helperPath(),
+      helper,
     ],
     {},
     true

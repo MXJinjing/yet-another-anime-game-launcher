@@ -10,6 +10,7 @@ import { Server } from "@constants";
 import { Locale } from "@locale";
 import { log } from "@logging/logger";
 import { stats } from "@platform/neutralino";
+import { resolveSidecarPath } from "@platform/neutralino/sidecar";
 import { rawString } from "@platform/shell";
 import { assertValueDefined } from "@runtime/assertions";
 import { timeout, waitImageReady } from "@runtime/async";
@@ -129,11 +130,14 @@ export async function createHK4EChannelClient({
   const sophon_host = "127.0.0.1";
 
   const pid = (await exec(["echo", rawString("$PPID")])).stdOut.split("\n")[0];
-  const { pid: spid } = await spawn(["./sidecar/sophon_server/sophon-server"], {
-    TERMINATE_WITH_PID: pid,
-    SOPHON_PORT: sophon_port.toString(),
-    SOPHON_HOST: sophon_host,
-  });
+  const { pid: spid } = await spawn(
+    [await resolveSidecarPath("sophon_server/sophon-server")],
+    {
+      TERMINATE_WITH_PID: pid,
+      SOPHON_PORT: sophon_port.toString(),
+      SOPHON_HOST: sophon_host,
+    }
+  );
   const sophon = await Promise.race([
     createSophonRetry(sophon_host, sophon_port),
     timeout(30000),
