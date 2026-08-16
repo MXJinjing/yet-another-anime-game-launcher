@@ -25,8 +25,9 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
       includeSophon = true;
       break;
     case "hk4eos":
-      bundleId = config.applicationId + ".os";
-      appDistributionName = config.cli.binaryName + " OS";
+      bundleId = config.applicationId + ".hk4e.os";
+      appDistributionName = config.cli.binaryName + " GI OS";
+      config.modes.window.title = "Yaaglm GI OS";
       includeSophon = true;
       break;
     case "mhyos":

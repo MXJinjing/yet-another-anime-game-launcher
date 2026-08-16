@@ -3,8 +3,8 @@ import { createBH3ChannelClient } from "./mhy/bh3";
 import type { CreateClientOptions } from "./shared";
 
 export const DEFAULT_WINE_DISTRO_URL =
-  "https://github.com/3Shain/winecx/releases/download/unstable-bh-wine-1.1/wine.tar.gz";
-export const DEFAULT_WINE_DISTRO_TAG = "unstable-bh-wine-1.1";
+  "https://github.com/3Shain/wine/releases/download/v9.9-mingw/wine.tar.gz";
+export const DEFAULT_WINE_DISTRO_TAG = "11.0-dxmt-signed-with-patches";
 
 export const UPDATE_UI_IMAGE = s2;
 

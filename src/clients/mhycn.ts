@@ -8,8 +8,8 @@ import type { CreateClientOptions } from "./shared";
 import s from "../assets/Nahida.cr.png";
 
 export const DEFAULT_WINE_DISTRO_URL =
-  "https://github.com/yaagl/anime-game-wine/releases/download/wine-crossover-11.0-1-signed/wine-crossover-11.0-1-osx64-signed.tar.xz";
-export const DEFAULT_WINE_DISTRO_TAG = "11.0-1-crossover-signed-experimental";
+  "https://github.com/3Shain/wine/releases/download/v9.9-mingw/wine.tar.gz";
+export const DEFAULT_WINE_DISTRO_TAG = "11.0-dxmt-signed-with-patches";
 
 export function createClient(options: CreateClientOptions) {
   // The merged launcher builds its own per-game clients; keep this stub

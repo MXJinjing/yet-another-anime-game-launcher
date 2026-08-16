@@ -6,9 +6,8 @@ import type { CreateClientOptions } from "./shared";
 import { createCBJQChannelClient } from "./seasun/cbjq";
 
 export const DEFAULT_WINE_DISTRO_URL =
-  "https://github.com/3Shain/wine/releases/download/unstable-bh-gptk-1.0/wine.tar.gz";
-export const DEFAULT_WINE_DISTRO_TAG = "unstable-bh-gptk-1.0";
-
+  "https://github.com/3Shain/wine/releases/download/v9.9-mingw/wine.tar.gz";
+export const DEFAULT_WINE_DISTRO_TAG = "11.0-dxmt-signed-with-patches";
 const SERVER_DEFINITION: Server = {
   id: "CBJQ",
   manifest:

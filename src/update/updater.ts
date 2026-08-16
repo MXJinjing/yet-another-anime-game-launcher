@@ -68,7 +68,7 @@ export async function createUpdater({
         appBundleName = "Yaaglm.app.tar.gz";
         break;
       case "hk4eos":
-        appBundleName = "Yaaglm.OS.app.tar.gz";
+        appBundleName = "Yaaglm.GI.OS.app.tar.gz";
         break;
       case "bh3glb":
         appBundleName = "Yaaglm.Honkai.Global.app.tar.gz";
@@ -134,7 +134,7 @@ export async function* downloadProgram(
     let topLevelDir = sidecarUrl.split("/").pop()?.replace(".tar.gz", "") || "";
 
     if (topLevelDir === "Yaaglm.app") topLevelDir = "Yaaglm.app";
-    if (topLevelDir === "Yaaglm.OS.app") topLevelDir = "Yaaglm OS.app";
+    if (topLevelDir === "Yaaglm.GI.OS.app") topLevelDir = "Yaaglm GI OS.app";
     if (topLevelDir === "Yaaglm.Honkai.Global.app")
       topLevelDir = "Yaaglm Honkai Global.app";
     if (topLevelDir === "Yaaglm.HSR.app") topLevelDir = "Yaaglm HSR.app";
