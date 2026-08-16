@@ -66,7 +66,7 @@
 
 .app-modal-content .hope-tabs__tab[aria-selected="true"] {
   color: var(
-    --hoyoplay-accent,
+    --hyp-accent,
     var(--hope-colors-primary11, #ffd834)
   ) !important;
   background: rgba(255, 221, 67, 0.14) !important;
@@ -76,13 +76,13 @@
   border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-.app-modal-content .hoyoplay-settings-nav {
+.app-modal-content .hyp-settings-nav {
   display: flex;
   flex-direction: column;
   min-width: 120px;
 }
 
-.app-modal-content .hoyoplay-settings-nav-bottom {
+.app-modal-content .hyp-settings-nav-bottom {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -91,7 +91,7 @@
   border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.app-modal-content .hoyoplay-settings-nav-button {
+.app-modal-content .hyp-settings-nav-button {
   display: block;
   width: 100%;
   min-height: 48px;
@@ -99,9 +99,9 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.6);
   font: inherit;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 800;
   line-height: 1.3;
   text-align: left;
@@ -109,7 +109,7 @@
   transition: background-color 160ms ease, color 160ms ease;
 }
 
-.app-modal-content .hoyoplay-settings-nav-button:hover {
+.app-modal-content .hyp-settings-nav-button:hover {
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.88);
 }
@@ -175,21 +175,21 @@
 }
 
 .app-modal-content .display-mode-toggle button.active {
-  color: var(--hoyoplay-accent-text, #111418);
-  background: var(--hoyoplay-accent, var(--hope-colors-primary9, #ffd834));
+  color: var(--hyp-accent-text, #111418);
+  background: var(--hyp-accent, var(--hope-colors-primary9, #ffd834));
 }
 
-.app-modal-content .hoyoplay-setting-row {
+.app-modal-content .hyp-setting-row {
   color: rgba(255, 255, 255, 0.9) !important;
 }
 
-.app-modal-content .hoyoplay-setting-row select {
+.app-modal-content .hyp-setting-row select {
   border-color: rgba(255, 255, 255, 0.16) !important;
   background: rgba(255, 255, 255, 0.08) !important;
   color: rgba(255, 255, 255, 0.9) !important;
 }
 
-.app-modal-content .hoyoplay-settings-muted {
+.app-modal-content .hyp-settings-muted {
   color: rgba(255, 255, 255, 0.55) !important;
 }
 
@@ -273,8 +273,8 @@
 }
 
 .app-modal-button--primary {
-  color: var(--hoyoplay-accent-text, #111418);
-  background: var(--hoyoplay-accent, #ffd834);
+  color: var(--hyp-accent-text, #111418);
+  background: var(--hyp-accent, #ffd834);
   box-shadow: 0 14px 28px rgba(0, 0, 0, 0.32);
 }
 
@@ -289,11 +289,136 @@
   line-height: 1.5;
 }
 
+/* Runtime file replacement table — compact cells with full-cell editing. */
+.app-modal-content .runtime-replace-table-shell {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 10, 14, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.app-modal-content .runtime-replace-table-header {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.09),
+    rgba(255, 255, 255, 0.045)
+  );
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+.app-modal-content .runtime-replace-table tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.app-modal-content .runtime-replace-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.app-modal-content .runtime-replace-table tbody tr:hover {
+  background: rgba(156, 140, 255, 0.07);
+}
+
+.app-modal-content .runtime-replace-enable-cell {
+  padding: 0 !important;
+}
+
+.app-modal-content .runtime-replace-enable-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 44px;
+}
+
+.app-modal-content .block-hosts-cell-content {
+  display: flex;
+  align-items: center;
+}
+
+.app-modal-content .block-hosts-table-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.app-modal-content .runtime-replace-edit-cell {
+  height: 44px;
+  padding: 0 !important;
+  vertical-align: middle;
+  background: rgba(0, 0, 0, 0.18);
+  transition: background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.app-modal-content .runtime-replace-edit-cell:focus-within {
+  background: rgba(156, 140, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(156, 140, 255, 0.68);
+}
+
+.app-modal-content .runtime-replace-edit-cell-invalid {
+  background: rgba(255, 82, 82, 0.07);
+}
+
+.app-modal-content .runtime-replace-edit-cell-invalid:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(255, 113, 137, 0.78);
+}
+
+.app-modal-content .runtime-replace-cell-content {
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 4px 0 10px;
+}
+
+.app-modal-content .runtime-replace-cell-input,
+.app-modal-content .runtime-replace-edit-cell .hope-input {
+  height: 44px !important;
+  min-height: 44px !important;
+  min-width: 0;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.app-modal-content .runtime-replace-cell-input:focus,
+.app-modal-content .runtime-replace-edit-cell .hope-input:focus {
+  outline: none;
+}
+
 /* Runtime file replacement table — icon buttons.
    Raw <button> elements keep WebKit's native appearance by default, which
    ignores background/border/border-radius; `appearance: none` (with the
    -webkit- prefix) is required so the custom dark styling actually applies
    in the WKWebView the app runs in. */
+.runtime-replace-file-icon,
+.runtime-replace-trash-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  background-color: currentColor;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+}
+
+.runtime-replace-file-icon {
+  mask-image: url("../assets/icons/file.svg");
+  -webkit-mask-image: url("../assets/icons/file.svg");
+}
+
+.runtime-replace-trash-icon {
+  mask-image: url("../assets/icons/trash.svg");
+  -webkit-mask-image: url("../assets/icons/trash.svg");
+}
+
 .app-modal-content .runtime-replace-icon-button,
 .app-modal-content .runtime-replace-delete-button {
   -webkit-appearance: none;
@@ -316,7 +441,7 @@
 
 .app-modal-content .runtime-replace-icon-button {
   color: rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.08);
+  background: transparent;
 }
 
 .app-modal-content .runtime-replace-icon-button:hover {
@@ -324,13 +449,10 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
-.app-modal-content .runtime-replace-icon-button:active {
-  background: rgba(255, 255, 255, 0.22);
-}
 
 .app-modal-content .runtime-replace-delete-button {
   color: #ff6b81;
-  background: rgba(255, 82, 82, 0.12);
+  background: transparent;
 }
 
 .app-modal-content .runtime-replace-delete-button:hover {
@@ -338,6 +460,74 @@
   background: rgba(255, 82, 82, 0.22);
 }
 
-.app-modal-content .runtime-replace-delete-button:active {
-  background: rgba(255, 82, 82, 0.3);
+
+/* Keep the license tabs visually consistent with settings without enlarging their text. */
+.license-tabs-header {
+  position: relative;
+  justify-content: center;
+  width: 100%;
+}
+
+.license-tabs-copy {
+  position: absolute !important;
+  right: 0;
+}
+
+.license-tabs .hope-tabs__tab {
+  min-height: 40px !important;
+  padding: 8px 14px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+}
+
+.license-document {
+  box-sizing: border-box;
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: 4px 28px 28px;
+  color: rgba(255, 255, 255, 0.78);
+  user-select: text;
+}
+
+.license-markdown-heading {
+  margin: 0 0 20px;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.license-markdown-paragraph {
+  margin: 0 0 16px;
+  line-height: 1.75;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.license-markdown-list {
+  margin: 0 0 16px;
+  padding-inline-start: 24px;
+  line-height: 1.75;
+}
+
+.license-markdown-list li {
+  padding-inline-start: 6px;
+}
+
+.license-document code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 0.92em;
+}
+
+.license-markdown-status {
+  margin: 24px 0;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
 }

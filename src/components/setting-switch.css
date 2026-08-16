@@ -40,11 +40,11 @@
 .setting-switch .hope-switch__control[data-checked] {
   border-color: transparent !important;
   background: var(
-    --hoyoplay-accent,
+    --hyp-accent,
     var(--hope-colors-primary9, #ffd834)
   ) !important;
 }
 
 .setting-switch .hope-switch__control[data-checked]::before {
-  background: var(--hoyoplay-accent-text, #111418) !important;
+  background: var(--hyp-accent-text, #111418) !important;
 }

@@ -31,7 +31,7 @@ export abstract class SettingsController<T extends BaseLoadedSettings> {
   readonly UI: SettingsUI = props => {
     const content = (
       <Tabs orientation="vertical" h="100%" variant="pills">
-        <div class="hoyoplay-settings-nav">
+        <div class="hyp-settings-nav">
           <TabList minW={120}>{this.renderTabList(props)}</TabList>
           {this.renderAuxiliaryLinks(props)}
         </div>

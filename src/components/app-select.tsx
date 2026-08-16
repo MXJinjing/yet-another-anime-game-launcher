@@ -94,18 +94,7 @@ export function AppSelect(props: {
             )}
           </Show>
         </span>
-        <svg
-          class="app-select-chevron"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        <span class="app-select-chevron" aria-hidden="true" />
       </button>
       <Show when={open()}>
         <div class="app-select-menu" role="listbox">
@@ -131,18 +120,7 @@ export function AppSelect(props: {
                 </Show>
                 <span class="app-select-option-label">{option.label}</span>
                 <Show when={option.value === props.value}>
-                  <svg
-                    class="app-select-check"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                  <span class="app-select-check" aria-hidden="true" />
                 </Show>
               </button>
             )}

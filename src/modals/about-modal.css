@@ -11,7 +11,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 18px;
   text-align: center;
 }
 
@@ -53,6 +53,15 @@
   color: rgba(255, 255, 255, 0.8);
   background: rgba(18, 21, 28, 0.72);
   transition: background-color 160ms ease, color 160ms ease;
+}
+
+.about-github-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  background-color: currentColor;
+  mask: url("../assets/icons/github.svg") center / contain no-repeat;
+  -webkit-mask: url("../assets/icons/github.svg") center / contain no-repeat;
 }
 
 .about-github:hover {

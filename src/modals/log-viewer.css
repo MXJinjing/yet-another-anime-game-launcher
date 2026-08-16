@@ -99,7 +99,7 @@
 .log-viewer-footer .hope-switch__control[data-checked] {
   border-color: transparent !important;
   background: var(
-    --hoyoplay-accent,
+    --hyp-accent,
     var(--hope-colors-primary9, #ffd834)
   ) !important;
 }

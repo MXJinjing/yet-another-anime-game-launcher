@@ -1,4 +1,11 @@
-import { Box, Button, Checkbox, HStack, Input } from "@hope-ui/solid";
+import {
+  Box,
+  Button,
+  Checkbox,
+  HStack,
+  Input,
+  Tooltip,
+} from "@hope-ui/solid";
 import { isAbsolute, relative, resolve as resolvePath } from "path-browserify";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { Locale } from "@locale";
@@ -52,7 +59,7 @@ function isStoredRuntimeReplacements(
 }
 
 function emptyEntry(): RuntimeReplacementEntry {
-  return { enabled: false, targetRelativePath: "", replacementPath: "" };
+  return { enabled: true, targetRelativePath: "", replacementPath: "" };
 }
 
 function trimTrailingSlash(path: string): string {
@@ -255,11 +262,6 @@ export default async function ({
         borderBottom: "1px solid rgba(255, 255, 255, 0.12)",
         whiteSpace: "nowrap",
       } as const;
-      const tdStyle = {
-        padding: "6px 10px",
-        verticalAlign: "middle",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-      } as const;
       const thNarrowStyle = {
         ...thStyle,
         padding: "8px 2px",
@@ -282,160 +284,178 @@ export default async function ({
         >
           <Show when={enabled()}>
             <Box mt="$3">
-              <table
-                style={{
-                  width: "100%",
-                  "table-layout": "fixed",
-                  "border-collapse": "collapse",
-                  color: "rgba(255, 255, 255, 0.88)",
-                }}
-              >
-                <colgroup>
-                  <col style={{ width: "44px" }} />
-                  <col />
-                  <col />
-                  <col style={{ width: "44px" }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th style={thNarrowStyle}>启用</th>
-                    <th style={thStyle}>待替换文件</th>
-                    <th style={thStyle}>替换文件</th>
-                    <th style={thNarrowStyle}>删除</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <For each={entries()}>
-                    {(entry, index) => {
-                      const invalid = rowIsInvalid(entry, entries(), gameDir);
-                      return (
-                        <tr
-                          style={
-                            invalid
-                              ? { background: "rgba(255, 82, 82, 0.09)" }
-                              : undefined
-                          }
-                        >
-                          <td style={tdNarrowStyle}>
-                            <Checkbox
-                              id={`runtime-replacements-row-${index()}`}
-                              aria-label={`启用第 ${index() + 1} 行替换`}
-                              checked={entry.enabled}
-                              onChange={() =>
-                                updateEntry(index(), {
-                                  enabled: !entry.enabled,
-                                })
-                              }
-                            />
-                          </td>
-                          <td style={tdStyle}>
-                            <HStack spacing="$1" w="100%">
-                              <Input
-                                size="sm"
-                                flex={1}
-                                minWidth={0}
-                                invalid={invalid}
-                                value={entry.targetRelativePath}
-                                onChange={e =>
-                                  updateEntry(index(), {
-                                    targetRelativePath: e.currentTarget.value,
-                                  })
-                                }
-                              />
-                              <button
-                                type="button"
-                                class="runtime-replace-icon-button"
-                                aria-label="选择待替换文件"
-                                onClick={() => pickTarget(index())}
-                              >
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  width="16"
-                                  height="16"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  stroke-width="2"
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  aria-hidden="true"
-                                >
-                                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-                                  <path d="M13 2v7h7" />
-                                </svg>
-                              </button>
-                            </HStack>
-                          </td>
-                          <td style={tdStyle}>
-                            <HStack spacing="$1" w="100%">
-                              <Input
-                                size="sm"
-                                flex={1}
-                                minWidth={0}
-                                invalid={invalid}
-                                value={entry.replacementPath}
-                                onChange={e =>
-                                  updateEntry(index(), {
-                                    replacementPath: e.currentTarget.value,
-                                  })
-                                }
-                              />
-                              <button
-                                type="button"
-                                class="runtime-replace-icon-button"
-                                aria-label="选择替换文件"
-                                onClick={() => pickReplacement(index())}
-                              >
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  width="16"
-                                  height="16"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  stroke-width="2"
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  aria-hidden="true"
-                                >
-                                  <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-                                  <path d="M13 2v7h7" />
-                                </svg>
-                              </button>
-                            </HStack>
-                          </td>
-                          <td style={tdNarrowStyle}>
-                            <button
-                              type="button"
-                              class="runtime-replace-delete-button"
-                              aria-label="删除此行"
-                              onClick={() =>
-                                setEntries(previous =>
-                                  previous.filter((_, i) => i != index())
-                                )
-                              }
+              <div class="runtime-replace-table-shell">
+                <table
+                  class="runtime-replace-table"
+                  style={{
+                    width: "100%",
+                    "table-layout": "fixed",
+                    "border-collapse": "collapse",
+                    color: "rgba(255, 255, 255, 0.88)",
+                  }}
+                >
+                  <colgroup>
+                    <col style={{ width: "44px" }} />
+                    <col />
+                    <col />
+                    <col style={{ width: "44px" }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th
+                        class="runtime-replace-table-header"
+                        style={thNarrowStyle}
+                      >
+                        启用
+                      </th>
+                      <th
+                        class="runtime-replace-table-header"
+                        style={thStyle}
+                      >
+                        待替换文件
+                      </th>
+                      <th
+                        class="runtime-replace-table-header"
+                        style={thStyle}
+                      >
+                        替换文件
+                      </th>
+                      <th
+                        class="runtime-replace-table-header"
+                        style={thNarrowStyle}
+                      >
+                        删除
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <For each={entries()}>
+                      {(entry, index) => {
+                        const invalid = rowIsInvalid(entry, entries(), gameDir);
+                        return (
+                          <tr
+                            style={
+                              invalid
+                                ? { background: "rgba(255, 82, 82, 0.09)" }
+                                : undefined
+                            }
+                          >
+                            <td
+                              class="runtime-replace-enable-cell"
+                              style={tdNarrowStyle}
                             >
-                              <svg
-                                viewBox="0 0 24 24"
-                                width="16"
-                                height="16"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
+                              <div class="runtime-replace-enable-control">
+                                <Checkbox
+                                  id={`runtime-replacements-row-${index()}`}
+                                  aria-label={`启用第 ${index() + 1} 行替换`}
+                                  checked={entry.enabled}
+                                  onChange={() =>
+                                    updateEntry(index(), {
+                                      enabled: !entry.enabled,
+                                    })
+                                  }
+                                />
+                              </div>
+                            </td>
+                            <td
+                              class={`runtime-replace-edit-cell${
+                                invalid ? " runtime-replace-edit-cell-invalid" : ""
+                              }`}
+                            >
+                              <HStack
+                                class="runtime-replace-cell-content"
+                                spacing="$1"
+                                w="100%"
                               >
-                                <path d="M3 6h18" />
-                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                              </svg>
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    }}
-                  </For>
-                </tbody>
-              </table>
+                                <Input
+                                  class="runtime-replace-cell-input"
+                                  size="sm"
+                                  flex={1}
+                                  minWidth={0}
+                                  invalid={invalid}
+                                  value={entry.targetRelativePath}
+                                  onChange={e =>
+                                    updateEntry(index(), {
+                                      targetRelativePath: e.currentTarget.value,
+                                    })
+                                  }
+                                />
+                                <Tooltip
+                                  label={locale.get(
+                                    "SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP"
+                                  )}
+                                >
+                                  <button
+                                    type="button"
+                                    class="runtime-replace-icon-button"
+                                    aria-label="选择待替换文件"
+                                    onClick={() => pickTarget(index())}
+                                  >
+                                    <span class="runtime-replace-file-icon" aria-hidden="true" />
+                                  </button>
+                                </Tooltip>
+                              </HStack>
+                            </td>
+                            <td
+                              class={`runtime-replace-edit-cell${
+                                invalid ? " runtime-replace-edit-cell-invalid" : ""
+                              }`}
+                            >
+                              <HStack
+                                class="runtime-replace-cell-content"
+                                spacing="$1"
+                                w="100%"
+                              >
+                                <Input
+                                  class="runtime-replace-cell-input"
+                                  size="sm"
+                                  flex={1}
+                                  minWidth={0}
+                                  invalid={invalid}
+                                  value={entry.replacementPath}
+                                  onChange={e =>
+                                    updateEntry(index(), {
+                                      replacementPath: e.currentTarget.value,
+                                    })
+                                  }
+                                />
+                                <Tooltip
+                                  label={locale.get(
+                                    "SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP"
+                                  )}
+                                >
+                                  <button
+                                    type="button"
+                                    class="runtime-replace-icon-button"
+                                    aria-label="选择替换文件"
+                                    onClick={() => pickReplacement(index())}
+                                  >
+                                    <span class="runtime-replace-file-icon" aria-hidden="true" />
+                                  </button>
+                                </Tooltip>
+                              </HStack>
+                            </td>
+                            <td style={tdNarrowStyle}>
+                              <button
+                                type="button"
+                                class="runtime-replace-delete-button"
+                                aria-label="删除此行"
+                                onClick={() =>
+                                  setEntries(previous =>
+                                    previous.filter((_, i) => i != index())
+                                  )
+                                }
+                              >
+                                <span class="runtime-replace-trash-icon" aria-hidden="true" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      }}
+                    </For>
+                  </tbody>
+                </table>
+              </div>
             </Box>
             <HStack mt="$3" spacing="$2">
               <Button

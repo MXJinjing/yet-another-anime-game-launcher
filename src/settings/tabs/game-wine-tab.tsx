@@ -15,7 +15,7 @@ export function GameWineTab(props: {
         <Show
           when={props.wineTag && props.wineOptions && props.onWineTagChange}
         >
-          <div class="hoyoplay-setting-row">
+          <div class="hyp-setting-row">
             <span>{props.locale.get("SETTING_GAME_WINE")}</span>
             <AppSelect
               value={props.wineTag?.() ?? ""}
@@ -30,7 +30,7 @@ export function GameWineTab(props: {
               }))}
             />
           </div>
-          <p class="hoyoplay-settings-muted">
+          <p class="hyp-settings-muted">
             {props.locale.get("SETTING_GAME_WINE_DESC")}
           </p>
         </Show>

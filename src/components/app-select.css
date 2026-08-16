@@ -30,7 +30,7 @@
 }
 
 .app-select-trigger--open {
-  border-color: var(--hoyoplay-accent, var(--hope-colors-primary8, #ffd834));
+  border-color: var(--hyp-accent, var(--hope-colors-primary8, #ffd834));
 }
 
 .app-select-trigger:disabled {
@@ -61,6 +61,9 @@
   height: 16px;
   flex: 0 0 auto;
   color: rgba(255, 255, 255, 0.65);
+  background-color: currentColor;
+  mask: url("../assets/icons/chevron-down.svg") center / contain no-repeat;
+  -webkit-mask: url("../assets/icons/chevron-down.svg") center / contain no-repeat;
 }
 
 .app-select-menu {
@@ -104,7 +107,7 @@
 }
 
 .app-select-option--selected {
-  color: var(--hoyoplay-accent, var(--hope-colors-primary9, #ffd834));
+  color: var(--hyp-accent, var(--hope-colors-primary9, #ffd834));
 }
 
 .app-select-option:disabled {
@@ -124,4 +127,7 @@
   width: 14px;
   height: 14px;
   flex: 0 0 auto;
+  background-color: currentColor;
+  mask: url("../assets/icons/check.svg") center / contain no-repeat;
+  -webkit-mask: url("../assets/icons/check.svg") center / contain no-repeat;
 }

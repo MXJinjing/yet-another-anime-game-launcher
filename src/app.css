@@ -39,6 +39,10 @@ textarea,
 }
 
 .app-boot-main {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 78px);
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   flex-direction: column;
@@ -46,11 +50,23 @@ textarea,
   min-width: 300px;
 }
 
+.app-boot-icon {
+  position: absolute;
+  top: calc(50% - 70px);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: 200px;
+  width: auto;
+  max-width: min(70vw, 420px);
+  object-fit: contain;
+  pointer-events: none;
+}
+
 .app-boot-spinner {
   width: 44px;
   height: 44px;
   border: 4px solid rgba(255, 255, 255, 0.14);
-  border-top-color: var(--hoyoplay-accent, #ffd834);
+  border-top-color: var(--hyp-accent, #ffd834);
   border-radius: 50%;
   animation: app-boot-spin 800ms linear infinite;
 }
@@ -102,7 +118,7 @@ textarea,
 ::-webkit-scrollbar-thumb:active {
   box-shadow: inset 1px 1px 3px #a6a6a6;
 }
-.hoyoplay-shell {
+.hyp-shell {
   position: fixed;
   inset: 0;
   overflow: hidden;
@@ -114,8 +130,8 @@ textarea,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-.hoyoplay-video,
-.hoyoplay-theme {
+.hyp-video,
+.hyp-theme {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -126,7 +142,7 @@ textarea,
   transition: opacity 0.3s ease;
 }
 
-.hoyoplay-vignette {
+.hyp-vignette {
   position: absolute;
   z-index: 0;
   inset: 0;
@@ -137,7 +153,7 @@ textarea,
     linear-gradient(to left, rgba(0, 0, 0, 0.45), transparent 12%);
 }
 
-.hoyoplay-bg-switcher {
+.hyp-bg-switcher {
   position: absolute;
   z-index: 2;
   top: 30px;
@@ -155,13 +171,25 @@ textarea,
   transition: opacity 0.2s linear;
 }
 
-.hoyoplay-bg-switcher:hover {
+.hyp-bg-switcher:hover {
   opacity: 1;
+}
+
+/* The library takes over the lower stage, so the home-screen controls leave
+   upward and return downward instead of being removed abruptly. */
+.hyp-shell .hyp-bg-switcher {
+  transition: opacity 360ms ease, transform 360ms ease;
+}
+
+.hyp-shell.library-open .hyp-bg-switcher {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -12px);
 }
 
 /* Bigger click target (15x15 button), but the visible dot stays ~8px: it is
    drawn with a radial gradient so the hit area grows without enlarging the dot. */
-.hoyoplay-bg-dot {
+.hyp-bg-dot {
   width: 15px;
   height: 15px;
   padding: 0;
@@ -177,16 +205,16 @@ textarea,
   transition: background 0.2s ease;
 }
 
-.hoyoplay-bg-dot.active {
+.hyp-bg-dot.active {
   background: radial-gradient(
     circle,
-    var(--hoyoplay-accent, #ffd834) 0,
-    var(--hoyoplay-accent, #ffd834) 3.5px,
+    var(--hyp-accent, #ffd834) 0,
+    var(--hyp-accent, #ffd834) 3.5px,
     transparent 4px
   );
 }
 
-.hoyoplay-bg-layer {
+.hyp-bg-layer {
   position: absolute;
   inset: 0;
   background-position: center;
@@ -196,16 +224,16 @@ textarea,
 
 /* Outgoing layer: fades out while the incoming layer fades in, so the opacity
    change is gradual (true crossfade). */
-.hoyoplay-bg-layer.leaving {
-  animation: hoyoplay-bg-out 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+.hyp-bg-layer.leaving {
+  animation: hyp-bg-out 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 /* Incoming layer: plain 0.6s fade-in, no directional slide. */
-.hoyoplay-bg-layer.enter {
-  animation: hoyoplay-bg-in 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+.hyp-bg-layer.enter {
+  animation: hyp-bg-in 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-@keyframes hoyoplay-bg-out {
+@keyframes hyp-bg-out {
   from {
     opacity: 1;
   }
@@ -214,7 +242,7 @@ textarea,
   }
 }
 
-@keyframes hoyoplay-bg-in {
+@keyframes hyp-bg-in {
   from {
     opacity: 0;
   }
@@ -223,7 +251,7 @@ textarea,
   }
 }
 
-.hoyoplay-game-rail {
+.hyp-game-rail {
   position: absolute;
   z-index: 2;
   top: 0;
@@ -239,16 +267,16 @@ textarea,
   backdrop-filter: blur(18px);
 }
 
-.hoyoplay-orbit-button,
-.hoyoplay-game-icon,
-.hoyoplay-rail-button,
-.hoyoplay-primary-button,
-.hoyoplay-secondary-button {
+.hyp-orbit-button,
+.hyp-game-icon,
+.hyp-rail-button,
+.hyp-primary-button,
+.hyp-secondary-button {
   border: 0;
   cursor: pointer;
 }
 
-.hoyoplay-orbit-button {
+.hyp-orbit-button {
   width: 52px;
   height: 52px;
   display: grid;
@@ -257,7 +285,7 @@ textarea,
   background: rgba(255, 255, 255, 0.14);
 }
 
-.hoyoplay-orbit-button span {
+.hyp-orbit-button span {
   width: 28px;
   height: 28px;
   border: 4px solid white;
@@ -265,7 +293,7 @@ textarea,
   border-radius: 50%;
 }
 
-.hoyoplay-game-icons {
+.hyp-game-icons {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -273,7 +301,7 @@ textarea,
   gap: 12px;
 }
 
-.hoyoplay-game-icon {
+.hyp-game-icon {
   position: relative;
   width: 44px;
   height: 44px;
@@ -285,17 +313,17 @@ textarea,
     background-color 160ms ease;
 }
 
-.hoyoplay-game-icon:hover {
+.hyp-game-icon:hover {
   opacity: 1;
 }
 
-.hoyoplay-game-icon.active {
+.hyp-game-icon.active {
   opacity: 1;
   transform: translateY(-1px);
-  background: var(--hoyoplay-accent, #ffd834);
+  background: var(--hyp-accent, #ffd834);
 }
 
-.hoyoplay-game-icon img {
+.hyp-game-icon img {
   width: 100%;
   height: 100%;
   display: block;
@@ -303,7 +331,7 @@ textarea,
   object-fit: cover;
 }
 
-.hoyoplay-rail-bottom {
+.hyp-rail-bottom {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -311,7 +339,7 @@ textarea,
   padding-top: 12px;
 }
 
-.hoyoplay-rail-button {
+.hyp-rail-button {
   width: 44px;
   height: 44px;
   display: grid;
@@ -322,34 +350,45 @@ textarea,
   transition: background-color 160ms ease;
 }
 
-.hoyoplay-rail-button:hover {
+.hyp-rail-button:hover {
   background: rgba(255, 255, 255, 0.24);
 }
 
-.hoyoplay-gear-icon {
+.hyp-gear-icon,
+.hyp-download-queue-icon,
+.hyp-download-cancel-icon,
+.hyp-menu-icon,
+.hyp-ring-icon-pause {
   display: block;
+  flex-shrink: 0;
+  background-color: currentColor;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+}
+
+.hyp-gear-icon {
   width: 22px;
   height: 22px;
+  mask-image: url("./assets/icons/settings.svg");
+  -webkit-mask-image: url("./assets/icons/settings.svg");
 }
 
-.hoyoplay-gear-icon svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.hoyoplay-stage {
+.hyp-stage {
   position: absolute;
   z-index: 1;
   inset: 0 0 0 76px;
   pointer-events: none;
 }
 
-.hoyoplay-stage.library-open {
+.hyp-stage.library-open {
   z-index: 3;
 }
 
-.hoyoplay-action-area {
+.hyp-action-area {
   position: absolute;
   z-index: 2;
   right: 42px;
@@ -362,11 +401,25 @@ textarea,
   pointer-events: none;
 }
 
-.hoyoplay-action-area > * {
+.hyp-action-area > * {
   pointer-events: auto;
 }
 
-.hoyoplay-primary-button {
+.hyp-action-area {
+  transition: opacity 360ms ease, transform 360ms ease;
+}
+
+.hyp-shell.library-open .hyp-action-area {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-18px);
+}
+
+.hyp-shell.library-open .hyp-action-area > * {
+  pointer-events: none;
+}
+
+.hyp-primary-button {
   width: fit-content;
   min-width: 0;
   height: 56px;
@@ -376,15 +429,15 @@ textarea,
   gap: 18px;
   padding: 0 10px;
   border-radius: 999px;
-  background: var(--hoyoplay-accent, #ffd834);
+  background: var(--hyp-accent, #ffd834);
   background: linear-gradient(
       180deg,
       rgba(255, 255, 255, 0.16),
       rgba(255, 255, 255, 0.05) 50%,
       rgba(255, 255, 255, 0) 100%
     ),
-    color-mix(in srgb, var(--hoyoplay-accent, #ffd834) 90%, transparent);
-  color: var(--hoyoplay-accent-text, #333333);
+    color-mix(in srgb, var(--hyp-accent, #ffd834) 90%, transparent);
+  color: var(--hyp-accent-text, #333333);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   backdrop-filter: blur(18px) saturate(160%);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28),
@@ -393,7 +446,7 @@ textarea,
   transition: filter 160ms ease, box-shadow 160ms ease;
 }
 
-.hoyoplay-primary-button:hover {
+.hyp-primary-button:hover {
   transform: none;
   filter: brightness(1.08);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4),
@@ -402,12 +455,19 @@ textarea,
     0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
-.hoyoplay-primary-button:disabled {
+.hyp-primary-button:disabled {
   cursor: default;
-  filter: grayscale(0.5);
+  filter: grayscale(0.7) saturate(0.55) brightness(0.78);
 }
 
-.hoyoplay-menu-button {
+.hyp-menu-icon {
+  width: 22px;
+  height: 22px;
+  mask-image: url("./assets/icons/menu.svg");
+  -webkit-mask-image: url("./assets/icons/menu.svg");
+}
+
+.hyp-menu-button {
   width: 56px;
   height: 56px;
   display: grid;
@@ -421,12 +481,12 @@ textarea,
   backdrop-filter: blur(16px);
 }
 
-.hoyoplay-menu-button:hover {
+.hyp-menu-button:hover {
   background: rgba(42, 47, 58, 0.82);
   transform: none;
 }
 
-.hoyoplay-menu-popover-content {
+.hyp-menu-popover-content {
   background: rgba(18, 21, 28, 0.96) !important;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
   border-radius: 10px !important;
@@ -436,18 +496,18 @@ textarea,
   overflow: hidden;
 }
 
-.hoyoplay-menu-popover-body {
+.hyp-menu-popover-body {
   padding: 0 !important;
 }
 
-.hoyoplay-menu-popover {
+.hyp-menu-popover {
   display: flex;
   flex-direction: column;
   min-width: 220px;
   padding: 6px;
 }
 
-.hoyoplay-menu-item {
+.hyp-menu-item {
   display: flex;
   align-items: center;
   width: 100%;
@@ -465,29 +525,29 @@ textarea,
   transition: background-color 140ms ease;
 }
 
-.hoyoplay-menu-item:hover {
+.hyp-menu-item:hover {
   background: rgba(255, 255, 255, 0.12);
 }
 
-.hoyoplay-menu-item-danger {
+.hyp-menu-item-danger {
   color: #ff7777;
 }
 
-.hoyoplay-menu-item-danger:hover {
+.hyp-menu-item-danger:hover {
   color: #ff9a9a;
   background: rgba(120, 32, 42, 0.7);
 }
 
-.hoyoplay-menu-item:disabled {
+.hyp-menu-item:disabled {
   cursor: default;
   opacity: 0.45;
 }
 
-.hoyoplay-menu-item:disabled:hover {
+.hyp-menu-item:disabled:hover {
   background: transparent;
 }
 
-.hoyoplay-menu-version {
+.hyp-menu-version {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -500,88 +560,94 @@ textarea,
   font-weight: 600;
 }
 
-.hoyoplay-menu-version strong {
+.hyp-menu-version strong {
   color: white;
   font-size: 14px;
   font-weight: 800;
   white-space: nowrap;
 }
 
-.hoyoplay-menu-divider {
+.hyp-menu-divider {
   height: 1px;
   margin: 5px 4px;
   background: rgba(255, 255, 255, 0.12);
 }
 
-.hoyoplay-action-group {
+.hyp-action-group {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 10px;
 }
 
-.hoyoplay-primary-row {
+.hyp-primary-row {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.hoyoplay-ring {
+.hyp-ring {
   position: relative;
   width: 40px;
   height: 40px;
   flex-shrink: 0;
 }
 
-.hoyoplay-ring svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+.hyp-ring::before,
+.hyp-ring-progress {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from -90deg,
+    var(--hyp-accent-text, #333333) 0 var(--hyp-ring-progress, 100%),
+    transparent var(--hyp-ring-progress, 100%) 100%
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 0);
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 3px),
+    #000 0
+  );
 }
 
-.hoyoplay-ring-bg {
-  fill: none;
-  stroke: var(--hoyoplay-accent-text, #333333);
-  stroke-width: 3;
+.hyp-ring::before {
   opacity: 0.25;
 }
 
-.hoyoplay-ring-fg {
-  fill: none;
-  stroke: var(--hoyoplay-accent-text, #333333);
-  stroke-width: 3;
-  stroke-linecap: round;
-  transform: rotate(-90deg);
-  transform-origin: center;
-  transition: stroke-dashoffset 160ms ease;
+.hyp-ring-progress {
+  transition: background 160ms ease;
 }
 
-.hoyoplay-ring-text {
+.hyp-ring-text {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   font-size: 13px;
   font-weight: 900;
-  color: var(--hoyoplay-accent-text, #333333);
+  color: var(--hyp-accent-text, #333333);
+  z-index: 1;
 }
 
-.hoyoplay-ring-icon {
+.hyp-ring-icon {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  color: var(--hoyoplay-accent-text, #333333);
+  color: var(--hyp-accent-text, #333333);
+  z-index: 1;
 }
 
-/* `.hoyoplay-ring svg` forces every svg inside the ring to 100%; this more
-   specific rule keeps the pause icon small inside the ring. */
-.hoyoplay-ring-icon svg {
+.hyp-ring-icon-pause {
   width: 16px;
   height: 16px;
+  mask-image: url("./assets/icons/pause.svg");
+  -webkit-mask-image: url("./assets/icons/pause.svg");
 }
 
-.hoyoplay-progress-div {
+.hyp-progress-div {
   width: 340px;
   min-height: 64px;
   padding: 12px 14px 14px;
@@ -591,7 +657,7 @@ textarea,
   backdrop-filter: blur(18px);
 }
 
-.hoyoplay-download-header {
+.hyp-download-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -599,11 +665,11 @@ textarea,
   margin-bottom: 10px;
 }
 
-.hoyoplay-download-bar {
+.hyp-download-bar {
   margin-bottom: 10px;
 }
 
-.hoyoplay-download-progress {
+.hyp-download-progress {
   position: relative;
   height: 3px;
   margin: -3px 0 10px;
@@ -612,50 +678,25 @@ textarea,
   background: rgba(255, 255, 255, 0.18);
 }
 
-.hoyoplay-download-progress-fill {
+.hyp-download-progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--hoyoplay-accent, #ffffff);
+  background: var(--hyp-accent, #ffffff);
   transition: width 180ms ease-out;
 }
 
-.hoyoplay-download-progress-fill.indeterminate {
+.hyp-download-progress-fill.indeterminate {
   width: 34%;
   background: linear-gradient(
     90deg,
     transparent,
-    var(--hoyoplay-accent, #ffffff),
+    var(--hyp-accent, #ffffff),
     transparent
   );
-  animation: hoyoplay-download-progress-marquee 1.15s ease-in-out infinite;
+  animation: hyp-download-progress-marquee 1.15s ease-in-out infinite;
 }
 
-.hoyoplay-download-progress-info {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin: -5px 0 10px;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.hoyoplay-download-progress-info span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hoyoplay-download-progress-percent {
-  flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 800;
-}
-
-@keyframes hoyoplay-download-progress-marquee {
+@keyframes hyp-download-progress-marquee {
   from {
     transform: translateX(-300%);
   }
@@ -665,14 +706,14 @@ textarea,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hoyoplay-download-progress-fill.indeterminate {
+  .hyp-download-progress-fill.indeterminate {
     animation: none;
     width: 100%;
     opacity: 0.7;
   }
 }
 
-.hoyoplay-download-title {
+.hyp-download-title {
   min-width: 0;
   overflow: hidden;
   color: white;
@@ -682,7 +723,14 @@ textarea,
   text-overflow: ellipsis;
 }
 
-.hoyoplay-download-cancel {
+.hyp-download-cancel-icon {
+  width: 14px;
+  height: 14px;
+  mask-image: url("./assets/icons/close.svg");
+  -webkit-mask-image: url("./assets/icons/close.svg");
+}
+
+.hyp-download-cancel {
   position: relative;
   flex-shrink: 0;
   display: inline-flex;
@@ -700,21 +748,21 @@ textarea,
   transition: background-color 140ms ease, color 140ms ease;
 }
 
-.hoyoplay-download-cancel-label {
+.hyp-download-cancel-label {
   white-space: nowrap;
 }
 
-.hoyoplay-download-cancel:hover {
+.hyp-download-cancel:hover {
   color: #ff8080;
   background: rgba(255, 90, 90, 0.14);
 }
 
-.hoyoplay-download-cancel:disabled {
+.hyp-download-cancel:disabled {
   cursor: default;
   opacity: 0.4;
 }
 
-.hoyoplay-download-cancel::after {
+.hyp-download-cancel::after {
   content: attr(data-tooltip);
   position: absolute;
   z-index: 10;
@@ -735,19 +783,19 @@ textarea,
   transition: opacity 140ms ease, transform 140ms ease;
 }
 
-.hoyoplay-download-cancel:hover::after,
-.hoyoplay-download-cancel:focus-visible::after {
+.hyp-download-cancel:hover::after,
+.hyp-download-cancel:focus-visible::after {
   opacity: 1;
   transform: translateY(0);
 }
 
-.hoyoplay-download-rows {
+.hyp-download-rows {
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
 
-.hoyoplay-download-row {
+.hyp-download-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -757,12 +805,12 @@ textarea,
   font-weight: 500;
 }
 
-.hoyoplay-download-label {
+.hyp-download-label {
   flex-shrink: 0;
   color: rgba(255, 255, 255, 0.55);
 }
 
-.hoyoplay-download-value {
+.hyp-download-value {
   min-width: 0;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.82);
@@ -771,7 +819,7 @@ textarea,
   white-space: nowrap;
 }
 
-.hoyoplay-action-copy {
+.hyp-action-copy {
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -780,17 +828,17 @@ textarea,
   line-height: 1.1;
 }
 
-.hoyoplay-action-copy span {
+.hyp-action-copy span {
   padding: 0 20px;
   font-size: 22px;
   font-weight: 700;
 }
 
-.hoyoplay-primary-button-downloading .hoyoplay-action-copy span {
+.hyp-primary-button-downloading .hyp-action-copy span {
   padding-left: 0;
 }
 
-.hoyoplay-secondary-button {
+.hyp-secondary-button {
   height: 48px;
   padding: 0 18px;
   border-radius: 999px;
@@ -801,7 +849,7 @@ textarea,
   font-weight: 800;
 }
 
-.hoyoplay-setting-row {
+.hyp-setting-row {
   min-height: 52px;
   display: flex;
   align-items: center;
@@ -811,7 +859,7 @@ textarea,
   font-weight: 700;
 }
 
-.hoyoplay-setting-row input[type="number"] {
+.hyp-setting-row input[type="number"] {
   width: 120px;
   height: 38px;
   padding: 0 10px;
@@ -820,7 +868,7 @@ textarea,
   font: inherit;
 }
 
-.hoyoplay-setting-row select {
+.hyp-setting-row select {
   width: 280px;
   max-width: 52%;
   height: 38px;
@@ -830,50 +878,57 @@ textarea,
   font: inherit;
 }
 
-.hoyoplay-setting-row input[type="checkbox"] {
+.hyp-setting-row input[type="checkbox"] {
   width: 22px;
   height: 22px;
 }
 
-.hoyoplay-settings-muted {
+.hyp-settings-muted {
   margin: 10px 0 0;
   color: #666;
   line-height: 1.5;
 }
 
 @media (max-width: 900px) {
-  .hoyoplay-game-rail {
+  .hyp-game-rail {
     width: 72px;
   }
 
-  .hoyoplay-stage {
+  .hyp-stage {
     left: 72px;
   }
 
-  .hoyoplay-game-icon {
+  .hyp-game-icon {
     width: 38px;
     height: 38px;
   }
 
-  .hoyoplay-action-area {
+  .hyp-action-area {
     left: 84px;
     right: 18px;
     bottom: 20px;
     gap: 10px;
   }
 
-  .hoyoplay-primary-button {
+  .hyp-primary-button {
     height: 52px;
     padding: 0 10px;
   }
 
-  .hoyoplay-action-copy span {
+  .hyp-action-copy span {
     font-size: 20px;
   }
 
-  .hoyoplay-menu-button {
+  .hyp-menu-button {
     width: 52px;
     height: 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hyp-shell .hyp-bg-switcher,
+  .hyp-action-area {
+    transition: none;
   }
 }
 
@@ -948,24 +1003,19 @@ textarea,
 }
 
 /* Download manager rail button + active-count badge */
-.hoyoplay-download-queue-button {
+.hyp-download-queue-button {
   position: relative;
   margin-top: 12px;
 }
 
-.hoyoplay-download-queue-icon {
-  display: block;
+.hyp-download-queue-icon {
   width: 22px;
   height: 22px;
+  mask-image: url("./assets/icons/download.svg");
+  -webkit-mask-image: url("./assets/icons/download.svg");
 }
 
-.hoyoplay-download-queue-icon svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.hoyoplay-download-queue-badge {
+.hyp-download-queue-badge {
   position: absolute;
   top: -4px;
   right: -4px;
@@ -975,8 +1025,8 @@ textarea,
   place-items: center;
   padding: 0 5px;
   border-radius: 999px;
-  background: var(--hoyoplay-accent, #ffd834);
-  color: var(--hoyoplay-accent-text, #111418);
+  background: var(--hyp-accent, #ffd834);
+  color: var(--hyp-accent-text, #111418);
   font-size: 11px;
   font-weight: 800;
   line-height: 1;
@@ -1102,8 +1152,8 @@ textarea,
 }
 
 .download-queue-badge--active {
-  color: var(--hoyoplay-accent-text, #111418);
-  background: var(--hoyoplay-accent, #ffd834);
+  color: var(--hyp-accent-text, #111418);
+  background: var(--hyp-accent, #ffd834);
 }
 
 .download-queue-badge--paused {
