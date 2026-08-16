@@ -1,4 +1,5 @@
 const execa = require("execa");
+const crypto = require("crypto");
 const fs = require("fs-extra");
 const path = require("path");
 const { rimraf } = require("rimraf");
@@ -234,6 +235,7 @@ mkdir -p "$APST_DIR"
 CONTENTS_DIR="$(dirname "$SCRIPT_DIR")"
 rsync -rlptu "$CONTENTS_DIR/Resources/." "$APST_DIR"
 cd "$APST_DIR"
+export YAAGL_BUNDLE_PATH="$(dirname "$CONTENTS_DIR")"
 PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$APST_DIR"`
   );
 
@@ -358,6 +360,57 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
         </dict>
     </dict>
     </plist>`
+  );
+
+  // Sign launcher and hosts-helper binaries (ad-hoc + hardened runtime),
+  // then compute hashes and write build-manifest.json (contract section 4).
+  const launcherBinaryPath = path.resolve(
+    appBundlePath,
+    "Contents",
+    "MacOS",
+    appname
+  );
+  const helperBinaryPath = path.resolve(
+    appBundlePath,
+    "Contents",
+    "Resources",
+    "sidecar",
+    "yaaglm-hosts-helper",
+    "yaaglm-hosts-helper"
+  );
+  for (const target of [launcherBinaryPath, helperBinaryPath]) {
+    await execa("codesign", [
+      "--force",
+      "--options",
+      "runtime",
+      "--sign",
+      "-",
+      target,
+    ]);
+  }
+
+  const sha256 = file =>
+    crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+  const launcherSha256 = sha256(launcherBinaryPath);
+  const helperSha256 = sha256(helperBinaryPath);
+
+  await fs.writeJSON(
+    path.resolve(
+      appBundlePath,
+      "Contents",
+      "Resources",
+      "build-manifest.json"
+    ),
+    {
+      bundleId,
+      version: config.version,
+      appName: appDistributionName,
+      launcherPath: `MacOS/${appname}`,
+      launcherSha256,
+      clientSha256: helperSha256,
+      helperSha256,
+    },
+    { spaces: 2 }
   );
   console.log(`Built ${appBundlePath}`);
 })();

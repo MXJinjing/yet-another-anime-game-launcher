@@ -22,9 +22,23 @@ function statusKey(status: PrivilegedHostsHelperStatus) {
     case "installed-stopped":
       return "SETTING_HOSTS_HELPER_STATUS_STOPPED";
     case "not-installed":
+    case "untrusted":
       return "SETTING_HOSTS_HELPER_STATUS_NOT_INSTALLED";
+    case "tampered":
+      return "SETTING_HOSTS_HELPER_STATUS_ERROR";
     default:
       return "SETTING_HOSTS_HELPER_STATUS_ERROR";
+  }
+}
+
+function statusErrorText(status: PrivilegedHostsHelperStatus) {
+  switch (status) {
+    case "tampered":
+      return "检测到启动器被篡改，已拒绝使用 hosts 助手";
+    case "untrusted":
+      return "当前环境未检测到受信任的启动器包（缺少 YAAGL_BUNDLE_PATH 或 build-manifest.json 不可读），hosts 助手不可用";
+    default:
+      return "";
   }
 }
 
@@ -36,7 +50,9 @@ export function HostsHelperControl(props: { locale: Locale }) {
 
   async function refresh() {
     setError("");
-    setStatus(await getPrivilegedHostsHelperStatus());
+    const next = await getPrivilegedHostsHelperStatus();
+    setStatus(next);
+    setError(statusErrorText(next));
   }
 
   async function run(action: () => Promise<void>) {
