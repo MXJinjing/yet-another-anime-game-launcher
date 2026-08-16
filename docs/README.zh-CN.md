@@ -8,8 +8,10 @@
 
 ## Current Supported Game Version
 
-### GI: 5.3.0+ OS/CN **
+### GI: 5.3.0+ OS/CN \*\*
+
 ### HSR: 4.3.0 OS/CN
+
 ### ZZZ: 3.0.0 OS/CN
 
 #### **注意：** 从 0.3.12 版本开始，使用 DXMT 0.74 时需要升级到 macOS Sequoia 或更高版本。Sonoma 缺少改进图形转换所需的部分系统能力。
@@ -129,20 +131,20 @@ pnpm dev
 
 以下命令会先构建开发模式前端，准备 Neutralino 和 sidecar 资源，然后启动桌面应用。
 
-| Channel | 命令 | 说明 |
-| --- | --- | --- |
-| `hk4ecn` | `pnpm start` | 默认开发 channel |
-| `hk4eos` | `pnpm run start-hk4eos` | OS 单 channel |
-| `mhyos` | `pnpm run start-mhyos` | OS 多 channel 整合入口 |
-| `mhycn` | `pnpm run start-mhycn` | CN 多 channel 整合入口 |
-| `hkrpgos` | `pnpm run start-hkrpgos` | OS 单 channel |
-| `hkrpgcn` | `pnpm run start-hkrpgcn` | CN 单 channel |
-| `bh3glb` | `pnpm run start-bh3glb` | Global channel |
-| `cbjq` | `pnpm run start-cbjq` | OS channel |
-| `cbjqcn` | `pnpm run start-cbjqcn` | CN channel |
-| `napos` | `pnpm run start-napos` | OS channel |
-| `napcn` | `pnpm run start-napcn` | CN channel |
-| `hk4euniversal` | 无独立 `start-*` 脚本 | 通过统一打包流程构建 |
+| Channel         | 命令                     | 说明                   |
+| --------------- | ------------------------ | ---------------------- |
+| `hk4ecn`        | `pnpm start`             | 默认开发 channel       |
+| `hk4eos`        | `pnpm run start-hk4eos`  | OS 单 channel          |
+| `mhyos`         | `pnpm run start-mhyos`   | OS 多 channel 整合入口 |
+| `mhycn`         | `pnpm run start-mhycn`   | CN 多 channel 整合入口 |
+| `hkrpgos`       | `pnpm run start-hkrpgos` | OS 单 channel          |
+| `hkrpgcn`       | `pnpm run start-hkrpgcn` | CN 单 channel          |
+| `bh3glb`        | `pnpm run start-bh3glb`  | Global channel         |
+| `cbjq`          | `pnpm run start-cbjq`    | OS channel             |
+| `cbjqcn`        | `pnpm run start-cbjqcn`  | CN channel             |
+| `napos`         | `pnpm run start-napos`   | OS channel             |
+| `napcn`         | `pnpm run start-napcn`   | CN channel             |
+| `hk4euniversal` | 无独立 `start-*` 脚本    | 通过统一打包流程构建   |
 
 如果需要临时切换 channel，也可以直接设置环境变量。`vite.config.ts` 会读取 `YAAGL_CHANNEL_CLIENT` 并选择对应的 `src/clients/<channel>.ts`：
 
@@ -151,6 +153,10 @@ YAAGL_CHANNEL_CLIENT=<channel> pnpm exec vite build --mode=development
 ```
 
 ## Build
+
+完整的 release 构建、版本同步、channel/架构选择、Hosts Helper 测试和发布前检查，请参阅：
+
+- [Release 版本构建指南](RELEASE_BUILD.zh-CN.md)
 
 ### 单 channel 前端构建
 
@@ -265,6 +271,9 @@ YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
 ## Special thanks
 
 感谢所有参与 macOS 兼容层、图形转换、下载基础设施、运行时打包和问题排查的贡献者。没有社区贡献和长期测试，项目无法持续改进。
+
+- Krock：他的补丁让游戏在 macOS 上运行成为可能，相关工作链接可在本仓库中找到。
+- rishabhroyy：感谢其宝贵的贡献与支持。
 
 ## License and safety
 

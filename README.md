@@ -263,6 +263,7 @@ When reporting a technical problem, include the macOS version, CPU architecture,
 * Krock, the game running on macOS can not come true without his patch (you can find the link to his work in this repository, while you have to make a little effort ;) )
 
 * mkrsym1, tackled IMO the most challenging AC component. It's a really remarkable and mind-blowing achievement.
+* rishabhroyy, for their valuable contributions and support.
 
 ## License and safety
 
