@@ -275,6 +275,7 @@ cd /d "${wine.toWinePath(gameDir)}"
   }
 
   // await removeFile(resolve("bWh5cHJvdDJfcnVubmluZy5yZWcK.reg"));
+  yield ["setStateText", "REVERT_PATCHING"];
   yield* revertProgress(2, REVERT_STEPS, "还原阶段：还原显示模式注册表配置");
   await revertResolutionRegistry(wine, server);
   if (mhypBaseReplaced) {

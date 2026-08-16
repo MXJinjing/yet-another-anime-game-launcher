@@ -11,10 +11,12 @@ import {
   createMultiGameLauncher,
   MULTI_GAME_CN_GAME_SPECS,
 } from "./launcher";
+import { CURRENT_YAAGL_VERSION } from "@constants";
 import { log } from "./logging/logger";
 import { createLocale, type Locale } from "./locale";
 import { CloseConfirmationModal } from "./modals/close-confirmation-modal";
 import { LauncherUpdateModal } from "./modals/launcher-update-modal";
+import { HostsHelperTokenRecoveryModal } from "./modals/hosts-helper-token-recovery-modal";
 import { exit } from "./platform/neutralino/system";
 import { resolve } from "./platform/neutralino/path";
 import {
@@ -31,21 +33,31 @@ import { startAria2Service } from "./download/aria2-service";
 import { hasActiveDownloads } from "./download/control";
 import { createUpdater, downloadProgram } from "./update/updater";
 import {
+  getPrivilegedHostsHelperTokenRecoveryState,
+  installPrivilegedHostsHelper,
+  uninstallPrivilegedHostsHelper,
+  unblockPrivilegedHosts,
+} from "./system/privileged-hosts";
+import {
   checkWineEnvironment,
   createWine,
   createWineEnvironmentService,
   type Wine,
   type WineDistribution,
 } from "./wine";
-import {
-  reportBootProgress,
-  setBootProgressLocale,
-} from "./boot-progress";
+import { reportBootProgress, setBootProgressLocale } from "./boot-progress";
 
 type LauncherWineActions = {
   initializeWine: (distro: WineDistribution) => TaskProgram;
   enableWineDistro: (distro: WineDistribution) => TaskProgram;
   uninstallWineDistro: (distro: WineDistribution) => TaskProgram;
+};
+
+const HOSTS_HELPER_REREGISTER_KEY = "hosts_helper_reregister_after_update";
+
+type HostsHelperReregisterMarker = {
+  targetVersion: string;
+  attempted: boolean;
 };
 
 /**
@@ -89,12 +101,18 @@ export async function createApp() {
   reportBootProgress("BOOT_PREPARING_WINE_ENVIRONMENT", 58);
 
   let gameRunning = false;
+  const gameCloseHandler: {
+    current?: () => Promise<void>;
+  } = {};
   const [closePrompt, setClosePrompt] = createSignal<
     "download" | "game" | null
   >(null);
   const windowCloseController = createWindowCloseController({
     hasActiveDownloads,
     isGameRunning: () => gameRunning,
+    requestGameClose: async () => {
+      await gameCloseHandler.current?.();
+    },
     onPromptChange: setClosePrompt,
     onBeforeExit: () => GLOBAL_onClose(false),
     hideWindow: () => Neutralino.window.hide(),
@@ -105,10 +123,6 @@ export async function createApp() {
     await windowCloseController.requestClose();
   });
   addTerminationHook(async () => {
-    if (!windowCloseController.shouldCloseGameProcessesOnExit()) {
-      await log("Termination hook: leaving wine processes running by request");
-      return true;
-    }
     await log("Termination hook: killing wine processes");
     try {
       await wine.killAll();
@@ -160,6 +174,7 @@ export async function createApp() {
     locale: Locale;
     onCheckUpdate: () => void;
     onGameRunningChange: (running: boolean) => void;
+    gameCloseHandler: { current?: () => Promise<void> };
   } & LauncherWineActions = {
     wine,
     wineDistroId: wineStatus.wineDistribution.id,
@@ -173,6 +188,7 @@ export async function createApp() {
     onGameRunningChange: running => {
       gameRunning = running;
     },
+    gameCloseHandler,
   };
 
   let MainApp: () => JSXElement;
@@ -205,14 +221,135 @@ export async function createApp() {
       initialUpdateCheck.latest == false &&
         ignoredVersion !== initialUpdateCheck.version
     );
+    const [showTokenRecovery, setShowTokenRecovery] = createSignal(false);
+    const [tokenRecoveryBusy, setTokenRecoveryBusy] = createSignal(false);
+    const [tokenRecoveryError, setTokenRecoveryError] = createSignal("");
 
     showPromptSignal = setShowPrompt;
     setPendingUpdateInfoSignal = setPendingUpdateInfo;
 
-    onMount(() => {
-      if (initialUpdateCheck.latest === undefined) {
-        void notifyUpdateCheckFailure(initialUpdateCheck.errorStatus);
+    async function handleHostsHelperStartup() {
+      if (CURRENT_YAAGL_VERSION === "development") return;
+
+      const recoveryState = await getPrivilegedHostsHelperTokenRecoveryState();
+      const markerRaw = await getKeyOrDefault(HOSTS_HELPER_REREGISTER_KEY, "");
+
+      if (recoveryState === "token-missing") {
+        // A missing token cannot be repaired safely by install.sh because the
+        // registry may still contain a secret that the frontend cannot read.
+        // Require explicit user confirmation and administrator authorization.
+        if (markerRaw) await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
+        setTokenRecoveryError("");
+        setShowTokenRecovery(true);
+        return;
       }
+
+      if (recoveryState !== "token-present" || !markerRaw) return;
+
+      let marker: HostsHelperReregisterMarker | undefined;
+      try {
+        const parsed = JSON.parse(
+          markerRaw
+        ) as Partial<HostsHelperReregisterMarker>;
+        if (
+          typeof parsed.targetVersion === "string" &&
+          typeof parsed.attempted === "boolean"
+        ) {
+          marker = {
+            targetVersion: parsed.targetVersion,
+            attempted: parsed.attempted,
+          };
+        }
+      } catch {
+        // Invalid marker is stale and should not trigger an install.
+      }
+
+      if (
+        !marker ||
+        marker.targetVersion !== CURRENT_YAAGL_VERSION ||
+        marker.attempted
+      ) {
+        await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
+        return;
+      }
+
+      await setKey(
+        HOSTS_HELPER_REREGISTER_KEY,
+        JSON.stringify({ ...marker, attempted: true })
+      );
+      await locale.alert(
+        "SETTING_HOSTS_HELPER",
+        "SETTING_HOSTS_HELPER_REREGISTERING",
+        [],
+        "info"
+      );
+      try {
+        await installPrivilegedHostsHelper();
+        await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
+      } catch (error) {
+        await log(
+          `Hosts Helper automatic re-registration failed: ${String(error)}`
+        );
+        await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
+        await locale.alert(
+          "SETTING_HOSTS_HELPER",
+          "SETTING_HOSTS_HELPER_REREGISTER_FAILED",
+          [],
+          "warning"
+        );
+      }
+    }
+
+    async function deleteMissingTokenRegistration() {
+      setTokenRecoveryBusy(true);
+      setTokenRecoveryError("");
+      try {
+        // Best-effort cleanup. Missing token normally makes this request fail
+        // before it reaches the daemon, but it must not block authorized
+        // registry deletion.
+        try {
+          await unblockPrivilegedHosts();
+        } catch (error) {
+          await log(
+            `Hosts Helper unblock before token recovery failed: ${String(
+              error
+            )}`
+          );
+        }
+        await uninstallPrivilegedHostsHelper();
+        await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
+        setShowTokenRecovery(false);
+        await locale.alert(
+          "SETTING_HOSTS_HELPER",
+          "SETTING_HOSTS_HELPER_DELETE_REGISTRATION_SUCCESS",
+          [],
+          "success"
+        );
+      } catch (error) {
+        await log(
+          `Hosts Helper token recovery uninstall failed: ${String(error)}`
+        );
+        setTokenRecoveryError(
+          locale.get("SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED")
+        );
+      } finally {
+        setTokenRecoveryBusy(false);
+      }
+    }
+
+    onMount(() => {
+      void (async () => {
+        try {
+          await handleHostsHelperStartup();
+        } catch (error) {
+          await log(
+            `Hosts Helper startup recovery check failed: ${String(error)}`
+          );
+        }
+        if (initialUpdateCheck.latest === undefined) {
+          await notifyUpdateCheckFailure(initialUpdateCheck.errorStatus);
+        }
+      })();
     });
 
     return (
@@ -221,29 +358,48 @@ export async function createApp() {
         <Show when={!updaterComponent()}>
           <MainApp />
           <LauncherUpdateModal
-            opened={showPrompt}
+            opened={() => showPrompt() && !showTokenRecovery()}
             onClose={() => setShowPrompt(false)}
             pendingUpdateInfo={pendingUpdateInfo}
             locale={locale}
             onIgnore={version => setKey("ignore_launcher_update", version)}
-            onUpdate={info =>
-              setUpdaterComponent(() =>
-                createTaskProgressScreen({
-                  locale,
-                  image: UPDATE_UI_IMAGE,
-                  program: () =>
-                    downloadProgram(
-                      aria2,
-                      info.downloadUrl!,
-                      info.sidecarDownloadUrl
-                    ),
-                  onRestart: _safeRelaunch,
-                  onFailed: () => setUpdaterComponent(undefined),
-                })
-              )
-            }
+            onUpdate={info => {
+              void (async () => {
+                if (CURRENT_YAAGL_VERSION !== "development" && info.version) {
+                  await setKey(
+                    HOSTS_HELPER_REREGISTER_KEY,
+                    JSON.stringify({
+                      targetVersion: info.version,
+                      attempted: false,
+                    } satisfies HostsHelperReregisterMarker)
+                  );
+                }
+                setUpdaterComponent(() =>
+                  createTaskProgressScreen({
+                    locale,
+                    image: UPDATE_UI_IMAGE,
+                    program: () =>
+                      downloadProgram(
+                        aria2,
+                        info.downloadUrl!,
+                        info.sidecarDownloadUrl
+                      ),
+                    onRestart: _safeRelaunch,
+                    onFailed: () => setUpdaterComponent(undefined),
+                  })
+                );
+              })();
+            }}
           />
         </Show>
+        <HostsHelperTokenRecoveryModal
+          opened={showTokenRecovery}
+          busy={tokenRecoveryBusy}
+          error={tokenRecoveryError}
+          locale={locale}
+          onClose={() => setShowTokenRecovery(false)}
+          onDelete={deleteMissingTokenRegistration}
+        />
         <CloseConfirmationModal
           prompt={closePrompt}
           locale={locale}

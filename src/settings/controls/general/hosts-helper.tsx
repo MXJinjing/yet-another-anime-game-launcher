@@ -8,12 +8,15 @@ import {
 } from "@hope-ui/solid";
 import { createSignal, onMount, Show } from "solid-js";
 import { Locale } from "@locale";
+import { CURRENT_YAAGL_VERSION } from "@constants";
 import {
   getPrivilegedHostsHelperStatus,
+  getPrivilegedHostsHelperVersion,
   installPrivilegedHostsHelper,
   PrivilegedHostsHelperStatus,
   uninstallPrivilegedHostsHelper,
 } from "../../../system/privileged-hosts";
+import "./auto-update.css";
 
 function statusKey(status: PrivilegedHostsHelperStatus) {
   switch (status) {
@@ -26,6 +29,8 @@ function statusKey(status: PrivilegedHostsHelperStatus) {
       return "SETTING_HOSTS_HELPER_STATUS_NOT_INSTALLED";
     case "tampered":
       return "SETTING_HOSTS_HELPER_STATUS_ERROR";
+    case "disabled":
+      return "SETTING_HOSTS_HELPER_STATUS_DISABLED";
     default:
       return "SETTING_HOSTS_HELPER_STATUS_ERROR";
   }
@@ -43,16 +48,22 @@ function statusErrorText(status: PrivilegedHostsHelperStatus) {
 }
 
 export function HostsHelperControl(props: { locale: Locale }) {
+  const isDevelopment = CURRENT_YAAGL_VERSION === "development";
   const [status, setStatus] =
     createSignal<PrivilegedHostsHelperStatus>("not-installed");
+  const [version, setVersion] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
 
   async function refresh() {
+    if (isDevelopment) {
+      setStatus("disabled");
+      setVersion("");
+      return;
+    }
     setError("");
-    const next = await getPrivilegedHostsHelperStatus();
-    setStatus(next);
-    setError(statusErrorText(next));
+    setStatus(await getPrivilegedHostsHelperStatus());
+    setVersion((await getPrivilegedHostsHelperVersion()) ?? "");
   }
 
   async function run(action: () => Promise<void>) {
@@ -69,9 +80,7 @@ export function HostsHelperControl(props: { locale: Locale }) {
     }
   }
 
-  onMount(() => {
-    refresh();
-  });
+  onMount(() => void refresh());
 
   return (
     <FormControl class="hosts-helper-control" w="100%">
@@ -82,10 +91,19 @@ export function HostsHelperControl(props: { locale: Locale }) {
           </FormLabel>
           <Text size="xs" color="$neutral11" userSelect="none">
             {props.locale.get(statusKey(status()))}
+            <Show when={status() == "running" && version()}>
+              {" · 版本 " + version()}
+            </Show>
           </Text>
         </VStack>
         <HStack spacing={"$2"}>
-          <Show when={status() != "running" && status() != "installed-stopped"}>
+          <Show
+            when={
+              !isDevelopment &&
+              status() != "running" &&
+              status() != "installed-stopped"
+            }
+          >
             <Button
               size="xs"
               variant="ghost"
@@ -95,7 +113,7 @@ export function HostsHelperControl(props: { locale: Locale }) {
               {props.locale.get("SETTING_HOSTS_HELPER_INSTALL")}
             </Button>
           </Show>
-          <Show when={status() != "not-installed"}>
+          <Show when={!isDevelopment && status() != "not-installed"}>
             <Button
               size="xs"
               variant="ghost"
@@ -106,7 +124,27 @@ export function HostsHelperControl(props: { locale: Locale }) {
               {props.locale.get("SETTING_HOSTS_HELPER_UNINSTALL")}
             </Button>
           </Show>
-          <Button size="xs" variant="ghost" disabled={busy()} onClick={refresh}>
+          <Show when={isDevelopment}>
+            <span
+              class="auto-update-warning"
+              data-tooltip={props.locale.get(
+                "SETTING_HOSTS_HELPER_DEV_TOOLTIP"
+              )}
+              aria-label={props.locale.get(
+                "SETTING_HOSTS_HELPER_DEV_TOOLTIP"
+              )}
+              tabIndex={0}
+              style={{ "margin-right": "2px" }}
+            >
+              !
+            </span>
+          </Show>
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={isDevelopment || busy()}
+            onClick={refresh}
+          >
             {props.locale.get("SETTING_HOSTS_HELPER_REFRESH")}
           </Button>
         </HStack>

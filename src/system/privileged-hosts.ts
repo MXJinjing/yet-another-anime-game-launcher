@@ -1,3 +1,4 @@
+import { CURRENT_YAAGL_VERSION } from "@constants";
 import { log, warn } from "../logging/logger";
 import { env, readFile, resolve, writeFile } from "../platform/neutralino";
 import { rawString } from "../platform/shell";
@@ -15,7 +16,8 @@ const uninstallScriptPath = () =>
   resolve("./sidecar/yaaglm-hosts-helper/uninstall.sh");
 const manifestPath = () => resolve("./build-manifest.json");
 const tokenPath = (bundleId: string) => resolve(`./tokens/${bundleId}.token`);
-const installedHelperPath = "/Library/PrivilegedHelperTools/yaaglm-hosts-helper";
+const installedHelperPath =
+  "/Library/PrivilegedHelperTools/yaaglm-hosts-helper";
 const installedPlistPath =
   "/Library/LaunchDaemons/com.3shain.yaaglm.hosts-helper.plist";
 
@@ -25,7 +27,8 @@ export type PrivilegedHostsHelperStatus =
   | "not-installed"
   | "error"
   | "untrusted"
-  | "tampered";
+  | "tampered"
+  | "disabled";
 
 type HostsHelperAction = "status" | "ensure" | "block" | "unblock";
 
@@ -33,6 +36,7 @@ interface BuildManifest {
   bundleId: string;
   version: string;
   appName: string;
+  helperSha256?: string;
 }
 
 interface HostsHelperContext {
@@ -45,6 +49,17 @@ const HELPER_ERROR_PATTERN =
   /ERR_(UNREGISTERED|VERSION_MISMATCH|TAMPERED|UNAUTHORIZED|RATE_LIMITED)/;
 
 let tampered = false;
+
+export function isPrivilegedHostsHelperDisabledForDevelopment() {
+  return CURRENT_YAAGL_VERSION === "development";
+}
+
+export type PrivilegedHostsHelperTokenRecoveryState =
+  | "disabled"
+  | "untrusted"
+  | "not-needed"
+  | "token-present"
+  | "token-missing";
 
 function parseHelperError(error: unknown): string | undefined {
   if (!(error instanceof Error)) return undefined;
@@ -71,6 +86,11 @@ async function loadManifest(): Promise<BuildManifest | undefined> {
         bundleId: parsed.bundleId,
         version: parsed.version,
         appName: parsed.appName,
+        helperSha256:
+          typeof parsed.helperSha256 == "string" &&
+          parsed.helperSha256.length > 0
+            ? parsed.helperSha256
+            : undefined,
       };
     }
   } catch {
@@ -138,6 +158,22 @@ async function ensureLocalHelperBinary() {
 
 async function installHelper(ctx: HostsHelperContext) {
   await log("Installing YAAGLM privileged hosts helper");
+  // Sanity check: the shipped binary should match what the build recorded in
+  // build-manifest.json (the helper source lives in a separate project, so the
+  // sidecar binary is a committed artifact that could drift).
+  if (ctx.manifest?.helperSha256) {
+    try {
+      const out = await exec(["shasum", "-a", "256", helperPath()]);
+      const actual = (out.stdOut ?? "").trim().split(/\s+/)[0];
+      if (actual != ctx.manifest.helperSha256) {
+        await warn(
+          `YAAGLM hosts helper binary hash ${actual} does not match build manifest ${ctx.manifest.helperSha256}; installing anyway (stale sidecar binary?)`
+        );
+      }
+    } catch {
+      // hash check is best-effort
+    }
+  }
   await exec(
     [
       "/bin/sh",
@@ -176,7 +212,9 @@ async function ensureHelperReady(ctx: HostsHelperContext) {
     const registeredVersion = await requestStatus(ctx);
     if (registeredVersion != ctx.manifest!.version) {
       throw new Error(
-        `YAAGLM hosts helper registered version ${registeredVersion} does not match manifest version ${ctx.manifest!.version}`
+        `YAAGLM hosts helper registered version ${registeredVersion} does not match manifest version ${
+          ctx.manifest!.version
+        }`
       );
     }
   } catch (error) {
@@ -198,6 +236,10 @@ export async function runPrivilegedHosts(
   args: string[],
   fallback: () => Promise<void>
 ) {
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) {
+    await fallback();
+    return;
+  }
   await runPrivilegedHostsWithContext(
     await getHostsHelperContext(),
     args,
@@ -232,6 +274,10 @@ export async function ensurePrivilegedHosts(
   fallback: () => Promise<void>
 ) {
   validateHostEntries(hosts);
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) {
+    await fallback();
+    return;
+  }
   const ctx = await getHostsHelperContext();
   if (!ctx.trusted) {
     await untrustedFallback(fallback);
@@ -255,6 +301,10 @@ export async function blockPrivilegedHosts(
   fallback: () => Promise<void>
 ) {
   validateHostEntries(hosts);
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) {
+    await fallback();
+    return;
+  }
   validateBlockTtl(ttl);
   const ctx = await getHostsHelperContext();
   if (!ctx.trusted) {
@@ -263,17 +313,16 @@ export async function blockPrivilegedHosts(
   }
   await runPrivilegedHostsWithContext(
     ctx,
-    helperArgs(
-      ctx.manifest!.bundleId,
-      ctx.manifest!.version,
-      "block",
-      [String(ttl), ...hostPairs(hosts)]
-    ),
+    helperArgs(ctx.manifest!.bundleId, ctx.manifest!.version, "block", [
+      String(ttl),
+      ...hostPairs(hosts),
+    ]),
     fallback
   );
 }
 
 export async function unblockPrivilegedHosts() {
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) return;
   const ctx = await getHostsHelperContext();
   if (!ctx.trusted) {
     await warn(
@@ -298,6 +347,7 @@ async function helperAvailable(ctx: HostsHelperContext) {
 }
 
 export async function getPrivilegedHostsHelperStatus(): Promise<PrivilegedHostsHelperStatus> {
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) return "disabled";
   if (tampered) return "tampered";
   const ctx = await getHostsHelperContext();
   if (!ctx.trusted) return "untrusted";
@@ -321,7 +371,54 @@ export async function getPrivilegedHostsHelperStatus(): Promise<PrivilegedHostsH
   }
 }
 
+export async function getPrivilegedHostsHelperVersion(): Promise<
+  string | undefined
+> {
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) return undefined;
+  const ctx = await getHostsHelperContext();
+  if (!ctx.trusted) return undefined;
+  try {
+    await ensureLocalHelperBinary();
+    return await requestStatus(ctx);
+  } catch {
+    return undefined;
+  }
+}
+
+export async function getPrivilegedHostsHelperTokenRecoveryState(): Promise<PrivilegedHostsHelperTokenRecoveryState> {
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) return "disabled";
+  const ctx = await getHostsHelperContext();
+  if (!ctx.trusted) return "untrusted";
+
+  let tokenPresent = false;
+  try {
+    await exec(["test", "-s", tokenPath(ctx.manifest!.bundleId)]);
+    tokenPresent = true;
+  } catch {
+    tokenPresent = false;
+  }
+  if (tokenPresent) return "token-present";
+
+  let installed = false;
+  try {
+    await exec(["test", "-e", installedHelperPath]);
+    installed = true;
+  } catch {
+    // helper binary may be absent while the plist remains
+  }
+  try {
+    await exec(["test", "-e", installedPlistPath]);
+    installed = true;
+  } catch {
+    // no launchd registration
+  }
+  return installed ? "token-missing" : "not-needed";
+}
+
 export async function installPrivilegedHostsHelper() {
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) {
+    throw new Error("Hosts helper is disabled in development builds");
+  }
   const ctx = await getHostsHelperContext();
   if (!ctx.trusted) {
     throw new Error(
@@ -332,6 +429,9 @@ export async function installPrivilegedHostsHelper() {
 }
 
 export async function uninstallPrivilegedHostsHelper() {
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) {
+    throw new Error("Hosts helper is disabled in development builds");
+  }
   const ctx = await getHostsHelperContext();
   if (!ctx.trusted) {
     throw new Error(

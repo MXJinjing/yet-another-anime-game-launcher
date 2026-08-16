@@ -3,7 +3,7 @@ import type { Accessor } from "solid-js";
 import type { Locale } from "../locale";
 
 export type ClosePrompt = "download" | "game" | null;
-export type CloseDecision = "EXIT" | "CANCEL" | "CLOSE_GAME" | "KEEP_GAME";
+export type CloseDecision = "EXIT" | "CANCEL" | "CLOSE_GAME";
 
 export function CloseConfirmationModal(props: {
   prompt: Accessor<ClosePrompt>;
@@ -27,12 +27,6 @@ export function CloseConfirmationModal(props: {
               onClick={() => props.resolve("CANCEL")}
             >
               {props.locale.get("SETTING_CANCEL")}
-            </AppModalButton>
-            <AppModalButton
-              variant="secondary"
-              onClick={() => props.resolve("KEEP_GAME")}
-            >
-              {props.locale.get("GAME_RUNNING_CLOSE_KEEP")}
             </AppModalButton>
             <AppModalButton
               variant="danger"

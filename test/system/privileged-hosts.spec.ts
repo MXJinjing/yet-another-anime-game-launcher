@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@constants", () => ({
+  CURRENT_YAAGL_VERSION: "1.0.0",
+}));
+
 const exec = vi.fn(
-  async (
-    _cmd: string[],
-    _env?: Record<string, string>,
-    _sudo?: boolean
-  ) => ({
+  async (_cmd: string[], _env?: Record<string, string>, _sudo?: boolean) => ({
     exitCode: 0,
     pid: 1,
     stdErr: "",
@@ -13,16 +13,20 @@ const exec = vi.fn(
   })
 );
 const writeFile = vi.fn(async (_path: string, _data: string) => undefined);
-const env = vi.fn(async (_key: string): Promise<string | undefined> => undefined);
+const env = vi.fn(
+  async (_key: string): Promise<string | undefined> => undefined
+);
 const readFile = vi.fn(async (_path: string) => "");
 
 vi.mock("@runtime/command-runner", () => ({
   exec,
 }));
 
+const log = vi.fn(async (..._args: unknown[]) => undefined);
+const warn = vi.fn(async (..._args: unknown[]) => undefined);
 vi.mock("@logging/logger", () => ({
-  log: vi.fn(async () => undefined),
-  warn: vi.fn(async () => undefined),
+  log,
+  warn,
 }));
 
 vi.mock("@platform/shell", () => ({
@@ -173,9 +177,7 @@ describe("untrusted runtime identity", () => {
 
   it("refuses install without any install call", async () => {
     const { installPrivilegedHostsHelper } = await loadModule();
-    await expect(installPrivilegedHostsHelper()).rejects.toThrow(
-      "not trusted"
-    );
+    await expect(installPrivilegedHostsHelper()).rejects.toThrow("not trusted");
     expect(exec).not.toHaveBeenCalled();
   });
 
@@ -290,9 +292,9 @@ describe("trusted helper arguments", () => {
     );
     expect(exec).toHaveBeenCalled();
     for (const call of exec.mock.calls) {
-      expect(
-        call[0].some((arg: string) => /^[0-9a-f]{64}$/.test(arg))
-      ).toBe(false);
+      expect(call[0].some((arg: string) => /^[0-9a-f]{64}$/.test(arg))).toBe(
+        false
+      );
     }
     for (const call of exec.mock.calls) {
       const args = call[0] as string[];
@@ -336,6 +338,37 @@ describe("trusted helper arguments", () => {
       BUNDLE_ID,
     ]);
     expect(uninstallCalls[0][2]).toBe(true);
+  });
+});
+
+describe("token recovery", () => {
+  beforeEach(() => {
+    resetMocks();
+    makeTrusted();
+  });
+
+  it("detects a missing token when helper installation artifacts remain", async () => {
+    exec.mockImplementation(async (command: string[]) => {
+      if (command[0] == "test" && command[1] == "-s") {
+        throw new Error("missing token");
+      }
+      return okResult();
+    });
+    const { getPrivilegedHostsHelperTokenRecoveryState } = await loadModule();
+    await expect(getPrivilegedHostsHelperTokenRecoveryState()).resolves.toBe(
+      "token-missing"
+    );
+    expect(callsFor("/Library/PrivilegedHelperTools")).toHaveLength(1);
+    expect(callsFor("com.3shain.yaaglm.hosts-helper.plist")).toHaveLength(1);
+  });
+
+  it("allows deleting the registration with sudo without checking the token", async () => {
+    const { uninstallPrivilegedHostsHelper } = await loadModule();
+    await uninstallPrivilegedHostsHelper();
+    const uninstallCall = callsFor("uninstall.sh")[0];
+    expect(uninstallCall[0]).toEqual(["/bin/sh", UNINSTALL_SCRIPT, BUNDLE_ID]);
+    expect(uninstallCall[2]).toBe(true);
+    expect(callsFor("--token-file")).toHaveLength(0);
   });
 });
 
@@ -451,11 +484,43 @@ describe("ensureHelperReady dispatch", () => {
     exec
       .mockResolvedValueOnce(okResult()) // test -x helper
       .mockResolvedValueOnce(okResult("OK 0.9.0\n")) // STATUS: drifted
+      .mockResolvedValueOnce(okResult()) // shasum hash guard (release install)
       .mockResolvedValueOnce(okResult()) // install.sh
       .mockResolvedValueOnce(okResult("OK 0.9.0\n")); // retried STATUS still drifted
     const fallback = vi.fn(async () => undefined);
     await ensurePrivilegedHosts([["example.com", "0.0.0.0"]], fallback);
     expect(fallback).toHaveBeenCalledOnce();
     expect(callsFor("install.sh")).toHaveLength(1);
+  });
+});
+
+describe("helper version and binary hash guard", () => {
+  beforeEach(() => {
+    resetMocks();
+    makeTrusted();
+  });
+
+  it("reports the registered version from STATUS", async () => {
+    const { getPrivilegedHostsHelperVersion } = await loadModule();
+    await expect(getPrivilegedHostsHelperVersion()).resolves.toBe("1.0.0");
+  });
+
+  it("warns but proceeds when the shipped binary hash differs from the manifest", async () => {
+    const { installPrivilegedHostsHelper } = await loadModule();
+    exec
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        pid: 1,
+        stdErr: "",
+        stdOut:
+          "aa".repeat(32) +
+          "  ./sidecar/yaaglm-hosts-helper/yaaglm-hosts-helper\n",
+      }) // shasum mismatch vs manifest helperSha256 "ef"*32
+      .mockResolvedValueOnce(okResult()); // install.sh --bundle
+    await installPrivilegedHostsHelper();
+    expect(callsFor("install.sh")).toHaveLength(1);
+    expect(
+      warn.mock.calls.some(args => String(args[0]).includes("does not match"))
+    ).toBe(true);
   });
 });

@@ -1,7 +1,11 @@
 import { Locale } from "@locale";
-import { getPrivilegedHostsHelperStatus } from "./privileged-hosts";
+import {
+  getPrivilegedHostsHelperStatus,
+  isPrivilegedHostsHelperDisabledForDevelopment,
+} from "./privileged-hosts";
 
 export async function checkHostsHelperInstalled(locale: Locale) {
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) return;
   const status = await getPrivilegedHostsHelperStatus();
   if (status == "not-installed" || status == "error") {
     await locale.alert(

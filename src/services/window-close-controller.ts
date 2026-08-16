@@ -1,13 +1,10 @@
 export type WindowClosePrompt = "download" | "game";
-export type WindowCloseDecision =
-  | "EXIT"
-  | "CANCEL"
-  | "CLOSE_GAME"
-  | "KEEP_GAME";
+export type WindowCloseDecision = "EXIT" | "CANCEL" | "CLOSE_GAME";
 
 export interface WindowCloseControllerDependencies {
   hasActiveDownloads: () => boolean;
   isGameRunning: () => boolean;
+  requestGameClose: () => Promise<void>;
   onPromptChange?: (prompt: WindowClosePrompt | null) => void;
   onBeforeExit: () => Promise<boolean>;
   hideWindow: () => Promise<void>;
@@ -23,7 +20,6 @@ export function createWindowCloseController(
   dependencies: WindowCloseControllerDependencies
 ) {
   let handlingClose = false;
-  let closeGameProcessesOnExit = true;
   let resolvePendingPrompt:
     | ((decision: WindowCloseDecision) => void)
     | undefined;
@@ -50,7 +46,6 @@ export function createWindowCloseController(
     handlingClose = true;
     let shouldExit = false;
     try {
-      closeGameProcessesOnExit = true;
       if (dependencies.hasActiveDownloads()) {
         const decision = await waitForPrompt("download");
         if (decision === "CANCEL") {
@@ -62,7 +57,7 @@ export function createWindowCloseController(
         if (decision === "CANCEL") {
           return false;
         }
-        closeGameProcessesOnExit = decision === "CLOSE_GAME";
+        await dependencies.requestGameClose();
       }
       shouldExit = await dependencies.onBeforeExit();
       if (shouldExit) {
@@ -72,7 +67,6 @@ export function createWindowCloseController(
       return shouldExit;
     } finally {
       if (!shouldExit) {
-        closeGameProcessesOnExit = true;
         handlingClose = false;
       }
     }
@@ -82,6 +76,5 @@ export function createWindowCloseController(
     requestClose,
     resolvePrompt,
     isHandlingClose: () => handlingClose,
-    shouldCloseGameProcessesOnExit: () => closeGameProcessesOnExit,
   };
 }

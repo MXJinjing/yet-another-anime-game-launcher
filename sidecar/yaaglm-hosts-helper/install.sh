@@ -6,8 +6,9 @@
 # Must run as root. A bundle is trusted only when it is a real directory
 # containing Contents/Info.plist and Contents/Resources/build-manifest.json,
 # and the bundle dir / Info.plist / launcher binary / helper binary are all
-# non-symlinks, owned by uid 0, with no group/other write bits.  Binary hashes
-# are always computed from disk (shasum -a 256), never taken from the manifest.
+# non-symlinks, owned consistently by either root or the current console user,
+# with no group/other write bits. Binary hashes are always computed from disk
+# (shasum -a 256), never taken from the manifest.
 #
 # Registry writes are serialized with flock(2).  macOS ships no flock(1)
 # binary, so the lock is acquired with /usr/bin/python3 + fcntl.flock on
@@ -87,7 +88,7 @@ trust_check_path() {
     trust_fail "$label is a symbolic link: $path"
   fi
   owner="$(/usr/bin/stat -f %u "$path" 2>/dev/null)" || trust_fail "cannot stat $label: $path"
-  [ "$owner" = "0" ] || trust_fail "$label owner uid is $owner, expected 0: $path"
+  [ "$owner" = "$TRUSTED_OWNER_UID" ] || trust_fail "$label owner uid is $owner, expected $TRUSTED_OWNER_UID: $path"
   perm="$(/usr/bin/stat -f %Lp "$path" 2>/dev/null)" || trust_fail "cannot stat $label: $path"
   if [ $(( 0$perm & 0022 )) -ne 0 ]; then
     trust_fail "$label is group/other-writable (mode $perm): $path"
@@ -97,6 +98,20 @@ trust_check_path() {
 [ -d "$bundle_path" ] || trust_fail "app bundle is not a directory: $bundle_path"
 [ -f "$INFO_PLIST" ] || trust_fail "missing Contents/Info.plist: $INFO_PLIST"
 [ -f "$MANIFEST" ] || trust_fail "missing Contents/Resources/build-manifest.json: $MANIFEST"
+
+# The privileged script is launched by the console user through an administrator
+# authorization prompt. Keep accepting root-owned bundles, but also accept a
+# bundle owned by that console user so a normal drag-and-drop installation does
+# not fail the trust gate. All trusted inputs below must have the same owner.
+console_uid="$(/usr/bin/stat -f %u /dev/console 2>/dev/null || true)"
+bundle_owner="$(/usr/bin/stat -f %u "$bundle_path" 2>/dev/null || true)"
+if [ "$bundle_owner" = "0" ]; then
+  TRUSTED_OWNER_UID="0"
+elif [ -n "$console_uid" ] && [ "$console_uid" != "0" ] && [ "$bundle_owner" = "$console_uid" ]; then
+  TRUSTED_OWNER_UID="$console_uid"
+else
+  trust_fail "app bundle owner uid is $bundle_owner; expected root or console user uid $console_uid"
+fi
 
 # Manifest values are used only for version/appName/launcherPath.  Hashes are
 # always computed from disk below; manifest hashes are never trusted.

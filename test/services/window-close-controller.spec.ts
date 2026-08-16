@@ -7,11 +7,13 @@ import {
 function createHarness({ downloads = false, game = false } = {}) {
   let prompt: WindowClosePrompt | null = null;
   const onBeforeExit = vi.fn(async () => true);
+  const requestGameClose = vi.fn(async () => undefined);
   const hideWindow = vi.fn(async () => undefined);
   const exit = vi.fn(async () => undefined);
   const controller = createWindowCloseController({
     hasActiveDownloads: () => downloads,
     isGameRunning: () => game,
+    requestGameClose,
     onPromptChange: next => {
       prompt = next;
     },
@@ -23,6 +25,7 @@ function createHarness({ downloads = false, game = false } = {}) {
     controller,
     getPrompt: () => prompt,
     onBeforeExit,
+    requestGameClose,
     hideWindow,
     exit,
   };
@@ -41,14 +44,14 @@ describe("window close controller", () => {
     expect(harness.controller.isHandlingClose()).toBe(false);
   });
 
-  it("keeps game processes alive when the user chooses KEEP_GAME", async () => {
+  it("only allows graceful game shutdown when the game is running", async () => {
     const harness = createHarness({ game: true });
     const request = harness.controller.requestClose();
     expect(harness.getPrompt()).toBe("game");
-    harness.controller.resolvePrompt("KEEP_GAME");
+    harness.controller.resolvePrompt("CLOSE_GAME");
 
     await expect(request).resolves.toBe(true);
-    expect(harness.controller.shouldCloseGameProcessesOnExit()).toBe(false);
+    expect(harness.requestGameClose).toHaveBeenCalledOnce();
     expect(harness.hideWindow).toHaveBeenCalledOnce();
     expect(harness.exit).toHaveBeenCalledOnce();
   });
@@ -63,7 +66,7 @@ describe("window close controller", () => {
     harness.controller.resolvePrompt("CLOSE_GAME");
 
     await expect(request).resolves.toBe(true);
-    expect(harness.controller.shouldCloseGameProcessesOnExit()).toBe(true);
+    expect(harness.requestGameClose).toHaveBeenCalledOnce();
   });
 
   it("ignores duplicate close requests while a prompt is active", async () => {
