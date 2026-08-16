@@ -36,6 +36,7 @@ import {
 import { LauncherResourceData } from "./launcher-info";
 import { checkIntegrityProgram } from "./program-check-integrity";
 import { updateGameProgram } from "./program-update-game";
+import { CBJQ_GAME_LOG_LOCATIONS } from "../../game-log-paths";
 
 const getGameVersion = async (gameDir: string) => {
   const local_manifest = join(gameDir, "manifest.json");
@@ -106,6 +107,7 @@ export async function createCBJQChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameLogLocations: CBJQ_GAME_LOG_LOCATIONS,
     gameVersion: gameCurrentVersion,
     latestVersion: () => GAME_LATEST_VERSION,
     updateRequired,

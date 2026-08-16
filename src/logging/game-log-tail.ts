@@ -1,25 +1,22 @@
 import { join } from "path-browserify";
 import { readFile, stats } from "../platform/neutralino";
+import type { GameLogLocation } from "../channel-client";
 
 /**
- * Real-time tail of the game's Unity log (`output_log.txt`) inside a Wine
- * prefix. Unity writes:
- *
- *   <prefix>/drive_c/users/<user>/AppData/LocalLow/<company>/<product>/output_log.txt
- *
- * The path varies per user/company/product, so we locate all candidates under
- * the prefix's users directory and tail whichever one actually grows (only the
- * running game's log gets appended, so dead candidates simply stay silent).
- *
- * Used by the launcher's "debug mode": when enabled, the game launches and the
- * log viewer opens with this stream feeding it in real time.
+ * Real-time tail of a game's own text logs inside a Wine prefix or install
+ * directory. Each client records its known locations in `src/clients/` so
+ * debug mode does not assume that every game uses Unity's output_log.txt.
  */
 
-export type UnityLogLineHandler = (line: string) => void;
+export type GameLogLineHandler = (line: string) => void;
+/** @deprecated Use GameLogLineHandler. Kept for callers of the old helper. */
+export type UnityLogLineHandler = GameLogLineHandler;
 
 const DEFAULT_POLL_INTERVAL_MS = 800;
+const DEFAULT_PATH_SCAN_INTERVAL_MS = 5000;
 const DEFAULT_MAX_LINES_PER_POLL = 200;
 const DEFAULT_LOOKBACK_LINES = 40;
+const MAX_RECURSIVE_DEPTH = 6;
 
 type TailState = {
   /** Character offset of the last consumed position (JS string length). */
@@ -34,39 +31,112 @@ type TailState = {
   pending: string;
 };
 
-async function findUnityLogFiles(prefix: string): Promise<string[]> {
-  const start = join(prefix, "drive_c", "users");
+function hasAllowedExtension(path: string, extensions?: readonly string[]) {
+  if (!extensions || extensions.length === 0) return true;
+  const lowerPath = path.toLowerCase();
+  return extensions.some(extension =>
+    lowerPath.endsWith(extension.toLowerCase())
+  );
+}
+
+async function findWineUserDirectories(prefix: string): Promise<string[]> {
+  const usersRoot = join(prefix, "drive_c", "users");
+  try {
+    const entries = await Neutralino.filesystem.readDirectory(usersRoot);
+    return entries
+      .filter(entry => entry.type === "DIRECTORY")
+      .map(entry => join(usersRoot, entry.entry));
+  } catch {
+    // The users directory may not exist yet (fresh prefix).
+    return [];
+  }
+}
+
+async function findRecursiveLogFiles(
+  root: string,
+  extensions: readonly string[] | undefined,
+  depth = 0
+): Promise<string[]> {
+  if (depth > MAX_RECURSIVE_DEPTH) return [];
+
+  let entries;
+  try {
+    entries = await Neutralino.filesystem.readDirectory(root);
+  } catch {
+    return [];
+  }
+
+  const found: string[] = [];
+  for (const entry of entries) {
+    const path = join(root, entry.entry);
+    if (entry.type === "DIRECTORY") {
+      found.push(...(await findRecursiveLogFiles(path, extensions, depth + 1)));
+    } else if (hasAllowedExtension(path, extensions)) {
+      found.push(path);
+    }
+  }
+  return found;
+}
+
+async function findLegacyUnityLogFiles(prefix: string): Promise<string[]> {
+  const users = await findWineUserDirectories(prefix);
+  const found: string[] = [];
+  for (const user of users) {
+    found.push(
+      ...(await findRecursiveLogFiles(user, ["output_log.txt"], 0))
+    );
+  }
+  return found;
+}
+
+export async function findGameLogFiles({
+  prefix,
+  gameDir,
+  locations,
+  existingOnly = false,
+}: {
+  prefix: string;
+  gameDir: string;
+  locations: readonly GameLogLocation[];
+  existingOnly?: boolean;
+}): Promise<string[]> {
+  const users = await findWineUserDirectories(prefix);
   const found: string[] = [];
 
-  async function walk(dir: string, depth: number) {
-    if (depth > 6) return;
-    let entries;
-    try {
-      entries = await Neutralino.filesystem.readDirectory(dir);
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const path = join(dir, entry.entry);
-      if (entry.type === "DIRECTORY") {
-        await walk(path, depth + 1);
-      } else if (entry.entry === "output_log.txt") {
+  for (const location of locations) {
+    const roots =
+      location.root === "wine-user"
+        ? users
+        : [location.root === "game-install" ? gameDir : prefix];
+    for (const root of roots) {
+      if (!root) continue;
+      const path = join(root, location.path);
+      if (location.recursive) {
+        found.push(
+          ...(await findRecursiveLogFiles(path, location.extensions, 0))
+        );
+      } else if (existingOnly) {
+        try {
+          if ((await stats(path)).isFile) found.push(path);
+        } catch {
+          // The game may create this file after the next poll.
+        }
+      } else {
+        // Keep configured paths even before the file exists. This allows the
+        // tailer to observe a log created after debug mode has started.
         found.push(path);
       }
     }
   }
 
-  try {
-    await walk(start, 0);
-  } catch {
-    // The users directory may not exist yet (fresh prefix).
-  }
-  return found;
+  return [...new Set(found)];
 }
 
-export function createUnityLogTail(options: {
+export function createGameLogTail(options: {
   prefix: string;
-  onLine: UnityLogLineHandler;
+  gameDir?: string;
+  locations?: readonly GameLogLocation[];
+  onLine: GameLogLineHandler;
   pollIntervalMs?: number;
   maxLinesPerPoll?: number;
   lookbackLines?: number;
@@ -74,16 +144,18 @@ export function createUnityLogTail(options: {
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const maxLinesPerPoll = options.maxLinesPerPoll ?? DEFAULT_MAX_LINES_PER_POLL;
   const lookbackLines = options.lookbackLines ?? DEFAULT_LOOKBACK_LINES;
+  const locations = options.locations ?? [];
 
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let paths: string[] = [];
+  let lastPathScan = 0;
   const states = new Map<string, TailState>();
 
   function emit(lines: string[]) {
     for (const line of lines) {
       if (stopped) return;
-      // Wine's Unity may write CRLF; strip the trailing CR for clean output.
+      // Wine logs may use CRLF; strip the trailing CR for clean output.
       options.onLine(line.replace(/\r$/, ""));
     }
   }
@@ -108,7 +180,7 @@ export function createUnityLogTail(options: {
       states.set(path, state);
     }
 
-    // The file shrank: Unity rewrites output_log.txt on every launch.
+    // Many games rewrite their log file on every launch.
     if (stat.size < state.lastBytes) {
       state.offset = 0;
       state.lastBytes = -1;
@@ -176,11 +248,27 @@ export function createUnityLogTail(options: {
     }
   }
 
+  async function refreshPaths() {
+    const discovered =
+      locations.length > 0
+        ? await findGameLogFiles({
+            prefix: options.prefix,
+            gameDir: options.gameDir ?? "",
+            locations,
+          })
+        : await findLegacyUnityLogFiles(options.prefix);
+    paths = [...new Set([...paths, ...discovered])];
+    lastPathScan = Date.now();
+  }
+
   async function poll() {
     if (stopped) return;
     try {
-      if (paths.length === 0) {
-        paths = await findUnityLogFiles(options.prefix);
+      if (
+        paths.length === 0 ||
+        Date.now() - lastPathScan >= DEFAULT_PATH_SCAN_INTERVAL_MS
+      ) {
+        await refreshPaths();
       }
       for (const path of paths) {
         if (stopped) return;
@@ -203,3 +291,55 @@ export function createUnityLogTail(options: {
     }
   };
 }
+
+/**
+ * Wait for the configured game log and open it with macOS's default app.
+ * This intentionally does not use the launcher logger or runtime-log store.
+ */
+export function openGameLogFile(options: {
+  prefix: string;
+  gameDir?: string;
+  locations?: readonly GameLogLocation[];
+  pollIntervalMs?: number;
+}): () => void {
+  const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+  const locations = options.locations ?? [];
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  async function poll() {
+    if (stopped) return;
+    const paths =
+      locations.length > 0
+        ? await findGameLogFiles({
+            prefix: options.prefix,
+            gameDir: options.gameDir ?? "",
+            locations,
+            existingOnly: true,
+          })
+        : await findLegacyUnityLogFiles(options.prefix);
+    const path = paths[0];
+    if (path) {
+      try {
+        await Neutralino.os.open(`file://${encodeURI(path)}`);
+      } catch {
+        // Opening the file is best-effort; do not add an entry to launcher log.
+      }
+      return;
+    }
+    if (!stopped) timer = setTimeout(() => void poll(), pollIntervalMs);
+  }
+
+  void poll();
+
+  return () => {
+    stopped = true;
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+}
+
+/** @deprecated Use createGameLogTail. */
+export const createUnityLogTail = createGameLogTail;

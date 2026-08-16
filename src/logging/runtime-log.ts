@@ -47,3 +47,15 @@ export function subscribeRuntimeLogs(
   listener(snapshot());
   return () => listeners.delete(listener);
 }
+
+export function inferUnityLogLevel(line: string): RuntimeLogLevel {
+  if (/\b(error|failed|exception|fatal|corrupt|crash)\b/i.test(line)) {
+    return "ERROR";
+  }
+  if (
+    /\b(warn|missing|out of bound|serialization|different layout)\b/i.test(line)
+  ) {
+    return "WARNING";
+  }
+  return "INFO";
+}
