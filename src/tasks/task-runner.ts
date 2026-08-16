@@ -89,11 +89,12 @@ function createTaskStateSignals(): TaskStateSignals {
 }
 
 function updateDownloadTaskState(
-  taskId: string,
+  taskId: string | undefined,
   key: LocaleTextKey | null,
   args: string[],
   text: string
 ) {
+  if (!taskId) return;
   updateDownloadTaskPhase(
     taskId,
     text,
@@ -126,6 +127,16 @@ export function createTaskRunner({
   const stateByKey = new Map<string, TaskStateSignals>();
   const pendingByKey = new Map<string, ConcurrentTaskEntry[]>();
   const runningKeys = new Set<string>();
+  const idleWaiters = new Map<string, Array<() => void>>();
+
+  function resolveIdleWaiters(key: string) {
+    if (runningKeys.has(key) || (pendingByKey.get(key)?.length ?? 0) > 0)
+      return;
+    const waiters = idleWaiters.get(key);
+    if (!waiters) return;
+    idleWaiters.delete(key);
+    for (const resolve of waiters) resolve();
+  }
 
   function getState(key: string): TaskStateSignals {
     let state = stateByKey.get(key);
@@ -153,13 +164,24 @@ export function createTaskRunner({
     runningKeys.add(key);
     const state = getState(key);
     const { fn: task, name: taskName } = entry;
-    const downloadTaskId = beginDownloadTask({
-      ...(entry.downloadTask ?? {
-        title: taskName ? locale.get(taskName) : "",
-      }),
-      key: entry.downloadTask?.key ?? key,
-    });
+    // Only tasks that explicitly provide download metadata belong in the
+    // download queue. Regular tasks such as launching the game may still
+    // start an incidental runtime download; those streams are materialized
+    // independently by the download registry instead of inheriting a
+    // misleading task title such as "Launch Game".
+    const downloadTaskId = entry.downloadTask
+      ? beginDownloadTask({
+          ...entry.downloadTask,
+          key: entry.downloadTask.key ?? key,
+        })
+      : undefined;
 
+    // A state object is reused for the next task on the same key. Reset the
+    // visible progress state before execution so a new task cannot briefly
+    // render the previous task's title (or the UI fallback "Processing…").
+    state.setStatusText("");
+    state.setStatusArgs(null);
+    state.setProgress(0);
     state.setBusy(true);
     await log("Task started");
     try {
@@ -191,7 +213,10 @@ export function createTaskRunner({
             break;
           }
           case "setRawStateText":
-            onStateKey?.(key, null);
+            // Keep the semantic state key while only the display text changes.
+            // Launch recovery uses raw progress messages after emitting
+            // REVERT_PATCHING and must remain closable only after the task
+            // reaches its terminal cleanup path below.
             state.setStatusArgs(null);
             state.setStatusText(command[1]);
             updateDownloadTaskState(downloadTaskId, null, [], command[1]);
@@ -218,11 +243,21 @@ export function createTaskRunner({
       }
       state.setStatusArgs(null);
     } finally {
+      // Clear terminal task state before releasing busy. This prevents a
+      // completed INSTALL_DONE status from surviving while a download stream
+      // is being detached.
       onStateKey?.(key, null);
+      state.setStatusArgs(null);
+      state.setStatusText("");
+      state.setProgress(0);
       state.setBusy(false);
       runningKeys.delete(key);
-      endDownloadTask(downloadTaskId);
-      void runNext(key);
+      if (downloadTaskId) endDownloadTask(downloadTaskId);
+      if ((pendingByKey.get(key)?.length ?? 0) > 0) {
+        void runNext(key);
+      } else {
+        resolveIdleWaiters(key);
+      }
     }
   }
 
@@ -230,6 +265,15 @@ export function createTaskRunner({
     getState,
     enqueue,
     isBusy: (key: string) => getState(key).busy(),
+    waitForIdle: (key: string) => {
+      if (!runningKeys.has(key) && (pendingByKey.get(key)?.length ?? 0) === 0)
+        return Promise.resolve();
+      return new Promise<void>(resolve => {
+        const waiters = idleWaiters.get(key) ?? [];
+        waiters.push(resolve);
+        idleWaiters.set(key, waiters);
+      });
+    },
   };
 }
 
@@ -268,6 +312,9 @@ export function createTaskQueueState({
     },
     [Symbol.asyncIterator]() {
       return this;
+    },
+    [Symbol.asyncDispose]() {
+      return Promise.resolve();
     },
   };
   return [

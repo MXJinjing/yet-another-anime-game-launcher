@@ -11,7 +11,11 @@ import {
 } from "@runtime";
 import { log } from "@logging/logger";
 import { openDir } from "@platform/neutralino";
-import { getWineDistributions, WineDistribution } from "@wine";
+import {
+  getWineDistributions,
+  type Wine,
+  type WineDistribution,
+} from "@wine";
 import { SHARED_WINE_TAG } from "@wine/multi-game";
 import {
   Popover,
@@ -36,7 +40,9 @@ import {
   parseBackgroundPersistedState,
   resolveInitialIndex,
 } from "../model/background-switcher";
+import { GameIcon } from "../components/game-icon";
 import { GameLibraryView, GameLibraryItem } from "../views/game-library";
+import { MhyClientView } from "../views/clients/mhy";
 import { GlobalModals } from "../../modals/global-modal-host";
 import type { GlobalModalRoute } from "../../modals/global-modal-host";
 import { getThemeColorHex, getContrastText } from "@settings/theme/color";
@@ -63,21 +69,22 @@ import {
   createGameLaunchProgram,
   gameDownloadTaskMetadata,
   gameProgram,
-} from "./hoyoplay-controller";
+} from "./hyp-controller";
 import {
   resolveIntegrityAction,
   resolvePrimaryLauncherAction,
 } from "./action-policy";
-import type { HoyoplayGame, HoyoplayLauncherOptions } from "./launcher-types";
+import type { HypGame, HypLauncherOptions } from "./launcher-types";
 
 export type {
-  HoyoplayGame,
-  HoyoplayGameWineOption,
-  HoyoplayLauncherOptions,
+  HypGame,
+  HypGameWineOption,
+  HypLauncherOptions,
 } from "./launcher-types";
 
-const BG_STORAGE_KEY = "hoyoplay_bg";
+const BG_STORAGE_KEY = "hyp_bg";
 const BG_TRANSITION_MS = 600;
+const LIBRARY_TRANSITION_MS = 360;
 
 type ProgressPanelData = {
   title: string;
@@ -113,14 +120,14 @@ function ProgressPanel({
     Math.round(Math.min(100, Math.max(0, current().progress ?? 0)))
   );
   return (
-    <div class="hoyoplay-progress-div">
-      <div class="hoyoplay-download-header">
-        <span class="hoyoplay-download-title" title={current().title}>
+    <div class="hyp-progress-div">
+      <div class="hyp-download-header">
+        <span class="hyp-download-title" title={current().title}>
           {current().title}
         </span>
         <Show when={current().canCancel}>
           <button
-            class="hoyoplay-download-cancel"
+            class="hyp-download-cancel"
             aria-label={locale.get("CANCEL_DOWNLOAD")}
             data-tooltip={locale.get("CANCEL_DOWNLOAD")}
             disabled={current().cancelDisabled}
@@ -128,19 +135,8 @@ function ProgressPanel({
               void cancelControlledDownload(current().namespace).catch(fatal);
             }}
           >
-            <svg
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              aria-hidden="true"
-            >
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-            <span class="hoyoplay-download-cancel-label">
+            <span class="hyp-download-cancel-icon" aria-hidden="true" />
+            <span class="hyp-download-cancel-label">
               {locale.get("SETTING_CANCEL")}
             </span>
           </button>
@@ -148,7 +144,7 @@ function ProgressPanel({
       </div>
       <Show when={current().progressMode !== undefined}>
         <div
-          class="hoyoplay-download-progress"
+          class="hyp-download-progress"
           role="progressbar"
           aria-label={current().title}
           aria-valuemin="0"
@@ -161,7 +157,7 @@ function ProgressPanel({
         >
           <div
             classList={{
-              "hoyoplay-download-progress-fill": true,
+              "hyp-download-progress-fill": true,
               indeterminate: current().progressMode === "indeterminate",
             }}
             style={{
@@ -173,71 +169,47 @@ function ProgressPanel({
           />
         </div>
       </Show>
-      <Show when={current().progressMode === "determinate"}>
-        <div class="hoyoplay-download-progress-info">
-          <span class="hoyoplay-download-progress-percent">
-            {progressPercent()}%
-          </span>
-          <Show when={current().showDownloadedRow}>
-            <span>
-              {locale.get("DOWNLOADED")} {current().downloaded}/
-              {current().total}
-            </span>
-          </Show>
-          <Show when={current().showSpeedRow}>
-            <span>
-              {locale.get("DOWNLOAD_SPEED")} {current().speed}
-            </span>
-          </Show>
-        </div>
-      </Show>
-      <div class="hoyoplay-download-rows">
+      <div class="hyp-download-rows">
         <Show when={current().showFileRow}>
-          <div class="hoyoplay-download-row">
-            <span class="hoyoplay-download-label">
+          <div class="hyp-download-row">
+            <span class="hyp-download-label">
               {locale.get("DOWNLOAD_FILE")}
             </span>
-            <span class="hoyoplay-download-value" title={current().file}>
+            <span class="hyp-download-value" title={current().file}>
               {current().file}
             </span>
           </div>
         </Show>
         <Show when={current().showFileIndex}>
-          <div class="hoyoplay-download-row">
-            <span class="hoyoplay-download-label">
+          <div class="hyp-download-row">
+            <span class="hyp-download-label">
               {locale.get("DOWNLOAD_FILE_INDEX")}
             </span>
-            <span class="hoyoplay-download-value">
+            <span class="hyp-download-value">
               {current().fileIndex}/{current().fileCount}
             </span>
           </div>
         </Show>
         <Show
-          when={
-            current().progressMode !== "determinate" &&
-            current().showDownloadedRow
-          }
+          when={current().showDownloadedRow}
         >
-          <div class="hoyoplay-download-row">
-            <span class="hoyoplay-download-label">
+          <div class="hyp-download-row">
+            <span class="hyp-download-label">
               {locale.get("DOWNLOADED")}
             </span>
-            <span class="hoyoplay-download-value">
+            <span class="hyp-download-value">
               {current().downloaded}/{current().total}
             </span>
           </div>
         </Show>
         <Show
-          when={
-            current().progressMode !== "determinate" &&
-            current().showSpeedRow
-          }
+          when={current().showSpeedRow}
         >
-          <div class="hoyoplay-download-row">
-            <span class="hoyoplay-download-label">
+          <div class="hyp-download-row">
+            <span class="hyp-download-label">
               {locale.get("DOWNLOAD_SPEED")}
             </span>
-            <span class="hoyoplay-download-value">{current().speed}</span>
+            <span class="hyp-download-value">{current().speed}</span>
           </div>
         </Show>
       </div>
@@ -245,7 +217,7 @@ function ProgressPanel({
   );
 }
 
-export async function createHoyoplayLauncher({
+export async function createHypLauncher({
   games,
   showLibrary,
   wine,
@@ -255,12 +227,13 @@ export async function createHoyoplayLauncher({
   aria2,
   onCheckUpdate,
   onGameRunningChange,
+  gameCloseHandler,
   onResetWineEnv,
   initializeWine,
   enableWineDistro,
   uninstallWineDistro,
   actionDisabledRef,
-}: HoyoplayLauncherOptions) {
+}: HypLauncherOptions) {
   const baseWine = wine;
   const wineDistros = await getWineDistributions();
   const initialWineDistro =
@@ -285,7 +258,7 @@ export async function createHoyoplayLauncher({
     game => game.client.installState() === "INSTALLED"
   );
   const lastView = showLibrary
-    ? await getKeyOrDefault("hoyoplay_last_view", "")
+    ? await getKeyOrDefault("hyp_last_view", "")
     : "";
   let initialSelectedGameIndex =
     showLibrary && firstInstalledIndex >= 0 ? firstInstalledIndex : 0;
@@ -329,14 +302,12 @@ export async function createHoyoplayLauncher({
   });
 
   // Debug mode: when enabled (game settings -> Launch -> Debug mode),
-  // launching a game auto-opens the log viewer and streams the game's Unity
-  // log (output_log.txt inside the Wine prefix) in real time so startup
-  // problems are visible immediately. The preference lives in the global
-  // `config_debug_mode` key and is read fresh at every launch.
-  let stopGameLogTail: (() => void) | undefined;
-  // The log viewer (and its openLogs) lives inside the component; the launch
-  // program runs outside it, so the component hands us the opener through this
-  // ref when it mounts.
+  // launching a game opens its configured runtime/error log file. The
+  // preference lives in the global `config_debug_mode` key and is read fresh
+  // at every launch.
+  let stopGameLogOpen: (() => void) | undefined;
+  // The log viewer still handles manual launcher-log viewing. Debug-mode file
+  // opening runs outside the component and does not populate that viewer.
   let openGameLogs: (() => void) | undefined;
 
   const { UI: GameUninstallDialog, open: openGameUninstallDialog } =
@@ -389,16 +360,53 @@ export async function createHoyoplayLauncher({
     }
   }
 
-  return function HoyoplayLauncher() {
+  return function HypLauncher() {
     const selectedGame = () => games[selectedGameIndex()];
     onCleanup(() => {
-      stopGameLogTail?.();
-      stopGameLogTail = undefined;
+      stopGameLogOpen?.();
+      stopGameLogOpen = undefined;
       openGameLogs = undefined;
     });
-    const [libraryOpen, setLibraryOpen] = createSignal(
-      showLibrary && (!anyInstalled || lastView === "library")
-    );
+    const initialLibraryOpen =
+      showLibrary && (!anyInstalled || lastView === "library");
+    const [libraryOpen, setLibraryOpen] = createSignal(initialLibraryOpen);
+    const [libraryMounted, setLibraryMounted] =
+      createSignal(initialLibraryOpen);
+    const [libraryClosing, setLibraryClosing] = createSignal(false);
+    let libraryCloseTimer: ReturnType<typeof setTimeout> | undefined;
+
+    onCleanup(() => {
+      if (libraryCloseTimer) clearTimeout(libraryCloseTimer);
+    });
+
+    function openLibrary() {
+      if (libraryCloseTimer) {
+        clearTimeout(libraryCloseTimer);
+        libraryCloseTimer = undefined;
+      }
+      setLibraryClosing(false);
+      setLibraryMounted(true);
+      setLibraryOpen(true);
+    }
+
+    function closeLibrary() {
+      if (!libraryOpen() && !libraryMounted()) return;
+      if (libraryCloseTimer) clearTimeout(libraryCloseTimer);
+      setLibraryOpen(false);
+      setLibraryClosing(true);
+      setLibraryMounted(true);
+      libraryCloseTimer = setTimeout(() => {
+        libraryCloseTimer = undefined;
+        setLibraryMounted(false);
+        setLibraryClosing(false);
+      }, LIBRARY_TRANSITION_MS);
+    }
+
+    function toggleLibrary() {
+      if (libraryOpen()) closeLibrary();
+      else openLibrary();
+    }
+
     const libraryItems = () =>
       games.map(
         game =>
@@ -406,16 +414,19 @@ export async function createHoyoplayLauncher({
             id: game.id,
             title: game.title,
             iconUrl:
-              game.iconImage ??
-              game.client.uiContent.iconImage ??
+              game.iconImage ||
+              game.client.uiContent.iconImage ||
               game.fallbackIcon,
             bannerUrl: game.bannerImage ?? GAME_BANNER_URLS[game.id] ?? "",
             serverLabel: game.serverLabel,
             installed: game.client.installState() === "INSTALLED",
+            channel: game.id,
+            channelName:
+              game.client.uiContent.channelName || game.id.toUpperCase(),
           } satisfies GameLibraryItem)
       );
     const [nativeSettingsGame, setNativeSettingsGame] =
-      createSignal<HoyoplayGame>();
+      createSignal<HypGame>();
     const [nativeSettingsOpen, setNativeSettingsOpen] = createSignal(false);
     let nativeSettingsCloseTimer: ReturnType<typeof setTimeout> | undefined;
     onCleanup(() => {
@@ -447,7 +458,7 @@ export async function createHoyoplayLauncher({
       return "OS";
     };
     const [updatePromptGame, setUpdatePromptGame] =
-      createSignal<HoyoplayGame>();
+      createSignal<HypGame>();
     const [videoLoaded, setVideoLoaded] = createSignal(false);
     const [bgIndex, setBgIndex] =
       createSignal<Record<string, number>>(initialBgIndex);
@@ -485,7 +496,7 @@ export async function createHoyoplayLauncher({
       if (!t || t.gameId !== selectedGame().id) return undefined;
       return currentBackgrounds()[t.to];
     };
-    async function persistBgIndex(game: HoyoplayGame, index: number) {
+    async function persistBgIndex(game: HypGame, index: number) {
       const ids = (game.client.uiContent.backgrounds ?? [])
         .map(bg => bg.id)
         .filter((id): id is string => typeof id === "string" && id.length > 0);
@@ -495,7 +506,7 @@ export async function createHoyoplayLauncher({
       if (game.namespace) await withStorageNamespace(game.namespace, write);
       else await write();
     }
-    function switchBackground(game: HoyoplayGame, to: number) {
+    function switchBackground(game: HypGame, to: number) {
       const list = game.client.uiContent.backgrounds ?? [];
       if (list.length <= 1) return;
       if (to === currentBgIndex()) return;
@@ -518,19 +529,57 @@ export async function createHoyoplayLauncher({
     const [gameRunningByKey, setGameRunningByKey] = createSignal<
       Record<string, boolean>
     >({});
+    const [gameLifecycleActiveByKey, setGameLifecycleActiveByKey] = createSignal<
+      Record<string, boolean>
+    >({});
     let restoreNativeSettingsNamespace: (() => void) | undefined;
     const taskQueue = createConcurrentTaskQueueState({
       locale,
       onStateKey: (key, stateKey) => {
         if (key === GLOBAL_TASK_KEY) return;
-        const running = stateKey == "GAME_RUNNING";
-        const prev = gameRunningByKey();
-        if (prev[key] === running) return; // avoid re-render storms
-        const next = { ...prev, [key]: running };
-        setGameRunningByKey(next);
-        onGameRunningChange?.(Object.values(next).some(Boolean));
+        const lifecycleActive =
+          stateKey == "GAME_RUNNING" || stateKey == "REVERT_PATCHING";
+        const processRunning = stateKey == "GAME_RUNNING";
+        const processPrev = gameRunningByKey();
+        const lifecyclePrev = gameLifecycleActiveByKey();
+        if (processPrev[key] !== processRunning) {
+          setGameRunningByKey({
+            ...processPrev,
+            [key]: processRunning,
+          });
+        }
+        if (lifecyclePrev[key] !== lifecycleActive) {
+          const next = {
+            ...lifecyclePrev,
+            [key]: lifecycleActive,
+          };
+          setGameLifecycleActiveByKey(next);
+          onGameRunningChange?.(Object.values(next).some(Boolean));
+        }
       },
     });
+
+    if (gameCloseHandler) {
+      gameCloseHandler.current = async () => {
+        const lifecycleKeys = Object.entries(gameLifecycleActiveByKey())
+          .filter(([, active]) => active)
+          .map(([key]) => key);
+        const processKeys = Object.entries(gameRunningByKey())
+          .filter(([, running]) => running)
+          .map(([key]) => key);
+        const winesToStop = new Set<Wine>();
+        for (const key of processKeys) {
+          const game = games.find(candidate => candidate.id === key);
+          if (game) winesToStop.add(game.wineRef?.current ?? baseWine);
+        }
+        await Promise.all(
+          [...winesToStop].map(wineToStop => wineToStop.killAll())
+        );
+        await Promise.all(
+          lifecycleKeys.map(key => taskQueue.waitForIdle(key))
+        );
+      };
+    }
     const selectedGameTaskState = createMemo(() =>
       taskQueue.getState(selectedGame().id)
     );
@@ -550,7 +599,7 @@ export async function createHoyoplayLauncher({
     // here (inside a memo) rather than in the Show child, which SolidJS runs
     // inside untrack and therefore never re-runs while the download is in
     // progress. Reading them here lets the panel update as progress arrives.
-    const downloadControlKey = (game: HoyoplayGame) => game.namespace ?? "";
+    const downloadControlKey = (game: HypGame) => game.namespace ?? "";
     const [downloadControlByKey, setDownloadControlByKey] = createSignal<
       Record<string, DownloadControlState>
     >(
@@ -620,8 +669,6 @@ export async function createHoyoplayLauncher({
     }
     const { LogViewer, openLogs } = createLogViewer(locale);
     openGameLogs = openLogs;
-    const ringCircumference = 2 * Math.PI * 15.5;
-
     function actionDisabled() {
       // A launcher-global task (e.g. Wine environment init) takes priority:
       // while it runs, the primary button stays disabled even if a per-game
@@ -659,6 +706,13 @@ export async function createHoyoplayLauncher({
         return null;
       }
       const args = taskState.statusArgs();
+      const taskStatusText = taskState.statusText();
+      // A task is not ready to render a progress panel until it has emitted
+      // an actual status. INSTALL_DONE is a terminal marker, not a progress
+      // state, so it must not create a transient title-only panel.
+      if (args?.key === "INSTALL_DONE" || (!args && !taskStatusText)) {
+        return null;
+      }
       const isEnvSpeed = args?.key === "DOWNLOADING_ENVIRONMENT_SPEED";
       const isDownloadStatus =
         args?.key === "DOWNLOADING_FILE_PROGRESS" || isEnvSpeed;
@@ -671,7 +725,6 @@ export async function createHoyoplayLauncher({
         isEnvironmentDownload &&
         selectedGame().wineTag?.() !== undefined &&
         selectedGame().wineTag?.() !== SHARED_WINE_TAG;
-      const taskStatusText = taskState.statusText();
       const isGameRunning = args?.key === "GAME_RUNNING";
       const isLaunchPhase = taskStatusText.startsWith("启动阶段");
       const isRestorePhase =
@@ -687,7 +740,7 @@ export async function createHoyoplayLauncher({
         ? isEnvSpeed
           ? locale.get("DOWNLOADING_ENVIRONMENT")
           : locale.get("DOWNLOAD_PROGRESS")
-        : taskState.statusText() || locale.get("PROCESSING");
+        : taskStatusText;
       const downloadArgs = isDownloadStatus || isScanning ? args : null;
       const [file, speed, downloaded, total, percent, fileIndex, fileCount] =
         downloadArgs
@@ -758,6 +811,12 @@ export async function createHoyoplayLauncher({
       const download = globalDownloadControl();
       if (!globalState.busy() && !download.active) return null;
       const args = globalState.statusArgs();
+      const taskStatusText = globalState.statusText();
+      // Do not show the fallback Processing… panel before the task emits a
+      // status, and do not show the terminal INSTALL_DONE marker as a panel.
+      if (args?.key === "INSTALL_DONE" || (!args && !taskStatusText)) {
+        return null;
+      }
       const isEnvSpeed = args?.key === "DOWNLOADING_ENVIRONMENT_SPEED";
       const isDownloadStatus =
         args?.key === "DOWNLOADING_FILE_PROGRESS" || isEnvSpeed;
@@ -770,7 +829,7 @@ export async function createHoyoplayLauncher({
         ? isEnvSpeed
           ? locale.get("DOWNLOADING_ENVIRONMENT")
           : locale.get("DOWNLOAD_PROGRESS")
-        : globalState.statusText() || locale.get("PROCESSING");
+        : taskStatusText;
       const downloadArgs = isDownloadStatus ? args : null;
       const [file, speed, downloaded, total, percent, fileIndex, fileCount] =
         downloadArgs
@@ -916,10 +975,9 @@ export async function createHoyoplayLauncher({
               createGameLaunchProgram({
                 game,
                 baseWine,
-                openLogs: () => openGameLogs?.(),
-                getStopLogTail: () => stopGameLogTail,
-                setStopLogTail: stop => {
-                  stopGameLogTail = stop;
+                getStopGameLogOpen: () => stopGameLogOpen,
+                setStopGameLogOpen: stop => {
+                  stopGameLogOpen = stop;
                 },
               })
             ),
@@ -943,21 +1001,21 @@ export async function createHoyoplayLauncher({
       }
     }
 
-    function actionLabel(game: HoyoplayGame) {
+    function actionLabel(game: HypGame) {
       if (game.client.installState() !== "INSTALLED")
         return locale.get("INSTALL");
       if (!game.client.updateRequired()) return locale.get("LAUNCH");
       return locale.get("UPDATE");
     }
 
-    function displayGameVersion(game: HoyoplayGame) {
+    function displayGameVersion(game: HypGame) {
       const version = game.client.gameVersion?.() ?? "0.0.0";
       return version == "0.0.0"
         ? locale.get("SETTING_GAME_VERSION_NOT_INSTALLED")
         : version;
     }
 
-    function startCheckIntegrity(game: HoyoplayGame) {
+    function startCheckIntegrity(game: HypGame) {
       // Before checking integrity, check for game updates automatically. If a
       // new version is available, ask the user whether to install it first.
       if (
@@ -971,12 +1029,27 @@ export async function createHoyoplayLauncher({
             game.client.checkIntegrity()
           ),
           name: "SETTING_CHECK_INTEGRITY",
-          downloadTask: gameDownloadTaskMetadata(game, locale, "current"),
+          // Integrity verification itself is not a download task. Keeping it
+          // out of the explicit download-task registry also prevents any
+          // incidental Wine/runtime stream from being mislabeled as a game
+          // download. Actual repair streams are still materialized by the
+          // download registry when they start.
         });
       }
     }
 
     function primaryButtonLabel() {
+      if (selectedGameRunning()) {
+        return locale.get("GAME_RUNNING");
+      }
+      const gameTaskState = selectedGameTaskState();
+      const gameStatusArgs = gameTaskState.statusArgs();
+      const isRecovering =
+        gameStatusArgs?.key === "REVERT_PATCHING" ||
+        gameTaskState.statusText().startsWith("还原阶段");
+      if (isRecovering) {
+        return locale.get("GAME_RECOVERING");
+      }
       if (taskQueue.getState(GLOBAL_TASK_KEY).busy()) {
         return locale.get("ENVIRONMENT_CONFIGURING");
       }
@@ -994,9 +1067,9 @@ export async function createHoyoplayLauncher({
       const game = games[index];
       setSelectedGameIndex(index);
       setVideoLoaded(false);
-      setLibraryOpen(false);
+      closeLibrary();
       if (showLibrary && game) {
-        void setKey("hoyoplay_last_view", game.id);
+        void setKey("hyp_last_view", game.id);
       }
     }
 
@@ -1010,7 +1083,7 @@ export async function createHoyoplayLauncher({
       });
     }
 
-    async function openNativeSettings(game: HoyoplayGame) {
+    async function openNativeSettings(game: HypGame) {
       restoreNativeSettingsNamespace?.();
       let restore: (() => void) | undefined;
       if (game.namespace) {
@@ -1060,16 +1133,20 @@ export async function createHoyoplayLauncher({
 
     return (
       <div
-        class="hoyoplay-shell"
+        classList={{
+          "hyp-shell": true,
+          "library-open": libraryOpen(),
+          "library-closing": libraryClosing(),
+        }}
         style={{
-          "--hoyoplay-accent": themeHex(),
-          "--hoyoplay-accent-text": themeText(),
+          "--hyp-accent": themeHex(),
+          "--hyp-accent-text": themeText(),
         }}
       >
         <Show when={currentBgImage()}>
           <div
             classList={{
-              "hoyoplay-bg-layer": true,
+              "hyp-bg-layer": true,
               leaving: bgTransition()?.gameId === selectedGame().id,
             }}
             style={{
@@ -1081,7 +1158,7 @@ export async function createHoyoplayLauncher({
                 ref={el => {
                   baseVideoRef = el;
                 }}
-                class="hoyoplay-video"
+                class="hyp-video"
                 src={currentBgVideo()}
                 autoplay
                 loop
@@ -1093,7 +1170,7 @@ export async function createHoyoplayLauncher({
             </Show>
             <Show when={currentBgTheme()}>
               <div
-                class="hoyoplay-theme"
+                class="hyp-theme"
                 style={{
                   "background-image": `url(${currentBgTheme()})`,
                 }}
@@ -1104,7 +1181,7 @@ export async function createHoyoplayLauncher({
 
         <Show when={transitionTarget()}>
           <div
-            class="hoyoplay-bg-layer enter"
+            class="hyp-bg-layer enter"
             style={{
               "background-image": transitionTarget()?.background
                 ? `url(${transitionTarget()?.background})`
@@ -1118,7 +1195,7 @@ export async function createHoyoplayLauncher({
               }
             >
               <video
-                class="hoyoplay-video"
+                class="hyp-video"
                 src={transitionTarget()?.background_video}
                 autoplay
                 loop
@@ -1128,7 +1205,7 @@ export async function createHoyoplayLauncher({
             </Show>
             <Show when={transitionTarget()?.background_theme}>
               <div
-                class="hoyoplay-theme"
+                class="hyp-theme"
                 style={{
                   "background-image": `url(${
                     transitionTarget()?.background_theme
@@ -1139,11 +1216,11 @@ export async function createHoyoplayLauncher({
           </div>
         </Show>
 
-        <div class="hoyoplay-vignette" aria-hidden="true" />
+        <div class="hyp-vignette" aria-hidden="true" />
 
         <Show when={currentBackgrounds().length > 1}>
           <div
-            class="hoyoplay-bg-switcher"
+            class="hyp-bg-switcher"
             role="group"
             aria-label="Backgrounds"
           >
@@ -1152,7 +1229,7 @@ export async function createHoyoplayLauncher({
                 <button
                   type="button"
                   classList={{
-                    "hoyoplay-bg-dot": true,
+                    "hyp-bg-dot": true,
                     active: currentBgIndex() === index(),
                   }}
                   aria-label={`Background ${index() + 1}`}
@@ -1165,16 +1242,16 @@ export async function createHoyoplayLauncher({
           </div>
         </Show>
 
-        <aside class="hoyoplay-game-rail">
-          <button class="hoyoplay-orbit-button" aria-label="Yaaglm">
+        <aside class="hyp-game-rail">
+          <button class="hyp-orbit-button" aria-label="Yaaglm">
             <span />
           </button>
-          <div class="hoyoplay-game-icons">
+          <div class="hyp-game-icons">
             <For each={sidebarGames()}>
               {entry => (
                 <button
                   classList={{
-                    "hoyoplay-game-icon": true,
+                    "hyp-game-icon": true,
                     // 必须在 classList 内直接读取 selectedGameIndex()：
                     // 若先求值到非响应式局部变量，切换游戏后高亮不会移动。
                     active: selectedGameIndex() === entry.index,
@@ -1182,13 +1259,14 @@ export async function createHoyoplayLauncher({
                   aria-label={entry.game.title}
                   onClick={() => selectGame(entry.index)}
                 >
-                  <img
+                  <GameIcon
                     src={
-                      entry.game.iconImage ??
-                      entry.game.client.uiContent.iconImage ??
+                      entry.game.iconImage ||
+                      entry.game.client.uiContent.iconImage ||
                       entry.game.fallbackIcon
                     }
-                    alt=""
+                    title={entry.game.title}
+                    channel={entry.game.id}
                   />
                 </button>
               )}
@@ -1197,91 +1275,72 @@ export async function createHoyoplayLauncher({
           <Show when={showLibrary}>
             <button
               classList={{
-                "hoyoplay-rail-button": true,
-                "hoyoplay-library-button": true,
+                "hyp-rail-button": true,
+                "hyp-library-button": true,
                 active: libraryOpen(),
               }}
               aria-label="游戏库"
               title="游戏库"
               onClick={() => {
                 const next = !libraryOpen();
-                setLibraryOpen(next);
+                toggleLibrary();
                 if (next) {
-                  void setKey("hoyoplay_last_view", "library");
+                  void setKey("hyp_last_view", "library");
                 } else {
-                  void setKey("hoyoplay_last_view", selectedGame().id);
+                  void setKey("hyp_last_view", selectedGame().id);
                 }
               }}
             >
-              <span class="hoyoplay-library-icon" />
+              <span class="hyp-library-icon" />
             </button>
           </Show>
           <button
-            class="hoyoplay-rail-button hoyoplay-download-queue-button"
+            class="hyp-rail-button hyp-download-queue-button"
             aria-label={locale.get("DOWNLOAD_MANAGER")}
             title={locale.get("DOWNLOAD_MANAGER")}
             onClick={() => setDownloadModalOpen(true)}
           >
-            <span class="hoyoplay-download-queue-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <path d="M7 10l5 5 5-5" />
-                <path d="M12 15V3" />
-              </svg>
-            </span>
+            <span class="hyp-download-queue-icon" aria-hidden="true" />
             <Show when={activeDownloadCount() > 0}>
-              <span class="hoyoplay-download-queue-badge">
+              <span class="hyp-download-queue-badge">
                 {activeDownloadCount()}
               </span>
             </Show>
           </button>
-          <div class="hoyoplay-rail-bottom">
+          <div class="hyp-rail-bottom">
             <button
-              class="hoyoplay-rail-button"
+              class="hyp-rail-button"
               aria-label="Global settings"
               title="Global settings"
               onClick={() => setGlobalModalRoute("settings")}
             >
-              <span class="hoyoplay-gear-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-              </span>
+              <span class="hyp-gear-icon" aria-hidden="true" />
             </button>
           </div>
         </aside>
 
         <main
           classList={{
-            "hoyoplay-stage": true,
-            "library-open": libraryOpen(),
+            "hyp-stage": true,
+            "library-open": libraryMounted(),
           }}
           aria-label={selectedGame().title}
         >
-          <Show when={libraryOpen()}>
+          <MhyClientView
+            client={selectedGame().client}
+            channelName={
+              selectedGame().client.uiContent.channelName ||
+              selectedGame().id.toUpperCase()
+            }
+          />
+          <Show when={libraryMounted()}>
             <GameLibraryView
               games={libraryItems()}
               themeColor={themeHex()}
+              closing={libraryClosing()}
               onClose={() => {
-                setLibraryOpen(false);
-                void setKey("hoyoplay_last_view", selectedGame().id);
+                closeLibrary();
+                void setKey("hyp_last_view", selectedGame().id);
               }}
               onSelect={index => {
                 selectGame(index);
@@ -1290,9 +1349,8 @@ export async function createHoyoplayLauncher({
           </Show>
         </main>
 
-        <Show when={!libraryOpen()}>
-          <section class="hoyoplay-action-area">
-            <div class="hoyoplay-action-group">
+        <section class="hyp-action-area">
+            <div class="hyp-action-group">
               <Show when={globalProgressPanel()}>
                 <ProgressPanel panel={globalProgressPanel} locale={locale} />
               </Show>
@@ -1307,7 +1365,7 @@ export async function createHoyoplayLauncher({
                 }
               >
                 <button
-                  class="hoyoplay-secondary-button"
+                  class="hyp-secondary-button"
                   onClick={onPredownload}
                 >
                   {locale.format("PREDOWNLOAD_READY", [
@@ -1315,11 +1373,11 @@ export async function createHoyoplayLauncher({
                   ])}
                 </button>
               </Show>
-              <div class="hoyoplay-primary-row">
+              <div class="hyp-primary-row">
                 <button
                   classList={{
-                    "hoyoplay-primary-button": true,
-                    "hoyoplay-primary-button-downloading":
+                    "hyp-primary-button": true,
+                    "hyp-primary-button-downloading":
                       !selectedGameRunning() &&
                       (selectedDownloadControl().active ||
                         activeTaskState().progress() > 0),
@@ -1328,8 +1386,8 @@ export async function createHoyoplayLauncher({
                   onClick={() => onPrimaryAction().catch(fatal)}
                   style={
                     {
-                      "--hoyoplay-accent": themeHex(),
-                      "--hoyoplay-accent-text": themeText(),
+                      "--hyp-accent": themeHex(),
+                      "--hyp-accent-text": themeText(),
                     } as JSX.CSSProperties
                   }
                 >
@@ -1340,52 +1398,29 @@ export async function createHoyoplayLauncher({
                         activeTaskState().progress() > 0)
                     }
                   >
-                    <span class="hoyoplay-ring">
-                      <svg viewBox="0 0 36 36">
-                        <circle
-                          class="hoyoplay-ring-bg"
-                          cx="18"
-                          cy="18"
-                          r="15.5"
-                        />
-                        <circle
-                          class="hoyoplay-ring-fg"
-                          cx="18"
-                          cy="18"
-                          r="15.5"
-                          style={{
-                            "stroke-dasharray": String(ringCircumference),
-                            "stroke-dashoffset": String(
-                              ringCircumference *
-                                (1 - activeTaskState().progress() / 100)
-                            ),
-                          }}
-                        />
-                      </svg>
+                    <span class="hyp-ring">
+                      <span
+                        class="hyp-ring-progress"
+                        style={{
+                          "--hyp-ring-progress": `${activeTaskState().progress()}%`,
+                        }}
+                        aria-hidden="true"
+                      />
                       <Show
                         when={selectedDownloadControl().pauseRequested}
                         fallback={
-                          <span class="hoyoplay-ring-text">
+                          <span class="hyp-ring-text">
                             {Math.round(activeTaskState().progress())}
                           </span>
                         }
                       >
-                        <span class="hoyoplay-ring-icon">
-                          <svg
-                            viewBox="0 0 24 24"
-                            width="16"
-                            height="16"
-                            fill="currentColor"
-                            aria-hidden="true"
-                          >
-                            <rect x="6" y="4" width="4" height="16" rx="1.5" />
-                            <rect x="14" y="4" width="4" height="16" rx="1.5" />
-                          </svg>
+                        <span class="hyp-ring-icon">
+                          <span class="hyp-ring-icon-pause" aria-hidden="true" />
                         </span>
                       </Show>
                     </span>
                   </Show>
-                  <span class="hoyoplay-action-copy">
+                  <span class="hyp-action-copy">
                     <span>{primaryButtonLabel()}</span>
                   </span>
                 </button>
@@ -1393,37 +1428,23 @@ export async function createHoyoplayLauncher({
                   {({ onClose }) => (
                     <>
                       <PopoverTrigger
-                        class="hoyoplay-menu-button"
+                        class="hyp-menu-button"
                         aria-label={locale.get("SETTING_QUICK_ACTIONS")}
                         title={locale.get("SETTING_QUICK_ACTIONS")}
                       >
-                        <svg
-                          viewBox="0 0 24 24"
-                          width="22"
-                          height="22"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          aria-hidden="true"
-                        >
-                          <line x1="4" y1="6" x2="20" y2="6" />
-                          <line x1="4" y1="12" x2="20" y2="12" />
-                          <line x1="4" y1="18" x2="20" y2="18" />
-                        </svg>
+                        <span class="hyp-menu-icon" aria-hidden="true" />
                       </PopoverTrigger>
-                      <PopoverContent class="hoyoplay-menu-popover-content">
-                        <PopoverBody class="hoyoplay-menu-popover-body">
-                          <div class="hoyoplay-menu-popover">
-                            <div class="hoyoplay-menu-version">
+                      <PopoverContent class="hyp-menu-popover-content">
+                        <PopoverBody class="hyp-menu-popover-body">
+                          <div class="hyp-menu-popover">
+                            <div class="hyp-menu-version">
                               <span>{locale.get("GAME_VERSION")}</span>
                               <strong>
                                 {displayGameVersion(selectedGame())}
                               </strong>
                             </div>
                             <button
-                              class="hoyoplay-menu-item"
+                              class="hyp-menu-item"
                               disabled={
                                 selectedGame().client.installState() !==
                                   "INSTALLED" || actionDisabled()
@@ -1436,7 +1457,7 @@ export async function createHoyoplayLauncher({
                               {locale.get("SETTING_CHECK_INTEGRITY")}
                             </button>
                             <button
-                              class="hoyoplay-menu-item"
+                              class="hyp-menu-item"
                               disabled={!selectedGame().client.installDir()}
                               onClick={() => {
                                 void exec2(
@@ -1451,7 +1472,7 @@ export async function createHoyoplayLauncher({
                               {locale.get("SETTING_OPEN_GAME_INSTALL_DIR")}
                             </button>
                             <button
-                              class="hoyoplay-menu-item"
+                              class="hyp-menu-item"
                               disabled={
                                 !selectedGame().client.installDir() ||
                                 actionDisabled()
@@ -1463,9 +1484,9 @@ export async function createHoyoplayLauncher({
                             >
                               {locale.get("SETTING_UNINSTALL_GAME")}
                             </button>
-                            <div class="hoyoplay-menu-divider" />
+                            <div class="hyp-menu-divider" />
                             <button
-                              class="hoyoplay-menu-item"
+                              class="hyp-menu-item"
                               onClick={() => {
                                 openNativeSettings(selectedGame());
                                 onClose();
@@ -1476,7 +1497,7 @@ export async function createHoyoplayLauncher({
                                 : "Game Settings"}
                             </button>
                             <button
-                              class="hoyoplay-menu-item"
+                              class="hyp-menu-item"
                               onClick={() => {
                                 openLogs();
                                 onClose();
@@ -1486,7 +1507,7 @@ export async function createHoyoplayLauncher({
                             </button>
                             <Show when={selectedGameRunning()}>
                               <button
-                                class="hoyoplay-menu-item hoyoplay-menu-item-danger"
+                                class="hyp-menu-item hyp-menu-item-danger"
                                 onClick={() => {
                                   void forceQuitSelectedGame();
                                   onClose();
@@ -1503,8 +1524,7 @@ export async function createHoyoplayLauncher({
                 </Popover>
               </div>
             </div>
-          </section>
-        </Show>
+        </section>
 
         <Show when={nativeSettingsGame()}>
           {game => {

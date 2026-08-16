@@ -7,18 +7,14 @@ import {
   withStorageNamespace,
 } from "@runtime/storage";
 import { ensureMultiGameGameWine } from "@wine/multi-game";
-import { createUnityLogTail } from "../../logging/game-log-tail";
-import {
-  appendRuntimeLog,
-  type RuntimeLogLevel,
-} from "../../logging/runtime-log";
-import type { HoyoplayGame } from "./launcher-types";
+import { openGameLogFile } from "../../logging/game-log-tail";
+import type { HypGame } from "./launcher-types";
 
 /** Wrap a game operation with its per-game Wine and storage namespace. */
 export function gameProgram(
   aria2: Aria2,
   baseWine: import("../../wine").Wine,
-  game: HoyoplayGame,
+  game: HypGame,
   program: () => TaskProgram
 ): () => TaskProgram {
   if (!game.namespace || !game.wineRef || !game.wineTag) return program;
@@ -46,7 +42,7 @@ export function gameProgram(
   };
 }
 
-export async function clearGameInstallationState(game: HoyoplayGame) {
+export async function clearGameInstallationState(game: HypGame) {
   const clear = async () => {
     await setKey("game_install_dir", null);
     await game.client.changeInstallDir?.("");
@@ -55,31 +51,17 @@ export async function clearGameInstallationState(game: HoyoplayGame) {
   else await clear();
 }
 
-export function inferUnityLogLevel(line: string): RuntimeLogLevel {
-  if (/\b(error|failed|exception|fatal|corrupt|crash)\b/i.test(line)) {
-    return "ERROR";
-  }
-  if (
-    /\b(warn|missing|out of bound|serialization|different layout)\b/i.test(line)
-  ) {
-    return "WARNING";
-  }
-  return "INFO";
-}
-
-/** Compose launch and optional Unity-log tailing outside the view layer. */
+/** Compose launch and optional game-log opening outside the view layer. */
 export function createGameLaunchProgram({
   game,
   baseWine,
-  openLogs,
-  getStopLogTail,
-  setStopLogTail,
+  getStopGameLogOpen,
+  setStopGameLogOpen,
 }: {
-  game: HoyoplayGame;
+  game: HypGame;
   baseWine: import("../../wine").Wine;
-  openLogs: () => void;
-  getStopLogTail: () => (() => void) | undefined;
-  setStopLogTail: (stop: (() => void) | undefined) => void;
+  getStopGameLogOpen: () => (() => void) | undefined;
+  setStopGameLogOpen: (stop: (() => void) | undefined) => void;
 }): TaskProgram {
   return (async function* () {
     const config = game.config.advancedEnable
@@ -89,34 +71,29 @@ export function createGameLaunchProgram({
       (await getKeyOrDefault("config_debug_mode", "false")) === "true" &&
       game.client.installState() === "INSTALLED"
     ) {
-      getStopLogTail()?.();
+      getStopGameLogOpen()?.();
       const prefix = game.wineRef
         ? game.wineRef.current.prefix
         : baseWine.prefix;
-      appendRuntimeLog(
-        `Debug mode: watching Unity log under ${prefix}`,
-        "INFO"
-      );
-      openLogs();
-      setStopLogTail(
-        createUnityLogTail({
+      setStopGameLogOpen(
+        openGameLogFile({
           prefix,
-          onLine: line =>
-            appendRuntimeLog(`[Unity] ${line}`, inferUnityLogLevel(line)),
+          gameDir: game.client.installDir(),
+          locations: game.client.gameLogLocations,
         })
       );
     }
     try {
       yield* game.client.launch(config);
     } finally {
-      getStopLogTail()?.();
-      setStopLogTail(undefined);
+      getStopGameLogOpen()?.();
+      setStopGameLogOpen(undefined);
     }
   })();
 }
 
 export function gameDownloadTaskMetadata(
-  game: HoyoplayGame,
+  game: HypGame,
   locale: Locale,
   mode: "release" | "current" | "predownload"
 ) {

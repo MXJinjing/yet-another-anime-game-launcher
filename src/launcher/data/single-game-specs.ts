@@ -1,73 +1,74 @@
 import AponiaIcon from "../../assets/Aponia.cr.webp";
 import NahidaIcon from "../../assets/Nahida.cr.png";
 import { GAME_ICON_URLS } from "./game-assets";
+import type { LocaleTextKey } from "@locale";
 
 export type SingleGameChannelMeta = {
   id: string;
   title: string;
-  serverLabel: string;
+  serverLabel: LocaleTextKey;
   fallbackIcon: string;
 };
 
 export const SINGLE_GAME_CHANNEL_META: Record<string, SingleGameChannelMeta> = {
   hk4ecn: {
     id: "hk4ecn",
-    title: "Genshin Impact CN",
-    serverLabel: "国服",
-    fallbackIcon: GAME_ICON_URLS["genshin"],
+    title: atob("R2Vuc2hpbiBJbXBhY3QgQ04="),
+    serverLabel: "SERVER_LABEL_CN",
+    fallbackIcon: GAME_ICON_URLS["hk4e"],
   },
   hk4eos: {
     id: "hk4eos",
-    title: "Genshin Impact",
-    serverLabel: "国际服",
-    fallbackIcon: GAME_ICON_URLS["genshin"],
+    title: atob("R2Vuc2hpbiBJbXBhY3Q="),
+    serverLabel: "SERVER_LABEL_GLOBAL",
+    fallbackIcon: GAME_ICON_URLS["hk4e"],
   },
   hk4euniversal: {
     id: "hk4euniversal",
-    title: "Genshin Impact",
-    serverLabel: "Uni",
-    fallbackIcon: GAME_ICON_URLS["genshin"],
+    title: atob("R2Vuc2hpbiBJbXBhY3Q="),
+    serverLabel: "SERVER_LABEL_UNI",
+    fallbackIcon: GAME_ICON_URLS["hk4e"],
   },
   hkrpgcn: {
     id: "hkrpgcn",
-    title: "Honkai: Star Rail CN",
-    serverLabel: "国服",
+    title: atob("SG9ua2FpOiBTdGFyIFJhaWwgQ04="),
+    serverLabel: "SERVER_LABEL_CN",
     fallbackIcon: GAME_ICON_URLS["hsr"],
   },
   hkrpgos: {
     id: "hkrpgos",
-    title: "Honkai: Star Rail",
-    serverLabel: "国际服",
+    title: atob("SG9ua2FpOiBTdGFyIFJhaWw="),
+    serverLabel: "SERVER_LABEL_GLOBAL",
     fallbackIcon: GAME_ICON_URLS["hsr"],
   },
   napcn: {
     id: "napcn",
-    title: "Zenless Zone Zero CN",
-    serverLabel: "国服",
+    title: atob("WmVubGVzcyBab25lIFplcm8gQ04="),
+    serverLabel: "SERVER_LABEL_CN",
     fallbackIcon: GAME_ICON_URLS["zzz"],
   },
   napos: {
     id: "napos",
-    title: "Zenless Zone Zero",
-    serverLabel: "国际服",
+    title: atob("WmVubGVzcyBab25lIFplcm8="),
+    serverLabel: "SERVER_LABEL_GLOBAL",
     fallbackIcon: GAME_ICON_URLS["zzz"],
   },
   bh3glb: {
     id: "bh3glb",
-    title: "Honkai Impact 3rd",
-    serverLabel: "国际服",
+    title: atob("SG9ua2FpIEltcGFjdCAzcmQ="),
+    serverLabel: "SERVER_LABEL_GLOBAL",
     fallbackIcon: AponiaIcon,
   },
   cbjq: {
     id: "cbjq",
-    title: "Snowbreak: Containment Zone",
-    serverLabel: "国际服",
+    title: atob("U25vd2JyZWFrOiBDb250YWlubWVudCBab25l"),
+    serverLabel: "SERVER_LABEL_GLOBAL",
     fallbackIcon: NahidaIcon,
   },
   cbjqcn: {
     id: "cbjqcn",
-    title: "Snowbreak: Containment Zone CN",
-    serverLabel: "国服",
+    title: atob("U25vd2JyZWFrOiBDb250YWlubWVudCBab25lIENO"),
+    serverLabel: "SERVER_LABEL_CN",
     fallbackIcon: NahidaIcon,
   },
 };

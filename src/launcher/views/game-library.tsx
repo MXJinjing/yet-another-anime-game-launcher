@@ -1,4 +1,6 @@
 import { For } from "solid-js";
+import { GameBanner } from "../components/game-banner";
+import { GameIcon } from "../components/game-icon";
 import "./game-library.css";
 
 export type GameLibraryItem = {
@@ -7,6 +9,8 @@ export type GameLibraryItem = {
   iconUrl: string;
   bannerUrl: string;
   serverLabel: string;
+  channel: string;
+  channelName: string;
   installed: boolean;
 };
 
@@ -14,48 +18,56 @@ export function GameLibraryView(props: {
   games: GameLibraryItem[];
   onSelect: (index: number) => void;
   onClose: () => void;
+  closing?: boolean;
   title?: string;
   themeColor?: string;
 }) {
   return (
     <div
-      class="hoyoplay-game-library"
+      classList={{
+        "hyp-game-library": true,
+        closing: props.closing ?? false,
+      }}
       role="region"
       aria-label={props.title ?? "游戏库"}
-      style={{ "--hoyoplay-accent": props.themeColor ?? "#ffd834" }}
+      style={{ "--hyp-accent": props.themeColor ?? "#ffd834" }}
     >
       <button
         type="button"
-        class="hoyoplay-library-dismiss"
+        class="hyp-library-dismiss"
         aria-label="关闭游戏库"
         onClick={props.onClose}
       />
-      <div class="hoyoplay-library-panel">
-        <div class="hoyoplay-library-glass" aria-hidden="true" />
-        <h2 class="hoyoplay-library-title">{props.title ?? "游戏库"}</h2>
-        <div class="hoyoplay-library-scroll">
-          <div class="hoyoplay-library-grid">
+      <div class="hyp-library-panel">
+        <div class="hyp-library-glass" aria-hidden="true" />
+        <h2 class="hyp-library-title">{props.title ?? "游戏库"}</h2>
+        <div class="hyp-library-scroll">
+          <div class="hyp-library-grid">
             <For each={props.games}>
               {(game, index) => (
                 <button
                   type="button"
-                  class="hoyoplay-library-card"
+                  class="hyp-library-card"
                   aria-label={`${game.title} · ${game.serverLabel}`}
-                  style={{
-                    "background-image": `url("${game.bannerUrl}")`,
-                  }}
                   onClick={() => props.onSelect(index())}
                 >
-                  <span class="hoyoplay-library-card-icon">
-                    <img src={game.iconUrl} alt="" />
+                  <span class="hyp-library-banner">
+                    <GameBanner src={game.bannerUrl} label={game.channelName} />
+                  </span>
+                  <span class="hyp-library-card-icon">
+                    <GameIcon
+                      src={game.iconUrl}
+                      title={game.title}
+                      channel={game.channel}
+                    />
                   </span>
                   <span
                     class={
-                      "hoyoplay-library-status" +
+                      "hyp-library-status" +
                       (game.installed ? "" : " is-missing")
                     }
                   />
-                  <span class="hoyoplay-library-card-info">
+                  <span class="hyp-library-card-info">
                     <strong>{game.title}</strong>
                     <small>{game.serverLabel}</small>
                   </span>

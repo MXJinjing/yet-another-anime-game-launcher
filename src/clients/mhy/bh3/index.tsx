@@ -2,6 +2,7 @@ import { batch, createSignal } from "solid-js";
 import type { TaskProgram } from "@tasks/task-program";
 import {
   ChannelClient,
+  ChannelClientBackground,
   ChannelClientInstallState,
 } from "../../../channel-client";
 import { Server } from "@constants";
@@ -32,11 +33,12 @@ import {
   checkAndDownloadReshade,
 } from "@wine/runtime-resources";
 import { getGameVersion } from "../unity";
+import { BH3_GAME_LOG_LOCATIONS } from "../../game-log-paths";
+import { LauncherResourceData, VoicePackNames } from "../launcher-info";
 import {
-  LauncherContentData,
-  LauncherResourceData,
-  VoicePackNames,
-} from "../launcher-info";
+  getLatestLauncherContent,
+  mapBackgroundsToUiContent,
+} from "../hyp-connect";
 
 const CURRENT_SUPPORTED_VERSION = "7.5.0";
 
@@ -63,24 +65,45 @@ export async function createBH3ChannelClient({
   let background: string;
   let url: string;
   let icon: string;
+  let video_url: string;
+  let theme_url: string;
+  let backgrounds: ChannelClientBackground[] = [];
+  let launcherIconButtons: NonNullable<
+    ChannelClient["uiContent"]["launcherIconButtons"]
+  > = [];
+  let banners: NonNullable<ChannelClient["uiContent"]["banners"]> = [];
+  let posts: NonNullable<ChannelClient["uiContent"]["posts"]> = [];
+  let social_media_list: NonNullable<
+    ChannelClient["uiContent"]["social_media_list"]
+  > = [];
   let isAdvFallback = false;
   try {
-    const contentData: LauncherContentData = await (
-      await fetch(
-        server.adv_url +
-          (server.id == "CN"
-            ? `&language=zh-cn` // CN server has no other language support
-            : `&language=en-us`)
-      )
-    ).json();
-    background = contentData.data.adv.background;
-    url = contentData.data.adv.url;
-    icon = contentData.data.adv.icon;
+    const launcherContent = await getLatestLauncherContent(locale, server);
+    const advInfo = launcherContent.backgrounds[0];
+    background = advInfo.background.url;
+    url = advInfo.icon.link;
+    icon = advInfo.icon.url;
+    video_url = advInfo.video.url;
+    theme_url = advInfo.theme.url;
+    backgrounds = mapBackgroundsToUiContent(launcherContent.backgrounds);
+    launcherIconButtons = launcherContent.launcherIconButtons;
+    banners = launcherContent.content.banners;
+    posts = launcherContent.content.posts;
+    social_media_list = launcherContent.content.social_media_list;
   } catch {
     isAdvFallback = true;
     background = "";
     url = "";
     icon = "";
+    video_url = "";
+    theme_url = "";
+  }
+  // Preload every background image so switching between the fetched
+  // launcher backgrounds does not wait on the network.
+  for (const bg of backgrounds) {
+    if (bg.background) {
+      waitImageReady(bg.background).catch(() => undefined);
+    }
   }
   const fallbackBg = "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)";
   let GAME_LATEST_VERSION: string;
@@ -142,11 +165,19 @@ export async function createBH3ChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameLogLocations: BH3_GAME_LOG_LOCATIONS,
     gameVersion: gameCurrentVersion,
     latestVersion: () => GAME_LATEST_VERSION,
     updateRequired,
     uiContent: {
       background,
+      background_video: video_url || undefined,
+      background_theme: theme_url || undefined,
+      backgrounds,
+      launcherIconButtons,
+      banners,
+      posts,
+      social_media_list,
       iconImage: icon,
       url,
       channelName: isAdvFallback ? server.id : undefined,

@@ -50,10 +50,11 @@ import {
   HoyoConnectGameBackgroundType,
 } from "../launcher-info";
 import {
-  getLatestAdvInfo,
+  getLatestLauncherContent,
   getLatestVersionInfo,
   mapBackgroundsToUiContent,
 } from "../hyp-connect";
+import { HK4E_GAME_LOG_LOCATIONS } from "../../game-log-paths";
 
 // no need to check supported version
 // const CURRENT_SUPPORTED_VERSION = "4.8.0";
@@ -78,9 +79,18 @@ export async function createHK4EChannelClient({
   let theme_url: string;
   let bg_type: HoyoConnectGameBackgroundType;
   let backgrounds: ChannelClientBackground[] = [];
+  let launcherIconButtons: NonNullable<
+    ChannelClient["uiContent"]["launcherIconButtons"]
+  > = [];
+  let banners: NonNullable<ChannelClient["uiContent"]["banners"]> = [];
+  let posts: NonNullable<ChannelClient["uiContent"]["posts"]> = [];
+  let social_media_list: NonNullable<
+    ChannelClient["uiContent"]["social_media_list"]
+  > = [];
   let isAdvFallback = false;
   try {
-    const advInfos = await getLatestAdvInfo(locale, server);
+    const launcherContent = await getLatestLauncherContent(locale, server);
+    const advInfos = launcherContent.backgrounds;
     const advInfo = advInfos[0];
     background = advInfo.background.url;
     icon = advInfo.icon.url;
@@ -89,6 +99,10 @@ export async function createHK4EChannelClient({
     theme_url = advInfo.theme.url;
     bg_type = advInfo.type;
     backgrounds = mapBackgroundsToUiContent(advInfos);
+    launcherIconButtons = launcherContent.launcherIconButtons;
+    banners = launcherContent.content.banners;
+    posts = launcherContent.content.posts;
+    social_media_list = launcherContent.content.social_media_list;
   } catch {
     log("Failed to fetch adv info, using fallback UI");
     isAdvFallback = true;
@@ -214,6 +228,7 @@ export async function createHK4EChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameLogLocations: HK4E_GAME_LOG_LOCATIONS,
     gameVersion: gameCurrentVersion,
     latestVersion: () => LATEST_GAME_VERSION,
     updateRequired,
@@ -222,6 +237,10 @@ export async function createHK4EChannelClient({
       background_video: IS_VIDEO_BG ? video_url : undefined,
       background_theme: IS_VIDEO_BG ? theme_url : undefined,
       backgrounds,
+      launcherIconButtons,
+      banners,
+      posts,
+      social_media_list,
       url: icon_link,
       channelName: isAdvFallback ? server.id : undefined,
       fallbackBackground: isAdvFallback ? fallbackBg : undefined,

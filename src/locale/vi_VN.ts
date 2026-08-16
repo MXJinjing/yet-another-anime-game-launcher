@@ -3,6 +3,9 @@ import { zh_CN } from "./zh_CN";
 
 export const vi_VN: typeof zh_CN = {
   CONTENT_LANG_ID: "vi-vn",
+  SERVER_LABEL_CN: "CN",
+  SERVER_LABEL_GLOBAL: "Quốc tế",
+  SERVER_LABEL_UNI: "Đa nền tảng",
   BOOT_INITIALIZING: "Đang khởi tạo",
   BOOT_LOADING_LOCAL_SETTINGS: "Đang tải cài đặt cục bộ",
   BOOT_CHECKING_NETWORK: "Đang kiểm tra kết nối mạng",
@@ -34,10 +37,10 @@ export const vi_VN: typeof zh_CN = {
   FIXING_FILES: "Đang sửa tệp trò chơi {0}/{1}",
   PATCHING: "Đang vá tệp trò chơi",
   GAME_RUNNING: "Đang chạy trò choi",
+  GAME_RECOVERING: "Đang khôi phục",
   GAME_RUNNING_CLOSE_TITLE: "Trò chơi vẫn đang chạy",
   GAME_RUNNING_CLOSE_DESC:
     "Trò chơi vẫn chưa thoát. Bạn có muốn kết thúc tiến trình trò chơi khi thoát launcher không?",
-  GAME_RUNNING_CLOSE_KEEP: "Chỉ thoát launcher",
   GAME_RUNNING_CLOSE_EXIT: "Đóng trò chơi và thoát",
   DOWNLOAD_RUNNING_CLOSE_TITLE: "Đang tải xuống",
   DOWNLOAD_RUNNING_CLOSE_DESC:
@@ -133,6 +136,7 @@ export const vi_VN: typeof zh_CN = {
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "Cài đặt nhanh",
   SETTING_GENERAL: "Cài đặt chung",
+  SETTING_DOWNLOAD: "Tải xuống",
   SETTING_GAME: "Trò chơi",
   SETTING_VIDEO: "Video",
   SETTING_GLOBAL: "Cài đặt chung",
@@ -185,6 +189,10 @@ export const vi_VN: typeof zh_CN = {
     "Hiện tại được chọn là phiên bản cộng đồng, phiên bản này không được hỗ trợ chính thức, vui lòng không báo cáo bất kỳ vấn đề nào",
 
   SETTING_BLOCK_NET: "Tạm chặn mạng qua hosts",
+  SETTING_BLOCK_NET_ENABLED: "Bật",
+  SETTING_BLOCK_NET_URL: "URL cần chặn",
+  SETTING_BLOCK_NET_DELETE: "Xóa",
+  SETTING_BLOCK_NET_ADD: "Thêm dòng",
   SETTING_BLOCK_NET_DURATION: "Thời lượng chặn (giây)",
   SETTING_HOSTS_HELPER: "Hosts permission helper",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
@@ -194,11 +202,32 @@ export const vi_VN: typeof zh_CN = {
   SETTING_HOSTS_HELPER_INSTALL: "Install",
   SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
   SETTING_HOSTS_HELPER_REFRESH: "Refresh",
+
+  SETTING_HOSTS_HELPER_STATUS_DISABLED:
+    "Status: disabled for development builds",
+  SETTING_HOSTS_HELPER_DEV_TOOLTIP:
+    "Hosts Helper is disabled in development builds",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE:
+    "Hosts Helper registration needs repair",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
+    "The Hosts Helper token is missing. Delete the current registration before installing Hosts Helper again. macOS administrator authorization is required.",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "Delete current registration",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
+    "Requesting administrator authorization and deleting the registration…",
+  SETTING_HOSTS_HELPER_LATER: "Later",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_SUCCESS:
+    "The current Hosts Helper registration was deleted",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED:
+    "Administrator authorization is required to delete the Hosts Helper registration",
+  SETTING_HOSTS_HELPER_REREGISTERING: "Updating Hosts Helper registration…",
+  SETTING_HOSTS_HELPER_REREGISTER_FAILED:
+    "Automatic Hosts Helper re-registration failed. Reinstall it from Global Settings.",
   SETTING_TIMEOUT_FIX: "Bật khắc phục timeout của Wine",
   SETTING_WORKAROUND4: "Tạm thay mhypbase.dll khi trò chơi đang chạy",
   SETTING_WORKAROUND4_DESC:
     "Trước khi khởi chạy, mhypbase.dll phiên bản cũ đã chọn sẽ được sao chép vào thư mục trò chơi và giữ nguyên khi trò chơi đang chạy. Tệp gốc sẽ được khôi phục sau khi thoát trò chơi. Launcher không tích hợp hoặc phân phối DLL này.",
   SETTING_WORKAROUND4_PICK: "Chọn tệp...",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "Nút chọn",
   SETTING_WORKAROUND4_REVERT_BTN: "Khôi phục mhypbase.dll gốc ngay",
   SETTING_LICENSES: "Giấy phép",
   SETTING_ENABLE_HDR: "Bật HDR",
@@ -264,7 +293,8 @@ export const vi_VN: typeof zh_CN = {
   SETTING_GITHUB_ACCELERATED_PREFIX_FAILED: "Connection failed",
   SETTING_GITHUB_ACCELERATED_PREFIX_INVALID: "Invalid URL",
   SETTING_AUTO_UPDATE: "Check for launcher updates automatically",
-  SETTING_AUTO_UPDATE_DEV_TOOLTIP: "Development versions do not support automatic updates",
+  SETTING_AUTO_UPDATE_DEV_TOOLTIP:
+    "Development versions do not support automatic updates",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

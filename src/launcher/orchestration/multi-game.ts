@@ -6,20 +6,16 @@ import { withStorageNamespace } from "@runtime/storage";
 import { Wine, WineDistribution } from "@wine";
 import { createSignal } from "solid-js";
 import { reportBootProgress } from "../../boot-progress";
-import { ChannelClient } from "../../channel-client";
 import { Config } from "../../config/config-def";
-import { createClient as createGenshinOsClient } from "../../clients/hk4eos";
-import { createClient as createHsrOsClient } from "../../clients/hkrpgos";
-import { createClient as createZzzOsClient } from "../../clients/napos";
 import {
   getLatestGameDisplays,
   HoyoPlayRegion,
 } from "../../clients/mhy/hyp-connect";
 import type { HoyoConnectGameDisplay } from "../../clients/mhy/launcher-info";
 import { log } from "@logging/logger";
-import { GAME_ICON_URLS } from "../data/game-assets";
-import { createHoyoplayLauncher } from "../controller/hoyoplay-launcher";
-import type { HoyoplayGame } from "../controller/launcher-types";
+import { createHypLauncher } from "../controller/hyp-launcher";
+import { MULTI_GAME_OS_GAME_SPECS } from "../data/multi-game-os";
+import type { HypGame } from "../controller/launcher-types";
 import {
   createMultiGameWineProxy,
   getMultiGameGameWineTag,
@@ -28,50 +24,7 @@ import {
   MultiGameWineRef,
 } from "@wine/multi-game";
 
-export type MultiGameGameSpec = {
-  id: string;
-  namespace: string;
-  title: string;
-  fallbackIcon: string;
-  iconImage?: string;
-  bannerImage?: string;
-  logoImage?: string;
-  serverLabel: string;
-  createClient: (options: {
-    wine: Wine;
-    aria2: Aria2;
-    locale: Locale;
-  }) => Promise<ChannelClient>;
-};
-
-export const DEFAULT_MULTI_GAME_OS_GAME_SPECS: MultiGameGameSpec[] = [
-  {
-    id: "genshin",
-    namespace: "hpgenshin",
-    title: "Genshin Impact",
-    fallbackIcon: GAME_ICON_URLS["genshin"],
-    serverLabel: "国际服",
-    createClient: createGenshinOsClient,
-  },
-  {
-    id: "hsr",
-    namespace: "hphsr",
-    title: "Honkai: Star Rail",
-    fallbackIcon: GAME_ICON_URLS["hsr"],
-    serverLabel: "国际服",
-    createClient: createHsrOsClient,
-  },
-  {
-    id: "zzz",
-    namespace: "hpzzz",
-    title: "Zenless Zone Zero",
-    fallbackIcon: GAME_ICON_URLS["zzz"],
-    iconImage: GAME_ICON_URLS["zzz"],
-    serverLabel: "国际服",
-    createClient: createZzzOsClient,
-  },
-];
-
+import type { MultiGameGameSpec } from "../data/multi-game-spec";
 export async function createMultiGameLauncher({
   wine,
   wineDistroId,
@@ -83,9 +36,10 @@ export async function createMultiGameLauncher({
   aria2,
   onCheckUpdate,
   onGameRunningChange,
+  gameCloseHandler,
   onResetWineEnv,
   region,
-  specs = DEFAULT_MULTI_GAME_OS_GAME_SPECS,
+  specs = MULTI_GAME_OS_GAME_SPECS,
 }: {
   wine: Wine;
   wineDistroId: string;
@@ -97,13 +51,14 @@ export async function createMultiGameLauncher({
   aria2: Aria2;
   onCheckUpdate: () => void;
   onGameRunningChange?: (running: boolean) => void;
+  gameCloseHandler?: { current?: () => Promise<void> };
   onResetWineEnv: () => Promise<void>;
   region: HoyoPlayRegion;
   specs?: MultiGameGameSpec[];
 }) {
   const baseWine = wine;
   const actionDisabledRef = { current: () => false };
-  const games: HoyoplayGame[] = [];
+  const games: HypGame[] = [];
 
   let gameDisplays = new Map<string, HoyoConnectGameDisplay["display"]>();
   try {
@@ -114,9 +69,10 @@ export async function createMultiGameLauncher({
   }
 
   const gameBizByRegion: Record<string, Record<HoyoPlayRegion, string>> = {
-    genshin: { CN: "hk4e_cn", OS: "hk4e_global" },
+    hk4e: { CN: "hk4e_cn", OS: "hk4e_global" },
     hsr: { CN: "hkrpg_cn", OS: "hkrpg_global" },
     zzz: { CN: "nap_cn", OS: "nap_global" },
+    bh3: { CN: "bh3_cn", OS: "bh3_global" },
   };
 
   for (const [index, spec] of specs.entries()) {
@@ -134,8 +90,9 @@ export async function createMultiGameLauncher({
     const [wineTag, setWineTag] = createSignal(initialWineTag);
     const wineOptions = await getMultiGameWineOptions(initialWineTag);
     const display = gameDisplays.get(gameBizByRegion[spec.id]?.[region]);
-    const resolvedSpec: MultiGameGameSpec = {
+    const resolvedSpec = {
       ...spec,
+      serverLabel: locale.get(spec.serverLabel),
       iconImage: display?.icon.url ?? spec.iconImage,
       bannerImage: display?.thumbnail.url ?? spec.bannerImage,
       logoImage: display?.logo.url ?? spec.logoImage,
@@ -170,7 +127,7 @@ export async function createMultiGameLauncher({
   }
 
   reportBootProgress("BOOT_INITIALIZING_GAME_CLIENT", 96);
-  return createHoyoplayLauncher({
+  return createHypLauncher({
     games,
     showLibrary: true,
     wine,
@@ -180,6 +137,7 @@ export async function createMultiGameLauncher({
     aria2,
     onCheckUpdate,
     onGameRunningChange,
+    gameCloseHandler,
     onResetWineEnv,
     initializeWine,
     enableWineDistro,
@@ -187,3 +145,5 @@ export async function createMultiGameLauncher({
     actionDisabledRef,
   });
 }
+
+export type { MultiGameGameSpec } from "../data/multi-game-spec";

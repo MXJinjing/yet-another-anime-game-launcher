@@ -1,4 +1,4 @@
-// Merged "Yaaglm OS" channel: the three mihoyo global servers share one
+// Merged "Yaaglm OS" channel: the four mihoyo global games share one
 // launcher UI (see src/launcher/multi-game.tsx). The actual per-game clients
 // are created from their individual client modules; this stub exists so the
 // channel-switcher build (vite.config.ts) and src/wine/distro.ts can resolve

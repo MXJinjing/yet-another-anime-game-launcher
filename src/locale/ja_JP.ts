@@ -3,6 +3,9 @@ import { zh_CN } from "./zh_CN";
 
 export const ja_JP: typeof zh_CN = {
   CONTENT_LANG_ID: "ja-jp",
+  SERVER_LABEL_CN: "中国",
+  SERVER_LABEL_GLOBAL: "グローバル",
+  SERVER_LABEL_UNI: "ユニバーサル",
   BOOT_INITIALIZING: "初期化中",
   BOOT_LOADING_LOCAL_SETTINGS: "ローカル設定を読み込み中",
   BOOT_CHECKING_NETWORK: "ネットワーク接続を確認中",
@@ -34,10 +37,10 @@ export const ja_JP: typeof zh_CN = {
   FIXING_FILES: "ゲームファイルを修復中{0}/{1}",
   PATCHING: "ゲームファイルをパッチ中",
   GAME_RUNNING: "ゲーム実行中",
+  GAME_RECOVERING: "復元中",
   GAME_RUNNING_CLOSE_TITLE: "ゲームはまだ実行中です",
   GAME_RUNNING_CLOSE_DESC:
     "ゲームはまだ終了していません。ランチャーを終了するときにゲームプロセスも終了しますか？",
-  GAME_RUNNING_CLOSE_KEEP: "ランチャーのみ終了",
   GAME_RUNNING_CLOSE_EXIT: "ゲームを終了してランチャーも終了",
   DOWNLOAD_RUNNING_CLOSE_TITLE: "ダウンロード中",
   DOWNLOAD_RUNNING_CLOSE_DESC:
@@ -133,6 +136,7 @@ export const ja_JP: typeof zh_CN = {
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "クイックアクション",
   SETTING_GENERAL: "全般",
+  SETTING_DOWNLOAD: "ダウンロード",
   SETTING_GAME: "ゲーム",
   SETTING_VIDEO: "ビデオ",
   SETTING_GLOBAL: "グローバル設定",
@@ -186,6 +190,10 @@ export const ja_JP: typeof zh_CN = {
     "現在選択されているのはコミュニティ版です。このバージョンは公式にサポートされていませんので、不具合の報告はご遠慮ください。",
 
   SETTING_BLOCK_NET: "hostsで一時的に通信をブロック",
+  SETTING_BLOCK_NET_ENABLED: "有効",
+  SETTING_BLOCK_NET_URL: "ブロックするURL",
+  SETTING_BLOCK_NET_DELETE: "削除",
+  SETTING_BLOCK_NET_ADD: "行を追加",
   SETTING_BLOCK_NET_DURATION: "ブロック時間（秒）",
   SETTING_HOSTS_HELPER: "Hosts permission helper",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
@@ -195,11 +203,32 @@ export const ja_JP: typeof zh_CN = {
   SETTING_HOSTS_HELPER_INSTALL: "Install",
   SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
   SETTING_HOSTS_HELPER_REFRESH: "Refresh",
+
+  SETTING_HOSTS_HELPER_STATUS_DISABLED:
+    "Status: disabled for development builds",
+  SETTING_HOSTS_HELPER_DEV_TOOLTIP:
+    "Hosts Helper is disabled in development builds",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE:
+    "Hosts Helper registration needs repair",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
+    "The Hosts Helper token is missing. Delete the current registration before installing Hosts Helper again. macOS administrator authorization is required.",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "Delete current registration",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
+    "Requesting administrator authorization and deleting the registration…",
+  SETTING_HOSTS_HELPER_LATER: "Later",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_SUCCESS:
+    "The current Hosts Helper registration was deleted",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED:
+    "Administrator authorization is required to delete the Hosts Helper registration",
+  SETTING_HOSTS_HELPER_REREGISTERING: "Updating Hosts Helper registration…",
+  SETTING_HOSTS_HELPER_REREGISTER_FAILED:
+    "Automatic Hosts Helper re-registration failed. Reinstall it from Global Settings.",
   SETTING_TIMEOUT_FIX: "Wineタイムアウト回避を有効化",
   SETTING_WORKAROUND4: "ゲーム実行中に mhypbase.dll を一時置換",
   SETTING_WORKAROUND4_DESC:
     "起動前に、選択した古い mhypbase.dll をゲームフォルダへコピーし、ゲーム実行中はそのまま保持します。ゲーム終了後、元のファイルを復元します。ランチャーはこの DLL を同梱または配布しません。",
   SETTING_WORKAROUND4_PICK: "ファイルを選択...",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "選択ボタン",
   SETTING_WORKAROUND4_REVERT_BTN: "元の mhypbase.dll を今すぐ復元",
   SETTING_LICENSES: "ライセンス",
   SETTING_ENABLE_HDR: "HDR有効",

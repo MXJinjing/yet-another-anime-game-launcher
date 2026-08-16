@@ -3,6 +3,9 @@ import { zh_CN } from "./zh_CN";
 
 export const ru_RU: typeof zh_CN = {
   CONTENT_LANG_ID: "ru-ru",
+  SERVER_LABEL_CN: "Китай",
+  SERVER_LABEL_GLOBAL: "Международный",
+  SERVER_LABEL_UNI: "Универсальный",
   BOOT_INITIALIZING: "Инициализация",
   BOOT_LOADING_LOCAL_SETTINGS: "Загрузка локальных настроек",
   BOOT_CHECKING_NETWORK: "Проверка сетевого подключения",
@@ -34,10 +37,10 @@ export const ru_RU: typeof zh_CN = {
   FIXING_FILES: "Исправление игровых файлов {0}/{1}",
   PATCHING: "Патчинг игровых файлов",
   GAME_RUNNING: "Игра запущена",
+  GAME_RECOVERING: "Восстановление",
   GAME_RUNNING_CLOSE_TITLE: "Игра всё ещё запущена",
   GAME_RUNNING_CLOSE_DESC:
     "Игра ещё не закрыта. Завершить игровой процесс при выходе из лаунчера?",
-  GAME_RUNNING_CLOSE_KEEP: "Только выйти из лаунчера",
   GAME_RUNNING_CLOSE_EXIT: "Закрыть игру и выйти",
   DOWNLOAD_RUNNING_CLOSE_TITLE: "Идёт загрузка",
   DOWNLOAD_RUNNING_CLOSE_DESC:
@@ -131,6 +134,7 @@ export const ru_RU: typeof zh_CN = {
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "Быстрые действия",
   SETTING_GENERAL: "Основные",
+  SETTING_DOWNLOAD: "Загрузка",
   SETTING_GAME: "Игра",
   SETTING_VIDEO: "Видео",
   SETTING_GLOBAL: "Глобальные настройки",
@@ -185,6 +189,10 @@ export const ru_RU: typeof zh_CN = {
     "Выбрана версия сообщества. Она не поддерживается официально. Пожалуйста, не сообщайте о проблемах, связанных с этой версией.",
 
   SETTING_BLOCK_NET: "Временно блокировать сеть через hosts",
+  SETTING_BLOCK_NET_ENABLED: "Включить",
+  SETTING_BLOCK_NET_URL: "URL для блокировки",
+  SETTING_BLOCK_NET_DELETE: "Удалить",
+  SETTING_BLOCK_NET_ADD: "Добавить строку",
   SETTING_BLOCK_NET_DURATION: "Длительность блокировки (секунды)",
   SETTING_HOSTS_HELPER: "Hosts permission helper",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
@@ -194,11 +202,32 @@ export const ru_RU: typeof zh_CN = {
   SETTING_HOSTS_HELPER_INSTALL: "Install",
   SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
   SETTING_HOSTS_HELPER_REFRESH: "Refresh",
+
+  SETTING_HOSTS_HELPER_STATUS_DISABLED:
+    "Status: disabled for development builds",
+  SETTING_HOSTS_HELPER_DEV_TOOLTIP:
+    "Hosts Helper is disabled in development builds",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE:
+    "Hosts Helper registration needs repair",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
+    "The Hosts Helper token is missing. Delete the current registration before installing Hosts Helper again. macOS administrator authorization is required.",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "Delete current registration",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
+    "Requesting administrator authorization and deleting the registration…",
+  SETTING_HOSTS_HELPER_LATER: "Later",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_SUCCESS:
+    "The current Hosts Helper registration was deleted",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED:
+    "Administrator authorization is required to delete the Hosts Helper registration",
+  SETTING_HOSTS_HELPER_REREGISTERING: "Updating Hosts Helper registration…",
+  SETTING_HOSTS_HELPER_REREGISTER_FAILED:
+    "Automatic Hosts Helper re-registration failed. Reinstall it from Global Settings.",
   SETTING_TIMEOUT_FIX: "Включить обход тайм-аутов Wine",
   SETTING_WORKAROUND4: "Временно заменять mhypbase.dll во время работы игры",
   SETTING_WORKAROUND4_DESC:
     "Перед запуском выбранная старая mhypbase.dll копируется в папку игры и остаётся там во время работы игры. После выхода из игры исходный файл восстанавливается. Лаунчер не включает и не распространяет эту DLL.",
   SETTING_WORKAROUND4_PICK: "Выбрать файл...",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "Кнопка выбора",
   SETTING_WORKAROUND4_REVERT_BTN: "Восстановить исходный mhypbase.dll сейчас",
   SETTING_LICENSES: "Лицензии",
 
@@ -264,7 +293,8 @@ export const ru_RU: typeof zh_CN = {
   SETTING_GITHUB_ACCELERATED_PREFIX_FAILED: "Ошибка соединения",
   SETTING_GITHUB_ACCELERATED_PREFIX_INVALID: "Недействительный URL",
   SETTING_AUTO_UPDATE: "Автоматически проверять обновления лаунчера",
-  SETTING_AUTO_UPDATE_DEV_TOOLTIP: "Версии для разработки не поддерживают автоматические обновления",
+  SETTING_AUTO_UPDATE_DEV_TOOLTIP:
+    "Версии для разработки не поддерживают автоматические обновления",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
-import {
-  gameDownloadTaskMetadata,
-  inferUnityLogLevel,
-} from "@src/launcher/controller/hoyoplay-controller";
-import type { HoyoplayGame } from "@src/launcher/controller/launcher-types";
+import { gameDownloadTaskMetadata } from "@src/launcher/controller/hyp-controller";
+import { inferUnityLogLevel } from "@src/logging/runtime-log";
+import type { HypGame } from "@src/launcher/controller/launcher-types";
 
-function game(overrides: Partial<HoyoplayGame["client"]> = {}): HoyoplayGame {
+function game(overrides: Partial<HypGame["client"]> = {}): HypGame {
   return {
     id: "game-a",
     title: "Game A",
@@ -19,7 +17,7 @@ function game(overrides: Partial<HoyoplayGame["client"]> = {}): HoyoplayGame {
       gameVersion: () => "0.9.0",
       ...overrides,
     },
-  } as unknown as HoyoplayGame;
+  } as unknown as HypGame;
 }
 
 const locale = {
@@ -27,7 +25,7 @@ const locale = {
     ({ DOWNLOAD_TASK_PREDOWNLOAD_SUFFIX: "preload" }[key] ?? key),
 } as never;
 
-describe("hoyoplay launcher controller", () => {
+describe("hyp launcher controller", () => {
   it("provides stable task metadata for install, update, and predownload", () => {
     expect(gameDownloadTaskMetadata(game(), locale, "release")).toEqual({
       title: "Game A 1.0.0",

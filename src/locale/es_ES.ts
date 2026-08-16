@@ -3,6 +3,9 @@ import { zh_CN } from "./zh_CN";
 
 export const es_ES: typeof zh_CN = {
   CONTENT_LANG_ID: "es-es",
+  SERVER_LABEL_CN: "CN",
+  SERVER_LABEL_GLOBAL: "Global",
+  SERVER_LABEL_UNI: "Universal",
   BOOT_INITIALIZING: "Inicializando",
   BOOT_LOADING_LOCAL_SETTINGS: "Cargando la configuración local",
   BOOT_CHECKING_NETWORK: "Comprobando la conexión de red",
@@ -34,10 +37,10 @@ export const es_ES: typeof zh_CN = {
   FIXING_FILES: "Arreglando archivos del juego {0}/{1}",
   PATCHING: "Parchando archivos del juego",
   GAME_RUNNING: "El juego se está ejecutando",
+  GAME_RECOVERING: "Restaurando",
   GAME_RUNNING_CLOSE_TITLE: "El juego sigue ejecutándose",
   GAME_RUNNING_CLOSE_DESC:
     "El juego aún no se ha cerrado. ¿Quieres finalizar el proceso del juego al salir del launcher?",
-  GAME_RUNNING_CLOSE_KEEP: "Solo salir del launcher",
   GAME_RUNNING_CLOSE_EXIT: "Cerrar el juego y salir",
   DOWNLOAD_RUNNING_CLOSE_TITLE: "Descarga en curso",
   DOWNLOAD_RUNNING_CLOSE_DESC:
@@ -133,6 +136,7 @@ export const es_ES: typeof zh_CN = {
   SETTING_WINE_VERSION_UPDATE_BUSY: en.SETTING_WINE_VERSION_UPDATE_BUSY,
   SETTING_QUICK_ACTIONS: "Acciones rápidas",
   SETTING_GENERAL: "General",
+  SETTING_DOWNLOAD: "Descarga",
   SETTING_GAME: "Juego",
   SETTING_VIDEO: "Video",
   SETTING_GLOBAL: "Configuración global",
@@ -182,6 +186,10 @@ export const es_ES: typeof zh_CN = {
   COMMUNITY_WINE_ALERT: en.COMMUNITY_WINE_ALERT,
 
   SETTING_BLOCK_NET: "Bloquear temporalmente la red mediante hosts",
+  SETTING_BLOCK_NET_ENABLED: "Activar",
+  SETTING_BLOCK_NET_URL: "URL a bloquear",
+  SETTING_BLOCK_NET_DELETE: "Eliminar",
+  SETTING_BLOCK_NET_ADD: "Añadir fila",
   SETTING_BLOCK_NET_DURATION: "Duración del bloqueo (segundos)",
   SETTING_HOSTS_HELPER: "Hosts permission helper",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
@@ -191,12 +199,33 @@ export const es_ES: typeof zh_CN = {
   SETTING_HOSTS_HELPER_INSTALL: "Install",
   SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
   SETTING_HOSTS_HELPER_REFRESH: "Refresh",
+
+  SETTING_HOSTS_HELPER_STATUS_DISABLED:
+    "Status: disabled for development builds",
+  SETTING_HOSTS_HELPER_DEV_TOOLTIP:
+    "Hosts Helper is disabled in development builds",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE:
+    "Hosts Helper registration needs repair",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
+    "The Hosts Helper token is missing. Delete the current registration before installing Hosts Helper again. macOS administrator authorization is required.",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "Delete current registration",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
+    "Requesting administrator authorization and deleting the registration…",
+  SETTING_HOSTS_HELPER_LATER: "Later",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_SUCCESS:
+    "The current Hosts Helper registration was deleted",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED:
+    "Administrator authorization is required to delete the Hosts Helper registration",
+  SETTING_HOSTS_HELPER_REREGISTERING: "Updating Hosts Helper registration…",
+  SETTING_HOSTS_HELPER_REREGISTER_FAILED:
+    "Automatic Hosts Helper re-registration failed. Reinstall it from Global Settings.",
   SETTING_TIMEOUT_FIX: "Activar ajuste de timeout de Wine",
   SETTING_WORKAROUND4:
     "Reemplazar temporalmente mhypbase.dll mientras el juego se ejecuta",
   SETTING_WORKAROUND4_DESC:
     "Antes de iniciar, la mhypbase.dll antigua seleccionada se copia en la carpeta del juego y se mantiene mientras el juego se ejecuta. El archivo original se restaura cuando se cierra el juego. El launcher no incluye ni distribuye esta DLL.",
   SETTING_WORKAROUND4_PICK: "Elegir archivo...",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "Botón de selección",
   SETTING_WORKAROUND4_REVERT_BTN: "Restaurar ahora la mhypbase.dll original",
   SETTING_LICENSES: "Licencias",
 
@@ -256,14 +285,17 @@ export const es_ES: typeof zh_CN = {
   LOG_VIEWER_COPY: "Copiar logs",
   LICENSE_COPY: "Copiar licencia actual",
   SETTING_GITHUB_ACCELERATED_PREFIX: "Usar prefijo de aceleración de GitHub",
-  SETTING_GITHUB_ACCELERATED_PREFIX_URL: "URL del prefijo de aceleración de GitHub",
+  SETTING_GITHUB_ACCELERATED_PREFIX_URL:
+    "URL del prefijo de aceleración de GitHub",
   SETTING_GITHUB_ACCELERATED_PREFIX_TEST: "Probar",
   SETTING_GITHUB_ACCELERATED_PREFIX_TESTING: "Probando...",
   SETTING_GITHUB_ACCELERATED_PREFIX_CONNECTED: "Conectado",
   SETTING_GITHUB_ACCELERATED_PREFIX_FAILED: "Conexión fallida",
   SETTING_GITHUB_ACCELERATED_PREFIX_INVALID: "URL no válida",
-  SETTING_AUTO_UPDATE: "Comprobar automáticamente las actualizaciones del launcher",
-  SETTING_AUTO_UPDATE_DEV_TOOLTIP: "Las versiones de desarrollo no admiten actualizaciones automáticas",
+  SETTING_AUTO_UPDATE:
+    "Comprobar automáticamente las actualizaciones del launcher",
+  SETTING_AUTO_UPDATE_DEV_TOOLTIP:
+    "Las versiones de desarrollo no admiten actualizaciones automáticas",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

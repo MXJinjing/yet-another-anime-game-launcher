@@ -20,7 +20,7 @@ function storageKeyHash(value: string) {
 function shouldNamespaceStorageKey(key: string) {
   return (
     key == "game_install_dir" ||
-    key == "hoyoplay_bg" ||
+    key == "hyp_bg" ||
     key == "patched" ||
     key == "predownloaded_all" ||
     key.startsWith("predownloaded_") ||
@@ -57,6 +57,8 @@ function oldYaaglmStorageAppsForNamespace(namespace: string | undefined) {
       return ["Yaaglm HSR OS", "Yaaglm HSR"];
     case "hpzzz":
       return ["Yaaglm ZZZ OS", "Yaaglm ZZZ"];
+    case "hpbh3":
+      return ["Yaaglm Honkai Global"];
     case "hpcngenshin":
       return ["Yaaglm"];
     case "hpcnhsr":

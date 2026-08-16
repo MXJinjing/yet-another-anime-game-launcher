@@ -2,6 +2,9 @@ import { SuppportedContentLangId } from "./supported-content-lang-id";
 
 export const zh_CN = {
   CONTENT_LANG_ID: "zh-cn" as SuppportedContentLangId,
+  SERVER_LABEL_CN: "国服",
+  SERVER_LABEL_GLOBAL: "国际服",
+  SERVER_LABEL_UNI: "通用",
   BOOT_INITIALIZING: "正在初始化",
   BOOT_LOADING_LOCAL_SETTINGS: "正在加载本地设置",
   BOOT_CHECKING_NETWORK: "正在检查网络连接",
@@ -33,11 +36,11 @@ export const zh_CN = {
   FIXING_FILES: "正在修复第{0}个文件，共{1}个",
   PATCHING: "正在应用补丁",
   GAME_RUNNING: "游戏正在运行中",
+  GAME_RECOVERING: "正在恢复",
   GAME_RUNNING_CLOSE_TITLE: "游戏仍在运行",
   GAME_RUNNING_CLOSE_DESC:
-    "检测到游戏还没有退出。要在退出启动器的同时结束游戏进程吗？",
-  GAME_RUNNING_CLOSE_KEEP: "仅退出启动器",
-  GAME_RUNNING_CLOSE_EXIT: "关闭游戏并退出",
+    "检测到游戏还没有退出。关闭游戏并等待还原阶段完成后再退出启动器吗？",
+  GAME_RUNNING_CLOSE_EXIT: "关闭游戏、完成还原并退出",
   DOWNLOAD_RUNNING_CLOSE_TITLE: "下载任务进行中",
   DOWNLOAD_RUNNING_CLOSE_DESC:
     "当前下载任务正在进行中，是否退出启动器？\n\n退出后下载任务将中断，未完成的文件可能损坏。",
@@ -126,6 +129,7 @@ export const zh_CN = {
     "当前有任务正在运行、下载正在进行或游戏仍在运行，暂时不能更新 Wine 环境。",
   SETTING_QUICK_ACTIONS: "快速操作",
   SETTING_GENERAL: "通用",
+  SETTING_DOWNLOAD: "下载",
   SETTING_GAME: "游戏",
   SETTING_VIDEO: "视频",
   SETTING_GLOBAL: "全局设置",
@@ -178,6 +182,10 @@ export const zh_CN = {
     "当前选择为社区版本，此版本不受官方支持，请不要报告任何问题",
 
   SETTING_BLOCK_NET: "临时写入 hosts 阻断联网",
+  SETTING_BLOCK_NET_ENABLED: "启用",
+  SETTING_BLOCK_NET_URL: "待屏蔽URL",
+  SETTING_BLOCK_NET_DELETE: "删除",
+  SETTING_BLOCK_NET_ADD: "添加行",
   SETTING_BLOCK_NET_DURATION: "阻断持续时间（秒）",
   SETTING_HOSTS_HELPER: "hosts 权限助手",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "状态：已安装并运行中",
@@ -187,11 +195,29 @@ export const zh_CN = {
   SETTING_HOSTS_HELPER_INSTALL: "安装",
   SETTING_HOSTS_HELPER_UNINSTALL: "卸载",
   SETTING_HOSTS_HELPER_REFRESH: "刷新",
+
+  SETTING_HOSTS_HELPER_STATUS_DISABLED: "状态：开发版本已禁用",
+  SETTING_HOSTS_HELPER_DEV_TOOLTIP: "开发版本已禁用 Hosts Helper",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE: "Hosts Helper 注册需要修复",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
+    "当前 Hosts Helper token 已丢失，启动器无法认证旧注册项。删除当前 bundle 的注册项后，才能重新安装 Hosts Helper。删除操作需要 macOS 管理员授权。",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "删除当前注册项",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
+    "正在请求管理员授权并删除注册项……",
+  SETTING_HOSTS_HELPER_LATER: "稍后处理",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_SUCCESS:
+    "Hosts Helper 当前注册项已删除",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED:
+    "需要管理员授权才能删除 Hosts Helper 注册项",
+  SETTING_HOSTS_HELPER_REREGISTERING: "正在更新 Hosts Helper 注册……",
+  SETTING_HOSTS_HELPER_REREGISTER_FAILED:
+    "Hosts Helper 自动重新注册失败，请在全局设置中重新安装",
   SETTING_TIMEOUT_FIX: "启用 Wine 超时绕过",
   SETTING_WORKAROUND4: "运行期间临时替换 mhypbase.dll",
   SETTING_WORKAROUND4_DESC:
     "启动前会把用户选择的旧版 mhypbase.dll 复制到游戏目录，并在游戏运行期间保持替换；游戏退出后还原原文件。启动器不会内置或分发该 DLL。",
   SETTING_WORKAROUND4_PICK: "选择文件...",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "选择按钮",
   SETTING_WORKAROUND4_REVERT_BTN: "立即还原原始 mhypbase.dll",
   SETTING_LICENSES: "许可证",
   SETTING_ENABLE_HDR: "启用 HDR",

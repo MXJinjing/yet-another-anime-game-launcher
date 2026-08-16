@@ -1,33 +1,38 @@
-.hoyoplay-game-library {
-  --hoyoplay-library-card-width: 291px;
-  --hoyoplay-library-card-height: 164px;
-  --hoyoplay-library-bottom-space: 24px;
-  --hoyoplay-library-title-gap: 30px;
-  --hoyoplay-library-title-height: 58px;
-  --hoyoplay-library-fade-height: 64px;
-  --hoyoplay-library-panel-height: calc(
-    var(--hoyoplay-library-card-height) + var(--hoyoplay-library-bottom-space) +
-      var(--hoyoplay-library-title-gap) + var(--hoyoplay-library-title-height) +
-      var(--hoyoplay-library-fade-height)
+.hyp-game-library {
+  --hyp-library-card-width: 291px;
+  --hyp-library-card-height: 164px;
+  --hyp-library-bottom-space: 24px;
+  --hyp-library-title-gap: 30px;
+  --hyp-library-title-height: 58px;
+  --hyp-library-fade-height: 64px;
+  --hyp-library-panel-height: calc(
+    var(--hyp-library-card-height) + var(--hyp-library-bottom-space) +
+      var(--hyp-library-title-gap) + var(--hyp-library-title-height) +
+      var(--hyp-library-fade-height)
   );
   position: absolute;
+  z-index: 5;
   inset: 0;
   overflow: hidden;
   isolation: isolate;
   pointer-events: auto;
 }
 
-.hoyoplay-game-library,
-.hoyoplay-game-library * {
+.hyp-game-library.closing {
+  pointer-events: none;
+}
+
+.hyp-game-library,
+.hyp-game-library * {
   box-sizing: border-box;
 }
 
-.hoyoplay-library-dismiss {
+.hyp-library-dismiss {
   position: absolute;
   z-index: 0;
   top: 0;
   right: 0;
-  bottom: var(--hoyoplay-library-panel-height);
+  bottom: var(--hyp-library-panel-height);
   left: 0;
   padding: 0;
   border: 0;
@@ -35,44 +40,47 @@
   background: transparent;
 }
 
-.hoyoplay-library-panel {
+.hyp-library-panel {
   position: absolute;
   right: 0;
   bottom: 0;
   left: 0;
-  height: var(--hoyoplay-library-panel-height);
+  height: var(--hyp-library-panel-height);
   overflow: hidden;
+  animation: hyp-library-panel-in 360ms ease-out both;
 }
 
-.hoyoplay-library-glass {
+.hyp-game-library.closing .hyp-library-panel {
+  animation: hyp-library-panel-out 360ms ease-in both;
+}
+
+.hyp-library-glass {
   position: absolute;
   z-index: 0;
   inset: 0;
   pointer-events: none;
   background: radial-gradient(
       110% 130% at 50% 112%,
-      color-mix(in srgb, var(--hoyoplay-accent, #ffd834) 5%, transparent) 0%,
+      color-mix(in srgb, var(--hyp-accent, #ffd834) 5%, transparent) 0%,
       transparent 66%
     ),
     linear-gradient(
       to top,
       color-mix(
           in srgb,
-          var(--hoyoplay-accent, #ffd834) 5%,
+          var(--hyp-accent, #ffd834) 5%,
           rgba(2, 3, 6, 0.88)
         )
         0%,
       color-mix(
           in srgb,
-          var(--hoyoplay-accent, #ffd834) 5%,
+          var(--hyp-accent, #ffd834) 5%,
           rgba(3, 4, 8, 0.76)
         )
         50%,
       rgba(4, 5, 9, 0.36) 76%,
       rgba(4, 5, 9, 0) 100%
     );
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  backdrop-filter: blur(24px) saturate(140%);
   -webkit-mask-image: linear-gradient(
     to top,
     #000 0%,
@@ -87,18 +95,18 @@
     rgba(0, 0, 0, 0.74) 80%,
     transparent 100%
   );
-  animation: hoyoplay-library-glass-in 520ms ease-out both;
+  animation: hyp-library-glass-in 520ms ease-out both;
 }
 
-.hoyoplay-library-title {
+.hyp-library-title {
   position: absolute;
   z-index: 2;
   bottom: calc(
-    var(--hoyoplay-library-bottom-space) + var(--hoyoplay-library-card-height) +
-      var(--hoyoplay-library-title-gap)
+    var(--hyp-library-bottom-space) + var(--hyp-library-card-height) +
+      var(--hyp-library-title-gap)
   );
   left: 34px;
-  height: var(--hoyoplay-library-title-height);
+  height: var(--hyp-library-title-height);
   display: flex;
   align-items: flex-end;
   margin: 0;
@@ -108,28 +116,37 @@
   letter-spacing: 0.02em;
   color: rgba(255, 255, 255, 0.9);
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
-  animation: hoyoplay-library-content-in 360ms 90ms ease-out both;
+  animation: hyp-library-content-in 360ms 90ms ease-out both;
 }
 
-.hoyoplay-library-scroll {
+.hyp-library-scroll {
   position: relative;
   z-index: 1;
   width: 100%;
   height: 100%;
   display: flex;
   align-items: flex-end;
-  padding: 0 34px var(--hoyoplay-library-bottom-space);
+  padding: 0 34px var(--hyp-library-bottom-space);
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
-  animation: hoyoplay-library-content-in 360ms 90ms ease-out both;
+  animation: hyp-library-content-in 360ms 90ms ease-out both;
 }
 
-.hoyoplay-library-scroll::-webkit-scrollbar {
+.hyp-library-scroll::-webkit-scrollbar {
   display: none;
 }
 
-.hoyoplay-library-grid {
+.hyp-game-library.closing .hyp-library-glass {
+  animation: hyp-library-glass-out 360ms ease-in both;
+}
+
+.hyp-game-library.closing .hyp-library-title,
+.hyp-game-library.closing .hyp-library-scroll {
+  animation: hyp-library-content-out 300ms ease-in both;
+}
+
+.hyp-library-grid {
   min-width: max-content;
   display: flex;
   flex-wrap: nowrap;
@@ -137,11 +154,11 @@
   gap: 14px;
 }
 
-.hoyoplay-library-card {
+.hyp-library-card {
   position: relative;
-  width: var(--hoyoplay-library-card-width);
-  height: var(--hoyoplay-library-card-height);
-  flex: 0 0 var(--hoyoplay-library-card-width);
+  width: var(--hyp-library-card-width);
+  height: var(--hyp-library-card-height);
+  flex: 0 0 var(--hyp-library-card-width);
   padding: 0;
   border: 0;
   border-radius: 10px;
@@ -156,18 +173,48 @@
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
-.hoyoplay-library-card:hover {
+.hyp-library-banner {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.hyp-library-banner img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hyp-library-banner .hyp-game-banner-fallback {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.hyp-library-card:hover {
   transform: translateY(-3px);
-  box-shadow: inset 0 0 0 2px var(--hoyoplay-accent, #ffd834),
+  box-shadow: inset 0 0 0 2px var(--hyp-accent, #ffd834),
     0 13px 27px rgba(0, 0, 0, 0.5);
 }
 
-.hoyoplay-library-card:focus-visible {
-  outline: 2px solid var(--hoyoplay-accent, #ffd834);
+.hyp-library-card:focus-visible {
+  outline: 2px solid var(--hyp-accent, #ffd834);
   outline-offset: 3px;
 }
 
-.hoyoplay-library-card::after {
+.hyp-library-card::after {
   content: "";
   position: absolute;
   inset: auto 0 0;
@@ -181,7 +228,7 @@
   );
 }
 
-.hoyoplay-library-card-icon {
+.hyp-library-card-icon {
   position: absolute;
   z-index: 2;
   left: 11px;
@@ -195,7 +242,7 @@
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.32);
 }
 
-.hoyoplay-library-card-icon img {
+.hyp-library-card-icon img {
   display: block;
   width: 100%;
   height: 100%;
@@ -203,7 +250,7 @@
   object-fit: cover;
 }
 
-.hoyoplay-library-card-info {
+.hyp-library-card-info {
   position: absolute;
   z-index: 2;
   right: 11px;
@@ -213,7 +260,7 @@
   text-align: left;
 }
 
-.hoyoplay-library-card-info strong {
+.hyp-library-card-info strong {
   display: block;
   overflow: hidden;
   font-size: 12px;
@@ -225,14 +272,14 @@
   white-space: nowrap;
 }
 
-.hoyoplay-library-card-info small {
+.hyp-library-card-info small {
   display: block;
   margin-top: 2px;
   font-size: 9px;
   color: rgba(255, 255, 255, 0.76);
 }
 
-.hoyoplay-library-status {
+.hyp-library-status {
   position: absolute;
   z-index: 3;
   left: 40px;
@@ -245,12 +292,12 @@
   box-shadow: 0 0 8px rgba(54, 217, 125, 0.9);
 }
 
-.hoyoplay-library-status.is-missing {
+.hyp-library-status.is-missing {
   background: #9aa0a6;
   box-shadow: 0 0 8px rgba(154, 160, 166, 0.6);
 }
 
-.hoyoplay-library-button {
+.hyp-library-button {
   width: 44px;
   height: 44px;
   display: grid;
@@ -262,22 +309,22 @@
   transition: background-color 160ms ease, color 160ms ease;
 }
 
-.hoyoplay-library-button:hover {
+.hyp-library-button:hover {
   background: rgba(255, 255, 255, 0.24);
 }
 
-.hoyoplay-library-button.active {
-  color: var(--hoyoplay-accent-text, #333333);
-  background: var(--hoyoplay-accent, #ffd834);
+.hyp-library-button.active {
+  color: var(--hyp-accent-text, #333333);
+  background: var(--hyp-accent, #ffd834);
 }
 
-.hoyoplay-library-icon {
+.hyp-library-icon {
   display: block;
   width: 18px;
   height: 18px;
 }
 
-.hoyoplay-library-icon::before {
+.hyp-library-icon::before {
   content: "";
   display: block;
   width: 8px;
@@ -288,7 +335,7 @@
     10px 10px 0 currentColor;
 }
 
-@keyframes hoyoplay-library-glass-in {
+@keyframes hyp-library-glass-in {
   from {
     opacity: 0;
   }
@@ -297,7 +344,38 @@
   }
 }
 
-@keyframes hoyoplay-library-content-in {
+@keyframes hyp-library-glass-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes hyp-library-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hyp-library-panel-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+@keyframes hyp-library-content-in {
   from {
     opacity: 0;
     transform: translateY(10px);
@@ -308,33 +386,44 @@
   }
 }
 
+@keyframes hyp-library-content-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
 @media (max-height: 680px) {
-  .hoyoplay-game-library {
-    --hoyoplay-library-card-width: 262px;
-    --hoyoplay-library-card-height: 147px;
-    --hoyoplay-library-bottom-space: 18px;
-    --hoyoplay-library-title-gap: 24px;
-    --hoyoplay-library-fade-height: 52px;
+  .hyp-game-library {
+    --hyp-library-card-width: 262px;
+    --hyp-library-card-height: 147px;
+    --hyp-library-bottom-space: 18px;
+    --hyp-library-title-gap: 24px;
+    --hyp-library-fade-height: 52px;
   }
 }
 
 @media (max-width: 900px) {
-  .hoyoplay-library-title {
+  .hyp-library-title {
     left: 24px;
   }
 
-  .hoyoplay-library-scroll {
+  .hyp-library-scroll {
     padding-right: 24px;
     padding-left: 24px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hoyoplay-library-glass,
-  .hoyoplay-library-title,
-  .hoyoplay-library-scroll,
-  .hoyoplay-library-panel,
-  .hoyoplay-library-card {
+  .hyp-library-glass,
+  .hyp-library-title,
+  .hyp-library-scroll,
+  .hyp-library-panel,
+  .hyp-library-card {
     animation: none;
     transition: none;
   }

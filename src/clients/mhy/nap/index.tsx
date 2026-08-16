@@ -48,10 +48,11 @@ import {
   VoicePackNames,
 } from "../launcher-info";
 import {
-  getLatestAdvInfo,
+  getLatestLauncherContent,
   getLatestVersionInfo,
   mapBackgroundsToUiContent,
 } from "../hyp-connect";
+import { NAP_GAME_LOG_LOCATIONS } from "../../game-log-paths";
 
 // no need to check supported version
 // const CURRENT_SUPPORTED_VERSION = "3.0.0";
@@ -83,9 +84,18 @@ export async function createNAPChannelClient({
   let theme_url: string;
   let bg_type: HoyoConnectGameBackgroundType;
   let backgrounds: ChannelClientBackground[] = [];
+  let launcherIconButtons: NonNullable<
+    ChannelClient["uiContent"]["launcherIconButtons"]
+  > = [];
+  let banners: NonNullable<ChannelClient["uiContent"]["banners"]> = [];
+  let posts: NonNullable<ChannelClient["uiContent"]["posts"]> = [];
+  let social_media_list: NonNullable<
+    ChannelClient["uiContent"]["social_media_list"]
+  > = [];
   let isAdvFallback = false;
   try {
-    const advInfos = await getLatestAdvInfo(locale, server);
+    const launcherContent = await getLatestLauncherContent(locale, server);
+    const advInfos = launcherContent.backgrounds;
     const advInfo = advInfos[0];
     background = advInfo.background.url;
     icon = advInfo.icon.url;
@@ -94,6 +104,10 @@ export async function createNAPChannelClient({
     theme_url = advInfo.theme.url;
     bg_type = advInfo.type;
     backgrounds = mapBackgroundsToUiContent(advInfos);
+    launcherIconButtons = launcherContent.launcherIconButtons;
+    banners = launcherContent.content.banners;
+    posts = launcherContent.content.posts;
+    social_media_list = launcherContent.content.social_media_list;
   } catch {
     isAdvFallback = true;
     background = "";
@@ -172,6 +186,7 @@ export async function createNAPChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameLogLocations: NAP_GAME_LOG_LOCATIONS,
     gameVersion: gameCurrentVersion,
     latestVersion: () => GAME_LATEST_VERSION,
     updateRequired,
@@ -180,6 +195,10 @@ export async function createNAPChannelClient({
       background_video: IS_VIDEO_BG ? video_url : undefined,
       background_theme: IS_VIDEO_BG ? theme_url : undefined,
       backgrounds,
+      launcherIconButtons,
+      banners,
+      posts,
+      social_media_list,
       iconImage: icon,
       url: icon_link,
       channelName: isAdvFallback ? server.id : undefined,

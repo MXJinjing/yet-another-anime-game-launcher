@@ -101,9 +101,70 @@ export interface HoyoConnectImage {
   url: string;
 }
 
+/**
+ * A clickable launcher button returned by the remote `icon` field. It is
+ * separate from the background image/video/theme assets.
+ */
+export interface HoyoConnectGameIcon {
+  url: string;
+  hover_url?: string;
+  link: string;
+}
+
+/** The same icon after associating it with its background entry. */
+export interface HoyoConnectLauncherIcon extends HoyoConnectGameIcon {
+  id: string;
+}
+
 export interface HoyoConnectGameId {
   biz: string;
   id: string;
+}
+
+export interface HoyoConnectGameBanner {
+  id: string;
+  image: HoyoConnectImage;
+}
+
+export interface HoyoConnectGamePost {
+  id: string;
+  type: string;
+  title: string;
+  link: string;
+  date: string;
+  login_state_in_link: boolean;
+}
+
+export interface HoyoConnectSocialMediaLink {
+  title: string;
+  link: string;
+  login_state_in_link: boolean;
+}
+
+export interface HoyoConnectSocialMedia {
+  id: string;
+  icon: HoyoConnectImage;
+  qr_image: HoyoConnectImage | null;
+  qr_desc: string;
+  links: HoyoConnectSocialMediaLink[];
+  enable_red_dot: boolean;
+  red_dot_content: string;
+}
+
+export interface HoyoConnectGameContent {
+  game: HoyoConnectGameId;
+  language: string;
+  banners: HoyoConnectGameBanner[];
+  posts: HoyoConnectGamePost[];
+  social_media_list: HoyoConnectSocialMedia[];
+}
+
+export interface HoyoConnectGetGameContentResponse {
+  retcode: number;
+  message: string;
+  data: {
+    content: HoyoConnectGameContent;
+  };
 }
 
 export interface HoyoConnectGameDisplay {
@@ -133,11 +194,7 @@ export interface HoyoConnectGameBackground {
     url: string;
     link: string;
   };
-  icon: {
-    url: string;
-    hover_url: string;
-    link: string;
-  };
+  icon: HoyoConnectGameIcon;
   video: {
     url: string;
     size: number;

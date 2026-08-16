@@ -46,10 +46,11 @@ import { getDefaultBlockHostsText } from "../block-hosts";
 import { HKRPG_CN_BLOCK_URL, HKRPG_OS_BLOCK_URL } from "../../secret";
 import createMhypBaseReplacement from "../hk4e/config/mhypbase-replacement";
 import {
-  getLatestAdvInfo,
+  getLatestLauncherContent,
   getLatestVersionInfo,
   mapBackgroundsToUiContent,
 } from "../hyp-connect";
+import { HKRPG_GAME_LOG_LOCATIONS } from "../../game-log-paths";
 
 // no need to check supported version
 // const CURRENT_SUPPORTED_VERSION = "4.3.0";
@@ -72,9 +73,18 @@ export async function createHKRPGChannelClient({
   let theme_url: string;
   let bg_type: HoyoConnectGameBackgroundType;
   let backgrounds: ChannelClientBackground[] = [];
+  let launcherIconButtons: NonNullable<
+    ChannelClient["uiContent"]["launcherIconButtons"]
+  > = [];
+  let banners: NonNullable<ChannelClient["uiContent"]["banners"]> = [];
+  let posts: NonNullable<ChannelClient["uiContent"]["posts"]> = [];
+  let social_media_list: NonNullable<
+    ChannelClient["uiContent"]["social_media_list"]
+  > = [];
   let isAdvFallback = false;
   try {
-    const advInfos = await getLatestAdvInfo(locale, server);
+    const launcherContent = await getLatestLauncherContent(locale, server);
+    const advInfos = launcherContent.backgrounds;
     const advInfo = advInfos[0];
     background = advInfo.background.url;
     icon = advInfo.icon.url;
@@ -83,6 +93,10 @@ export async function createHKRPGChannelClient({
     theme_url = advInfo.theme.url;
     bg_type = advInfo.type;
     backgrounds = mapBackgroundsToUiContent(advInfos);
+    launcherIconButtons = launcherContent.launcherIconButtons;
+    banners = launcherContent.content.banners;
+    posts = launcherContent.content.posts;
+    social_media_list = launcherContent.content.social_media_list;
   } catch {
     isAdvFallback = true;
     background = "";
@@ -161,6 +175,7 @@ export async function createHKRPGChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameLogLocations: HKRPG_GAME_LOG_LOCATIONS,
     gameVersion: gameCurrentVersion,
     latestVersion: () => GAME_LATEST_VERSION,
     updateRequired,
@@ -169,6 +184,10 @@ export async function createHKRPGChannelClient({
       background_video: IS_VIDEO_BG ? video_url : undefined,
       background_theme: IS_VIDEO_BG ? theme_url : undefined,
       backgrounds,
+      launcherIconButtons,
+      banners,
+      posts,
+      social_media_list,
       url: icon_link,
       channelName: isAdvFallback ? server.id : undefined,
       fallbackBackground: isAdvFallback ? fallbackBg : undefined,

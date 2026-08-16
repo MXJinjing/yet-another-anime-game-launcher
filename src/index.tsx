@@ -9,6 +9,7 @@ import {
   getBootText,
   reportBootProgress,
 } from "./boot-progress";
+import { getChannelBootIcon } from "./boot-icon";
 
 function createPlates(
   tag: string,
@@ -32,9 +33,13 @@ if (typeof Neutralino == "undefined") {
   if (import.meta.env.PROD) {
     document.addEventListener("contextmenu", event => event.preventDefault());
   }
+  const bootIcon = getChannelBootIcon(
+    import.meta.env.YAAGL_CHANNEL_CLIENT || "hk4ecn"
+  );
   render(
     () => (
       <div class="app-boot">
+        <img class="app-boot-icon" src={bootIcon} alt="" />
         <div class="app-boot-main">
           <div class="app-boot-spinner" />
           <div class="app-boot-text">{getBootText()}</div>

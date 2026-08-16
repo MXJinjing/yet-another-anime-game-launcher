@@ -3,6 +3,9 @@ import { en } from "@locale/en";
 
 export const th_TH: typeof zh_CN = {
   CONTENT_LANG_ID: "th-th",
+  SERVER_LABEL_CN: "จีน",
+  SERVER_LABEL_GLOBAL: "สากล",
+  SERVER_LABEL_UNI: "สากล",
   BOOT_INITIALIZING: "กำลังเริ่มต้น",
   BOOT_LOADING_LOCAL_SETTINGS: "กำลังโหลดการตั้งค่าในเครื่อง",
   BOOT_CHECKING_NETWORK: "กำลังตรวจสอบการเชื่อมต่อเครือข่าย",
@@ -34,10 +37,10 @@ export const th_TH: typeof zh_CN = {
   FIXING_FILES: "กำลังซ่อมแซมไฟล์เกม {0}/{1}",
   PATCHING: "กำลังแก้ไขไฟล์เกม",
   GAME_RUNNING: "เกมกำลังทำงาน",
+  GAME_RECOVERING: "กำลังกู้คืน",
   GAME_RUNNING_CLOSE_TITLE: "เกมยังทำงานอยู่",
   GAME_RUNNING_CLOSE_DESC:
     "เกมยังไม่ได้ปิด ต้องการจบโปรเซสเกมเมื่อออกจาก Launcher หรือไม่?",
-  GAME_RUNNING_CLOSE_KEEP: "ออกจาก Launcher เท่านั้น",
   GAME_RUNNING_CLOSE_EXIT: "ปิดเกมและออกจาก Launcher",
   DOWNLOAD_RUNNING_CLOSE_TITLE: "กำลังดาวน์โหลด",
   DOWNLOAD_RUNNING_CLOSE_DESC:
@@ -130,6 +133,7 @@ export const th_TH: typeof zh_CN = {
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "การทำงานด่วน",
   SETTING_GENERAL: "ทั่วไป",
+  SETTING_DOWNLOAD: "ดาวน์โหลด",
   SETTING_GAME: "เกม",
   SETTING_VIDEO: "วิดีโอ",
   SETTING_GLOBAL: "การตั้งค่าทั่วไป",
@@ -182,6 +186,10 @@ export const th_TH: typeof zh_CN = {
     "เวอร์ชันที่เลือกคือเวอร์ชันจากชุมชน ซึ่งไม่ได้รับการสนับสนุนอย่างเป็นทางการ กรุณาอย่ารายงานปัญหาใดๆ มา",
 
   SETTING_BLOCK_NET: "บล็อกเครือข่ายชั่วคราวผ่าน hosts",
+  SETTING_BLOCK_NET_ENABLED: "เปิดใช้งาน",
+  SETTING_BLOCK_NET_URL: "URL ที่จะบล็อก",
+  SETTING_BLOCK_NET_DELETE: "ลบ",
+  SETTING_BLOCK_NET_ADD: "เพิ่มแถว",
   SETTING_BLOCK_NET_DURATION: "ระยะเวลาบล็อก (วินาที)",
   SETTING_HOSTS_HELPER: "Hosts permission helper",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
@@ -191,11 +199,32 @@ export const th_TH: typeof zh_CN = {
   SETTING_HOSTS_HELPER_INSTALL: "Install",
   SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
   SETTING_HOSTS_HELPER_REFRESH: "Refresh",
+
+  SETTING_HOSTS_HELPER_STATUS_DISABLED:
+    "Status: disabled for development builds",
+  SETTING_HOSTS_HELPER_DEV_TOOLTIP:
+    "Hosts Helper is disabled in development builds",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE:
+    "Hosts Helper registration needs repair",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
+    "The Hosts Helper token is missing. Delete the current registration before installing Hosts Helper again. macOS administrator authorization is required.",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "Delete current registration",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
+    "Requesting administrator authorization and deleting the registration…",
+  SETTING_HOSTS_HELPER_LATER: "Later",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_SUCCESS:
+    "The current Hosts Helper registration was deleted",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED:
+    "Administrator authorization is required to delete the Hosts Helper registration",
+  SETTING_HOSTS_HELPER_REREGISTERING: "Updating Hosts Helper registration…",
+  SETTING_HOSTS_HELPER_REREGISTER_FAILED:
+    "Automatic Hosts Helper re-registration failed. Reinstall it from Global Settings.",
   SETTING_TIMEOUT_FIX: "เปิดใช้การเลี่ยง timeout ของ Wine",
   SETTING_WORKAROUND4: "แทนที่ mhypbase.dll ชั่วคราวระหว่างที่เกมทำงาน",
   SETTING_WORKAROUND4_DESC:
     "ก่อนเริ่มเกม ไฟล์ mhypbase.dll เวอร์ชันเก่าที่เลือกไว้จะถูกคัดลอกไปยังโฟลเดอร์เกมและคงไว้ระหว่างที่เกมทำงาน หลังจากออกจากเกมแล้ว ไฟล์เดิมจะถูกกู้คืน Launcher จะไม่รวมไฟล์ DLL นี้ไว้ในแอปหรือแจกจ่ายไฟล์นี้",
   SETTING_WORKAROUND4_PICK: "เลือกไฟล์...",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "ปุ่มเลือก",
   SETTING_WORKAROUND4_REVERT_BTN: "กู้คืน mhypbase.dll เดิมทันที",
   SETTING_LICENSES: "สัญญาอนุญาต",
   SETTING_ENABLE_HDR: "เปิดใช้ HDR",

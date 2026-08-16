@@ -3,6 +3,9 @@ import { en } from "@locale/en";
 
 export const de_DE: typeof zh_CN = {
   CONTENT_LANG_ID: "de-de",
+  SERVER_LABEL_CN: "CN",
+  SERVER_LABEL_GLOBAL: "Global",
+  SERVER_LABEL_UNI: "Universal",
   BOOT_INITIALIZING: "Initialisierung",
   BOOT_LOADING_LOCAL_SETTINGS: "Lokale Einstellungen werden geladen",
   BOOT_CHECKING_NETWORK: "Netzwerkverbindung wird geprüft",
@@ -34,10 +37,10 @@ export const de_DE: typeof zh_CN = {
   FIXING_FILES: "Spieldateien reparieren {0}/{1}",
   PATCHING: "Spieldateien patchen",
   GAME_RUNNING: "Spiel läuft",
+  GAME_RECOVERING: "Wird wiederhergestellt",
   GAME_RUNNING_CLOSE_TITLE: "Das Spiel läuft noch",
   GAME_RUNNING_CLOSE_DESC:
     "Das Spiel wurde noch nicht beendet. Soll der Spielprozess beim Beenden des Launchers ebenfalls beendet werden?",
-  GAME_RUNNING_CLOSE_KEEP: "Nur Launcher beenden",
   GAME_RUNNING_CLOSE_EXIT: "Spiel schließen und beenden",
   DOWNLOAD_RUNNING_CLOSE_TITLE: "Download läuft",
   DOWNLOAD_RUNNING_CLOSE_DESC:
@@ -133,6 +136,7 @@ export const de_DE: typeof zh_CN = {
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "Schnellaktionen",
   SETTING_GENERAL: "Allgemein",
+  SETTING_DOWNLOAD: "Download",
   SETTING_GAME: "Spiel",
   SETTING_VIDEO: "Video",
   SETTING_GLOBAL: "Globale Einstellungen",
@@ -187,6 +191,10 @@ export const de_DE: typeof zh_CN = {
     "Aktuelle version als gemeindeversion, die nicht offiziell unterstützt wird. Bitte berichten sie nicht über Fragen.",
 
   SETTING_BLOCK_NET: "Netzwerk temporär über hosts blockieren",
+  SETTING_BLOCK_NET_ENABLED: "Aktiv",
+  SETTING_BLOCK_NET_URL: "Zu blockierende URL",
+  SETTING_BLOCK_NET_DELETE: "Löschen",
+  SETTING_BLOCK_NET_ADD: "Zeile hinzufügen",
   SETTING_BLOCK_NET_DURATION: "Blockierdauer (Sekunden)",
   SETTING_HOSTS_HELPER: "Hosts permission helper",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
@@ -196,11 +204,32 @@ export const de_DE: typeof zh_CN = {
   SETTING_HOSTS_HELPER_INSTALL: "Install",
   SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
   SETTING_HOSTS_HELPER_REFRESH: "Refresh",
+
+  SETTING_HOSTS_HELPER_STATUS_DISABLED:
+    "Status: disabled for development builds",
+  SETTING_HOSTS_HELPER_DEV_TOOLTIP:
+    "Hosts Helper is disabled in development builds",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE:
+    "Hosts Helper registration needs repair",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
+    "The Hosts Helper token is missing. Delete the current registration before installing Hosts Helper again. macOS administrator authorization is required.",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "Delete current registration",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
+    "Requesting administrator authorization and deleting the registration…",
+  SETTING_HOSTS_HELPER_LATER: "Later",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_SUCCESS:
+    "The current Hosts Helper registration was deleted",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED:
+    "Administrator authorization is required to delete the Hosts Helper registration",
+  SETTING_HOSTS_HELPER_REREGISTERING: "Updating Hosts Helper registration…",
+  SETTING_HOSTS_HELPER_REREGISTER_FAILED:
+    "Automatic Hosts Helper re-registration failed. Reinstall it from Global Settings.",
   SETTING_TIMEOUT_FIX: "Wine-Timeout-Workaround aktivieren",
   SETTING_WORKAROUND4: "mhypbase.dll während des Spiels temporär ersetzen",
   SETTING_WORKAROUND4_DESC:
     "Vor dem Start wird die ausgewählte ältere mhypbase.dll in den Spielordner kopiert und während des laufenden Spiels beibehalten. Nach dem Beenden des Spiels wird die Originaldatei wiederhergestellt. Der Launcher enthält oder verteilt diese DLL nicht.",
   SETTING_WORKAROUND4_PICK: "Datei auswählen ...",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "Auswahltaste",
   SETTING_WORKAROUND4_REVERT_BTN:
     "Originale mhypbase.dll jetzt wiederherstellen",
   SETTING_LICENSES: "Lizenzen",
@@ -260,14 +289,16 @@ export const de_DE: typeof zh_CN = {
   LOG_VIEWER_COPY: "Logs kopieren",
   LICENSE_COPY: "Aktuelle Lizenz kopieren",
   SETTING_GITHUB_ACCELERATED_PREFIX: "GitHub-Beschleunigungspräfix verwenden",
-  SETTING_GITHUB_ACCELERATED_PREFIX_URL: "URL des GitHub-Beschleunigungspräfixes",
+  SETTING_GITHUB_ACCELERATED_PREFIX_URL:
+    "URL des GitHub-Beschleunigungspräfixes",
   SETTING_GITHUB_ACCELERATED_PREFIX_TEST: "Testen",
   SETTING_GITHUB_ACCELERATED_PREFIX_TESTING: "Wird getestet...",
   SETTING_GITHUB_ACCELERATED_PREFIX_CONNECTED: "Verbunden",
   SETTING_GITHUB_ACCELERATED_PREFIX_FAILED: "Verbindung fehlgeschlagen",
   SETTING_GITHUB_ACCELERATED_PREFIX_INVALID: "Ungültige URL",
   SETTING_AUTO_UPDATE: "Launcher-Updates automatisch prüfen",
-  SETTING_AUTO_UPDATE_DEV_TOOLTIP: "Entwicklungsversionen unterstützen keine automatischen Updates",
+  SETTING_AUTO_UPDATE_DEV_TOOLTIP:
+    "Entwicklungsversionen unterstützen keine automatischen Updates",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

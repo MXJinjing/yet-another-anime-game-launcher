@@ -3,6 +3,9 @@ import { en } from "@locale/en";
 
 export const ko_KR: typeof zh_CN = {
   CONTENT_LANG_ID: "ko-kr",
+  SERVER_LABEL_CN: "중국",
+  SERVER_LABEL_GLOBAL: "글로벌",
+  SERVER_LABEL_UNI: "통합",
   BOOT_INITIALIZING: "초기화 중",
   BOOT_LOADING_LOCAL_SETTINGS: "로컬 설정을 불러오는 중",
   BOOT_CHECKING_NETWORK: "네트워크 연결을 확인하는 중",
@@ -34,10 +37,10 @@ export const ko_KR: typeof zh_CN = {
   FIXING_FILES: "게임 파일 복구 중 {0}/{1}",
   PATCHING: "게임 파일 패치 중",
   GAME_RUNNING: "게임이 실행 중입니다",
+  GAME_RECOVERING: "복구 중",
   GAME_RUNNING_CLOSE_TITLE: "게임이 아직 실행 중입니다",
   GAME_RUNNING_CLOSE_DESC:
     "게임이 아직 종료되지 않았습니다. 런처를 종료할 때 게임 프로세스도 함께 종료할까요?",
-  GAME_RUNNING_CLOSE_KEEP: "런처만 종료",
   GAME_RUNNING_CLOSE_EXIT: "게임 종료 후 런처 종료",
   DOWNLOAD_RUNNING_CLOSE_TITLE: "다운로드 진행 중",
   DOWNLOAD_RUNNING_CLOSE_DESC:
@@ -130,6 +133,7 @@ export const ko_KR: typeof zh_CN = {
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "빠른 작업",
   SETTING_GENERAL: "일반",
+  SETTING_DOWNLOAD: "다운로드",
   SETTING_GAME: "게임",
   SETTING_VIDEO: "비디오",
   SETTING_GLOBAL: "전역 설정",
@@ -184,6 +188,10 @@ export const ko_KR: typeof zh_CN = {
     "현재 커뮤니티 버전이 선택되었습니다.이 버전은 공식적으로 지원되지 않습니다. 보고하지 마십시오",
 
   SETTING_BLOCK_NET: "hosts로 네트워크 임시 차단",
+  SETTING_BLOCK_NET_ENABLED: "활성화",
+  SETTING_BLOCK_NET_URL: "차단할 URL",
+  SETTING_BLOCK_NET_DELETE: "삭제",
+  SETTING_BLOCK_NET_ADD: "행 추가",
   SETTING_BLOCK_NET_DURATION: "차단 시간(초)",
   SETTING_HOSTS_HELPER: "Hosts permission helper",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
@@ -193,11 +201,32 @@ export const ko_KR: typeof zh_CN = {
   SETTING_HOSTS_HELPER_INSTALL: "Install",
   SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
   SETTING_HOSTS_HELPER_REFRESH: "Refresh",
+
+  SETTING_HOSTS_HELPER_STATUS_DISABLED:
+    "Status: disabled for development builds",
+  SETTING_HOSTS_HELPER_DEV_TOOLTIP:
+    "Hosts Helper is disabled in development builds",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE:
+    "Hosts Helper registration needs repair",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
+    "The Hosts Helper token is missing. Delete the current registration before installing Hosts Helper again. macOS administrator authorization is required.",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "Delete current registration",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
+    "Requesting administrator authorization and deleting the registration…",
+  SETTING_HOSTS_HELPER_LATER: "Later",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_SUCCESS:
+    "The current Hosts Helper registration was deleted",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED:
+    "Administrator authorization is required to delete the Hosts Helper registration",
+  SETTING_HOSTS_HELPER_REREGISTERING: "Updating Hosts Helper registration…",
+  SETTING_HOSTS_HELPER_REREGISTER_FAILED:
+    "Automatic Hosts Helper re-registration failed. Reinstall it from Global Settings.",
   SETTING_TIMEOUT_FIX: "Wine 타임아웃 우회 활성화",
   SETTING_WORKAROUND4: "게임 실행 중 mhypbase.dll 임시 교체",
   SETTING_WORKAROUND4_DESC:
     "실행 전에 선택한 이전 버전의 mhypbase.dll을 게임 폴더에 복사하고, 게임이 실행되는 동안 유지합니다. 게임이 종료되면 원본 파일을 복원합니다. 런처는 이 DLL을 포함하거나 배포하지 않습니다.",
   SETTING_WORKAROUND4_PICK: "파일 선택...",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "선택 버튼",
   SETTING_WORKAROUND4_REVERT_BTN: "원본 mhypbase.dll 지금 복원",
   SETTING_LICENSES: "라이선스",
   SETTING_ENABLE_HDR: "HDR 활성화",
@@ -263,7 +292,8 @@ export const ko_KR: typeof zh_CN = {
   SETTING_GITHUB_ACCELERATED_PREFIX_FAILED: "연결 실패",
   SETTING_GITHUB_ACCELERATED_PREFIX_INVALID: "잘못된 URL",
   SETTING_AUTO_UPDATE: "런처 업데이트 자동 확인",
-  SETTING_AUTO_UPDATE_DEV_TOOLTIP: "개발 버전은 자동 업데이트를 지원하지 않습니다",
+  SETTING_AUTO_UPDATE_DEV_TOOLTIP:
+    "개발 버전은 자동 업데이트를 지원하지 않습니다",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

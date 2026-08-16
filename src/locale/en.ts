@@ -2,6 +2,9 @@ import { zh_CN } from "./zh_CN";
 
 export const en: typeof zh_CN = {
   CONTENT_LANG_ID: "en-us",
+  SERVER_LABEL_CN: "CN",
+  SERVER_LABEL_GLOBAL: "Global",
+  SERVER_LABEL_UNI: "Universal",
   BOOT_INITIALIZING: "Initializing",
   BOOT_LOADING_LOCAL_SETTINGS: "Loading local settings",
   BOOT_CHECKING_NETWORK: "Checking network connection",
@@ -33,11 +36,11 @@ export const en: typeof zh_CN = {
   FIXING_FILES: "Fixing game files {0}/{1}",
   PATCHING: "Patching game files",
   GAME_RUNNING: "Game is running",
+  GAME_RECOVERING: "Recovering",
   GAME_RUNNING_CLOSE_TITLE: "Game is still running",
   GAME_RUNNING_CLOSE_DESC:
-    "The game has not exited yet. Do you want to end the game process when the launcher exits?",
-  GAME_RUNNING_CLOSE_KEEP: "Exit launcher only",
-  GAME_RUNNING_CLOSE_EXIT: "Close game and exit",
+    "The game has not exited yet. Close the game and wait for recovery to finish before exiting the launcher?",
+  GAME_RUNNING_CLOSE_EXIT: "Close game, recover, and exit",
   DOWNLOAD_RUNNING_CLOSE_TITLE: "Download in progress",
   DOWNLOAD_RUNNING_CLOSE_DESC:
     "A download task is currently in progress. Do you want to exit the launcher?\n\nExiting now will interrupt the download and may leave incomplete files corrupted.",
@@ -131,6 +134,7 @@ export const en: typeof zh_CN = {
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "Quick Actions",
   SETTING_GENERAL: "General",
+  SETTING_DOWNLOAD: "Download",
   SETTING_GAME: "Game",
   SETTING_VIDEO: "Video",
   SETTING_GLOBAL: "Global Settings",
@@ -185,6 +189,10 @@ export const en: typeof zh_CN = {
     "The current selection is the Community version, this version is not officially supported, please do not report any issues",
 
   SETTING_BLOCK_NET: "Temporarily block network via hosts",
+  SETTING_BLOCK_NET_ENABLED: "Enabled",
+  SETTING_BLOCK_NET_URL: "URL to block",
+  SETTING_BLOCK_NET_DELETE: "Delete",
+  SETTING_BLOCK_NET_ADD: "Add row",
   SETTING_BLOCK_NET_DURATION: "Block duration (seconds)",
   SETTING_HOSTS_HELPER: "Hosts permission helper",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
@@ -194,11 +202,32 @@ export const en: typeof zh_CN = {
   SETTING_HOSTS_HELPER_INSTALL: "Install",
   SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
   SETTING_HOSTS_HELPER_REFRESH: "Refresh",
+
+  SETTING_HOSTS_HELPER_STATUS_DISABLED:
+    "Status: disabled for development builds",
+  SETTING_HOSTS_HELPER_DEV_TOOLTIP:
+    "Hosts Helper is disabled in development builds",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE:
+    "Hosts Helper registration needs repair",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
+    "The Hosts Helper token is missing, so this launcher cannot authenticate the existing registration. Delete the current bundle registration before installing Hosts Helper again. macOS administrator authorization is required.",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "Delete current registration",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
+    "Requesting administrator authorization and deleting the registration…",
+  SETTING_HOSTS_HELPER_LATER: "Later",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_SUCCESS:
+    "The current Hosts Helper registration was deleted",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED:
+    "Administrator authorization is required to delete the Hosts Helper registration",
+  SETTING_HOSTS_HELPER_REREGISTERING: "Updating Hosts Helper registration…",
+  SETTING_HOSTS_HELPER_REREGISTER_FAILED:
+    "Automatic Hosts Helper re-registration failed. Reinstall it from Global Settings.",
   SETTING_TIMEOUT_FIX: "Enable Wine timeout workaround",
   SETTING_WORKAROUND4: "Temporarily replace mhypbase.dll while the game runs",
   SETTING_WORKAROUND4_DESC:
     "Before launch, the selected older mhypbase.dll is copied into the game folder and kept in place while the game runs. The original file is restored after the game exits. The launcher does not bundle or distribute this DLL.",
   SETTING_WORKAROUND4_PICK: "Choose file...",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "Select button",
   SETTING_WORKAROUND4_REVERT_BTN: "Restore original mhypbase.dll now",
   SETTING_LICENSES: "Licenses",
   SETTING_ENABLE_HDR: "Enable HDR",
@@ -265,7 +294,8 @@ export const en: typeof zh_CN = {
   SETTING_GITHUB_ACCELERATED_PREFIX_FAILED: "Connection failed",
   SETTING_GITHUB_ACCELERATED_PREFIX_INVALID: "Invalid URL",
   SETTING_AUTO_UPDATE: "Check for launcher updates automatically",
-  SETTING_AUTO_UPDATE_DEV_TOOLTIP: "Development versions do not support automatic updates",
+  SETTING_AUTO_UPDATE_DEV_TOOLTIP:
+    "Development versions do not support automatic updates",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Enable HTTP proxy for download servers",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",

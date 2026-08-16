@@ -25,6 +25,22 @@ export class GameSettings extends SettingsController<GameLoadedSettings> {
     this.options = options;
   }
 
+  protected renderAuxiliaryLinks(props: SettingsUIProps): JSXElement {
+    return (
+      <Show when={props.onOpenGlobalSettings != null}>
+        <div class="hyp-settings-nav-bottom">
+          <button
+            class="hyp-settings-nav-button"
+            type="button"
+            onClick={() => props.onOpenGlobalSettings?.()}
+          >
+            {this.locale.get("SETTING_GLOBAL")}
+          </button>
+        </div>
+      </Show>
+    );
+  }
+
   private get showGameWineTab() {
     return Boolean(
       this.options.wineTag &&

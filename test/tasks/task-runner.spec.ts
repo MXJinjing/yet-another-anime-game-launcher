@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const completed = vi.fn();
 const beginDownloadTask = vi.fn(() => "download-task");
@@ -46,12 +46,17 @@ async function flushTasks() {
 }
 
 describe("createTaskRunner", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("serializes tasks sharing a key while allowing completion notifications", async () => {
     const steps: string[] = [];
     const runner = createTaskRunner({ locale, notifier });
     runner.enqueue({
       key: "game",
       name: "UPDATE_GAME" as never,
+      downloadTask: { title: "Game download", key: "game" },
       fn: async function* (): TaskProgram {
         steps.push("first-start");
         yield ["setProgress", 25];
@@ -69,10 +74,57 @@ describe("createTaskRunner", () => {
     await flushTasks();
 
     expect(steps).toEqual(["first-start", "first-end", "second"]);
-    expect(runner.getState("game").progress()).toBe(25);
+    expect(runner.getState("game").progress()).toBe(0);
     expect(runner.getState("game").busy()).toBe(false);
     expect(completed).toHaveBeenCalledTimes(1);
-    expect(beginDownloadTask).toHaveBeenCalledTimes(2);
-    expect(endDownloadTask).toHaveBeenCalledTimes(2);
+    expect(beginDownloadTask).toHaveBeenCalledTimes(1);
+    expect(endDownloadTask).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not register ordinary tasks as download tasks", async () => {
+    const runner = createTaskRunner({ locale, notifier });
+    runner.enqueue({
+      key: "game",
+      name: "LAUNCH" as never,
+      fn: async function* (): TaskProgram {
+        yield ["setRawStateText", "Launching"];
+      },
+    });
+
+    await flushTasks();
+
+    expect(beginDownloadTask).not.toHaveBeenCalled();
+    expect(endDownloadTask).not.toHaveBeenCalled();
+  });
+
+  it("waits for a running task and its queued follow-up to become idle", async () => {
+    let releaseFirst!: () => void;
+    const firstReleased = new Promise<void>(resolve => {
+      releaseFirst = resolve;
+    });
+    const steps: string[] = [];
+    const runner = createTaskRunner({ locale, notifier });
+    runner.enqueue({
+      key: "game",
+      fn: async function* (): TaskProgram {
+        steps.push("first-start");
+        await firstReleased;
+        steps.push("first-end");
+      },
+    });
+    runner.enqueue({
+      key: "game",
+      fn: async function* (): TaskProgram {
+        steps.push("second");
+      },
+    });
+
+    const idle = runner.waitForIdle("game");
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(steps).toEqual(["first-start"]);
+
+    releaseFirst();
+    await idle;
+    expect(steps).toEqual(["first-start", "first-end", "second"]);
   });
 });

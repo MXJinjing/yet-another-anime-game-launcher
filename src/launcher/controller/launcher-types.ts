@@ -7,13 +7,13 @@ import type { Config } from "../../config/config-def";
 import type { Wine, WineDistribution } from "../../wine";
 import type { MultiGameWineRef } from "@wine/multi-game";
 
-export type HoyoplayGameWineOption = {
+export type HypGameWineOption = {
   tag: string;
   displayName: string;
   url: string;
 };
 
-export type HoyoplayGame = {
+export type HypGame = {
   id: string;
   namespace?: string;
   title: string;
@@ -34,11 +34,11 @@ export type HoyoplayGame = {
   wineRef?: MultiGameWineRef;
   wineTag?: Accessor<string>;
   setWineTag?: (value: string) => void;
-  wineOptions?: HoyoplayGameWineOption[];
+  wineOptions?: HypGameWineOption[];
 };
 
-export type HoyoplayLauncherOptions = {
-  games: HoyoplayGame[];
+export type HypLauncherOptions = {
+  games: HypGame[];
   showLibrary: boolean;
   wine: Wine;
   wineDistroId: string;
@@ -47,6 +47,7 @@ export type HoyoplayLauncherOptions = {
   aria2: Aria2;
   onCheckUpdate: () => void;
   onGameRunningChange?: (running: boolean) => void;
+  gameCloseHandler?: { current?: () => Promise<void> };
   onResetWineEnv: () => Promise<void>;
   initializeWine: (distro: WineDistribution) => TaskProgram;
   enableWineDistro: (distro: WineDistribution) => TaskProgram;

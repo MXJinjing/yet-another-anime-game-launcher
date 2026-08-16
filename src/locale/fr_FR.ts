@@ -3,6 +3,9 @@ import { en } from "@locale/en";
 
 export const fr_FR: typeof zh_CN = {
   CONTENT_LANG_ID: "fr-fr",
+  SERVER_LABEL_CN: "CN",
+  SERVER_LABEL_GLOBAL: "International",
+  SERVER_LABEL_UNI: "Universel",
   BOOT_INITIALIZING: "Initialisation",
   BOOT_LOADING_LOCAL_SETTINGS: "Chargement des paramètres locaux",
   BOOT_CHECKING_NETWORK: "Vérification de la connexion réseau",
@@ -34,10 +37,10 @@ export const fr_FR: typeof zh_CN = {
   FIXING_FILES: "Correction des fichiers de jeu {0}/{1}",
   PATCHING: "Ajout de correctifs sur les fichiers du jeu",
   GAME_RUNNING: "Le jeu est lancé",
+  GAME_RECOVERING: "Restauration en cours",
   GAME_RUNNING_CLOSE_TITLE: "Le jeu est toujours en cours d’exécution",
   GAME_RUNNING_CLOSE_DESC:
     "Le jeu n’est pas encore fermé. Voulez-vous arrêter le processus du jeu en quittant le lanceur ?",
-  GAME_RUNNING_CLOSE_KEEP: "Quitter seulement le lanceur",
   GAME_RUNNING_CLOSE_EXIT: "Fermer le jeu et quitter",
   DOWNLOAD_RUNNING_CLOSE_TITLE: "Téléchargement en cours",
   DOWNLOAD_RUNNING_CLOSE_DESC:
@@ -134,6 +137,7 @@ export const fr_FR: typeof zh_CN = {
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "Actions rapides",
   SETTING_GENERAL: "Général",
+  SETTING_DOWNLOAD: "Téléchargement",
   SETTING_GAME: "Jeu",
   SETTING_VIDEO: "Vidéo",
   SETTING_GLOBAL: "Paramètres globaux",
@@ -189,6 +193,10 @@ export const fr_FR: typeof zh_CN = {
     "La sélection actuelle est la version communautaire, cette version n’est pas officiellement prise en charge, veuillez ne pas signaler de problèmes",
 
   SETTING_BLOCK_NET: "Bloquer temporairement le réseau via hosts",
+  SETTING_BLOCK_NET_ENABLED: "Activer",
+  SETTING_BLOCK_NET_URL: "URL à bloquer",
+  SETTING_BLOCK_NET_DELETE: "Supprimer",
+  SETTING_BLOCK_NET_ADD: "Ajouter une ligne",
   SETTING_BLOCK_NET_DURATION: "Durée du blocage (secondes)",
   SETTING_HOSTS_HELPER: "Hosts permission helper",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
@@ -198,12 +206,33 @@ export const fr_FR: typeof zh_CN = {
   SETTING_HOSTS_HELPER_INSTALL: "Install",
   SETTING_HOSTS_HELPER_UNINSTALL: "Uninstall",
   SETTING_HOSTS_HELPER_REFRESH: "Refresh",
+
+  SETTING_HOSTS_HELPER_STATUS_DISABLED:
+    "Status: disabled for development builds",
+  SETTING_HOSTS_HELPER_DEV_TOOLTIP:
+    "Hosts Helper is disabled in development builds",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE:
+    "Hosts Helper registration needs repair",
+  SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
+    "The Hosts Helper token is missing. Delete the current registration before installing Hosts Helper again. macOS administrator authorization is required.",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "Delete current registration",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
+    "Requesting administrator authorization and deleting the registration…",
+  SETTING_HOSTS_HELPER_LATER: "Later",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_SUCCESS:
+    "The current Hosts Helper registration was deleted",
+  SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED:
+    "Administrator authorization is required to delete the Hosts Helper registration",
+  SETTING_HOSTS_HELPER_REREGISTERING: "Updating Hosts Helper registration…",
+  SETTING_HOSTS_HELPER_REREGISTER_FAILED:
+    "Automatic Hosts Helper re-registration failed. Reinstall it from Global Settings.",
   SETTING_TIMEOUT_FIX: "Activer le contournement des délais Wine",
   SETTING_WORKAROUND4:
     "Remplacer temporairement mhypbase.dll pendant l’exécution du jeu",
   SETTING_WORKAROUND4_DESC:
     "Avant le lancement, l’ancienne mhypbase.dll sélectionnée est copiée dans le dossier du jeu et conservée pendant l’exécution du jeu. Le fichier d’origine est restauré après la fermeture du jeu. Le lanceur n’intègre ni ne distribue cette DLL.",
   SETTING_WORKAROUND4_PICK: "Choisir un fichier...",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "Bouton de sélection",
   SETTING_WORKAROUND4_REVERT_BTN:
     "Restaurer maintenant la mhypbase.dll d’origine",
   SETTING_LICENSES: "Licences",
@@ -262,7 +291,8 @@ export const fr_FR: typeof zh_CN = {
   LOG_VIEWER_FOLLOW_SCROLL: "Défilement automatique",
   LOG_VIEWER_COPY: "Copier les logs",
   LICENSE_COPY: "Copier la licence actuelle",
-  SETTING_GITHUB_ACCELERATED_PREFIX: "Utiliser le préfixe d’accélération GitHub",
+  SETTING_GITHUB_ACCELERATED_PREFIX:
+    "Utiliser le préfixe d’accélération GitHub",
   SETTING_GITHUB_ACCELERATED_PREFIX_URL: "URL du préfixe d’accélération GitHub",
   SETTING_GITHUB_ACCELERATED_PREFIX_TEST: "Tester",
   SETTING_GITHUB_ACCELERATED_PREFIX_TESTING: "Test en cours...",
@@ -270,7 +300,8 @@ export const fr_FR: typeof zh_CN = {
   SETTING_GITHUB_ACCELERATED_PREFIX_FAILED: "Échec de la connexion",
   SETTING_GITHUB_ACCELERATED_PREFIX_INVALID: "URL invalide",
   SETTING_AUTO_UPDATE: "Vérifier automatiquement les mises à jour du launcher",
-  SETTING_AUTO_UPDATE_DEV_TOOLTIP: "Les versions de développement ne prennent pas en charge les mises à jour automatiques",
+  SETTING_AUTO_UPDATE_DEV_TOOLTIP:
+    "Les versions de développement ne prennent pas en charge les mises à jour automatiques",
   SETTING_DOWNLOAD_SERVER: "Download Server",
   SETTING_DOWNLOAD_PROXY: "Download server HTTP proxy",
   SETTING_DOWNLOAD_PROXY_ENABLED: "Enable download HTTP proxy",
@@ -304,7 +335,8 @@ export const fr_FR: typeof zh_CN = {
     "Échec de la tâche. Consultez les journaux pour plus de détails.",
   NOTIFICATION_TASK_FAILED_TITLE: "Échec de la tâche",
   CHECK_UPDATE_FAILED: "Échec de la vérification des mises à jour",
-  CHECK_UPDATE_FAILED_DESC: "Impossible de se connecter au serveur GitHub ({0})",
+  CHECK_UPDATE_FAILED_DESC:
+    "Impossible de se connecter au serveur GitHub ({0})",
   CHECK_GAME_UPDATE_FAILED: "Échec de la vérification des mises à jour du jeu",
   CHECK_GAME_UPDATE_FAILED_DESC:
     "Impossible de se connecter au serveur de mise à jour. Vérifiez votre connexion réseau et réessayez.",

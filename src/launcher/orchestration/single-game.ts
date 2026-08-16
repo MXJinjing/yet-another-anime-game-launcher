@@ -5,8 +5,8 @@ import { Locale } from "@locale";
 import { Wine, WineDistribution } from "@wine";
 import { ChannelClient } from "../../channel-client";
 import { Config } from "../../config/config-def";
-import { createHoyoplayLauncher } from "../controller/hoyoplay-launcher";
-import type { HoyoplayGame } from "../controller/launcher-types";
+import { createHypLauncher } from "../controller/hyp-launcher";
+import type { HypGame } from "../controller/launcher-types";
 import { SINGLE_GAME_CHANNEL_META } from "../data/single-game-specs";
 import { reportBootProgress } from "../../boot-progress";
 
@@ -23,6 +23,7 @@ export async function createLauncher({
   channelClient,
   onCheckUpdate,
   onGameRunningChange,
+  gameCloseHandler,
   onResetWineEnv,
 }: {
   wine: Wine;
@@ -37,6 +38,7 @@ export async function createLauncher({
   channelClient: ChannelClient;
   onCheckUpdate: () => void;
   onGameRunningChange?: (running: boolean) => void;
+  gameCloseHandler?: { current?: () => Promise<void> };
   onResetWineEnv: () => Promise<void>;
 }) {
   const meta = SINGLE_GAME_CHANNEL_META[channel];
@@ -51,16 +53,16 @@ export async function createLauncher({
     onGameInstallDirChange: channelClient.changeInstallDir,
     configForChannelClient: channelClient.createConfig,
   });
-  const game: HoyoplayGame = {
+  const game: HypGame = {
     id: meta.id,
     title: meta.title,
-    serverLabel: meta.serverLabel,
+    serverLabel: locale.get(meta.serverLabel),
     fallbackIcon: meta.fallbackIcon,
     client: channelClient,
     config: config as Config,
     ConfigurationUI,
   };
-  return createHoyoplayLauncher({
+  return createHypLauncher({
     games: [game],
     showLibrary: false,
     wine,
@@ -70,6 +72,7 @@ export async function createLauncher({
     aria2,
     onCheckUpdate,
     onGameRunningChange,
+    gameCloseHandler,
     onResetWineEnv,
     initializeWine,
     enableWineDistro,
