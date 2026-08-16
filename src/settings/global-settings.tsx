@@ -2,6 +2,7 @@ import { Show, JSXElement } from "solid-js";
 import { Tab } from "@hope-ui/solid";
 import { Locale } from "../locale";
 import { Wine } from "../wine";
+import { DownloadTab } from "./tabs/download-tab";
 import { GeneralTab } from "./tabs/general-tab";
 import { WineTab } from "./tabs/wine-tab";
 import { HostsHelperControl } from "./controls/general/hosts-helper";
@@ -30,6 +31,7 @@ export class GlobalSettings extends SettingsController<GlobalLoadedSettings> {
     return (
       <>
         <Tab>{this.locale.get("SETTING_GENERAL")}</Tab>
+        <Tab>{this.locale.get("SETTING_DOWNLOAD")}</Tab>
         <Tab>Wine</Tab>
       </>
     );
@@ -38,9 +40,9 @@ export class GlobalSettings extends SettingsController<GlobalLoadedSettings> {
   protected renderAuxiliaryLinks(props: SettingsUIProps): JSXElement {
     return (
       <Show when={props.onOpenAbout != null && props.onOpenLicense != null}>
-        <div class="hoyoplay-settings-nav-bottom">
+        <div class="hyp-settings-nav-bottom">
           <button
-            class="hoyoplay-settings-nav-button"
+            class="hyp-settings-nav-button"
             type="button"
             onClick={() => props.onOpenAbout?.()}
           >
@@ -49,7 +51,7 @@ export class GlobalSettings extends SettingsController<GlobalLoadedSettings> {
               : "About Yaaglm"}
           </button>
           <button
-            class="hoyoplay-settings-nav-button"
+            class="hyp-settings-nav-button"
             type="button"
             onClick={() => props.onOpenLicense?.()}
           >
@@ -65,15 +67,16 @@ export class GlobalSettings extends SettingsController<GlobalLoadedSettings> {
     return (
       <>
         <GeneralTab
-          locale={this.locale}
           DisableVideoBackgroundConfig={settings.disableVideoBackground}
           LeftCmdConfig={settings.leftCmd}
           AutoUpdateConfig={settings.autoUpdate}
-          DownloadServerConfig={settings.downloadServer}
-          GithubAcceleratedPrefixConfig={settings.githubAcceleratedPrefix}
           LocaleConfig={settings.locale}
           ThemeColorConfig={settings.themeColor}
           HostsHelperConfig={() => <HostsHelperControl locale={this.locale} />}
+        />
+        <DownloadTab
+          DownloadServerConfig={settings.downloadServer}
+          GithubAcceleratedPrefixConfig={settings.githubAcceleratedPrefix}
         />
         <WineTab
           locale={this.locale}

@@ -1,4 +1,4 @@
-import { Box, Button, HStack, Text, Textarea } from "@hope-ui/solid";
+import { Box, Button, Text } from "@hope-ui/solid";
 import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined } from "@runtime/assertions";
@@ -7,6 +7,13 @@ import { Config, NOOP } from "@config/config-def";
 import { SettingSwitch } from "../../../../components/setting-switch";
 import { getPrivilegedHostsHelperStatus } from "@system/privileged-hosts";
 import type { PrivilegedHostsHelperStatus } from "@system/privileged-hosts";
+import { BlockHostsTable } from "@settings/controls/launch/block-hosts-table";
+import {
+  parseBlockHostRulesText,
+  serializeBlockHostRules,
+  serializeEnabledBlockHostsText,
+} from "@settings/controls/launch/block-hosts";
+import type { BlockHostRule } from "@settings/controls/launch/block-hosts";
 
 declare module "@config/config-def" {
   interface Config {
@@ -17,6 +24,7 @@ declare module "@config/config-def" {
 
 const CONFIG_KEY = "config_block_net";
 const HOSTS_KEY = "config_block_net_hosts";
+const RULES_KEY = "config_block_net_rules";
 
 export default async function ({
   locale,
@@ -27,7 +35,9 @@ export default async function ({
   locale: Locale;
   defaultHostsText: string;
 }) {
+  const defaultEntries = parseBlockHostRulesText(defaultHostsText);
   let storedHostsText = defaultHostsText;
+  let storedRulesText = "";
   try {
     config.blockNet = (await getKey(CONFIG_KEY)) == "true";
   } catch {
@@ -38,10 +48,24 @@ export default async function ({
   } catch {
     storedHostsText = defaultHostsText;
   }
+  try {
+    storedRulesText = await getKey(RULES_KEY);
+  } catch {
+    storedRulesText = "";
+  }
+  let storedEntries: BlockHostRule[];
+  try {
+    storedEntries = parseBlockHostRulesText(storedRulesText || storedHostsText);
+  } catch {
+    storedEntries = defaultEntries.map(entry => ({ ...entry }));
+  }
+  storedRulesText = serializeBlockHostRules(storedEntries);
+  storedHostsText = serializeEnabledBlockHostsText(storedEntries);
+
   config.blockNetHostsText = storedHostsText;
 
   const [value, setValue] = createSignal(config.blockNet);
-  const [hostsText, setHostsText] = createSignal(storedHostsText);
+  const [entries, setEntries] = createSignal(storedEntries);
   const [hostsHelperStatus, setHostsHelperStatus] =
     createSignal<PrivilegedHostsHelperStatus>();
 
@@ -53,29 +77,43 @@ export default async function ({
     }
   }
 
+  function restoreEntries(text: string): BlockHostRule[] {
+    try {
+      return parseBlockHostRulesText(text);
+    } catch {
+      return defaultEntries.map(entry => ({ ...entry }));
+    }
+  }
+
   async function onSave(apply: boolean) {
     assertValueDefined(config.blockNet);
     assertValueDefined(config.blockNetHostsText);
     if (!apply) {
       setValue(config.blockNet);
-      setHostsText(config.blockNetHostsText);
+      setEntries(restoreEntries(storedRulesText));
       return NOOP;
     }
     if (config.blockNet != value()) {
       config.blockNet = value();
       await setKey(CONFIG_KEY, config.blockNet ? "true" : "false");
     }
-    if (config.blockNetHostsText != hostsText()) {
-      config.blockNetHostsText = hostsText();
-      await setKey(HOSTS_KEY, hostsText());
+    const nextRulesText = serializeBlockHostRules(entries());
+    const nextHostsText = serializeEnabledBlockHostsText(entries());
+    if (storedRulesText != nextRulesText) {
+      storedRulesText = nextRulesText;
+      await setKey(RULES_KEY, nextRulesText);
+    }
+    if (config.blockNetHostsText != nextHostsText) {
+      config.blockNetHostsText = nextHostsText;
+      await setKey(HOSTS_KEY, nextHostsText);
     }
     return NOOP;
   }
 
   createEffect(() => {
     value();
-    hostsText();
-    onSave(true);
+    entries();
+    void onSave(true);
   });
 
   createEffect(() => {
@@ -100,17 +138,6 @@ export default async function ({
           onChange={next => {
             setValue(next);
           }}
-          control={
-            <Show when={value()}>
-              <Button
-                size="xs"
-                variant="ghost"
-                onClick={() => setHostsText(defaultHostsText)}
-              >
-                {locale.get("SETTING_PREFERRED_MAX_FPS_RESET")}
-              </Button>
-            </Show>
-          }
         >
           <Show when={value() && hostsHelperStatus() === "not-installed"}>
             <Box
@@ -141,13 +168,13 @@ export default async function ({
           </Show>
           <Show when={value()}>
             <Box mt="$2">
-              <Textarea
-                value={hostsText()}
-                rows={4}
-                size="sm"
-                style={{ "font-family": "monospace", resize: "vertical" }}
-                placeholder="example.com 0.0.0.0"
-                onChange={e => setHostsText(e.currentTarget.value)}
+              <BlockHostsTable
+                locale={locale}
+                entries={entries}
+                onEntriesChange={nextEntries => setEntries(nextEntries)}
+                onReset={() =>
+                  setEntries(defaultEntries.map(entry => ({ ...entry })))
+                }
               />
             </Box>
           </Show>
