@@ -233,18 +233,6 @@ napcn
 YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
 ```
 
-## Support
-
-[Our Discord server](https://discord.gg/HrV52MgSC2) is the **ONLY** place providing support if you have any issue just using this application.
-
-**DON'T FILE AN ISSUE** unless it's a technical problem coming with a clear root cause.
-
-> Simply put _My game doesn't launch_ or _I can't login_ without telling any technical detail is not acceptable, please go to the Discord server instead of abusing Github Issues
-
-**DON'T ASK FOR SUPPORT IN OTHER COMMUNITY**, especially the official one.
-
-When reporting a technical problem, include the macOS version, CPU architecture, Yaaglm version, channel, complete logs, reproduction steps, and any troubleshooting steps already attempted. Redact account, network, and local-file information before submitting it.
-
 ## Uninstall (completely)
 
 1. If Hosts-Helper is enabled, open the in-app settings to uninstall it.

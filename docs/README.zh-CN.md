@@ -238,20 +238,6 @@ napcn
 YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
 ```
 
-## Support and troubleshooting
-
-[Discord support server](https://discord.gg/HrV52MgSC2) 是使用问题和故障排查的主要交流渠道。
-
-提交技术问题时，请尽量提供：
-
-- macOS 版本和芯片架构。
-- 使用的 Yaaglm 版本和 channel。
-- 完整的错误信息、日志或截图。
-- 复现步骤，以及程序文件和数据目录的位置。
-- 已尝试过的解决方法。
-
-缺少日志和复现信息的泛化描述通常无法定位问题。涉及账户、网络或本地文件的信息请在提交前进行脱敏。
-
 ## Uninstall
 
 1. 如果启用了Hosts-Helper，打开应用内设置将其卸载。
