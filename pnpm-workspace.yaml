@@ -1,3 +1,6 @@
+packages:
+  - "."
+
 allowBuilds:
   bufferutil: false
   es5-ext: false
