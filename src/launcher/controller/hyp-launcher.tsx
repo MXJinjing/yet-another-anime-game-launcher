@@ -721,6 +721,8 @@ export async function createHypLauncher({
       const isEnvironmentExtract =
         args?.key === "EXTRACT_ENVIRONMENT" ||
         args?.key === "DECOMPRESS_FILE_PROGRESS";
+      const isEnvironmentConfiguring =
+        args?.key === "CONFIGURING_ENVIRONMENT";
       const isWineDownload =
         isEnvironmentDownload &&
         selectedGame().wineTag?.() !== undefined &&
@@ -767,7 +769,7 @@ export async function createHypLauncher({
             : downloadArgs.args
           : [];
       const progressMode: ProgressPanelData["progressMode"] =
-        isEnvironmentExtract
+        isEnvironmentExtract || isEnvironmentConfiguring
           ? "indeterminate"
           : isEnvironmentDownload
           ? isWineDownload
@@ -825,6 +827,8 @@ export async function createHypLauncher({
       const isEnvironmentExtract =
         args?.key === "EXTRACT_ENVIRONMENT" ||
         args?.key === "DECOMPRESS_FILE_PROGRESS";
+      const isEnvironmentConfiguring =
+        args?.key === "CONFIGURING_ENVIRONMENT";
       const title = isDownloadStatus
         ? isEnvSpeed
           ? locale.get("DOWNLOADING_ENVIRONMENT")
@@ -846,7 +850,7 @@ export async function createHypLauncher({
             : downloadArgs.args
           : [];
       const progressMode: ProgressPanelData["progressMode"] =
-        isEnvironmentExtract
+        isEnvironmentExtract || isEnvironmentConfiguring
           ? "indeterminate"
           : isEnvironmentDownload
           ? "determinate"
