@@ -100,7 +100,9 @@ async function checkGithubEndpoint(prefix: string): Promise<void> {
     timeout(5000),
   ]);
   if (response.status < 200 || response.status >= 400) {
-    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Request failed: ${response.status} ${response.statusText}`
+    );
   }
 }
 
@@ -119,8 +121,7 @@ export async function createGithubEndpoint() {
   const storedPrefix =
     (await store.read(configEntries.githubAcceleratedPrefix)) ??
     DEFAULT_GITHUB_PREFIX;
-  const prefix =
-    normalizeGithubPrefix(storedPrefix) ?? DEFAULT_GITHUB_PREFIX;
+  const prefix = normalizeGithubPrefix(storedPrefix) ?? DEFAULT_GITHUB_PREFIX;
 
   configureGithubEndpoint({ enabled, prefix });
   await log(

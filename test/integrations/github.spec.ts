@@ -46,7 +46,11 @@ describe("GitHub acceleration prefix", () => {
   });
 
   it("preserves an HTTP status code for update failure notifications", () => {
-    const error = new GithubRequestError(503, "Service Unavailable", "https://api.github.com");
+    const error = new GithubRequestError(
+      503,
+      "Service Unavailable",
+      "https://api.github.com"
+    );
 
     expect(getGithubErrorStatus(error)).toBe(503);
     expect(getGithubErrorStatus(new Error("network failure"))).toBeUndefined();

@@ -1,11 +1,4 @@
-import {
-  Button,
-  HStack,
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
-} from "@hope-ui/solid";
+import { Button, HStack, Tab, TabList, TabPanel, Tabs } from "@hope-ui/solid";
 import {
   createMemo,
   createSignal,

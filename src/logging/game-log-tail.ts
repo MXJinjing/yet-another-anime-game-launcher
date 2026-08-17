@@ -82,9 +82,7 @@ async function findLegacyUnityLogFiles(prefix: string): Promise<string[]> {
   const users = await findWineUserDirectories(prefix);
   const found: string[] = [];
   for (const user of users) {
-    found.push(
-      ...(await findRecursiveLogFiles(user, ["output_log.txt"], 0))
-    );
+    found.push(...(await findRecursiveLogFiles(user, ["output_log.txt"], 0)));
   }
   return found;
 }

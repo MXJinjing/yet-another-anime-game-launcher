@@ -63,7 +63,8 @@
   color: rgba(255, 255, 255, 0.65);
   background-color: currentColor;
   mask: url("../assets/icons/chevron-down.svg") center / contain no-repeat;
-  -webkit-mask: url("../assets/icons/chevron-down.svg") center / contain no-repeat;
+  -webkit-mask: url("../assets/icons/chevron-down.svg") center / contain
+    no-repeat;
 }
 
 .app-select-menu {

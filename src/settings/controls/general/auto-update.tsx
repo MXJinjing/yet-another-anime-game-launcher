@@ -36,7 +36,10 @@ export async function createAutoUpdateConfig({
     assertValueDefined(config.autoUpdateEnabled);
     if (config.autoUpdateEnabled == value()) return NOOP;
     config.autoUpdateEnabled = value();
-    await store.write(configEntries.autoUpdateEnabled, config.autoUpdateEnabled);
+    await store.write(
+      configEntries.autoUpdateEnabled,
+      config.autoUpdateEnabled
+    );
     return NOOP;
   }
 

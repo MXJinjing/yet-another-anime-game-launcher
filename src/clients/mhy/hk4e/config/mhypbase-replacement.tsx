@@ -1,11 +1,4 @@
-import {
-  Box,
-  Button,
-  Checkbox,
-  HStack,
-  Input,
-  Tooltip,
-} from "@hope-ui/solid";
+import { Box, Button, Checkbox, HStack, Input, Tooltip } from "@hope-ui/solid";
 import { isAbsolute, relative, resolve as resolvePath } from "path-browserify";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { Locale } from "@locale";
@@ -308,16 +301,10 @@ export default async function ({
                       >
                         启用
                       </th>
-                      <th
-                        class="runtime-replace-table-header"
-                        style={thStyle}
-                      >
+                      <th class="runtime-replace-table-header" style={thStyle}>
                         待替换文件
                       </th>
-                      <th
-                        class="runtime-replace-table-header"
-                        style={thStyle}
-                      >
+                      <th class="runtime-replace-table-header" style={thStyle}>
                         替换文件
                       </th>
                       <th
@@ -359,7 +346,9 @@ export default async function ({
                             </td>
                             <td
                               class={`runtime-replace-edit-cell${
-                                invalid ? " runtime-replace-edit-cell-invalid" : ""
+                                invalid
+                                  ? " runtime-replace-edit-cell-invalid"
+                                  : ""
                               }`}
                             >
                               <HStack
@@ -391,14 +380,19 @@ export default async function ({
                                     aria-label="选择待替换文件"
                                     onClick={() => pickTarget(index())}
                                   >
-                                    <span class="runtime-replace-file-icon" aria-hidden="true" />
+                                    <span
+                                      class="runtime-replace-file-icon"
+                                      aria-hidden="true"
+                                    />
                                   </button>
                                 </Tooltip>
                               </HStack>
                             </td>
                             <td
                               class={`runtime-replace-edit-cell${
-                                invalid ? " runtime-replace-edit-cell-invalid" : ""
+                                invalid
+                                  ? " runtime-replace-edit-cell-invalid"
+                                  : ""
                               }`}
                             >
                               <HStack
@@ -430,7 +424,10 @@ export default async function ({
                                     aria-label="选择替换文件"
                                     onClick={() => pickReplacement(index())}
                                   >
-                                    <span class="runtime-replace-file-icon" aria-hidden="true" />
+                                    <span
+                                      class="runtime-replace-file-icon"
+                                      aria-hidden="true"
+                                    />
                                   </button>
                                 </Tooltip>
                               </HStack>
@@ -446,7 +443,10 @@ export default async function ({
                                   )
                                 }
                               >
-                                <span class="runtime-replace-trash-icon" aria-hidden="true" />
+                                <span
+                                  class="runtime-replace-trash-icon"
+                                  aria-hidden="true"
+                                />
                               </button>
                             </td>
                           </tr>

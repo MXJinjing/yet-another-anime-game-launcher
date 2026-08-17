@@ -362,8 +362,7 @@
 }
 
 .hyp-mhy-social-item-wrap:first-child:hover .hyp-mhy-qr-popover,
-.hyp-mhy-social-item-wrap:first-child:focus-within
-  .hyp-mhy-qr-popover {
+.hyp-mhy-social-item-wrap:first-child:focus-within .hyp-mhy-qr-popover {
   transform: translateX(0);
 }
 

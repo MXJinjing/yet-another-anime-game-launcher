@@ -54,7 +54,10 @@ export function getSidecarAppBundleName(updateVersion: string): string {
 
 export function getSidecarTopLevelDir(sidecarUrl: string): string {
   const archiveBase =
-    sidecarUrl.split("/").pop()?.replace(/\.tar\.gz$/, "") ?? "";
+    sidecarUrl
+      .split("/")
+      .pop()
+      ?.replace(/\.tar\.gz$/, "") ?? "";
   return SIDECAR_TOP_LEVEL_DIRS[archiveBase] ?? archiveBase;
 }
 

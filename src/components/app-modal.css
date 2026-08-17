@@ -65,10 +65,7 @@
 }
 
 .app-modal-content .hope-tabs__tab[aria-selected="true"] {
-  color: var(
-    --hyp-accent,
-    var(--hope-colors-primary11, #ffd834)
-  ) !important;
+  color: var(--hyp-accent, var(--hope-colors-primary11, #ffd834)) !important;
   background: rgba(255, 221, 67, 0.14) !important;
 }
 
@@ -449,7 +446,6 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
-
 .app-modal-content .runtime-replace-delete-button {
   color: #ff6b81;
   background: transparent;
@@ -459,7 +455,6 @@
   color: #ff8ba1;
   background: rgba(255, 82, 82, 0.22);
 }
-
 
 /* Keep the license tabs visually consistent with settings without enlarging their text. */
 .license-tabs-header {

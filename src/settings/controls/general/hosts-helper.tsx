@@ -130,9 +130,7 @@ export function HostsHelperControl(props: { locale: Locale }) {
               data-tooltip={props.locale.get(
                 "SETTING_HOSTS_HELPER_DEV_TOOLTIP"
               )}
-              aria-label={props.locale.get(
-                "SETTING_HOSTS_HELPER_DEV_TOOLTIP"
-              )}
+              aria-label={props.locale.get("SETTING_HOSTS_HELPER_DEV_TOOLTIP")}
               tabIndex={0}
               style={{ "margin-right": "2px" }}
             >

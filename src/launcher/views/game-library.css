@@ -66,18 +66,8 @@
     ),
     linear-gradient(
       to top,
-      color-mix(
-          in srgb,
-          var(--hyp-accent, #ffd834) 5%,
-          rgba(2, 3, 6, 0.88)
-        )
-        0%,
-      color-mix(
-          in srgb,
-          var(--hyp-accent, #ffd834) 5%,
-          rgba(3, 4, 8, 0.76)
-        )
-        50%,
+      color-mix(in srgb, var(--hyp-accent, #ffd834) 5%, rgba(2, 3, 6, 0.88)) 0%,
+      color-mix(in srgb, var(--hyp-accent, #ffd834) 5%, rgba(3, 4, 8, 0.76)) 50%,
       rgba(4, 5, 9, 0.36) 76%,
       rgba(4, 5, 9, 0) 100%
     );

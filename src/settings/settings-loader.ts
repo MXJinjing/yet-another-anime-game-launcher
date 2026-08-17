@@ -17,9 +17,7 @@ import createLocaleConfig from "./controls/general/ui-locale";
 import createThemeColorConfig from "./controls/general/theme-color";
 import { createDisableVideoBackgroundConfig } from "./controls/general/disable-video-background";
 import { createDownloadServerConfig } from "./controls/download/download-server";
-import {
-  createGithubAcceleratedPrefixConfig,
-} from "./controls/download/github-accelerated-prefix";
+import { createGithubAcceleratedPrefixConfig } from "./controls/download/github-accelerated-prefix";
 import { createWineDistroConfig } from "./controls/wine/wine-distribution";
 import { createDebugModeConfig } from "./controls/launch/debug-mode";
 import { GlobalSettings } from "./global-settings";
@@ -118,12 +116,11 @@ async function loadGlobalSettings(
     config,
     store: configStore,
   });
-  const [githubAcceleratedPrefix] =
-    await createGithubAcceleratedPrefixConfig({
-      locale: options.locale,
-      config,
-      store: configStore,
-    });
+  const [githubAcceleratedPrefix] = await createGithubAcceleratedPrefixConfig({
+    locale: options.locale,
+    config,
+    store: configStore,
+  });
   const [themeColor] = await createThemeColorConfig({
     locale: options.locale,
     config,

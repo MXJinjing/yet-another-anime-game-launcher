@@ -35,18 +35,30 @@ async function fetch(url: string, name: string) {
 export type HoyoPlayRegion = "CN" | "OS";
 
 const GET_GAMES_URL: Record<HoyoPlayRegion, string> = {
-  CN: "https://hyp-api.mih" + "oyo.com/hyp/hyp-connect/api/getGames?launcher_id=jGHBHlcOq1&language=zh-cn",
-  OS: "https://sg-hyp-api.hoy" + "overse.com/hyp/hyp-connect/api/getGames?launcher_id=VYTpXlbWo8&language=en-us",
+  CN:
+    "https://hyp-api.mih" +
+    "oyo.com/hyp/hyp-connect/api/getGames?launcher_id=jGHBHlcOq1&language=zh-cn",
+  OS:
+    "https://sg-hyp-api.hoy" +
+    "overse.com/hyp/hyp-connect/api/getGames?launcher_id=VYTpXlbWo8&language=en-us",
 };
 
 const GET_ALL_GAME_BASIC_INFO_URL: Record<HoyoPlayRegion, string> = {
-  CN: "https://hyp-api.mih" + "oyo.com/hyp/hyp-connect/api/getAllGameBasicInfo?launcher_id=jGHBHlcOq1",
-  OS: "https://sg-hyp-api.hoy" + "overse.com/hyp/hyp-connect/api/getAllGameBasicInfo?launcher_id=VYTpXlbWo8",
+  CN:
+    "https://hyp-api.mih" +
+    "oyo.com/hyp/hyp-connect/api/getAllGameBasicInfo?launcher_id=jGHBHlcOq1",
+  OS:
+    "https://sg-hyp-api.hoy" +
+    "overse.com/hyp/hyp-connect/api/getAllGameBasicInfo?launcher_id=VYTpXlbWo8",
 };
 
 const GET_GAME_CONTENT_URL: Record<HoyoPlayRegion, string> = {
-  CN: "https://hyp-api.mih" + "oyo.com/hyp/hyp-connect/api/getGameContent?launcher_id=jGHBHlcOq1",
-  OS: "https://sg-hyp-api.hoy" + "overse.com/hyp/hyp-connect/api/getGameContent?launcher_id=VYTpXlbWo8",
+  CN:
+    "https://hyp-api.mih" +
+    "oyo.com/hyp/hyp-connect/api/getGameContent?launcher_id=jGHBHlcOq1",
+  OS:
+    "https://sg-hyp-api.hoy" +
+    "overse.com/hyp/hyp-connect/api/getGameContent?launcher_id=VYTpXlbWo8",
 };
 
 function getHoyoPlayRegion(server: Server): HoyoPlayRegion {
@@ -122,8 +134,7 @@ export async function getLatestLauncherContent(
   content: HoyoConnectGetGameContentResponse["data"]["content"];
 }> {
   const region = getHoyoPlayRegion(server);
-  const language =
-    region === "CN" ? "zh-cn" : locale.get("CONTENT_LANG_ID");
+  const language = region === "CN" ? "zh-cn" : locale.get("CONTENT_LANG_ID");
   const basicInfoResponse = await fetch(
     `${GET_ALL_GAME_BASIC_INFO_URL[region]}&language=${language}`,
     "getAllGameBasicInfo"
@@ -167,9 +178,9 @@ export async function getLatestLauncherContent(
     };
   } catch (error) {
     log(
-      `[hyp-connect] getGameContent failed for ${server.id}; continuing without announcements/social media: ${String(
-        error
-      )}`
+      `[hyp-connect] getGameContent failed for ${
+        server.id
+      }; continuing without announcements/social media: ${String(error)}`
     );
   }
 

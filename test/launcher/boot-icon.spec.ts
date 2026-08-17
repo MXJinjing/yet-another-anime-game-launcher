@@ -23,7 +23,9 @@ describe("getChannelBootIcon", () => {
 
   it("maps the dedicated game icons and falls back to the default", () => {
     expect(getChannelBootIcon("hkrpgcn")).toBe(getChannelBootIcon("hkrpgos"));
-    expect(getChannelBootIcon("bh3glb")).not.toBe(getChannelBootIcon("hkrpgcn"));
+    expect(getChannelBootIcon("bh3glb")).not.toBe(
+      getChannelBootIcon("hkrpgcn")
+    );
     expect(getChannelBootIcon("mhyos")).toBe(getChannelBootIcon("hk4eos"));
     expect(getChannelBootIcon("unknown")).toBe(getChannelBootIcon("hk4eos"));
   });

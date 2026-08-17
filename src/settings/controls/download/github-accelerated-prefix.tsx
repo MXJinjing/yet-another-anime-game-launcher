@@ -19,7 +19,12 @@ declare module "../../../config/config-def" {
   }
 }
 
-type GithubPrefixStatus = "idle" | "testing" | "connected" | "failed" | "invalid";
+type GithubPrefixStatus =
+  | "idle"
+  | "testing"
+  | "connected"
+  | "failed"
+  | "invalid";
 
 function statusKey(status: GithubPrefixStatus): LocaleTextKey | undefined {
   switch (status) {

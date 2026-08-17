@@ -35,7 +35,7 @@ export abstract class SettingsController<T extends BaseLoadedSettings> {
           <TabList minW={120}>{this.renderTabList(props)}</TabList>
           {this.renderAuxiliaryLinks(props)}
         </div>
-          {this.renderTabs(props)}
+        {this.renderTabs(props)}
       </Tabs>
     );
 

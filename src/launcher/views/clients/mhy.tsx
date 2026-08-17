@@ -128,10 +128,7 @@ export function MhyClientView(props: {
                     >
                       <img src={social.icon.url} alt="" />
                       <Show when={social.enable_red_dot}>
-                        <span
-                          class="hyp-mhy-social-dot"
-                          aria-hidden="true"
-                        />
+                        <span class="hyp-mhy-social-dot" aria-hidden="true" />
                       </Show>
                     </button>
                   </div>
@@ -199,10 +196,7 @@ export function MhyClientView(props: {
                         ›
                       </button>
                     </div>
-                    <div
-                      class="hyp-mhy-banner-dots"
-                      aria-label="Banner 切换"
-                    >
+                    <div class="hyp-mhy-banner-dots" aria-label="Banner 切换">
                       <For each={banners()}>
                         {(_, index) => (
                           <button

@@ -11,11 +11,7 @@ import {
 } from "@runtime";
 import { log } from "@logging/logger";
 import { openDir } from "@platform/neutralino";
-import {
-  getWineDistributions,
-  type Wine,
-  type WineDistribution,
-} from "@wine";
+import { getWineDistributions, type Wine, type WineDistribution } from "@wine";
 import { SHARED_WINE_TAG } from "@wine/multi-game";
 import {
   Popover,
@@ -190,21 +186,15 @@ function ProgressPanel({
             </span>
           </div>
         </Show>
-        <Show
-          when={current().showDownloadedRow}
-        >
+        <Show when={current().showDownloadedRow}>
           <div class="hyp-download-row">
-            <span class="hyp-download-label">
-              {locale.get("DOWNLOADED")}
-            </span>
+            <span class="hyp-download-label">{locale.get("DOWNLOADED")}</span>
             <span class="hyp-download-value">
               {current().downloaded}/{current().total}
             </span>
           </div>
         </Show>
-        <Show
-          when={current().showSpeedRow}
-        >
+        <Show when={current().showSpeedRow}>
           <div class="hyp-download-row">
             <span class="hyp-download-label">
               {locale.get("DOWNLOAD_SPEED")}
@@ -425,8 +415,7 @@ export async function createHypLauncher({
               game.client.uiContent.channelName || game.id.toUpperCase(),
           } satisfies GameLibraryItem)
       );
-    const [nativeSettingsGame, setNativeSettingsGame] =
-      createSignal<HypGame>();
+    const [nativeSettingsGame, setNativeSettingsGame] = createSignal<HypGame>();
     const [nativeSettingsOpen, setNativeSettingsOpen] = createSignal(false);
     let nativeSettingsCloseTimer: ReturnType<typeof setTimeout> | undefined;
     onCleanup(() => {
@@ -457,8 +446,7 @@ export async function createHypLauncher({
       if (id.includes("universal")) return "Uni";
       return "OS";
     };
-    const [updatePromptGame, setUpdatePromptGame] =
-      createSignal<HypGame>();
+    const [updatePromptGame, setUpdatePromptGame] = createSignal<HypGame>();
     const [videoLoaded, setVideoLoaded] = createSignal(false);
     const [bgIndex, setBgIndex] =
       createSignal<Record<string, number>>(initialBgIndex);
@@ -529,9 +517,8 @@ export async function createHypLauncher({
     const [gameRunningByKey, setGameRunningByKey] = createSignal<
       Record<string, boolean>
     >({});
-    const [gameLifecycleActiveByKey, setGameLifecycleActiveByKey] = createSignal<
-      Record<string, boolean>
-    >({});
+    const [gameLifecycleActiveByKey, setGameLifecycleActiveByKey] =
+      createSignal<Record<string, boolean>>({});
     let restoreNativeSettingsNamespace: (() => void) | undefined;
     const taskQueue = createConcurrentTaskQueueState({
       locale,
@@ -575,9 +562,7 @@ export async function createHypLauncher({
         await Promise.all(
           [...winesToStop].map(wineToStop => wineToStop.killAll())
         );
-        await Promise.all(
-          lifecycleKeys.map(key => taskQueue.waitForIdle(key))
-        );
+        await Promise.all(lifecycleKeys.map(key => taskQueue.waitForIdle(key)));
       };
     }
     const selectedGameTaskState = createMemo(() =>
@@ -721,8 +706,7 @@ export async function createHypLauncher({
       const isEnvironmentExtract =
         args?.key === "EXTRACT_ENVIRONMENT" ||
         args?.key === "DECOMPRESS_FILE_PROGRESS";
-      const isEnvironmentConfiguring =
-        args?.key === "CONFIGURING_ENVIRONMENT";
+      const isEnvironmentConfiguring = args?.key === "CONFIGURING_ENVIRONMENT";
       const isWineDownload =
         isEnvironmentDownload &&
         selectedGame().wineTag?.() !== undefined &&
@@ -730,7 +714,8 @@ export async function createHypLauncher({
       const isGameRunning = args?.key === "GAME_RUNNING";
       const isLaunchPhase = taskStatusText.startsWith("启动阶段");
       const isRestorePhase =
-        args?.key === "REVERT_PATCHING" || taskStatusText.startsWith("还原阶段");
+        args?.key === "REVERT_PATCHING" ||
+        taskStatusText.startsWith("还原阶段");
       // The pre-download integrity scan reports a file counter instead of a
       // transfer; render it as the same "file progress" row as downloads,
       // with a fixed title (the per-file "scanning file N of M" detail lives
@@ -827,8 +812,7 @@ export async function createHypLauncher({
       const isEnvironmentExtract =
         args?.key === "EXTRACT_ENVIRONMENT" ||
         args?.key === "DECOMPRESS_FILE_PROGRESS";
-      const isEnvironmentConfiguring =
-        args?.key === "CONFIGURING_ENVIRONMENT";
+      const isEnvironmentConfiguring = args?.key === "CONFIGURING_ENVIRONMENT";
       const title = isDownloadStatus
         ? isEnvSpeed
           ? locale.get("DOWNLOADING_ENVIRONMENT")
@@ -1223,11 +1207,7 @@ export async function createHypLauncher({
         <div class="hyp-vignette" aria-hidden="true" />
 
         <Show when={currentBackgrounds().length > 1}>
-          <div
-            class="hyp-bg-switcher"
-            role="group"
-            aria-label="Backgrounds"
-          >
+          <div class="hyp-bg-switcher" role="group" aria-label="Backgrounds">
             <For each={currentBackgrounds()}>
               {(_, index) => (
                 <button
@@ -1354,180 +1334,177 @@ export async function createHypLauncher({
         </main>
 
         <section class="hyp-action-area">
-            <div class="hyp-action-group">
-              <Show when={globalProgressPanel()}>
-                <ProgressPanel panel={globalProgressPanel} locale={locale} />
-              </Show>
-              <Show when={activeProgressPanel()}>
-                <ProgressPanel panel={activeProgressPanel} locale={locale} />
-              </Show>
-              <Show
-                when={
-                  selectedGame().client.showPredownloadPrompt() &&
-                  !selectedGameTaskState().busy() &&
-                  wineInstalled()
+          <div class="hyp-action-group">
+            <Show when={globalProgressPanel()}>
+              <ProgressPanel panel={globalProgressPanel} locale={locale} />
+            </Show>
+            <Show when={activeProgressPanel()}>
+              <ProgressPanel panel={activeProgressPanel} locale={locale} />
+            </Show>
+            <Show
+              when={
+                selectedGame().client.showPredownloadPrompt() &&
+                !selectedGameTaskState().busy() &&
+                wineInstalled()
+              }
+            >
+              <button class="hyp-secondary-button" onClick={onPredownload}>
+                {locale.format("PREDOWNLOAD_READY", [
+                  selectedGame().client.predownloadVersion(),
+                ])}
+              </button>
+            </Show>
+            <div class="hyp-primary-row">
+              <button
+                classList={{
+                  "hyp-primary-button": true,
+                  "hyp-primary-button-downloading":
+                    !selectedGameRunning() &&
+                    (selectedDownloadControl().active ||
+                      activeTaskState().progress() > 0),
+                }}
+                disabled={actionDisabled()}
+                onClick={() => onPrimaryAction().catch(fatal)}
+                style={
+                  {
+                    "--hyp-accent": themeHex(),
+                    "--hyp-accent-text": themeText(),
+                  } as JSX.CSSProperties
                 }
               >
-                <button
-                  class="hyp-secondary-button"
-                  onClick={onPredownload}
-                >
-                  {locale.format("PREDOWNLOAD_READY", [
-                    selectedGame().client.predownloadVersion(),
-                  ])}
-                </button>
-              </Show>
-              <div class="hyp-primary-row">
-                <button
-                  classList={{
-                    "hyp-primary-button": true,
-                    "hyp-primary-button-downloading":
-                      !selectedGameRunning() &&
-                      (selectedDownloadControl().active ||
-                        activeTaskState().progress() > 0),
-                  }}
-                  disabled={actionDisabled()}
-                  onClick={() => onPrimaryAction().catch(fatal)}
-                  style={
-                    {
-                      "--hyp-accent": themeHex(),
-                      "--hyp-accent-text": themeText(),
-                    } as JSX.CSSProperties
+                <Show
+                  when={
+                    !selectedGameRunning() &&
+                    (selectedDownloadControl().active ||
+                      activeTaskState().progress() > 0)
                   }
                 >
-                  <Show
-                    when={
-                      !selectedGameRunning() &&
-                      (selectedDownloadControl().active ||
-                        activeTaskState().progress() > 0)
-                    }
-                  >
-                    <span class="hyp-ring">
-                      <span
-                        class="hyp-ring-progress"
-                        style={{
-                          "--hyp-ring-progress": `${activeTaskState().progress()}%`,
-                        }}
-                        aria-hidden="true"
-                      />
-                      <Show
-                        when={selectedDownloadControl().pauseRequested}
-                        fallback={
-                          <span class="hyp-ring-text">
-                            {Math.round(activeTaskState().progress())}
-                          </span>
-                        }
-                      >
-                        <span class="hyp-ring-icon">
-                          <span class="hyp-ring-icon-pause" aria-hidden="true" />
+                  <span class="hyp-ring">
+                    <span
+                      class="hyp-ring-progress"
+                      style={{
+                        "--hyp-ring-progress": `${activeTaskState().progress()}%`,
+                      }}
+                      aria-hidden="true"
+                    />
+                    <Show
+                      when={selectedDownloadControl().pauseRequested}
+                      fallback={
+                        <span class="hyp-ring-text">
+                          {Math.round(activeTaskState().progress())}
                         </span>
-                      </Show>
-                    </span>
-                  </Show>
-                  <span class="hyp-action-copy">
-                    <span>{primaryButtonLabel()}</span>
+                      }
+                    >
+                      <span class="hyp-ring-icon">
+                        <span class="hyp-ring-icon-pause" aria-hidden="true" />
+                      </span>
+                    </Show>
                   </span>
-                </button>
-                <Popover placement="top-end">
-                  {({ onClose }) => (
-                    <>
-                      <PopoverTrigger
-                        class="hyp-menu-button"
-                        aria-label={locale.get("SETTING_QUICK_ACTIONS")}
-                        title={locale.get("SETTING_QUICK_ACTIONS")}
-                      >
-                        <span class="hyp-menu-icon" aria-hidden="true" />
-                      </PopoverTrigger>
-                      <PopoverContent class="hyp-menu-popover-content">
-                        <PopoverBody class="hyp-menu-popover-body">
-                          <div class="hyp-menu-popover">
-                            <div class="hyp-menu-version">
-                              <span>{locale.get("GAME_VERSION")}</span>
-                              <strong>
-                                {displayGameVersion(selectedGame())}
-                              </strong>
-                            </div>
-                            <button
-                              class="hyp-menu-item"
-                              disabled={
-                                selectedGame().client.installState() !==
-                                  "INSTALLED" || actionDisabled()
-                              }
-                              onClick={() => {
-                                startCheckIntegrity(selectedGame());
-                                onClose();
-                              }}
-                            >
-                              {locale.get("SETTING_CHECK_INTEGRITY")}
-                            </button>
-                            <button
-                              class="hyp-menu-item"
-                              disabled={!selectedGame().client.installDir()}
-                              onClick={() => {
-                                void exec2(
-                                  ["open", selectedGame().client.installDir()],
-                                  {},
-                                  false,
-                                  "/dev/null"
-                                );
-                                onClose();
-                              }}
-                            >
-                              {locale.get("SETTING_OPEN_GAME_INSTALL_DIR")}
-                            </button>
-                            <button
-                              class="hyp-menu-item"
-                              disabled={
-                                !selectedGame().client.installDir() ||
-                                actionDisabled()
-                              }
-                              onClick={() => {
-                                openGameUninstallDialog();
-                                onClose();
-                              }}
-                            >
-                              {locale.get("SETTING_UNINSTALL_GAME")}
-                            </button>
-                            <div class="hyp-menu-divider" />
-                            <button
-                              class="hyp-menu-item"
-                              onClick={() => {
-                                openNativeSettings(selectedGame());
-                                onClose();
-                              }}
-                            >
-                              {locale.currentLanguage.startsWith("zh")
-                                ? "游戏设置"
-                                : "Game Settings"}
-                            </button>
-                            <button
-                              class="hyp-menu-item"
-                              onClick={() => {
-                                openLogs();
-                                onClose();
-                              }}
-                            >
-                              {locale.get("LOG_VIEWER_OPEN_ACTION")}
-                            </button>
-                            <Show when={selectedGameRunning()}>
-                              <button
-                                class="hyp-menu-item hyp-menu-item-danger"
-                                onClick={() => {
-                                  void forceQuitSelectedGame();
-                                  onClose();
-                                }}
-                              >
-                                {locale.get("FORCE_QUIT_GAME")}
-                              </button>
-                            </Show>
+                </Show>
+                <span class="hyp-action-copy">
+                  <span>{primaryButtonLabel()}</span>
+                </span>
+              </button>
+              <Popover placement="top-end">
+                {({ onClose }) => (
+                  <>
+                    <PopoverTrigger
+                      class="hyp-menu-button"
+                      aria-label={locale.get("SETTING_QUICK_ACTIONS")}
+                      title={locale.get("SETTING_QUICK_ACTIONS")}
+                    >
+                      <span class="hyp-menu-icon" aria-hidden="true" />
+                    </PopoverTrigger>
+                    <PopoverContent class="hyp-menu-popover-content">
+                      <PopoverBody class="hyp-menu-popover-body">
+                        <div class="hyp-menu-popover">
+                          <div class="hyp-menu-version">
+                            <span>{locale.get("GAME_VERSION")}</span>
+                            <strong>
+                              {displayGameVersion(selectedGame())}
+                            </strong>
                           </div>
-                        </PopoverBody>
-                      </PopoverContent>
-                    </>
-                  )}
-                </Popover>
-              </div>
+                          <button
+                            class="hyp-menu-item"
+                            disabled={
+                              selectedGame().client.installState() !==
+                                "INSTALLED" || actionDisabled()
+                            }
+                            onClick={() => {
+                              startCheckIntegrity(selectedGame());
+                              onClose();
+                            }}
+                          >
+                            {locale.get("SETTING_CHECK_INTEGRITY")}
+                          </button>
+                          <button
+                            class="hyp-menu-item"
+                            disabled={!selectedGame().client.installDir()}
+                            onClick={() => {
+                              void exec2(
+                                ["open", selectedGame().client.installDir()],
+                                {},
+                                false,
+                                "/dev/null"
+                              );
+                              onClose();
+                            }}
+                          >
+                            {locale.get("SETTING_OPEN_GAME_INSTALL_DIR")}
+                          </button>
+                          <button
+                            class="hyp-menu-item"
+                            disabled={
+                              !selectedGame().client.installDir() ||
+                              actionDisabled()
+                            }
+                            onClick={() => {
+                              openGameUninstallDialog();
+                              onClose();
+                            }}
+                          >
+                            {locale.get("SETTING_UNINSTALL_GAME")}
+                          </button>
+                          <div class="hyp-menu-divider" />
+                          <button
+                            class="hyp-menu-item"
+                            onClick={() => {
+                              openNativeSettings(selectedGame());
+                              onClose();
+                            }}
+                          >
+                            {locale.currentLanguage.startsWith("zh")
+                              ? "游戏设置"
+                              : "Game Settings"}
+                          </button>
+                          <button
+                            class="hyp-menu-item"
+                            onClick={() => {
+                              openLogs();
+                              onClose();
+                            }}
+                          >
+                            {locale.get("LOG_VIEWER_OPEN_ACTION")}
+                          </button>
+                          <Show when={selectedGameRunning()}>
+                            <button
+                              class="hyp-menu-item hyp-menu-item-danger"
+                              onClick={() => {
+                                void forceQuitSelectedGame();
+                                onClose();
+                              }}
+                            >
+                              {locale.get("FORCE_QUIT_GAME")}
+                            </button>
+                          </Show>
+                        </div>
+                      </PopoverBody>
+                    </PopoverContent>
+                  </>
+                )}
+              </Popover>
             </div>
+          </div>
         </section>
 
         <Show when={nativeSettingsGame()}>
