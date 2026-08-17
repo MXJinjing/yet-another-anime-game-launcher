@@ -34,9 +34,10 @@ OUT="$ROOT/release-assets/$ARCH"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-cp neutralino.config.json neutralino.config.json.bak
+CONFIG_BACKUP="$(mktemp "${TMPDIR:-/tmp}/yaaglm-release-config.XXXXXX")"
+cp neutralino.config.json "$CONFIG_BACKUP"
 restore_config() {
-  mv -f neutralino.config.json.bak neutralino.config.json
+  mv -f "$CONFIG_BACKUP" neutralino.config.json
 }
 trap restore_config EXIT
 
