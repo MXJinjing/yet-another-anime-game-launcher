@@ -222,6 +222,12 @@ else
     YAAGL_NEU_READY_DIR="$YAAGL_NEU_TMP/runtime"
   elif [ -n "${YAAGL_NEUTRALINO_SOURCE:-}" ] && yaagl_neu_build_from_source "$YAAGL_NEU_TMP"; then
     YAAGL_NEU_READY_DIR="$YAAGL_NEU_TMP/runtime"
+  elif git clone --quiet --filter=blob:none \
+      "https://github.com/MXJinjing/yaagl-neutralinojs.git" \
+      "$YAAGL_NEU_TMP/source-clone" \
+    && YAAGL_NEUTRALINO_SOURCE="$YAAGL_NEU_TMP/source-clone" \
+      yaagl_neu_build_from_source "$YAAGL_NEU_TMP"; then
+    YAAGL_NEU_READY_DIR="$YAAGL_NEU_TMP/runtime"
   else
     echo "Unable to obtain the verified MXJinjing Neutralino fork." >&2
     echo "Retry the release download, or explicitly set:" >&2
