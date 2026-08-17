@@ -41,7 +41,7 @@ export async function writeFile(path: string, data: string) {
 }
 
 export async function removeFile(path: string) {
-  return Neutralino.filesystem.remove(resolve(path));
+  return Neutralino.filesystem.removeFile(resolve(path));
 }
 
 export async function readDirectory(path: string) {
@@ -58,7 +58,7 @@ export async function removeFileIfExists(path: string) {
   } catch {
     return;
   }
-  return Neutralino.filesystem.remove(resolve(path));
+  return Neutralino.filesystem.removeFile(resolve(path));
 }
 
 export async function fileOrDirExists(path: string) {

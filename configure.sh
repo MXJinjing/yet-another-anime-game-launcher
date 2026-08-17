@@ -65,17 +65,17 @@ mkdir -p "$EXTERNAL/hkrpg/os/files"
 # The launcher depends on macOS window features that only exist in the
 # MXJinjing/yaagl-neutralinojs fork. Never silently fall back to another
 # Neutralino runtime: a compatible RPC surface alone is not sufficient.
-YAAGL_NEU_TAG="v4.11.0-yaagl.2"
-YAAGL_NEU_COMMIT="d7e7c6deae143248f383f5adff715499ca15b31a"
+YAAGL_NEU_TAG="v3.9.0-yaaglm.1"
+YAAGL_NEU_COMMIT="967bb65cc63918ab69f6607a0d1abbecd42cb605"
 YAAGL_NEU_ARCHIVE="neutralinojs-${YAAGL_NEU_TAG}.zip"
 YAAGL_NEU_URL="https://github.com/MXJinjing/yaagl-neutralinojs/releases/download/${YAAGL_NEU_TAG}/${YAAGL_NEU_ARCHIVE}"
-YAAGL_NEU_ARCHIVE_SHA256="c607ce5cab6fed311781a8c449117f94077e2f54a1f1424cc1dd086121cc7840"
+YAAGL_NEU_ARCHIVE_SHA256="14a35969e883e7b5f050775010396ab5cf4e9d2ae6ede1a07b699db1b7ad6ce9"
 # These hashes correspond to the locally built MXJinjing fork with the
 # x86_64 objc_msgSend_stret fix for CGRect-returning messages. Rebuild it
 # from source via YAAGL_NEUTRALINO_SOURCE when bin/ is missing.
-YAAGL_NEU_X64_SHA256="6f2ee284b5d67c53af92c783ad6ffa7079410fa9bba93ba17b1d2128645945f9"
-YAAGL_NEU_ARM64_SHA256="963ac3ac891dbcb81b7641ff95079aa468e5ac549b77e89a4bf2aee3ed215ef8"
-YAAGL_NEU_UNIVERSAL_SHA256="ef936a3397b4a34d8c9d0249facf855cadc045149d53637ae9a3f599e12d8d38"
+YAAGL_NEU_X64_SHA256="303291f4768dea23dbf1caa9c7dc63cf4ed9cb0c022db820ef1dd932fb12a4e9"
+YAAGL_NEU_ARM64_SHA256="7f2fd529b8311a4e626c922da57d57e3eff2094dfba13326bf9a1c6050c344f0"
+YAAGL_NEU_UNIVERSAL_SHA256="3e587e2dfe75e03c231fc98263262f79b6510c08351b704d06c920180633c26a"
 
 yaagl_neu_sha256() {
   shasum -a 256 "$1" | awk '{print $1}'
