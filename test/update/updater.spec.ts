@@ -6,7 +6,11 @@ vi.mock("@runtime/storage", () => ({
 }));
 
 import { getKey } from "@runtime/storage";
-import { createUpdater } from "@src/update/updater";
+import {
+  createUpdater,
+  getSidecarAppBundleName,
+  getSidecarTopLevelDir,
+} from "@src/update/updater";
 
 const mockedGetKey = vi.mocked(getKey);
 
@@ -29,4 +33,18 @@ describe("createUpdater", () => {
     expect(github.api).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["mhycn", "Yaaglm.CN.app.tar.gz", "Yaaglm CN.app"],
+    ["mhyos", "Yaaglm.OS.app.tar.gz", "Yaaglm OS.app"],
+    ["cbjq", "Yaaglm.SCZ.OS.app.tar.gz", "Yaaglm SCZ OS.app"],
+    ["cbjqcn", "Yaaglm.SCZ.app.tar.gz", "Yaaglm SCZ.app"],
+  ])(
+    "maps %s to its sidecar archive and top-level directory",
+    (channel, archive, topLevelDir) => {
+      expect(getSidecarAppBundleName(channel)).toBe(archive);
+      expect(
+        getSidecarTopLevelDir(`https://github.com/example/download/${archive}`)
+      ).toBe(topLevelDir);
+    }
+  );
 });

@@ -17,6 +17,18 @@ OUTPUT_DIR="./build"
 if [ "$TARGET_ARCH" = "x64" ]; then
   OUTPUT_DIR="./build-x64"
   SOPHON_PYTHON="${SOPHON_PYTHON:-$PWD/sophon_server/.venv-x64/bin/python}"
+  if [ ! -x "$SOPHON_PYTHON" ]; then
+    echo "Creating x86_64 Python environment for Sophon..."
+    command -v uv >/dev/null || {
+      echo "ERROR: uv is required to create the x64 Sophon environment" >&2
+      exit 1
+    }
+    uv python install cpython-3.13.14-macos-x86_64-none
+    UV_PROJECT_ENVIRONMENT="$PWD/sophon_server/.venv-x64" \
+      uv sync --project "$PWD/sophon_server" \
+        --python cpython-3.13.14-macos-x86_64-none
+    SOPHON_PYTHON="$PWD/sophon_server/.venv-x64/bin/python"
+  fi
 fi
 
 cp "./sidecar/${TARGET_ARCH}/hpatchz/hpatchz" ./sophon_server/hpatchz

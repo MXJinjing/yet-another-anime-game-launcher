@@ -35,3 +35,5 @@ server_secret.ts
 **/__pycache__
 neutralino.config.json.bak
 build-all.sh
+/release-assets
+*.log

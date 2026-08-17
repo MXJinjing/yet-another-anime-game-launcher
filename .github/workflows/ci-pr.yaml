@@ -1,48 +1,39 @@
-name: "Pull Request CI Check"
+name: Pull Request CI
+
 on:
   pull_request:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
-  tsc:
-    runs-on: macos-latest
+  check:
+    runs-on: macos-14
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Install Node.js
-        uses: actions/setup-node@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 20
 
-      - uses: pnpm/action-setup@v2
-        name: Install pnpm
-        id: pnpm-install
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
         with:
-          version: 7
-          run_install: false
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v3
-        name: Setup pnpm cache
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          version: 9
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
-      - name: Type/Lint/Format check
-        run: |
-          ./configure.sh
-          pnpm exec tsc
-          pnpm run format-check
-          pnpm run lint
+      - name: Configure channel secrets and Neutralino runtime
+        run: ./configure.sh
+
+      - name: Type check, lint, and format
+        run: pnpm run precommit
+
+      - name: Unit tests
+        run: pnpm exec vitest run

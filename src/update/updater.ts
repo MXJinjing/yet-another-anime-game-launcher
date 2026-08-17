@@ -19,6 +19,45 @@ import type { TaskProgram } from "../tasks/task-program";
 
 const owner = "MXJinjing";
 const repo = "yet-another-anime-game-launcher";
+
+const SIDECAR_APP_BUNDLES: Record<string, string> = {
+  hk4ecn: "Yaaglm.app.tar.gz",
+  hk4eos: "Yaaglm.GI.OS.app.tar.gz",
+  bh3glb: "Yaaglm.Honkai.Global.app.tar.gz",
+  hkrpgcn: "Yaaglm.HSR.app.tar.gz",
+  hkrpgos: "Yaaglm.HSR.OS.app.tar.gz",
+  napcn: "Yaaglm.ZZZ.app.tar.gz",
+  napos: "Yaaglm.ZZZ.OS.app.tar.gz",
+  mhycn: "Yaaglm.CN.app.tar.gz",
+  mhyos: "Yaaglm.OS.app.tar.gz",
+  cbjq: "Yaaglm.SCZ.OS.app.tar.gz",
+  cbjqcn: "Yaaglm.SCZ.app.tar.gz",
+};
+
+const SIDECAR_TOP_LEVEL_DIRS: Record<string, string> = {
+  "Yaaglm.app": "Yaaglm.app",
+  "Yaaglm.GI.OS.app": "Yaaglm GI OS.app",
+  "Yaaglm.Honkai.Global.app": "Yaaglm Honkai Global.app",
+  "Yaaglm.HSR.app": "Yaaglm HSR.app",
+  "Yaaglm.HSR.OS.app": "Yaaglm HSR OS.app",
+  "Yaaglm.ZZZ.app": "Yaaglm ZZZ.app",
+  "Yaaglm.ZZZ.OS.app": "Yaaglm ZZZ OS.app",
+  "Yaaglm.CN.app": "Yaaglm CN.app",
+  "Yaaglm.OS.app": "Yaaglm OS.app",
+  "Yaaglm.SCZ.OS.app": "Yaaglm SCZ OS.app",
+  "Yaaglm.SCZ.app": "Yaaglm SCZ.app",
+};
+
+export function getSidecarAppBundleName(updateVersion: string): string {
+  return SIDECAR_APP_BUNDLES[updateVersion] ?? "";
+}
+
+export function getSidecarTopLevelDir(sidecarUrl: string): string {
+  const archiveBase =
+    sidecarUrl.split("/").pop()?.replace(/\.tar\.gz$/, "") ?? "";
+  return SIDECAR_TOP_LEVEL_DIRS[archiveBase] ?? archiveBase;
+}
+
 export async function createUpdater({
   github,
   aria2,
@@ -60,32 +99,7 @@ export async function createUpdater({
     )) as GithubReleaseInfo;
     const update_neu = `resources_${updateVersion}.neu`;
     const neu = latest.assets.find(x => x.name == update_neu);
-
-    // Determine app bundle name based on updateVersion
-    let appBundleName = "";
-    switch (updateVersion) {
-      case "hk4ecn":
-        appBundleName = "Yaaglm.app.tar.gz";
-        break;
-      case "hk4eos":
-        appBundleName = "Yaaglm.GI.OS.app.tar.gz";
-        break;
-      case "bh3glb":
-        appBundleName = "Yaaglm.Honkai.Global.app.tar.gz";
-        break;
-      case "hkrpgcn":
-        appBundleName = "Yaaglm.HSR.app.tar.gz";
-        break;
-      case "hkrpgos":
-        appBundleName = "Yaaglm.HSR.OS.app.tar.gz";
-        break;
-      case "napcn":
-        appBundleName = "Yaaglm.ZZZ.app.tar.gz";
-        break;
-      case "napos":
-        appBundleName = "Yaaglm.ZZZ.OS.app.tar.gz";
-        break;
-    }
+    const appBundleName = getSidecarAppBundleName(updateVersion);
     const sidecar = latest.assets.find(x => x.name == appBundleName);
 
     if (gt(latest.tag_name, CURRENT_YAAGL_VERSION) && neu !== undefined) {
@@ -131,16 +145,7 @@ export async function* downloadProgram(
     }
     await rmrf_dangerously("./sidecar");
     await mkdirp("./sidecar");
-    let topLevelDir = sidecarUrl.split("/").pop()?.replace(".tar.gz", "") || "";
-
-    if (topLevelDir === "Yaaglm.app") topLevelDir = "Yaaglm.app";
-    if (topLevelDir === "Yaaglm.GI.OS.app") topLevelDir = "Yaaglm GI OS.app";
-    if (topLevelDir === "Yaaglm.Honkai.Global.app")
-      topLevelDir = "Yaaglm Honkai Global.app";
-    if (topLevelDir === "Yaaglm.HSR.app") topLevelDir = "Yaaglm HSR.app";
-    if (topLevelDir === "Yaaglm.HSR.OS.app") topLevelDir = "Yaaglm HSR OS.app";
-    if (topLevelDir === "Yaaglm.ZZZ.app") topLevelDir = "Yaaglm ZZZ.app";
-    if (topLevelDir === "Yaaglm.ZZZ.OS.app") topLevelDir = "Yaaglm ZZZ OS.app";
+    const topLevelDir = getSidecarTopLevelDir(sidecarUrl);
 
     await tar_extract_directory(
       "./sidecar.tar.gz",

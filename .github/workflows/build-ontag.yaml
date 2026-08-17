@@ -1,122 +1,77 @@
-name: "Build Latest (when new tag created)"
+name: Build Release
+
 on:
   push:
     tags:
-      - '*'
-env:
-  YAAGL_VERSION: ${{ github.ref_name }}
+      - "*"
+
 permissions:
-  contents: "write"
-  packages: "write"
-  pull-requests: "read"
+  contents: write
+
 jobs:
-  build:
-    runs-on: macos-latest
+  release:
+    runs-on: macos-14
+    timeout-minutes: 120
+    env:
+      YAAGL_VERSION: ${{ github.ref_name }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Install UV
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-      - name: Sophon Build Cache
-        id: sophon-build-cache
-        uses: actions/cache@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          key: cache-key-${{ hashFiles('build-sophon.sh', 'sophon_server/*.py', 'sophon_server/uv.lock', 'sophon_server/.python-version', 'sophon_server/pyproject.toml') }}
-          path: |
-            ./sophon_server/build/
-            ./sophon_server/.cache/
+          node-version: 20
 
-      - name: Sophon Build
-        if: ${{ steps.sophon-build-cache.outputs.cache-hit != 'true' }}
-        run: |
-          ./build-sophon.sh
-
-      - name: Save Sophon Build Cache
-        if: ${{ steps.sophon-build-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v4
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
         with:
-          key: cache-key-${{ hashFiles('build-sophon.sh', 'sophon_server/*.py', 'sophon_server/uv.lock', 'sophon_server/.python-version', 'sophon_server/pyproject.toml') }}
-          path: |
-            ./sophon_server/build/
-            ./sophon_server/.cache/
-
-      - name: Install Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-
-      - uses: pnpm/action-setup@v2
-        name: Install pnpm
-        id: pnpm-install
-        with:
-          version: 7
-          run_install: false
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v3
-        name: Setup pnpm cache
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          version: 9
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
-      - name: Build app
-        run: |
-          ./configure.sh
-          YAAGL_CHANNEL_CLIENT=hk4ecn node ./build-app.js
-          cp dist/Yaaglm/resources.neu resources_hk4ecn.neu
-          YAAGL_CHANNEL_CLIENT=hk4eos node ./build-app.js
-          cp dist/Yaaglm/resources.neu resources_hk4eos.neu
-          YAAGL_CHANNEL_CLIENT=bh3glb node ./build-app.js
-          cp dist/Yaaglm/resources.neu resources_bh3glb.neu
-          YAAGL_CHANNEL_CLIENT=hkrpgcn node ./build-app.js
-          cp dist/Yaaglm/resources.neu resources_hkrpgcn.neu
-          YAAGL_CHANNEL_CLIENT=hkrpgos node ./build-app.js
-          cp dist/Yaaglm/resources.neu resources_hkrpgos.neu
-          YAAGL_CHANNEL_CLIENT=napcn node ./build-app.js
-          cp dist/Yaaglm/resources.neu resources_napcn.neu
-          YAAGL_CHANNEL_CLIENT=napos node ./build-app.js
-          cp dist/Yaaglm/resources.neu resources_napos.neu
+      - name: Configure channel secrets and Neutralino runtime
+        run: ./configure.sh
 
-      - name: Tar app
+      - name: Build Sophon for arm64
+        run: ./build-sophon.sh
+
+      - name: Build Sophon for x64
+        run: SOPHON_ARCH=x64 ./build-sophon.sh
+
+      - name: Build arm64 release assets
+        run: bash scripts/build-release.sh
+        env:
+          YAAGL_BUILD_ARCH: arm64
+
+      - name: Build x64 release assets
+        run: bash scripts/build-release.sh
+        env:
+          YAAGL_BUILD_ARCH: x64
+
+      - name: Build universal release assets
+        run: bash scripts/build-release.sh
+        env:
+          YAAGL_BUILD_ARCH: universal
+
+      - name: Verify release assets
         run: |
-          tar -zcf Yaaglm.app.tar.gz Yaaglm.app
-          tar -zcf "Yaaglm OS.app.tar.gz" "Yaaglm OS.app"
-          tar -zcf "Yaaglm Honkai Global.app.tar.gz" "Yaaglm Honkai Global.app"
-          tar -zcf "Yaaglm HSR.app.tar.gz" "Yaaglm HSR.app"
-          tar -zcf "Yaaglm HSR OS.app.tar.gz" "Yaaglm HSR OS.app"
-          tar -zcf "Yaaglm ZZZ.app.tar.gz" "Yaaglm ZZZ.app"
-          tar -zcf "Yaaglm ZZZ OS.app.tar.gz" "Yaaglm ZZZ OS.app"
-      - name: Generate prerelease
-        uses: "marvinpinto/action-automatic-releases@latest"
+          test "$(find release-assets/arm64 -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 11
+          test "$(find release-assets/x64 -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 11
+          test "$(find release-assets/universal -maxdepth 1 -name 'resources_*.neu' | wc -l | tr -d ' ')" -eq 11
+          test "$(find release-assets/universal -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 22
+
+      - name: Publish draft release
+        uses: softprops/action-gh-release@v2
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
           draft: true
-          title: "Release ${{ github.ref_name }}"
+          generate_release_notes: true
           files: |
-            Yaaglm.app.tar.gz
-            Yaaglm OS.app.tar.gz
-            Yaaglm Honkai Global.app.tar.gz
-            Yaaglm HSR.app.tar.gz
-            Yaaglm HSR OS.app.tar.gz
-            Yaaglm ZZZ.app.tar.gz
-            Yaaglm ZZZ OS.app.tar.gz
-            resources_hk4ecn.neu
-            resources_hk4eos.neu
-            resources_bh3glb.neu
-            resources_hkrpgcn.neu
-            resources_hkrpgos.neu
-            resources_napcn.neu
-            resources_napos.neu
+            release-assets/arm64/*.tar.gz
+            release-assets/x64/*.tar.gz
+            release-assets/universal/*.tar.gz
+            release-assets/universal/*.neu

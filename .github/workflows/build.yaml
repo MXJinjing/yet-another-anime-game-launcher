@@ -1,96 +1,63 @@
-name: "Regular CI Build"
+name: Build Main
+
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-14
+    timeout-minutes: 90
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Install UV
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-      - name: Sophon Build Cache
-        id: sophon-build-cache
-        uses: actions/cache@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          key: cache-key-${{ hashFiles('build-sophon.sh', 'sophon_server/*.py', 'sophon_server/uv.lock', 'sophon_server/.python-version', 'sophon_server/pyproject.toml') }}
-          path: |
-            ./sophon_server/build/
-            ./sophon_server/.cache/
+          node-version: 20
 
-      - name: Sophon Build
-        if: ${{ steps.sophon-build-cache.outputs.cache-hit != 'true' }}
-        run: |
-          ./build-sophon.sh
-
-      - name: Save Sophon Build Cache
-        if: ${{ steps.sophon-build-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v4
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
         with:
-          key: cache-key-${{ hashFiles('build-sophon.sh', 'sophon_server/*.py', 'sophon_server/uv.lock', 'sophon_server/.python-version', 'sophon_server/pyproject.toml') }}
-          path: |
-            ./sophon_server/build/
-            ./sophon_server/.cache/
-
-      - name: Install Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-
-      - uses: pnpm/action-setup@v2
-        name: Install pnpm
-        id: pnpm-install
-        with:
-          version: 7
-          run_install: false
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v3
-        name: Setup pnpm cache
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          version: 9
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
-      - name: Build app
+      - name: Configure channel secrets and Neutralino runtime
+        run: ./configure.sh
+
+      - name: Type check, lint, and format
+        run: pnpm run precommit
+
+      - name: Unit tests
+        run: pnpm exec vitest run
+
+      - name: Build Sophon for arm64
+        run: ./build-sophon.sh
+
+      - name: Build arm64 release assets
         run: |
-          ./configure.sh
-          pnpm run format-check
-          pnpm run lint
-          YAAGL_CHANNEL_CLIENT=hk4ecn node ./build-app.js
-          YAAGL_CHANNEL_CLIENT=hk4eos node ./build-app.js
-          YAAGL_CHANNEL_CLIENT=bh3glb node ./build-app.js
-          YAAGL_CHANNEL_CLIENT=hkrpgcn node ./build-app.js
-          YAAGL_CHANNEL_CLIENT=hkrpgos node ./build-app.js
-          YAAGL_CHANNEL_CLIENT=napcn node ./build-app.js
-          YAAGL_CHANNEL_CLIENT=napos node ./build-app.js
+          YAAGL_VERSION="$(node -p "require('./package.json').version")" \
+            bash scripts/build-release.sh
+        env:
+          YAAGL_BUILD_ARCH: arm64
 
-      # - name: Tar app
-      #   run: |
-      #     tar -zcf Yaaglm.tar.gz Yaaglm.app
-      #     tar -zcf "Yaaglm OS.tar.gz" "Yaaglm OS.app"
-      #     tar -zcf "Yaaglm Honkai Global.tar.gz" "Yaaglm Honkai Global.app"
-      # - name: Upload artifact - app
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: app
-      #     path: Yaaglm.tar.gz
-      # - name: Upload artifact - app-os
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: app-os
-      #     path: "Yaaglm OS.tar.gz"
+      - name: Verify arm64 release assets
+        run: |
+          test "$(find release-assets/arm64 -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 11
+
+      - name: Upload arm64 release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: yaaglm-arm64
+          path: release-assets/arm64
