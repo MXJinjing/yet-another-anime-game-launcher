@@ -8,7 +8,11 @@ import type { Locale, LocaleTextKey } from "@locale";
 export interface TaskNotifier {
   taskCompleted(locale: Locale, taskName: LocaleTextKey): void;
   taskCancelled(locale: Locale, taskName: LocaleTextKey): void;
-  taskFailed(locale: Locale, taskName?: LocaleTextKey): void;
+  taskFailed(
+    locale: Locale,
+    taskName?: LocaleTextKey,
+    error?: unknown
+  ): void;
   connectionError(locale: Locale, taskName?: LocaleTextKey): void;
 }
 
@@ -27,13 +31,16 @@ export const hopeTaskNotifier: TaskNotifier = {
       description: locale.get("NOTIFICATION_TASK_CANCELLED"),
     });
   },
-  taskFailed(locale, taskName) {
+  taskFailed(locale, taskName, error) {
     notificationService.show({
       status: "danger",
       title: taskName
         ? locale.get(taskName)
         : locale.get("NOTIFICATION_TASK_FAILED_TITLE"),
-      description: locale.get("NOTIFICATION_TASK_FAILED"),
+      description:
+        error instanceof Error && error.message
+          ? error.message
+          : locale.get("NOTIFICATION_TASK_FAILED"),
     });
   },
   connectionError(locale, taskName) {
@@ -55,8 +62,12 @@ export function notifyTaskCancelled(locale: Locale, taskName: LocaleTextKey) {
   hopeTaskNotifier.taskCancelled(locale, taskName);
 }
 
-export function notifyTaskFailed(locale: Locale, taskName?: LocaleTextKey) {
-  hopeTaskNotifier.taskFailed(locale, taskName);
+export function notifyTaskFailed(
+  locale: Locale,
+  taskName?: LocaleTextKey,
+  error?: unknown
+) {
+  hopeTaskNotifier.taskFailed(locale, taskName, error);
 }
 
 export function notifyConnectionError(

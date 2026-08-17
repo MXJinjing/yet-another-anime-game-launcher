@@ -14,7 +14,7 @@ import { log, logerror } from "../logging/logger";
 import { fatal } from "../runtime/fatal";
 import { isConnectionError } from "../services/connection-error";
 import { type Accessor, createSignal, type Setter } from "solid-js";
-import type { TaskProgram } from "./task-program";
+import { isTaskFailedError, type TaskProgram } from "./task-program";
 import type { TaskNotifier } from "./task-notifications";
 
 export type { TaskNotifier } from "./task-notifications";
@@ -234,6 +234,9 @@ export function createTaskRunner({
       } else if (isDownloadFailedError(error)) {
         await logerror(error instanceof Error ? error.message : String(error));
         notifier.taskFailed(locale, taskName);
+      } else if (isTaskFailedError(error)) {
+        await logerror(error instanceof Error ? error.message : String(error));
+        notifier.taskFailed(locale, taskName, error);
       } else if (isConnectionError(error)) {
         await logerror(error instanceof Error ? error.message : String(error));
         notifier.connectionError(locale, taskName);

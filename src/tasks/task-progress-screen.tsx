@@ -9,7 +9,7 @@ import { type Locale } from "@locale";
 import { log, logerror } from "../logging/logger";
 import { fatal } from "../runtime/fatal";
 import { isConnectionError } from "../services/connection-error";
-import type { TaskProgram } from "./task-program";
+import { isTaskFailedError, type TaskProgram } from "./task-program";
 
 const SKIP_LOG_STATE_KEYS = new Set(["DOWNLOADING_ENVIRONMENT_SPEED"]);
 
@@ -82,7 +82,11 @@ export function createTaskProgressScreen({
             setDone(true);
             return;
           }
-          if (isDownloadFailedError(error) || isConnectionError(error)) {
+          if (
+            isTaskFailedError(error) ||
+            isDownloadFailedError(error) ||
+            isConnectionError(error)
+          ) {
             await logerror(
               error instanceof Error ? error.message : String(error)
             );

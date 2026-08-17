@@ -1,6 +1,6 @@
 import { batch, createSignal } from "solid-js";
 import { Divider } from "@hope-ui/solid";
-import type { TaskProgram } from "@tasks/task-program";
+import { TaskFailedError, type TaskProgram } from "@tasks/task-program";
 import {
   ChannelClient,
   ChannelClientBackground,
@@ -222,7 +222,7 @@ export async function createHKRPGChannelClient({
             "NO_ENOUGH_DISKSPACE_DESC",
             [requiredSpaceGB + "", (requiredSpaceGB * 1.074).toFixed(1)]
           );
-          return;
+          throw new TaskFailedError(locale.get("NO_ENOUGH_DISKSPACE"));
         }
 
         yield* downloadAndInstallGameProgram({
