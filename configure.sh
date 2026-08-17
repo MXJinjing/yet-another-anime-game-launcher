@@ -70,9 +70,12 @@ YAAGL_NEU_COMMIT="d7e7c6deae143248f383f5adff715499ca15b31a"
 YAAGL_NEU_ARCHIVE="neutralinojs-${YAAGL_NEU_TAG}.zip"
 YAAGL_NEU_URL="https://github.com/MXJinjing/yaagl-neutralinojs/releases/download/${YAAGL_NEU_TAG}/${YAAGL_NEU_ARCHIVE}"
 YAAGL_NEU_ARCHIVE_SHA256="c607ce5cab6fed311781a8c449117f94077e2f54a1f1424cc1dd086121cc7840"
-YAAGL_NEU_X64_SHA256="3875d0bf0b1c07300ef9984d91e1d7ec5a9aee1aa979d6124144ef6e19eadf3d"
-YAAGL_NEU_ARM64_SHA256="b7d4c62a85685dec5b037a972ce06be68656a70315365b93e8cdfc49f1bc62e7"
-YAAGL_NEU_UNIVERSAL_SHA256="4a56748d613136d1bcb891c8445c73ee7de2016a6364ef7de73e74cb3fc868fb"
+# These hashes correspond to the locally built MXJinjing fork with the
+# x86_64 objc_msgSend_stret fix for CGRect-returning messages. Rebuild it
+# from source via YAAGL_NEUTRALINO_SOURCE when bin/ is missing.
+YAAGL_NEU_X64_SHA256="6f2ee284b5d67c53af92c783ad6ffa7079410fa9bba93ba17b1d2128645945f9"
+YAAGL_NEU_ARM64_SHA256="963ac3ac891dbcb81b7641ff95079aa468e5ac549b77e89a4bf2aee3ed215ef8"
+YAAGL_NEU_UNIVERSAL_SHA256="ef936a3397b4a34d8c9d0249facf855cadc045149d53637ae9a3f599e12d8d38"
 
 yaagl_neu_sha256() {
   shasum -a 256 "$1" | awk '{print $1}'
