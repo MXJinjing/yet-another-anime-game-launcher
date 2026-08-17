@@ -68,8 +68,39 @@ jobs:
       - name: Publish draft release
         uses: softprops/action-gh-release@v2
         with:
+          name: Yaaglm ${{ github.ref_name }} Release
           draft: true
-          generate_release_notes: true
+          body: |
+            Yaaglm 1.0.0 Release
+
+            ## 产物列表
+
+            每个 channel 均提供 arm64、x64、universal 三种架构：
+
+            | Channel | 产物 |
+            | --- | --- |
+            | hk4ecn | Yaaglm.app |
+            | hk4eos | Yaaglm GI OS.app |
+            | mhyos | Yaaglm OS.app |
+            | mhycn | Yaaglm CN.app |
+            | hkrpgcn | Yaaglm HSR.app |
+            | hkrpgos | Yaaglm HSR OS.app |
+            | bh3glb | Yaaglm Honkai Global.app |
+            | cbjq | Yaaglm SCZ OS.app |
+            | cbjqcn | Yaaglm SCZ.app |
+            | napos | Yaaglm ZZZ OS.app |
+            | napcn | Yaaglm ZZZ.app |
+
+            ## 发布公告
+
+            1.0.0 是 Yaaglm 的首个正式版本。本 fork 可与上游同时存在。
+
+            ### 与上游版本的主要区别
+
+            1. 启动器 UI 与界面重构：全局设置与游戏设置分离，游戏库改为卡片式布局，支持首页活动与公告栏、Banner 轮播、红点提醒和快捷入口。
+            2. 合并游戏入口：OS 入口覆盖 4 个游戏，CN 入口覆盖 3 个游戏。
+            3. 下载与任务：新增任务调度、下载队列、并发/限速控制、GitHub 加速；下载引擎支持多文件进度、断点续传、暂停/取消。
+            4. 构建与工程化：正式命名 Yaaglm、版本 1.0.0，支持 arm64/x64/universal，自动签名并生成 build manifest；TypeScript 升级至 5.9，测试覆盖大幅增加。
           files: |
             release-assets/arm64/*.tar.gz
             release-assets/x64/*.tar.gz
