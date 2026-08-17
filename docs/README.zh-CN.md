@@ -254,12 +254,13 @@ YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
 
 ## Uninstall
 
-1. 将应用移到废纸篓。
-2. 删除对应的应用支持目录：
+1. 如果启用了Hosts-Helper，打开应用内设置将其卸载。
+2. 将应用移到废纸篓。
+3. 删除对应的应用支持目录：
    - `~/Library/Application Support/Yaaglm`
    - `~/Library/Application Support/Yaaglm OS`
-3. 如果使用了其他 channel，请同时检查 `~/Library/Application Support/` 下以 Yaaglm 或对应应用名称开头的目录。
-4. 如需保留下载缓存、Wine 前缀或日志，请在删除前先备份相关目录。
+4. 如果使用了其他 channel，请同时检查 `~/Library/Application Support/` 下以 Yaaglm 或对应应用名称开头的目录。
+5. 如需保留下载缓存、Wine 前缀或日志，请在删除前先备份相关目录。
 
 ## Related projects
 
@@ -272,8 +273,11 @@ YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
 
 感谢所有参与 macOS 兼容层、图形转换、下载基础设施、运行时打包和问题排查的贡献者。没有社区贡献和长期测试，项目无法持续改进。
 
+- An Anime Team
+- mkrsym1: 解决了在我看来 AC 中最具挑战性的一个组件。这真的是一项非常了不起、令人震撼的成就。
 - Krock：他的补丁让游戏在 macOS 上运行成为可能，相关工作链接可在本仓库中找到。
-- rishabhroyy：感谢其宝贵的贡献与支持。
+
+- rishabhroyy：本项目启动器的多channel合并逻辑与UI参考了他的Fork仓库的代码。
 
 ## License and safety
 

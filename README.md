@@ -247,9 +247,10 @@ When reporting a technical problem, include the macOS version, CPU architecture,
 
 ## Uninstall (completely)
 
-1. Drag app to the bin
-2. Delete folder `~/Library/Application Support/Yaaglm` or `~/Library/Application Support/Yaaglm OS` if you are using oversea version. (For HSR and ZZZ the name of folder is slightly different)
-3. If you used another channel, also check `~/Library/Application Support/` for the corresponding application-support directory.
+1. If Hosts-Helper is enabled, open the in-app settings to uninstall it.
+2. Drag app to the bin
+3. Delete folder `~/Library/Application Support/Yaaglm` or `~/Library/Application Support/Yaaglm OS` if you are using oversea version. (For HSR and ZZZ the name of folder is slightly different)
+4. If you used another channel, also check `~/Library/Application Support/` for the corresponding application-support directory.
 
 ## Related projects
 
@@ -263,7 +264,7 @@ When reporting a technical problem, include the macOS version, CPU architecture,
 * Krock, the game running on macOS can not come true without his patch (you can find the link to his work in this repository, while you have to make a little effort ;) )
 
 * mkrsym1, tackled IMO the most challenging AC component. It's a really remarkable and mind-blowing achievement.
-* rishabhroyy, for their valuable contributions and support.
+* rishabhroyy: The multi-channel merging logic and UI of this project starter reference the code from his forked repository.
 
 ## License and safety
 
