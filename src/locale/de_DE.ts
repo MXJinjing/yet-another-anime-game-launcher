@@ -14,7 +14,7 @@ export const de_DE: typeof zh_CN = {
   BOOT_CHECKING_WINE_ENVIRONMENT: "Wine-Umgebung wird geprüft",
   BOOT_PREPARING_WINE_ENVIRONMENT: "Wine-Umgebung wird vorbereitet",
   BOOT_INITIALIZING_RUNTIME: "Laufzeitumgebung wird initialisiert",
-  BOOT_INITIALIZING_GAME_CLIENT: "Spielclient wird initialisiert",
+  BOOT_INITIALIZING_GAME_CLIENT: "Spielkanal-Konfiguration wird geladen",
   BOOT_COMPLETE: "Initialisierung abgeschlossen",
   BOOT_ENTERING_MAIN_SCREEN: "Hauptbildschirm wird geöffnet",
   BOOT_INITIALIZATION_FAILED: "Initialisierung fehlgeschlagen",

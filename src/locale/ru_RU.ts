@@ -14,7 +14,7 @@ export const ru_RU: typeof zh_CN = {
   BOOT_CHECKING_WINE_ENVIRONMENT: "Проверка среды Wine",
   BOOT_PREPARING_WINE_ENVIRONMENT: "Подготовка среды Wine",
   BOOT_INITIALIZING_RUNTIME: "Инициализация среды выполнения",
-  BOOT_INITIALIZING_GAME_CLIENT: "Инициализация игрового клиента",
+  BOOT_INITIALIZING_GAME_CLIENT: "Загрузка конфигурации игрового канала",
   BOOT_COMPLETE: "Инициализация завершена",
   BOOT_ENTERING_MAIN_SCREEN: "Переход на главный экран",
   BOOT_INITIALIZATION_FAILED: "Ошибка инициализации",

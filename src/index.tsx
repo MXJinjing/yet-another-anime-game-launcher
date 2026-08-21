@@ -5,7 +5,7 @@ import { amber } from "@radix-ui/colors";
 
 import { fatal } from "./runtime";
 import {
-  getBootProgress,
+  getBootDetail,
   getBootText,
   reportBootProgress,
 } from "./boot-progress";
@@ -42,8 +42,10 @@ if (typeof Neutralino == "undefined") {
         <img class="app-boot-icon" src={bootIcon} alt="" />
         <div class="app-boot-main">
           <div class="app-boot-spinner" />
-          <div class="app-boot-text">{getBootText()}</div>
-          <div class="app-boot-percent">{Math.round(getBootProgress())}%</div>
+          <div class="app-boot-text">
+            {getBootText()}
+            {getBootDetail()}
+          </div>
         </div>
       </div>
     ),

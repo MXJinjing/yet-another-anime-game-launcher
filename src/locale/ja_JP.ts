@@ -14,7 +14,7 @@ export const ja_JP: typeof zh_CN = {
   BOOT_CHECKING_WINE_ENVIRONMENT: "Wine環境を確認中",
   BOOT_PREPARING_WINE_ENVIRONMENT: "Wine環境を準備中",
   BOOT_INITIALIZING_RUNTIME: "実行環境を初期化中",
-  BOOT_INITIALIZING_GAME_CLIENT: "ゲームクライアントを初期化中",
+  BOOT_INITIALIZING_GAME_CLIENT: "ゲームチャンネル設定を読み込み中",
   BOOT_COMPLETE: "初期化完了",
   BOOT_ENTERING_MAIN_SCREEN: "メイン画面を表示中",
   BOOT_INITIALIZATION_FAILED: "初期化に失敗しました",

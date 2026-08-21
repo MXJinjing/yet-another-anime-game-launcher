@@ -14,7 +14,7 @@ export const vi_VN: typeof zh_CN = {
   BOOT_CHECKING_WINE_ENVIRONMENT: "Đang kiểm tra môi trường Wine",
   BOOT_PREPARING_WINE_ENVIRONMENT: "Đang chuẩn bị môi trường Wine",
   BOOT_INITIALIZING_RUNTIME: "Đang khởi tạo môi trường chạy",
-  BOOT_INITIALIZING_GAME_CLIENT: "Đang khởi tạo ứng dụng trò chơi",
+  BOOT_INITIALIZING_GAME_CLIENT: "Đang tải cấu hình kênh trò chơi",
   BOOT_COMPLETE: "Khởi tạo hoàn tất",
   BOOT_ENTERING_MAIN_SCREEN: "Đang vào màn hình chính",
   BOOT_INITIALIZATION_FAILED: "Khởi tạo thất bại",

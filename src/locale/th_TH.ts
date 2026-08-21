@@ -14,7 +14,7 @@ export const th_TH: typeof zh_CN = {
   BOOT_CHECKING_WINE_ENVIRONMENT: "กำลังตรวจสอบสภาพแวดล้อม Wine",
   BOOT_PREPARING_WINE_ENVIRONMENT: "กำลังเตรียมสภาพแวดล้อม Wine",
   BOOT_INITIALIZING_RUNTIME: "กำลังเริ่มต้นสภาพแวดล้อมรันไทม์",
-  BOOT_INITIALIZING_GAME_CLIENT: "กำลังเริ่มต้นไคลเอนต์เกม",
+  BOOT_INITIALIZING_GAME_CLIENT: "กำลังโหลดการกำหนดค่าช่องเกม",
   BOOT_COMPLETE: "เริ่มต้นเสร็จสมบูรณ์",
   BOOT_ENTERING_MAIN_SCREEN: "กำลังเข้าสู่หน้าจอหลัก",
   BOOT_INITIALIZATION_FAILED: "เริ่มต้นไม่สำเร็จ",

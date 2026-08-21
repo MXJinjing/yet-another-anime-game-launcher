@@ -354,10 +354,11 @@
   visibility: visible;
 }
 
-/* Keep the first QR preview inside the window instead of centering it above
- * the topmost social button. */
+/* Keep the first QR preview inside the window: don't vertically center it on
+ * the topmost social button (would clip above the window); pin it near the
+ * button top and raise it slightly so it doesn't hang too low. */
 .hyp-mhy-social-item-wrap:first-child .hyp-mhy-qr-popover {
-  top: 0;
+  top: -24px;
   transform: translateX(5px);
 }
 

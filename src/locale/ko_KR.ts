@@ -14,7 +14,7 @@ export const ko_KR: typeof zh_CN = {
   BOOT_CHECKING_WINE_ENVIRONMENT: "Wine 환경을 확인하는 중",
   BOOT_PREPARING_WINE_ENVIRONMENT: "Wine 환경을 준비하는 중",
   BOOT_INITIALIZING_RUNTIME: "실행 환경을 초기화하는 중",
-  BOOT_INITIALIZING_GAME_CLIENT: "게임 클라이언트를 초기화하는 중",
+  BOOT_INITIALIZING_GAME_CLIENT: "게임 채널 구성을 불러오는 중",
   BOOT_COMPLETE: "초기화 완료",
   BOOT_ENTERING_MAIN_SCREEN: "메인 화면으로 이동하는 중",
   BOOT_INITIALIZATION_FAILED: "초기화 실패",

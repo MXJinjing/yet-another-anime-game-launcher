@@ -38,6 +38,8 @@ import { cancelStream, getStreamsByKey } from "./download/stream-scheduler";
 import {
   createUpdater,
   downloadProgram,
+  getReleaseAssetsForVersion,
+  isUpdateHalfApplied,
   UPDATE_DOWNLOAD_KEY,
 } from "./update/updater";
 import {
@@ -385,6 +387,50 @@ export async function createApp() {
       }
     }
 
+    function startUpdateFlow(
+      assets: { downloadUrl: string; sidecarDownloadUrl?: string },
+      targetVersion?: string
+    ) {
+      if (targetVersion && CURRENT_YAAGL_VERSION !== "development") {
+        void setKey(
+          HOSTS_HELPER_REREGISTER_KEY,
+          JSON.stringify({
+            targetVersion,
+            attempted: false,
+          } satisfies HostsHelperReregisterMarker)
+        );
+      }
+      pendingUpdateTask = new Promise<void>(resolve => {
+        resolvePendingUpdateTask = resolve;
+      });
+      const updateAbort = new AbortController();
+      setUpdaterComponent(() =>
+        createTaskProgressScreen({
+          locale,
+          image: UPDATE_UI_IMAGE,
+          program: () =>
+            downloadProgram(
+              aria2,
+              assets.downloadUrl,
+              assets.sidecarDownloadUrl,
+              updateAbort.signal
+            ),
+          onRestart: _safeRelaunch,
+          onFailed: () => setUpdaterComponent(undefined),
+          onCancel: () => {
+            void cancelControlledDownload(UPDATE_DOWNLOAD_KEY);
+            updateAbort.abort();
+          },
+          onCancelled: () => setUpdaterComponent(undefined),
+          onSettled: () => {
+            resolvePendingUpdateTask?.();
+            resolvePendingUpdateTask = undefined;
+            pendingUpdateTask = undefined;
+          },
+        })
+      );
+    }
+
     onMount(() => {
       void (async () => {
         try {
@@ -396,6 +442,31 @@ export async function createApp() {
         }
         if (initialUpdateCheck.latest === undefined) {
           await notifyUpdateCheckFailure(initialUpdateCheck.errorStatus);
+          return;
+        }
+        // No newer release available, but a previous (older, buggy) hot update
+        // may have left this install half-applied: the frontend is already the
+        // current version while the bundle/sidecar/manifest are still the old
+        // one. Re-apply the current release automatically so the install is
+        // repaired in one go.
+        if (
+          initialUpdateCheck.latest &&
+          (await isUpdateHalfApplied())
+        ) {
+          const assets = await getReleaseAssetsForVersion(
+            github,
+            CURRENT_YAAGL_VERSION
+          );
+          if (assets?.sidecarDownloadUrl) {
+            await log(
+              "Re-applying current release to repair a half-applied update"
+            );
+            startUpdateFlow(assets, CURRENT_YAAGL_VERSION);
+          } else {
+            await log(
+              "Half-applied update detected but release assets are unavailable; skipping auto-repair"
+            );
+          }
         }
       })();
     });
@@ -412,46 +483,13 @@ export async function createApp() {
             locale={locale}
             onIgnore={version => setKey("ignore_launcher_update", version)}
             onUpdate={info => {
-              void (async () => {
-                if (CURRENT_YAAGL_VERSION !== "development" && info.version) {
-                  await setKey(
-                    HOSTS_HELPER_REREGISTER_KEY,
-                    JSON.stringify({
-                      targetVersion: info.version,
-                      attempted: false,
-                    } satisfies HostsHelperReregisterMarker)
-                  );
-                }
-                pendingUpdateTask = new Promise<void>(resolve => {
-                  resolvePendingUpdateTask = resolve;
-                });
-                const updateAbort = new AbortController();
-                setUpdaterComponent(() =>
-                  createTaskProgressScreen({
-                    locale,
-                    image: UPDATE_UI_IMAGE,
-                    program: () =>
-                      downloadProgram(
-                        aria2,
-                        info.downloadUrl!,
-                        info.sidecarDownloadUrl,
-                        updateAbort.signal
-                      ),
-                    onRestart: _safeRelaunch,
-                    onFailed: () => setUpdaterComponent(undefined),
-                    onCancel: () => {
-                      void cancelControlledDownload(UPDATE_DOWNLOAD_KEY);
-                      updateAbort.abort();
-                    },
-                    onCancelled: () => setUpdaterComponent(undefined),
-                    onSettled: () => {
-                      resolvePendingUpdateTask?.();
-                      resolvePendingUpdateTask = undefined;
-                      pendingUpdateTask = undefined;
-                    },
-                  })
-                );
-              })();
+              startUpdateFlow(
+                {
+                  downloadUrl: info.downloadUrl!,
+                  sidecarDownloadUrl: info.sidecarDownloadUrl,
+                },
+                info.version
+              );
             }}
           />
         </Show>

@@ -46,7 +46,7 @@ export async function createLauncher({
     throw new Error(`Unknown single-game channel: ${channel}`);
   }
   const actionDisabledRef = { current: () => false };
-  reportBootProgress("BOOT_INITIALIZING_GAME_CLIENT", 80, meta.title);
+  reportBootProgress("BOOT_INITIALIZING_GAME_CLIENT", 80);
   const { UI: ConfigurationUI, config } = await createGameSettings({
     locale,
     gameInstallDir: channelClient.installDir,

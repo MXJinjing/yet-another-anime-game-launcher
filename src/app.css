@@ -79,12 +79,6 @@ textarea,
   text-align: center;
 }
 
-.app-boot-percent {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
-  font-weight: 600;
-}
-
 @keyframes app-boot-spin {
   to {
     transform: rotate(360deg);

@@ -13,7 +13,7 @@ export const en: typeof zh_CN = {
   BOOT_CHECKING_WINE_ENVIRONMENT: "Checking Wine environment",
   BOOT_PREPARING_WINE_ENVIRONMENT: "Preparing Wine environment",
   BOOT_INITIALIZING_RUNTIME: "Initializing runtime environment",
-  BOOT_INITIALIZING_GAME_CLIENT: "Initializing game client",
+  BOOT_INITIALIZING_GAME_CLIENT: "Loading game channel configuration",
   BOOT_COMPLETE: "Initialization complete",
   BOOT_ENTERING_MAIN_SCREEN: "Entering main screen",
   BOOT_INITIALIZATION_FAILED: "Initialization failed",

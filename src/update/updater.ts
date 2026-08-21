@@ -10,7 +10,7 @@ import { CURRENT_YAAGL_VERSION } from "../constants";
 import { log } from "../logging/logger";
 import { formatDownloadSpeed, humanFileSize } from "@runtime/format";
 import { DownloadCancelledError } from "../download/control";
-import { env, removeFile, resolve } from "../platform/neutralino";
+import { env, readFile, removeFile, resolve } from "../platform/neutralino";
 import { tar_extract } from "../runtime/archive";
 import { exec } from "../runtime/command-runner";
 import { wait } from "../runtime/async";
@@ -72,6 +72,96 @@ export function getSidecarTopLevelDir(sidecarUrl: string): string {
       .pop()
       ?.replace(/\.tar\.gz$/, "") ?? "";
   return SIDECAR_TOP_LEVEL_DIRS[archiveBase] ?? archiveBase;
+}
+
+/** Resolves the channel used to pick the release assets for this build. */
+export async function resolveUpdateChannel(): Promise<string> {
+  if (
+    import.meta.env["YAAGL_CHANNEL_CLIENT"] &&
+    import.meta.env["YAAGL_CHANNEL_CLIENT"] != "hk4euniversal"
+  ) {
+    return import.meta.env["YAAGL_CHANNEL_CLIENT"];
+  }
+  if ((await env("YAAGL_OS")) == "1") return "hk4eos";
+  return "hk4ecn";
+}
+
+/**
+ * Detects whether a previous (older, buggy) hot update left this install
+ * half-applied: the running frontend (resources.neu) is already the current
+ * version, but the applied-release manifest (and/or the installed .app bundle)
+ * still reports the previous version. The fixed update flow replaces the
+ * bundle, sidecar and manifest together, so a version mismatch here means the
+ * update was applied by the old flow and needs to be re-applied once.
+ */
+export async function isUpdateHalfApplied(): Promise<boolean> {
+  if (CURRENT_YAAGL_VERSION === "development") return false;
+  const expected = CURRENT_YAAGL_VERSION;
+
+  try {
+    const raw = await readFile("./build-manifest.json");
+    const parsed = JSON.parse(raw) as { version?: unknown };
+    if (typeof parsed.version == "string" && parsed.version != expected) {
+      await log(
+        `Half-applied update detected: working-dir manifest is ${parsed.version}, expected ${expected}`
+      );
+      return true;
+    }
+  } catch {
+    // Unreadable/missing manifest is handled by the trusted-bundle check.
+  }
+
+  try {
+    const bundlePath = await env("YAAGL_BUNDLE_PATH");
+    if (bundlePath) {
+      const raw = await readFile(
+        `${bundlePath}/Contents/Resources/build-manifest.json`
+      );
+      const parsed = JSON.parse(raw) as { version?: unknown };
+      if (typeof parsed.version == "string" && parsed.version != expected) {
+        await log(
+          `Half-applied update detected: bundle manifest is ${parsed.version}, expected ${expected}`
+        );
+        return true;
+      }
+    }
+  } catch {
+    // The bundle may live somewhere unreadable; the working-dir check above
+    // already covers the common half-applied state.
+  }
+  return false;
+}
+
+/**
+ * Returns the release asset URLs (resources.neu + sidecar app bundle) for a
+ * specific release tag, so the launcher can re-apply its own version after a
+ * half-applied update. Returns undefined when the tag or assets are missing.
+ */
+export async function getReleaseAssetsForVersion(
+  github: Github,
+  version: string
+): Promise<{ downloadUrl: string; sidecarDownloadUrl?: string } | undefined> {
+  try {
+    const updateVersion = await resolveUpdateChannel();
+    const release = (await github.api(
+      `/repos/${owner}/${repo}/releases/tags/${encodeURIComponent(version)}`
+    )) as GithubReleaseInfo;
+    const neu = release.assets.find(
+      x => x.name == `resources_${updateVersion}.neu`
+    );
+    if (!neu) return undefined;
+    const appBundleName = getSidecarAppBundleName(updateVersion);
+    const sidecar = release.assets.find(x => x.name == appBundleName);
+    return {
+      downloadUrl: neu.browser_download_url,
+      sidecarDownloadUrl: sidecar?.browser_download_url,
+    };
+  } catch (error) {
+    await log(
+      `Failed to fetch release assets for ${version}: ${String(error)}`
+    );
+    return undefined;
+  }
 }
 
 const UPDATE_EXTRACT_DIR = "./.update-app";
@@ -188,17 +278,7 @@ export async function createUpdater({
   }
   const currentVersion = CURRENT_YAAGL_VERSION;
   try {
-    let updateVersion = "";
-    if (
-      import.meta.env["YAAGL_CHANNEL_CLIENT"] &&
-      import.meta.env["YAAGL_CHANNEL_CLIENT"] != "hk4euniversal"
-    ) {
-      updateVersion = import.meta.env["YAAGL_CHANNEL_CLIENT"];
-    } else if ((await env("YAAGL_OS")) == "1") {
-      updateVersion = "hk4eos";
-    } else {
-      updateVersion = "hk4ecn";
-    }
+    const updateVersion = await resolveUpdateChannel();
     const latest: GithubReleaseInfo = (await github.api(
       `/repos/${owner}/${repo}/releases/latest`
     )) as GithubReleaseInfo;
