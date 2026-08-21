@@ -1,7 +1,7 @@
 #!/bin/sh
 # install.sh -- register one trusted app bundle with the privileged hosts-helper.
 #
-# Usage: install.sh --bundle <appBundlePath> --helper <helperBinaryInBundle>
+# Usage: install.sh --bundle <appBundlePath> --helper <helperBinaryInBundle> [--re-register]
 #
 # Must run as root. A bundle is trusted only when it is a real directory
 # containing Contents/Info.plist and Contents/Resources/build-manifest.json,
@@ -26,12 +26,13 @@ PLIST_DST="/Library/LaunchDaemons/com.3shain.yaaglm.hosts-helper.plist"
 LABEL="com.3shain.yaaglm.hosts-helper"
 
 usage() {
-  echo "Usage: $0 --bundle <appBundlePath> --helper <helperBinaryInBundle>" >&2
+  echo "Usage: $0 --bundle <appBundlePath> --helper <helperBinaryInBundle> [--re-register]" >&2
 }
 
 # ---- argument parsing -------------------------------------------------------
 bundle_path=""
 helper_src=""
+force_reregister="0"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --bundle)
@@ -49,6 +50,10 @@ while [ "$#" -gt 0 ]; do
       fi
       helper_src="$2"
       shift 2
+      ;;
+    --re-register)
+      force_reregister="1"
+      shift
       ;;
     *)
       echo "install.sh: unknown argument: $1" >&2
@@ -233,14 +238,14 @@ token_path="$token_dir/$BUNDLE_ID.token"
 # ---- registry upsert (flock(2) via python3; macOS has no flock(1)) ------------
 # Locked section: decide reuse/generate token, write the user token file (dir
 # 0700, file 0600, owned by the console user), then atomically upsert the row.
-if ! /usr/bin/python3 - "$LOCK_FILE" "$REGISTRY" "$BUNDLE_ID" "$VERSION" "$launcher_sha" "$helper_sha" "$token_path" "$token_owner" <<'PY'
+if ! /usr/bin/python3 - "$LOCK_FILE" "$REGISTRY" "$BUNDLE_ID" "$VERSION" "$launcher_sha" "$helper_sha" "$token_path" "$token_owner" "$force_reregister" <<'PY'
 import fcntl, os, pwd, subprocess, sys, tempfile
 
 def fail(msg):
     sys.stderr.write("install.sh: %s\n" % msg)
     sys.exit(1)
 
-lock_file, registry_file, bundle_id, version, launcher_sha, client_sha, token_path, token_owner = sys.argv[1:9]
+lock_file, registry_file, bundle_id, version, launcher_sha, client_sha, token_path, token_owner, force_reregister = sys.argv[1:10]
 
 if len(token_path) > 1024:
     fail("token path too long: %s" % token_path)
@@ -272,7 +277,10 @@ try:
                 continue
             fields = line.split("|")
             if fields and fields[0] == bundle_id:
-                if len(fields) >= 5 and fields[4]:
+                # --re-register always rotates the token; a plain install keeps
+                # the existing secret so other clients with the same token path
+                # do not need to be re-registered.
+                if force_reregister != "1" and len(fields) >= 5 and fields[4]:
                     token = fields[4]
                 continue  # row replaced below
             lines.append(line)

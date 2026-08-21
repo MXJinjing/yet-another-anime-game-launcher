@@ -39,6 +39,11 @@ jobs:
         env:
           YAAGL_NEU_TAG: latest
 
+      - name: Update hosts helper from release
+        run: bash scripts/update-hosts-helper-release.sh
+        env:
+          HELPER_RELEASE: latest
+
       - name: Build Sophon for arm64
         run: ./build-sophon.sh
 
