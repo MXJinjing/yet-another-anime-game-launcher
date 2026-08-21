@@ -44,7 +44,11 @@ const BUNDLE_MANIFEST =
   "/Applications/Yaaglm.app/Contents/Resources/build-manifest.json";
 
 function manifest(version: string) {
-  return JSON.stringify({ bundleId: "com.3shain.yaaglm", version, appName: "Yaaglm" });
+  return JSON.stringify({
+    bundleId: "com.3shain.yaaglm",
+    version,
+    appName: "Yaaglm",
+  });
 }
 
 function releaseWithAssets(tagName: string, withSidecar = true) {
@@ -94,6 +98,13 @@ describe("half-applied update detection", () => {
     await expect(isUpdateHalfApplied()).resolves.toBe(false);
   });
 
+  it("does not repair when the manifest is NEWER than the running frontend", async () => {
+    // A partial apply of a newer release (bundle/manifest already newer, neu
+    // not yet swapped) must be left to the normal update flow, not downgraded.
+    mockedReadFile.mockResolvedValueOnce(manifest("1.2.0")); // working dir
+    await expect(isUpdateHalfApplied()).resolves.toBe(false);
+  });
+
   it("is a no-op when the manifest is unreadable", async () => {
     mockedReadFile.mockRejectedValue(new Error("ENOENT"));
     await expect(isUpdateHalfApplied()).resolves.toBe(false);
@@ -134,12 +145,16 @@ describe("release assets for a pinned version", () => {
   });
 
   it("returns undefined when the release is missing the neu asset or the API fails", async () => {
-    const noNeu = { api: vi.fn(async () => ({ tag_name: "1.1.0", assets: [] })) };
+    const noNeu = {
+      api: vi.fn(async () => ({ tag_name: "1.1.0", assets: [] })),
+    };
     await expect(
       getReleaseAssetsForVersion(noNeu as never, "1.1.0")
     ).resolves.toBeUndefined();
 
-    const failing = { api: vi.fn(async () => Promise.reject(new Error("404"))) };
+    const failing = {
+      api: vi.fn(async () => Promise.reject(new Error("404"))),
+    };
     await expect(
       getReleaseAssetsForVersion(failing as never, "1.1.0")
     ).resolves.toBeUndefined();

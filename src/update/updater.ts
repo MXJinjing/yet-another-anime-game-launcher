@@ -5,7 +5,7 @@ import {
   Github,
   GithubReleaseInfo,
 } from "../integrations/github";
-import { gt } from "semver";
+import { gt, lt } from "semver";
 import { CURRENT_YAAGL_VERSION } from "../constants";
 import { log } from "../logging/logger";
 import { formatDownloadSpeed, humanFileSize } from "@runtime/format";
@@ -101,9 +101,13 @@ export async function isUpdateHalfApplied(): Promise<boolean> {
   try {
     const raw = await readFile("./build-manifest.json");
     const parsed = JSON.parse(raw) as { version?: unknown };
-    if (typeof parsed.version == "string" && parsed.version != expected) {
+    // Only a manifest that is OLDER than the running frontend means the
+    // bundle/sidecar did not catch up with the (already swapped) resources.neu.
+    // A manifest that is newer belongs to a partial apply of a *newer* release,
+    // which is handled by the normal update flow, not by a downgrading repair.
+    if (typeof parsed.version == "string" && lt(parsed.version, expected)) {
       await log(
-        `Half-applied update detected: working-dir manifest is ${parsed.version}, expected ${expected}`
+        `Half-applied update detected: working-dir manifest is ${parsed.version}, running version ${expected}`
       );
       return true;
     }
@@ -118,9 +122,9 @@ export async function isUpdateHalfApplied(): Promise<boolean> {
         `${bundlePath}/Contents/Resources/build-manifest.json`
       );
       const parsed = JSON.parse(raw) as { version?: unknown };
-      if (typeof parsed.version == "string" && parsed.version != expected) {
+      if (typeof parsed.version == "string" && lt(parsed.version, expected)) {
         await log(
-          `Half-applied update detected: bundle manifest is ${parsed.version}, expected ${expected}`
+          `Half-applied update detected: bundle manifest is ${parsed.version}, running version ${expected}`
         );
         return true;
       }
