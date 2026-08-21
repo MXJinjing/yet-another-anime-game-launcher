@@ -556,7 +556,9 @@ export async function upgradePrivilegedHostsHelperIfNeeded() {
       return;
     }
     await log(
-      `YAAGLM hosts helper version mismatch (installed=${registeredVersion}, expected=${ctx.manifest!.version}); upgrading`
+      `YAAGLM hosts helper version mismatch (installed=${registeredVersion}, expected=${
+        ctx.manifest!.version
+      }); upgrading`
     );
     needsUpgrade = true;
   } catch (error) {
@@ -583,9 +585,7 @@ export async function upgradePrivilegedHostsHelperIfNeeded() {
   const diagnostics = await requestStatusDiagnostics(ctx);
   if (diagnostics.code != "OK") {
     throw new Error(
-      `YAAGLM hosts helper upgrade failed (status: ${String(
-        diagnostics.code
-      )})`
+      `YAAGLM hosts helper upgrade failed (status: ${String(diagnostics.code)})`
     );
   }
   await log(`YAAGLM hosts helper upgraded to ${ctx.manifest!.version}`);

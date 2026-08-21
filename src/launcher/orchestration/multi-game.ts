@@ -79,7 +79,7 @@ export async function createMultiGameLauncher({
     reportBootProgress(
       "BOOT_INITIALIZING_GAME_CLIENT",
       66 + Math.round((index / Math.max(1, specs.length)) * 30),
-      `（${index + 1}/${specs.length}）`,
+      `（${index + 1}/${specs.length}）`
     );
     const wineRef: MultiGameWineRef = { current: baseWine };
     const gameWine = createMultiGameWineProxy(wineRef);

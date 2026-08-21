@@ -52,17 +52,25 @@ export function ShowReleaseLogModal(props: { locale: Locale }) {
   return (
     <div class="release-log">
       <div class="release-log-meta">
-        {props.locale.currentLanguage.startsWith("zh") ? "更新日志" : "Release notes"} · v
-        {CURRENT_YAAGL_VERSION}
-        {CURRENT_YAAGL_VERSION === "development" ? "（开发版 · 展示最新版本）" : ""}
+        {props.locale.currentLanguage.startsWith("zh")
+          ? "更新日志"
+          : "Release notes"}{" "}
+        · v{CURRENT_YAAGL_VERSION}
+        {CURRENT_YAAGL_VERSION === "development"
+          ? "（开发版 · 展示最新版本）"
+          : ""}
       </div>
       <Show
         when={!loadError()}
-        fallback={<p class="release-log-status release-log-error">{loadError()}</p>}
+        fallback={
+          <p class="release-log-status release-log-error">{loadError()}</p>
+        }
       >
         <Show
           when={releaseBody()}
-          fallback={<p class="release-log-status">{props.locale.get("PROCESSING")}</p>}
+          fallback={
+            <p class="release-log-status">{props.locale.get("PROCESSING")}</p>
+          }
         >
           <div
             class="release-log-changelog modal-markdown"

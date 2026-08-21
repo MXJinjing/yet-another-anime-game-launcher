@@ -94,7 +94,10 @@ describe("createUpdater", () => {
     }
 
     expect(aria2.doStreamingDownload).not.toHaveBeenCalled();
-    expect(commands).toContainEqual(["setStateText", "DOWNLOADING_UPDATE_FILE"]);
+    expect(commands).toContainEqual([
+      "setStateText",
+      "DOWNLOADING_UPDATE_FILE",
+    ]);
     expect(commands).toContainEqual(["setProgress", 100]);
     expect(commands).toContainEqual(["setUndeterminedProgress"]);
   });

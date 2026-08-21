@@ -77,10 +77,7 @@ export async function startAria2Service(
       const aria2 = await Promise.race([
         createAria2Retry({ host: "127.0.0.1", port }),
         timeout(
-          Math.min(
-            ATTEMPT_TIMEOUT_MS,
-            Math.max(500, deadline - Date.now())
-          )
+          Math.min(ATTEMPT_TIMEOUT_MS, Math.max(500, deadline - Date.now()))
         ),
       ]);
       await log(`Launched aria2 version ${aria2.version.version}`);

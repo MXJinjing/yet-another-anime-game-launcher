@@ -117,8 +117,8 @@ export function GlobalModals(props: {
     route() === "about"
       ? "app-modal-body-about"
       : route() === "release-log"
-        ? "app-modal-body-release-log"
-        : "app-modal-body-settings";
+      ? "app-modal-body-release-log"
+      : "app-modal-body-settings";
 
   return (
     <AppModal

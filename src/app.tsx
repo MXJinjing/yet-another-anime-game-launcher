@@ -449,10 +449,7 @@ export async function createApp() {
         // current version while the bundle/sidecar/manifest are still the old
         // one. Re-apply the current release automatically so the install is
         // repaired in one go.
-        if (
-          initialUpdateCheck.latest &&
-          (await isUpdateHalfApplied())
-        ) {
+        if (initialUpdateCheck.latest && (await isUpdateHalfApplied())) {
           const assets = await getReleaseAssetsForVersion(
             github,
             CURRENT_YAAGL_VERSION
