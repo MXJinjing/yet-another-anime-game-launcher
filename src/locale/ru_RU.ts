@@ -20,6 +20,7 @@ export const ru_RU: typeof zh_CN = {
   BOOT_INITIALIZATION_FAILED: "Ошибка инициализации",
   LAUNCH: "Запустить игру",
   INSTALL: "Установить игру",
+  CONTINUE_INSTALL: "Продолжить установку",
   UPDATING: "Обновление",
   DOWNLOADING: "Загрузка",
   DOWNLOAD_PAUSED: "Загрузка приостановлена",
@@ -179,6 +180,8 @@ export const ru_RU: typeof zh_CN = {
     "Требуется не менее {0}ГиБ ({1}Гб) свободного пространства.",
 
   UPDATE: "Обновить игру",
+
+  LAUNCH_WITHOUT_UPDATE: "Запустить без обновления",
   GAME_VERSION_TOO_OLD_DESC:
     "Текущая версия игры ({0}) слишком устарела для постепенного обновления. Пожалуйста, переустановите игру.",
 
@@ -230,12 +233,22 @@ export const ru_RU: typeof zh_CN = {
   SETTING_HOSTS_HELPER_REREGISTER_SUCCESS:
     "The Hosts Helper registration was repaired",
   SETTING_TIMEOUT_FIX: "Включить обход тайм-аутов Wine",
-  SETTING_WORKAROUND4: "Временно заменять mhypbase.dll во время работы игры",
-  SETTING_WORKAROUND4_DESC:
-    "Перед запуском выбранная старая mhypbase.dll копируется в папку игры и остаётся там во время работы игры. После выхода из игры исходный файл восстанавливается. Лаунчер не включает и не распространяет эту DLL.",
   SETTING_WORKAROUND4_PICK: "Выбрать файл...",
   SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "Кнопка выбора",
-  SETTING_WORKAROUND4_REVERT_BTN: "Восстановить исходный mhypbase.dll сейчас",
+  SETTING_RUNTIME_REPLACEMENT_TITLE: "Заменять файлы во время работы игры",
+  SETTING_RUNTIME_REPLACEMENT_DESC:
+    "Перед запуском выбранные файлы копируются поверх целевых файлов в папке игры и остаются на месте во время работы игры. Оригиналы восстанавливаются после выхода из игры.",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_ENABLED: "Включено",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_TARGET: "Заменяемый файл",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_REPLACEMENT: "Файл замены",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_DELETE: "Удалить",
+  SETTING_RUNTIME_REPLACEMENT_ROW_ENABLED: "Включить строку {0}",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TARGET: "Выбрать заменяемый файл",
+  SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT: "Выбрать файл замены",
+  SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "Удалить эту строку",
+  SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "Добавить строку",
+  SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL:
+    "Восстановить все резервные копии сейчас",
   SETTING_LICENSES: "Лицензии",
 
   SETTING_ENABLE_HDR: "Включить HDR",
@@ -254,7 +267,11 @@ export const ru_RU: typeof zh_CN = {
     "Доступна новая версия игры. Установить сейчас?",
   SETTING_CONFIRM_INSTALL: "Подтвердить установку",
   SETTING_CANCEL_INSTALL: "Отменить установку",
+  CANCEL_UPDATE: "Отменить обновление",
   ALREADY_LATEST_VERSION: "Вы уже используете последнюю версию.",
+  AHEAD_OF_LATEST_TITLE: "Новее последнего релиза",
+  AHEAD_OF_LATEST_JOKE:
+    "Пока официальная версия обновляется по капле 🐌, ты уже на следующем поколении 🚀. Держись скромно, без спойлеров 🤫.",
   UPDATE_LAUNCHER: "Обновить лаунчер",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
@@ -291,7 +308,7 @@ export const ru_RU: typeof zh_CN = {
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Следить за прокруткой",
   LOG_VIEWER_COPY: "Копировать логи",
-  LICENSE_COPY: "Копировать текущую лицензию",
+  LICENSE_VIEW_ONLINE: "Смотреть онлайн",
   SETTING_GITHUB_ACCELERATED_PREFIX: "Использовать ускоряющий префикс GitHub",
   SETTING_GITHUB_ACCELERATED_PREFIX_URL: "URL ускоряющего префикса GitHub",
   SETTING_GITHUB_ACCELERATED_PREFIX_TEST: "Проверить",

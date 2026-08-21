@@ -463,7 +463,7 @@
   width: 100%;
 }
 
-.license-tabs-copy {
+.license-tabs-online {
   position: absolute !important;
   right: 0;
 }
@@ -525,4 +525,36 @@
   margin: 24px 0;
   color: rgba(255, 255, 255, 0.55);
   text-align: center;
+}
+
+/* Title-bar back button for modal sub-pages (About / Release log etc.). */
+.global-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.global-modal-back {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(18, 21, 28, 0.72);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.global-modal-back svg {
+  width: 15px;
+  height: 15px;
+}
+
+.global-modal-back:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
 }

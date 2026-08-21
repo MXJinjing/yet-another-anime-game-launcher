@@ -20,6 +20,7 @@ export const vi_VN: typeof zh_CN = {
   BOOT_INITIALIZATION_FAILED: "Khởi tạo thất bại",
   LAUNCH: "Khởi động trò chơi",
   INSTALL: "Cài đặt trò chơi",
+  CONTINUE_INSTALL: "Tiếp tục cài đặt",
   UPDATING: "Đang cập nhật",
   DOWNLOADING: "Đang tải",
   DOWNLOAD_PAUSED: "Đã tạm dừng tải",
@@ -180,6 +181,8 @@ export const vi_VN: typeof zh_CN = {
   NO_ENOUGH_DISKSPACE_DESC: "Cần có tối thiếu {0}GiB ({1}GB) dung lượng trống.",
 
   UPDATE: en.UPDATE,
+
+  LAUNCH_WITHOUT_UPDATE: "Khởi động không cập nhật",
   GAME_VERSION_TOO_OLD_DESC: en.GAME_VERSION_TOO_OLD_DESC,
 
   PREDOWNLOAD_READY: en.PREDOWNLOAD_READY,
@@ -230,12 +233,22 @@ export const vi_VN: typeof zh_CN = {
   SETTING_HOSTS_HELPER_REREGISTER_SUCCESS:
     "The Hosts Helper registration was repaired",
   SETTING_TIMEOUT_FIX: "Bật khắc phục timeout của Wine",
-  SETTING_WORKAROUND4: "Tạm thay mhypbase.dll khi trò chơi đang chạy",
-  SETTING_WORKAROUND4_DESC:
-    "Trước khi khởi chạy, mhypbase.dll phiên bản cũ đã chọn sẽ được sao chép vào thư mục trò chơi và giữ nguyên khi trò chơi đang chạy. Tệp gốc sẽ được khôi phục sau khi thoát trò chơi. Launcher không tích hợp hoặc phân phối DLL này.",
   SETTING_WORKAROUND4_PICK: "Chọn tệp...",
   SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "Nút chọn",
-  SETTING_WORKAROUND4_REVERT_BTN: "Khôi phục mhypbase.dll gốc ngay",
+  SETTING_RUNTIME_REPLACEMENT_TITLE:
+    "Thay thế tệp trong khi trò chơi đang chạy",
+  SETTING_RUNTIME_REPLACEMENT_DESC:
+    "Trước khi khởi chạy, các tệp đã chọn được sao chép đè lên tệp đích trong thư mục trò chơi và giữ nguyên trong khi trò chơi đang chạy. Các tệp gốc được khôi phục sau khi thoát trò chơi.",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_ENABLED: "Bật",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_TARGET: "Tệp cần thay thế",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_REPLACEMENT: "Tệp thay thế",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_DELETE: "Xóa",
+  SETTING_RUNTIME_REPLACEMENT_ROW_ENABLED: "Bật hàng {0}",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TARGET: "Chọn tệp cần thay thế",
+  SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT: "Chọn tệp thay thế",
+  SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "Xóa hàng này",
+  SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "Thêm hàng",
+  SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL: "Khôi phục tất cả bản sao lưu ngay",
   SETTING_LICENSES: "Giấy phép",
   SETTING_ENABLE_HDR: "Bật HDR",
 
@@ -254,7 +267,11 @@ export const vi_VN: typeof zh_CN = {
     "Có phiên bản mới của trò chơi. Cài đặt ngay?",
   SETTING_CONFIRM_INSTALL: "Xác nhận cài đặt",
   SETTING_CANCEL_INSTALL: "Hủy cài đặt",
+  CANCEL_UPDATE: "Hủy cập nhật",
   ALREADY_LATEST_VERSION: "Bạn đang sử dụng phiên bản mới nhất.",
+  AHEAD_OF_LATEST_TITLE: "Mới hơn bản phát hành mới nhất",
+  AHEAD_OF_LATEST_JOKE:
+    "Trong khi bản chính thức vẫn còn nhỏ giọt cập nhật 🐌, bạn đã ở thế hệ tiếp theo 🚀. Kín tiếng thôi, đừng spoil 🤫.",
   UPDATE_LAUNCHER: "Cập nhật Launcher",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
@@ -291,7 +308,7 @@ export const vi_VN: typeof zh_CN = {
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Tự cuộn theo",
   LOG_VIEWER_COPY: "Sao chép log",
-  LICENSE_COPY: "Sao chép license hiện tại",
+  LICENSE_VIEW_ONLINE: "Xem trực tuyến",
   SETTING_GITHUB_ACCELERATED_PREFIX: "Use GitHub acceleration prefix",
   SETTING_GITHUB_ACCELERATED_PREFIX_URL: "GitHub acceleration prefix URL",
   SETTING_GITHUB_ACCELERATED_PREFIX_TEST: "Test",

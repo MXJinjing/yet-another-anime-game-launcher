@@ -33,6 +33,7 @@ import {
   checkAndDownloadDXVK,
   checkAndDownloadJadeite,
   checkAndDownloadReshade,
+  isDXMTInstalled,
 } from "@wine/runtime-resources";
 import { getGameVersion2019 } from "../unity";
 import {
@@ -156,6 +157,7 @@ export async function createHKRPGChannelClient({
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
   );
+  const [runtimeReady, setRuntimeReady] = createSignal(await isDXMTInstalled());
   const [showPredownloadPrompt, setShowPredownloadPrompt] =
     createSignal<boolean>(
       pre_download.major != null && //exist pre_download_game data in server response
@@ -196,6 +198,16 @@ export async function createHKRPGChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
+    runtimeReady: () => runtimeReady(),
+    async refreshRuntimeReady() {
+      setRuntimeReady(await isDXMTInstalled());
+    },
+    async *continueInstall(): TaskProgram {
+      if (wine.attributes.renderBackend == "dxmt") {
+        yield* checkAndDownloadDXMT(aria2);
+      }
+      setRuntimeReady(true);
+    },
     async *install(selection: string): TaskProgram {
       if (game_pkgs.length === 0) {
         await locale.alert(
@@ -233,6 +245,11 @@ export async function createHKRPGChannelClient({
           server,
           totalBytes: BigInt(totalSize),
         });
+        if (wine.attributes.renderBackend == "dxmt") {
+          yield* checkAndDownloadDXMT(aria2);
+        }
+        setRuntimeReady(true);
+
         // setGameInstalled
         batch(() => {
           setInstalled("INSTALLED");
@@ -425,6 +442,7 @@ export async function createHKRPGChannelClient({
       });
     },
     async *init(config: Config) {
+      setRuntimeReady(await isDXMTInstalled());
       try {
         await getKey("patched");
       } catch {

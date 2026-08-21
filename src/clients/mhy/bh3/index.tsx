@@ -31,6 +31,7 @@ import {
   checkAndDownloadDXVK,
   checkAndDownloadJadeite,
   checkAndDownloadReshade,
+  isDXMTInstalled,
 } from "@wine/runtime-resources";
 import { getGameVersion } from "../unity";
 import { BH3_GAME_LOG_LOCATIONS } from "../../game-log-paths";
@@ -146,6 +147,7 @@ export async function createBH3ChannelClient({
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
   );
+  const [runtimeReady, setRuntimeReady] = createSignal(await isDXMTInstalled());
   const [showPredownloadPrompt, setShowPredownloadPrompt] =
     createSignal<boolean>(
       pre_download_game != null && //exist pre_download_game data in server response
@@ -187,6 +189,16 @@ export async function createBH3ChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
+    runtimeReady: () => runtimeReady(),
+    async refreshRuntimeReady() {
+      setRuntimeReady(await isDXMTInstalled());
+    },
+    async *continueInstall(): TaskProgram {
+      if (wine.attributes.renderBackend == "dxmt") {
+        yield* checkAndDownloadDXMT(aria2);
+      }
+      setRuntimeReady(true);
+    },
     async *install(selection: string): TaskProgram {
       if (!path) {
         await locale.alert(
@@ -219,6 +231,11 @@ export async function createBH3ChannelClient({
           gameVersion: GAME_LATEST_VERSION,
           server,
         });
+        if (wine.attributes.renderBackend == "dxmt") {
+          yield* checkAndDownloadDXMT(aria2);
+        }
+        setRuntimeReady(true);
+
         // setGameInstalled
         batch(() => {
           setInstalled("INSTALLED");
@@ -397,6 +414,7 @@ export async function createBH3ChannelClient({
       });
     },
     async *init(config: Config) {
+      setRuntimeReady(await isDXMTInstalled());
       try {
         await getKey("patched");
       } catch {

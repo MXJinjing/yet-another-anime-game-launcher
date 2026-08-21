@@ -519,6 +519,78 @@ export async function reRegisterPrivilegedHostsHelper() {
   }
 }
 
+/**
+ * Detects whether the version registered by the installed privileged
+ * hosts-helper daemon is older than the current build manifest and upgrades it
+ * when needed (installing the new helper binary and updating the registration).
+ *
+ * The upgrade uses a plain install (no `--re-register`), so all of the
+ * helper's persistent data is preserved: the existing token and registry row
+ * are kept (install.sh only rotates the token with `--re-register`), and only
+ * the version/hashes in the registry row plus the daemon binary are refreshed.
+ */
+export async function upgradePrivilegedHostsHelperIfNeeded() {
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) return;
+  const ctx = await getHostsHelperContext();
+  if (!ctx.trusted) {
+    await warn(
+      "YAAGLM hosts helper upgrade skipped: launcher bundle is not trusted"
+    );
+    return;
+  }
+  try {
+    await ensureLocalHelperBinary();
+  } catch (error) {
+    await log(
+      `YAAGLM hosts helper local binary missing; skipping upgrade: ${String(
+        error
+      )}`
+    );
+    return;
+  }
+  let needsUpgrade = false;
+  try {
+    const registeredVersion = await requestStatus(ctx);
+    if (registeredVersion == ctx.manifest!.version) {
+      await log("YAAGLM hosts helper is already up to date");
+      return;
+    }
+    await log(
+      `YAAGLM hosts helper version mismatch (installed=${registeredVersion}, expected=${ctx.manifest!.version}); upgrading`
+    );
+    needsUpgrade = true;
+  } catch (error) {
+    const code = parseHelperError(error);
+    if (code != "UNREGISTERED" && code != "VERSION_MISMATCH") {
+      await log(
+        `YAAGLM hosts helper version check failed; skipping upgrade: ${String(
+          error
+        )}`
+      );
+      return;
+    }
+    await log(
+      `YAAGLM hosts helper is unregistered or stale (${String(
+        code
+      )}); installing`
+    );
+    needsUpgrade = true;
+  }
+  if (!needsUpgrade) return;
+  // Plain install preserves the token and registry row; only the daemon binary
+  // and version/hash fields are refreshed.
+  await installHelper(ctx);
+  const diagnostics = await requestStatusDiagnostics(ctx);
+  if (diagnostics.code != "OK") {
+    throw new Error(
+      `YAAGLM hosts helper upgrade failed (status: ${String(
+        diagnostics.code
+      )})`
+    );
+  }
+  await log(`YAAGLM hosts helper upgraded to ${ctx.manifest!.version}`);
+}
+
 function validateBlockTtl(ttl: number) {
   if (!Number.isInteger(ttl) || ttl < 1 || ttl > 3600) {
     throw new Error(`Invalid hosts block TTL: ${ttl}`);

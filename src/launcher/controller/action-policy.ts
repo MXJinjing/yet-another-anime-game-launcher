@@ -6,6 +6,7 @@ export type PrimaryLauncherAction =
   | "resume-download"
   | "initialize-wine"
   | "install"
+  | "continue-install"
   | "update"
   | "launch";
 
@@ -16,12 +17,14 @@ export function resolvePrimaryLauncherAction({
   wineInstalled,
   installState,
   updateRequired,
+  runtimeReady,
 }: {
   download: DownloadControlState;
   gameTaskBusy: boolean;
   wineInstalled: boolean;
   installState: string;
   updateRequired: boolean;
+  runtimeReady: boolean;
 }): PrimaryLauncherAction {
   if (download.active) {
     if (download.actionPending) return "none";
@@ -33,6 +36,7 @@ export function resolvePrimaryLauncherAction({
   if (gameTaskBusy) return "none";
   if (!wineInstalled) return "initialize-wine";
   if (installState !== "INSTALLED") return "install";
+  if (!runtimeReady) return "continue-install";
   return updateRequired ? "update" : "launch";
 }
 

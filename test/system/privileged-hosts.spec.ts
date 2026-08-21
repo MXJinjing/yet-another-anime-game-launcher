@@ -615,3 +615,55 @@ describe("helper version and binary hash guard", () => {
     ).toBe(true);
   });
 });
+
+describe("hosts helper upgrade after update", () => {
+  beforeEach(() => {
+    resetMocks();
+    makeTrusted();
+  });
+
+  it("is a no-op when the installed helper is already current", async () => {
+    const { upgradePrivilegedHostsHelperIfNeeded } = await loadModule();
+    await upgradePrivilegedHostsHelperIfNeeded();
+    expect(callsFor("install.sh")).toHaveLength(0);
+  });
+
+  it("upgrades with a plain install (no --re-register) when the installed version is old", async () => {
+    const { upgradePrivilegedHostsHelperIfNeeded } = await loadModule();
+    exec
+      .mockResolvedValueOnce(okResult()) // test -x helper
+      .mockResolvedValueOnce(okResult("OK 0.9.0\n")) // STATUS: old version
+      .mockResolvedValueOnce(okResult()) // shasum hash guard
+      .mockResolvedValueOnce(okResult()) // install.sh (plain)
+      .mockResolvedValueOnce(okResult("OK 1.0.0\n")); // retried STATUS: current
+    await upgradePrivilegedHostsHelperIfNeeded();
+    const installCalls = callsFor("install.sh");
+    expect(installCalls).toHaveLength(1);
+    // A plain upgrade must never rotate the token / drop the registry row.
+    expect(installCalls[0][0].join(" ")).not.toContain("--re-register");
+  });
+
+  it("installs (plain) when the daemon reports the bundle as unregistered", async () => {
+    const { upgradePrivilegedHostsHelperIfNeeded } = await loadModule();
+    let threw = false;
+    exec.mockImplementation(async (cmd, _env, _sudo) => {
+      const line = cmd.join(" ");
+      if (line.includes("status --token-file") && !threw) {
+        threw = true;
+        throw helperError("ERR_UNREGISTERED");
+      }
+      return okResult();
+    });
+    await upgradePrivilegedHostsHelperIfNeeded();
+    const installCalls = callsFor("install.sh");
+    expect(installCalls).toHaveLength(1);
+    expect(installCalls[0][0].join(" ")).not.toContain("--re-register");
+  });
+
+  it("skips the upgrade when the bundle is not trusted", async () => {
+    env.mockResolvedValue(undefined);
+    const { upgradePrivilegedHostsHelperIfNeeded } = await loadModule();
+    await upgradePrivilegedHostsHelperIfNeeded();
+    expect(callsFor("install.sh")).toHaveLength(0);
+  });
+});

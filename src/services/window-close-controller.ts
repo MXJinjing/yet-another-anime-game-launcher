@@ -5,6 +5,10 @@ export interface WindowCloseControllerDependencies {
   hasActiveDownloads: () => boolean;
   isGameRunning: () => boolean;
   requestGameClose: () => Promise<void>;
+  /** Resolves once the launcher self-update task has settled, or undefined. */
+  pendingUpdate: () => Promise<void> | undefined;
+  /** Cancels the launcher update's downloads before waiting for it to settle. */
+  cancelPendingUpdate: () => Promise<void>;
   onPromptChange?: (prompt: WindowClosePrompt | null) => void;
   onBeforeExit: () => Promise<boolean>;
   hideWindow: () => Promise<void>;
@@ -58,6 +62,17 @@ export function createWindowCloseController(
           return false;
         }
         await dependencies.requestGameClose();
+      }
+      // Mirror the game-close flow for a pending launcher update: cancel its
+      // downloads, then wait for the update task to settle before exiting.
+      // Exiting while the update is mid-flight (between downloads, during
+      // sidecar extraction or the resources.neu replacement) tears down
+      // in-flight Neutralino RPCs / shell commands, which surfaces a Neutralino
+      // "Fatal error" dialog and can leave the update half-applied.
+      const pendingUpdate = dependencies.pendingUpdate();
+      if (pendingUpdate) {
+        await dependencies.cancelPendingUpdate();
+        await pendingUpdate;
       }
       shouldExit = await dependencies.onBeforeExit();
       if (shouldExit) {

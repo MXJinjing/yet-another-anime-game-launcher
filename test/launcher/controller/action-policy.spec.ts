@@ -23,6 +23,7 @@ describe("launcher primary-action policy", () => {
         wineInstalled: true,
         installState: "INSTALLED",
         updateRequired: false,
+        runtimeReady: true,
       })
     ).toBe("pause-download");
     expect(
@@ -37,6 +38,7 @@ describe("launcher primary-action policy", () => {
         wineInstalled: true,
         installState: "INSTALLED",
         updateRequired: false,
+        runtimeReady: true,
       })
     ).toBe("none");
   });
@@ -49,6 +51,7 @@ describe("launcher primary-action policy", () => {
         wineInstalled: false,
         installState: "INSTALLED",
         updateRequired: false,
+        runtimeReady: true,
       })
     ).toBe("initialize-wine");
     expect(
@@ -57,6 +60,7 @@ describe("launcher primary-action policy", () => {
         wineInstalled: true,
         installState: "NOT_INSTALLED",
         updateRequired: false,
+        runtimeReady: true,
       })
     ).toBe("install");
     expect(
@@ -65,6 +69,7 @@ describe("launcher primary-action policy", () => {
         wineInstalled: true,
         installState: "INSTALLED",
         updateRequired: true,
+        runtimeReady: true,
       })
     ).toBe("update");
     expect(
@@ -73,8 +78,18 @@ describe("launcher primary-action policy", () => {
         wineInstalled: true,
         installState: "INSTALLED",
         updateRequired: false,
+        runtimeReady: true,
       })
     ).toBe("launch");
+    expect(
+      resolvePrimaryLauncherAction({
+        ...base,
+        wineInstalled: true,
+        installState: "INSTALLED",
+        updateRequired: false,
+        runtimeReady: false,
+      })
+    ).toBe("continue-install");
   });
 
   it("prompts for an update before integrity checking when necessary", () => {

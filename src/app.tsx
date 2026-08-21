@@ -30,8 +30,16 @@ import { createWindowCloseController } from "./services/window-close-controller"
 import { createTaskProgressScreen } from "./tasks/task-progress-screen";
 import type { TaskProgram } from "./tasks/task-program";
 import { startAria2Service } from "./download/aria2-service";
-import { hasActiveDownloads } from "./download/control";
-import { createUpdater, downloadProgram } from "./update/updater";
+import {
+  cancelControlledDownload,
+  hasActiveDownloads,
+} from "./download/control";
+import { cancelStream, getStreamsByKey } from "./download/stream-scheduler";
+import {
+  createUpdater,
+  downloadProgram,
+  UPDATE_DOWNLOAD_KEY,
+} from "./update/updater";
 import {
   getPrivilegedHostsHelperStatus,
   getPrivilegedHostsHelperTokenRecoveryState,
@@ -39,6 +47,7 @@ import {
   reRegisterPrivilegedHostsHelper,
   uninstallPrivilegedHostsHelper,
   unblockPrivilegedHosts,
+  upgradePrivilegedHostsHelperIfNeeded,
 } from "./system/privileged-hosts";
 import {
   checkWineEnvironment,
@@ -106,6 +115,21 @@ export async function createApp() {
   const gameCloseHandler: {
     current?: () => Promise<void>;
   } = {};
+  // Tracks the launcher self-update task so the window-close flow can wait for
+  // it to settle (and cancel its downloads) before exiting, the same way the
+  // game-close flow stops game processes and waits for the task queue.
+  let pendingUpdateTask: Promise<void> | undefined;
+  let resolvePendingUpdateTask: (() => void) | undefined;
+  const cancelPendingUpdate = async () => {
+    for (const stream of getStreamsByKey(UPDATE_DOWNLOAD_KEY)) {
+      if (
+        !["completed", "error", "cancelled"].includes(stream.status) &&
+        stream.canCancel
+      ) {
+        await cancelStream(stream.id);
+      }
+    }
+  };
   const [closePrompt, setClosePrompt] = createSignal<
     "download" | "game" | null
   >(null);
@@ -115,6 +139,8 @@ export async function createApp() {
     requestGameClose: async () => {
       await gameCloseHandler.current?.();
     },
+    pendingUpdate: () => pendingUpdateTask,
+    cancelPendingUpdate,
     onPromptChange: setClosePrompt,
     onBeforeExit: () => GLOBAL_onClose(false),
     hideWindow: () => Neutralino.window.hide(),
@@ -158,6 +184,10 @@ export async function createApp() {
       return;
     }
     if (result.latest) {
+      if (result.aheadOfLatest) {
+        await locale.alert("AHEAD_OF_LATEST_TITLE", "AHEAD_OF_LATEST_JOKE");
+        return;
+      }
       await locale.alert("SETTING_YAAGL_VERSION", "ALREADY_LATEST_VERSION");
       return;
     }
@@ -250,57 +280,30 @@ export async function createApp() {
       }
 
       if (recoveryState === "token-present" && markerRaw) {
-        let marker: HostsHelperReregisterMarker | undefined;
+        // The marker records that a launcher update just happened. Detect the
+        // version registered by the installed hosts-helper daemon and upgrade
+        // it only when it is older than the new build manifest. The upgrade is
+        // a plain install (no --re-register), so the helper's persistent data
+        // (token + registry row) is preserved.
+        await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
+        await locale.alert(
+          "SETTING_HOSTS_HELPER",
+          "SETTING_HOSTS_HELPER_REREGISTERING",
+          [],
+          "info"
+        );
         try {
-          const parsed = JSON.parse(
-            markerRaw
-          ) as Partial<HostsHelperReregisterMarker>;
-          if (
-            typeof parsed.targetVersion === "string" &&
-            typeof parsed.attempted === "boolean"
-          ) {
-            marker = {
-              targetVersion: parsed.targetVersion,
-              attempted: parsed.attempted,
-            };
-          }
-        } catch {
-          // Invalid marker is stale and should not trigger an install.
-        }
-
-        if (
-          marker &&
-          marker.targetVersion === CURRENT_YAAGL_VERSION &&
-          !marker.attempted
-        ) {
-          await setKey(
-            HOSTS_HELPER_REREGISTER_KEY,
-            JSON.stringify({ ...marker, attempted: true })
+          await upgradePrivilegedHostsHelperIfNeeded();
+        } catch (error) {
+          await log(
+            `Hosts Helper upgrade after update failed: ${String(error)}`
           );
           await locale.alert(
             "SETTING_HOSTS_HELPER",
-            "SETTING_HOSTS_HELPER_REREGISTERING",
+            "SETTING_HOSTS_HELPER_REREGISTER_FAILED",
             [],
-            "info"
+            "warning"
           );
-          try {
-            await reRegisterPrivilegedHostsHelper();
-            await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
-            return;
-          } catch (error) {
-            await log(
-              `Hosts Helper automatic re-registration failed: ${String(error)}`
-            );
-            await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
-            await locale.alert(
-              "SETTING_HOSTS_HELPER",
-              "SETTING_HOSTS_HELPER_REREGISTER_FAILED",
-              [],
-              "warning"
-            );
-          }
-        } else {
-          await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
         }
       }
 
@@ -419,6 +422,10 @@ export async function createApp() {
                     } satisfies HostsHelperReregisterMarker)
                   );
                 }
+                pendingUpdateTask = new Promise<void>(resolve => {
+                  resolvePendingUpdateTask = resolve;
+                });
+                const updateAbort = new AbortController();
                 setUpdaterComponent(() =>
                   createTaskProgressScreen({
                     locale,
@@ -427,10 +434,21 @@ export async function createApp() {
                       downloadProgram(
                         aria2,
                         info.downloadUrl!,
-                        info.sidecarDownloadUrl
+                        info.sidecarDownloadUrl,
+                        updateAbort.signal
                       ),
                     onRestart: _safeRelaunch,
                     onFailed: () => setUpdaterComponent(undefined),
+                    onCancel: () => {
+                      void cancelControlledDownload(UPDATE_DOWNLOAD_KEY);
+                      updateAbort.abort();
+                    },
+                    onCancelled: () => setUpdaterComponent(undefined),
+                    onSettled: () => {
+                      resolvePendingUpdateTask?.();
+                      resolvePendingUpdateTask = undefined;
+                      pendingUpdateTask = undefined;
+                    },
                   })
                 );
               })();

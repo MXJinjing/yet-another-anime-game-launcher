@@ -31,6 +31,7 @@ import {
   checkAndDownloadDXVK,
   checkAndDownloadJadeite,
   checkAndDownloadReshade,
+  isDXMTInstalled,
 } from "@wine/runtime-resources";
 // import { getGameVersion } from "../unity";
 import { LauncherResourceData } from "./launcher-info";
@@ -92,6 +93,7 @@ export async function createCBJQChannelClient({
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
   );
+  const [runtimeReady, setRuntimeReady] = createSignal(await isDXMTInstalled());
   const [showPredownloadPrompt, setShowPredownloadPrompt] =
     createSignal<boolean>(
       false // TODO
@@ -123,6 +125,16 @@ export async function createCBJQChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
+    runtimeReady: () => runtimeReady(),
+    async refreshRuntimeReady() {
+      setRuntimeReady(await isDXMTInstalled());
+    },
+    async *continueInstall(): TaskProgram {
+      if (wine.attributes.renderBackend == "dxmt") {
+        yield* checkAndDownloadDXMT(aria2);
+      }
+      setRuntimeReady(true);
+    },
     async *install(selection: string): TaskProgram {
       const local_manifest = join(selection, "manifest.json");
       try {
@@ -141,6 +153,11 @@ export async function createCBJQChannelClient({
           server,
           totalBytes,
         });
+        if (wine.attributes.renderBackend == "dxmt") {
+          yield* checkAndDownloadDXMT(aria2);
+        }
+        setRuntimeReady(true);
+
         // setGameInstalled
         batch(() => {
           setInstalled("INSTALLED");
@@ -232,6 +249,7 @@ export async function createCBJQChannelClient({
       });
     },
     async *init(config: Config) {
+      setRuntimeReady(await isDXMTInstalled());
       try {
         await getKey("patched");
       } catch {

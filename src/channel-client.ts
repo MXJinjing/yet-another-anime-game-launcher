@@ -51,6 +51,13 @@ export interface ChannelClient {
   updateRequired: () => boolean;
   predownloadVersion: () => string;
 
+  /** True when all launcher-managed runtime components (e.g. DXMT) are ready. */
+  runtimeReady: () => boolean;
+  /** Re-reads persisted runtime state and refreshes `runtimeReady`. */
+  refreshRuntimeReady: () => Promise<void>;
+  /** Installs any missing launcher-managed runtime components (e.g. DXMT). */
+  continueInstall: () => TaskProgram;
+
   uiContent: {
     background?: string;
     background_video?: string;

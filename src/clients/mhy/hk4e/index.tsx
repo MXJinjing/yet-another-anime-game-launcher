@@ -35,6 +35,7 @@ import {
   checkAndDownloadDXMT,
   checkAndDownloadDXVK,
   checkAndDownloadReshade,
+  isDXMTInstalled,
 } from "@wine/runtime-resources";
 import createMhypBaseReplacement from "./config/mhypbase-replacement";
 import createPatchOff from "./config/patch-off";
@@ -171,6 +172,7 @@ export async function createHK4EChannelClient({
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
   );
+  const [runtimeReady, setRuntimeReady] = createSignal(await isDXMTInstalled());
   const [showPredownloadPrompt, setShowPredownloadPrompt] =
     createSignal<boolean>(
       PRE_DOWNLOAD_AVAILABLE &&
@@ -254,6 +256,16 @@ export async function createHK4EChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
+    runtimeReady: () => runtimeReady(),
+    async refreshRuntimeReady() {
+      setRuntimeReady(await isDXMTInstalled());
+    },
+    async *continueInstall(): TaskProgram {
+      if (wine.attributes.renderBackend == "dxmt") {
+        yield* checkAndDownloadDXMT(aria2);
+      }
+      setRuntimeReady(true);
+    },
     async *install(selection: string): TaskProgram {
       try {
         await stats(join(selection, "pkg_version"));
@@ -286,6 +298,11 @@ export async function createHK4EChannelClient({
           gameDir: selection,
           installReltype: releaseType,
         });
+        if (wine.attributes.renderBackend == "dxmt") {
+          yield* checkAndDownloadDXMT(aria2);
+        }
+        setRuntimeReady(true);
+
         // setGameInstalled
         const installedVersion = await getGameVersionGI(
           join(selection, server.dataDir)
@@ -411,6 +428,7 @@ export async function createHK4EChannelClient({
       }
     },
     async *init(config: Config) {
+      setRuntimeReady(await isDXMTInstalled());
       try {
         await getKey("patched");
       } catch {

@@ -1,0 +1,15 @@
+.launcher-update-prompt {
+  margin: 0 0 4px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+/* Scrollable container for the markdown changelog (typography lives in
+   modal-markdown.css under .modal-markdown). */
+.launcher-update-changelog {
+  margin-top: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 10px;
+}

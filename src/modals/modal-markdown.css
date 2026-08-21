@@ -1,0 +1,119 @@
+/* Shared typography for markdown-rendered content in dark modals. */
+.modal-markdown {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13.5px;
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+.modal-markdown > :first-child {
+  margin-top: 0;
+}
+
+.modal-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.modal-markdown h1,
+.modal-markdown h2,
+.modal-markdown h3,
+.modal-markdown h4 {
+  color: #fff;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 14px 0 8px;
+}
+
+.modal-markdown h1 {
+  font-size: 17px;
+}
+
+.modal-markdown h2 {
+  font-size: 15.5px;
+}
+
+.modal-markdown h3 {
+  font-size: 14.5px;
+}
+
+.modal-markdown h4 {
+  font-size: 13.5px;
+}
+
+.modal-markdown p {
+  margin: 8px 0;
+}
+
+.modal-markdown ul,
+.modal-markdown ol {
+  margin: 8px 0;
+  padding-left: 22px;
+}
+
+.modal-markdown li {
+  margin: 4px 0;
+}
+
+.modal-markdown code {
+  font-family: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #ffd834;
+}
+
+.modal-markdown pre {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.modal-markdown pre code {
+  background: transparent;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.modal-markdown a {
+  color: #7cb2ff;
+  text-decoration: underline;
+}
+
+.modal-markdown blockquote {
+  margin: 8px 0;
+  padding: 2px 12px;
+  border-left: 3px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.modal-markdown table {
+  border-collapse: collapse;
+  margin: 10px 0;
+  width: 100%;
+}
+
+.modal-markdown th,
+.modal-markdown td {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.modal-markdown th {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.modal-markdown hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  margin: 14px 0;
+}
+
+.modal-markdown img {
+  max-width: 100%;
+  border-radius: 8px;
+}

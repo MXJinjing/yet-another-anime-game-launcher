@@ -20,6 +20,7 @@ export const ja_JP: typeof zh_CN = {
   BOOT_INITIALIZATION_FAILED: "初期化に失敗しました",
   LAUNCH: "ゲーム開始",
   INSTALL: "ゲームをインストール",
+  CONTINUE_INSTALL: "インストールを続行",
   UPDATING: "更新中",
   DOWNLOADING: "ダウンロード中",
   DOWNLOAD_PAUSED: "ダウンロード一時停止中",
@@ -180,6 +181,8 @@ export const ja_JP: typeof zh_CN = {
     "ディスクに少なくとも {0}GiB（{1}GB）の空き容量が必要です。",
 
   UPDATE: "ゲーム更新",
+
+  LAUNCH_WITHOUT_UPDATE: "更新せずに起動",
   GAME_VERSION_TOO_OLD_DESC:
     "現在お使いゲームバージョン（{0}）は古すぎるため、増分更新を行うことができません。ゲームを再インストールしてください。",
 
@@ -231,12 +234,21 @@ export const ja_JP: typeof zh_CN = {
   SETTING_HOSTS_HELPER_REREGISTER_SUCCESS:
     "The Hosts Helper registration was repaired",
   SETTING_TIMEOUT_FIX: "Wineタイムアウト回避を有効化",
-  SETTING_WORKAROUND4: "ゲーム実行中に mhypbase.dll を一時置換",
-  SETTING_WORKAROUND4_DESC:
-    "起動前に、選択した古い mhypbase.dll をゲームフォルダへコピーし、ゲーム実行中はそのまま保持します。ゲーム終了後、元のファイルを復元します。ランチャーはこの DLL を同梱または配布しません。",
   SETTING_WORKAROUND4_PICK: "ファイルを選択...",
   SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "選択ボタン",
-  SETTING_WORKAROUND4_REVERT_BTN: "元の mhypbase.dll を今すぐ復元",
+  SETTING_RUNTIME_REPLACEMENT_TITLE: "実行中にファイルを置き換える",
+  SETTING_RUNTIME_REPLACEMENT_DESC:
+    "起動前に選択したファイルをゲームフォルダ内の対象ファイルに上書きし、ゲーム終了後にバックアップから自動復元します。",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_ENABLED: "有効",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_TARGET: "置き換えるファイル",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_REPLACEMENT: "置き換え元ファイル",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_DELETE: "削除",
+  SETTING_RUNTIME_REPLACEMENT_ROW_ENABLED: "{0} 行目を有効にする",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TARGET: "置き換えるファイルを選択",
+  SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT: "置き換え元ファイルを選択",
+  SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "この行を削除",
+  SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "行を追加",
+  SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL: "すべてのバックアップを今すぐ復元",
   SETTING_LICENSES: "ライセンス",
   SETTING_ENABLE_HDR: "HDR有効",
 
@@ -255,7 +267,11 @@ export const ja_JP: typeof zh_CN = {
     "ゲームに新しいバージョンがあります。今すぐインストールしますか？",
   SETTING_CONFIRM_INSTALL: "インストールを確認",
   SETTING_CANCEL_INSTALL: "インストールをキャンセル",
+  CANCEL_UPDATE: "更新をキャンセル",
   ALREADY_LATEST_VERSION: "既に最新バージョンを使用しています。",
+  AHEAD_OF_LATEST_TITLE: "最新版より新しい",
+  AHEAD_OF_LATEST_JOKE:
+    "公式がまだ少しずつ更新を出している間に🐌、あなたはもう次世代🚀。控えめに、ネタバレ注意🤫。",
   UPDATE_LAUNCHER: "ランチャー更新",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
@@ -292,7 +308,7 @@ export const ja_JP: typeof zh_CN = {
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "自動スクロール",
   LOG_VIEWER_COPY: "ログをコピー",
-  LICENSE_COPY: "現在のライセンスをコピー",
+  LICENSE_VIEW_ONLINE: "オンラインで表示",
   SETTING_GITHUB_ACCELERATED_PREFIX: "GitHub 高速化プレフィックスを使用",
   SETTING_GITHUB_ACCELERATED_PREFIX_URL: "GitHub 高速化プレフィックス URL",
   SETTING_GITHUB_ACCELERATED_PREFIX_TEST: "テスト",

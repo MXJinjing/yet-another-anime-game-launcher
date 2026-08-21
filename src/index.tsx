@@ -36,7 +36,7 @@ if (typeof Neutralino == "undefined") {
   const bootIcon = getChannelBootIcon(
     import.meta.env.YAAGL_CHANNEL_CLIENT || "hk4ecn"
   );
-  render(
+  const disposeBoot = render(
     () => (
       <div class="app-boot">
         <img class="app-boot-icon" src={bootIcon} alt="" />
@@ -54,6 +54,11 @@ if (typeof Neutralino == "undefined") {
   createApp()
     .then(UI => {
       reportBootProgress("BOOT_ENTERING_MAIN_SCREEN", 100);
+      // Remove the startup loading screen before mounting the real UI.
+      // Solid's render() appends when the container is not empty, so without
+      // this the boot screen (its spinner/text) stays in the DOM behind the
+      // app and shows through transparent overlays such as the update screen.
+      disposeBoot();
       render(
         () => (
           <HopeProvider

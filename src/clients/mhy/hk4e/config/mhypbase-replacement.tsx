@@ -270,8 +270,8 @@ export default async function ({
       return (
         <SettingSwitch
           id="runtime-replacements"
-          label="运行期间替换文件"
-          description="启动前把选中的文件覆盖到游戏目录内的目标文件，游戏退出后自动还原备份。"
+          label={locale.get("SETTING_RUNTIME_REPLACEMENT_TITLE")}
+          description={locale.get("SETTING_RUNTIME_REPLACEMENT_DESC")}
           checked={enabled()}
           onChange={setEnabled}
         >
@@ -299,19 +299,27 @@ export default async function ({
                         class="runtime-replace-table-header"
                         style={thNarrowStyle}
                       >
-                        启用
+                        {locale.get(
+                          "SETTING_RUNTIME_REPLACEMENT_HEADER_ENABLED"
+                        )}
                       </th>
                       <th class="runtime-replace-table-header" style={thStyle}>
-                        待替换文件
+                        {locale.get(
+                          "SETTING_RUNTIME_REPLACEMENT_HEADER_TARGET"
+                        )}
                       </th>
                       <th class="runtime-replace-table-header" style={thStyle}>
-                        替换文件
+                        {locale.get(
+                          "SETTING_RUNTIME_REPLACEMENT_HEADER_REPLACEMENT"
+                        )}
                       </th>
                       <th
                         class="runtime-replace-table-header"
                         style={thNarrowStyle}
                       >
-                        删除
+                        {locale.get(
+                          "SETTING_RUNTIME_REPLACEMENT_HEADER_DELETE"
+                        )}
                       </th>
                     </tr>
                   </thead>
@@ -334,7 +342,10 @@ export default async function ({
                               <div class="runtime-replace-enable-control">
                                 <Checkbox
                                   id={`runtime-replacements-row-${index()}`}
-                                  aria-label={`启用第 ${index() + 1} 行替换`}
+                                  aria-label={locale.format(
+                                    "SETTING_RUNTIME_REPLACEMENT_ROW_ENABLED",
+                                    [String(index() + 1)]
+                                  )}
                                   checked={entry.enabled}
                                   onChange={() =>
                                     updateEntry(index(), {
@@ -377,7 +388,9 @@ export default async function ({
                                   <button
                                     type="button"
                                     class="runtime-replace-icon-button"
-                                    aria-label="选择待替换文件"
+                                    aria-label={locale.get(
+                                      "SETTING_RUNTIME_REPLACEMENT_PICK_TARGET"
+                                    )}
                                     onClick={() => pickTarget(index())}
                                   >
                                     <span
@@ -421,7 +434,9 @@ export default async function ({
                                   <button
                                     type="button"
                                     class="runtime-replace-icon-button"
-                                    aria-label="选择替换文件"
+                                    aria-label={locale.get(
+                                      "SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT"
+                                    )}
                                     onClick={() => pickReplacement(index())}
                                   >
                                     <span
@@ -436,7 +451,9 @@ export default async function ({
                               <button
                                 type="button"
                                 class="runtime-replace-delete-button"
-                                aria-label="删除此行"
+                                aria-label={locale.get(
+                                  "SETTING_RUNTIME_REPLACEMENT_DELETE_ROW"
+                                )}
                                 onClick={() =>
                                   setEntries(previous =>
                                     previous.filter((_, i) => i != index())
@@ -465,10 +482,10 @@ export default async function ({
                   setEntries(previous => [...previous, emptyEntry()])
                 }
               >
-                添加行
+                {locale.get("SETTING_RUNTIME_REPLACEMENT_ADD_ROW")}
               </Button>
               <Button size="sm" variant="ghost" onClick={restoreAll}>
-                立即还原所有备份
+                {locale.get("SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL")}
               </Button>
             </HStack>
           </Show>

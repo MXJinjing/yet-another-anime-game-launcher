@@ -1,6 +1,9 @@
 import { AppModal, AppModalButton } from "../components/app-modal";
-import type { Accessor } from "solid-js";
+import { createMemo, type Accessor } from "solid-js";
 import type { Locale } from "../locale";
+import { renderMarkdownHtml } from "./markdown";
+import "./launcher-update-modal.css";
+import "./modal-markdown.css";
 
 export type LauncherUpdateInfo = {
   version?: string;
@@ -17,17 +20,23 @@ export function LauncherUpdateModal(props: {
   onIgnore: (version: string) => void | Promise<void>;
   onUpdate: (info: LauncherUpdateInfo) => void;
 }) {
+  // The GitHub release body is markdown (GFM); render it to sanitized HTML.
+  const changelogHtml = createMemo(() =>
+    renderMarkdownHtml(props.pendingUpdateInfo().description ?? "")
+  );
+
   return (
     <AppModal
       opened={props.opened()}
       onClose={props.onClose}
       title={props.locale.get("NEW_VERSION_AVAILABLE")}
+      maxWidth={640}
       footer={
         <>
           <AppModalButton
             variant="danger"
             onClick={async () => {
-              await props.onIgnore(props.pendingUpdateInfo().version!);
+              await props.onIgnore(props.pendingUpdateInfo().version ?? "");
               props.onClose();
             }}
           >
@@ -48,11 +57,17 @@ export function LauncherUpdateModal(props: {
         </>
       }
     >
-      <div class="app-modal-message" style={{ "white-space": "pre-wrap" }}>
-        {props.locale.format("NEW_VERSION_AVAILABLE_DESC", [
-          props.pendingUpdateInfo().version!,
-          props.pendingUpdateInfo().description!,
-        ])}
+      <div class="app-modal-message">
+        <p class="launcher-update-prompt">
+          {props.locale.format("NEW_VERSION_AVAILABLE_DESC", [
+            props.pendingUpdateInfo().version ?? "",
+            "",
+          ])}
+        </p>
+        <div
+          class="launcher-update-changelog modal-markdown"
+          innerHTML={changelogHtml()}
+        />
       </div>
     </AppModal>
   );

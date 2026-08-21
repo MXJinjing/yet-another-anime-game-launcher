@@ -19,6 +19,7 @@ export const en: typeof zh_CN = {
   BOOT_INITIALIZATION_FAILED: "Initialization failed",
   LAUNCH: "Launch Game",
   INSTALL: "Install Game",
+  CONTINUE_INSTALL: "Continue Install",
   UPDATING: "Updating",
   DOWNLOADING: "Downloading",
   DOWNLOAD_PAUSED: "Download Paused",
@@ -179,6 +180,8 @@ export const en: typeof zh_CN = {
     "At least {0}GiB ({1}GB) of freespace is required on your disk.",
 
   UPDATE: "Update Game",
+
+  LAUNCH_WITHOUT_UPDATE: "Launch Without Updating",
   GAME_VERSION_TOO_OLD_DESC:
     "Your current game version ({0}) is too old to update incrementally. Please re-install the game.",
 
@@ -230,12 +233,21 @@ export const en: typeof zh_CN = {
   SETTING_HOSTS_HELPER_REREGISTER_SUCCESS:
     "The Hosts Helper registration was repaired",
   SETTING_TIMEOUT_FIX: "Enable Wine timeout workaround",
-  SETTING_WORKAROUND4: "Temporarily replace mhypbase.dll while the game runs",
-  SETTING_WORKAROUND4_DESC:
-    "Before launch, the selected older mhypbase.dll is copied into the game folder and kept in place while the game runs. The original file is restored after the game exits. The launcher does not bundle or distribute this DLL.",
   SETTING_WORKAROUND4_PICK: "Choose file...",
   SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "Select button",
-  SETTING_WORKAROUND4_REVERT_BTN: "Restore original mhypbase.dll now",
+  SETTING_RUNTIME_REPLACEMENT_TITLE: "Replace files while the game runs",
+  SETTING_RUNTIME_REPLACEMENT_DESC:
+    "Before launch, the selected files are copied over the target files in the game directory and kept in place while the game runs. The originals are restored after the game exits.",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_ENABLED: "Enabled",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_TARGET: "File to replace",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_REPLACEMENT: "Replacement file",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_DELETE: "Delete",
+  SETTING_RUNTIME_REPLACEMENT_ROW_ENABLED: "Enable row {0}",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TARGET: "Pick the file to replace",
+  SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT: "Pick the replacement file",
+  SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "Delete this row",
+  SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "Add row",
+  SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL: "Restore all backups now",
   SETTING_LICENSES: "Licenses",
   SETTING_ENABLE_HDR: "Enable HDR",
 
@@ -254,7 +266,11 @@ export const en: typeof zh_CN = {
     "A new version of the game is available. Install now?",
   SETTING_CONFIRM_INSTALL: "Confirm Install",
   SETTING_CANCEL_INSTALL: "Cancel Install",
+  CANCEL_UPDATE: "Cancel update",
   ALREADY_LATEST_VERSION: "You are already using the latest version.",
+  AHEAD_OF_LATEST_TITLE: "Ahead of the latest release",
+  AHEAD_OF_LATEST_JOKE:
+    "While the official release is still drip-feeding updates 🐌, you\u2019re already on the next generation 🚀. Keep it low-key \u2014 don\u2019t spoil it 🤫.",
   UPDATE_LAUNCHER: "Update Launcher",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
@@ -292,7 +308,7 @@ export const en: typeof zh_CN = {
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Follow scroll",
   LOG_VIEWER_COPY: "Copy Logs",
-  LICENSE_COPY: "Copy Current License",
+  LICENSE_VIEW_ONLINE: "View Online",
   SETTING_GITHUB_ACCELERATED_PREFIX: "Use GitHub acceleration prefix",
   SETTING_GITHUB_ACCELERATED_PREFIX_URL: "GitHub acceleration prefix URL",
   SETTING_GITHUB_ACCELERATED_PREFIX_TEST: "Test",

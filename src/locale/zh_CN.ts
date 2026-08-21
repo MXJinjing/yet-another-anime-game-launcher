@@ -19,6 +19,7 @@ export const zh_CN = {
   BOOT_INITIALIZATION_FAILED: "初始化失败",
   LAUNCH: "开始游戏",
   INSTALL: "安装游戏",
+  CONTINUE_INSTALL: "继续安装",
   UPDATING: "正在更新",
   DOWNLOADING: "正在下载",
   DOWNLOAD_PAUSED: "下载暂停",
@@ -35,7 +36,7 @@ export const zh_CN = {
   FORCE_QUIT_GAME: "强制退出",
   FIXING_FILES: "正在修复第{0}个文件，共{1}个",
   PATCHING: "正在应用补丁",
-  GAME_RUNNING: "游戏正在运行中",
+  GAME_RUNNING: "游戏运行中",
   GAME_RECOVERING: "正在恢复",
   GAME_RUNNING_CLOSE_TITLE: "游戏仍在运行",
   GAME_RUNNING_CLOSE_DESC:
@@ -172,6 +173,8 @@ export const zh_CN = {
   NO_ENOUGH_DISKSPACE_DESC: "解压安装需要至少{0}GiB ({1}GB)的剩余空间",
 
   UPDATE: "更新游戏",
+
+  LAUNCH_WITHOUT_UPDATE: "不更新并开始游戏",
   GAME_VERSION_TOO_OLD_DESC:
     "当前游戏版本({0})太过久远，无法增量更新。请重新安装游戏。",
 
@@ -218,12 +221,21 @@ export const zh_CN = {
     "Hosts Helper 已安装但当前启动器无法正常认证。重新注册会仅替换当前 bundle 的注册项并轮换 token，不影响其他注册项；操作需要 macOS 管理员授权。",
   SETTING_HOSTS_HELPER_REREGISTER_SUCCESS: "Hosts Helper 已重新注册",
   SETTING_TIMEOUT_FIX: "启用 Wine 超时绕过",
-  SETTING_WORKAROUND4: "运行期间临时替换 mhypbase.dll",
-  SETTING_WORKAROUND4_DESC:
-    "启动前会把用户选择的旧版 mhypbase.dll 复制到游戏目录，并在游戏运行期间保持替换；游戏退出后还原原文件。启动器不会内置或分发该 DLL。",
   SETTING_WORKAROUND4_PICK: "选择文件...",
   SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "选择按钮",
-  SETTING_WORKAROUND4_REVERT_BTN: "立即还原原始 mhypbase.dll",
+  SETTING_RUNTIME_REPLACEMENT_TITLE: "运行期间替换文件",
+  SETTING_RUNTIME_REPLACEMENT_DESC:
+    "启动前把选中的文件覆盖到游戏目录内的目标文件，游戏退出后自动还原备份。",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_ENABLED: "启用",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_TARGET: "待替换文件",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_REPLACEMENT: "替换文件",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_DELETE: "删除",
+  SETTING_RUNTIME_REPLACEMENT_ROW_ENABLED: "启用第 {0} 行替换",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TARGET: "选择待替换文件",
+  SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT: "选择替换文件",
+  SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "删除此行",
+  SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "添加行",
+  SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL: "立即还原所有备份",
   SETTING_LICENSES: "许可证",
   SETTING_ENABLE_HDR: "启用 HDR",
 
@@ -241,7 +253,11 @@ export const zh_CN = {
   SETTING_GAME_UPDATE_AVAILABLE_DESC: "检测到游戏有新版本，是否立即安装？",
   SETTING_CONFIRM_INSTALL: "确认安装",
   SETTING_CANCEL_INSTALL: "取消安装",
+  CANCEL_UPDATE: "取消更新",
   ALREADY_LATEST_VERSION: "您已在使用最新版本。",
+  AHEAD_OF_LATEST_TITLE: "领先于最新发布版",
+  AHEAD_OF_LATEST_JOKE:
+    "当官方还在挤牙膏🐌，你已经用上了下一代🚀。低调点，别剧透🤫。",
   UPDATE_LAUNCHER: "更新启动器",
   INIT_ENVIRONMENT: "初始化环境",
   INIT_ENVIRONMENT_TITLE: "初始化运行环境",
@@ -278,7 +294,7 @@ export const zh_CN = {
   LOG_VIEWER_OPEN_FILE: "打开日志文件",
   LOG_VIEWER_FOLLOW_SCROLL: "跟随滚动",
   LOG_VIEWER_COPY: "复制日志",
-  LICENSE_COPY: "复制当前许可证",
+  LICENSE_VIEW_ONLINE: "在线查看",
   SETTING_GITHUB_ACCELERATED_PREFIX: "使用 GitHub 加速前缀",
   SETTING_GITHUB_ACCELERATED_PREFIX_URL: "GitHub 加速前缀网址",
   SETTING_GITHUB_ACCELERATED_PREFIX_TEST: "测试",

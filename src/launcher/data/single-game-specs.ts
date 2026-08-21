@@ -1,6 +1,6 @@
 import AponiaIcon from "../../assets/Aponia.cr.webp";
 import NahidaIcon from "../../assets/Nahida.cr.png";
-import { GAME_ICON_URLS } from "./game-assets";
+import { GAME_ICON_URLS, GAME_ICON_URLS_CN } from "./game-assets";
 import type { LocaleTextKey } from "@locale";
 
 export type SingleGameChannelMeta = {
@@ -15,7 +15,7 @@ export const SINGLE_GAME_CHANNEL_META: Record<string, SingleGameChannelMeta> = {
     id: "hk4ecn",
     title: atob("R2Vuc2hpbiBJbXBhY3QgQ04="),
     serverLabel: "SERVER_LABEL_CN",
-    fallbackIcon: GAME_ICON_URLS["hk4e"],
+    fallbackIcon: GAME_ICON_URLS_CN["hk4e"],
   },
   hk4eos: {
     id: "hk4eos",

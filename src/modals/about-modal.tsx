@@ -43,6 +43,22 @@ export function AboutModalContent(props: {
   );
 }
 
+/** Footer link used to jump from the About page to the Release-log page. */
+export function AboutReleaseLogLink(props: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      class="about-license-link about-footer-link-left"
+      type="button"
+      onClick={props.onClick}
+    >
+      {props.label}
+    </button>
+  );
+}
+
 /** Footer link used to jump from the About page to the License page. */
 export function AboutLicenseLink(props: { onClick: () => void }) {
   return (

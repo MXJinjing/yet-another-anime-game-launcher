@@ -919,6 +919,11 @@ export async function createHypLauncher({
         fn: async function* () {
           yield* initializeWine(initialWineDistro);
           notifyWineDistroInitialized(initialWineDistro);
+          // Re-read runtime-component state (e.g. DXMT) now that the Wine
+          // environment is installed, so the primary button reflects reality.
+          for (const game of games) {
+            await game.client.refreshRuntimeReady();
+          }
         },
         name: "INIT_ENVIRONMENT",
       });
@@ -933,6 +938,7 @@ export async function createHypLauncher({
         wineInstalled: wineInstalled(),
         installState: game.client.installState(),
         updateRequired: game.client.updateRequired(),
+        runtimeReady: game.client.runtimeReady(),
       });
       switch (action) {
         case "none":
@@ -946,6 +952,17 @@ export async function createHypLauncher({
         case "initialize-wine":
           startInitializeWine();
           return;
+        case "continue-install":
+          await log("Runtime installation requested");
+          taskQueue.enqueue({
+            key: game.id,
+            fn: gameProgram(aria2, baseWine, game, () =>
+              game.client.continueInstall()
+            ),
+            name: "INSTALL",
+            downloadTask: gameDownloadTaskMetadata(game, locale, "release"),
+          });
+          return;
         case "update":
           await log("Game update requested");
           taskQueue.enqueue({
@@ -956,21 +973,7 @@ export async function createHypLauncher({
           });
           return;
         case "launch":
-          await log("Game launch requested");
-          taskQueue.enqueue({
-            key: game.id,
-            fn: gameProgram(aria2, baseWine, game, () =>
-              createGameLaunchProgram({
-                game,
-                baseWine,
-                getStopGameLogOpen: () => stopGameLogOpen,
-                setStopGameLogOpen: stop => {
-                  stopGameLogOpen = stop;
-                },
-              })
-            ),
-            name: "LAUNCH",
-          });
+          await startGameLaunch(game);
           return;
         case "install": {
           const selection = await selectPath();
@@ -992,6 +995,7 @@ export async function createHypLauncher({
     function actionLabel(game: HypGame) {
       if (game.client.installState() !== "INSTALLED")
         return locale.get("INSTALL");
+      if (!game.client.runtimeReady()) return locale.get("CONTINUE_INSTALL");
       if (!game.client.updateRequired()) return locale.get("LAUNCH");
       return locale.get("UPDATE");
     }
@@ -1024,6 +1028,24 @@ export async function createHypLauncher({
           // download registry when they start.
         });
       }
+    }
+
+    async function startGameLaunch(game: HypGame) {
+      await log(`Game launch requested: ${game.id}`);
+      taskQueue.enqueue({
+        key: game.id,
+        fn: gameProgram(aria2, baseWine, game, () =>
+          createGameLaunchProgram({
+            game,
+            baseWine,
+            getStopGameLogOpen: () => stopGameLogOpen,
+            setStopGameLogOpen: stop => {
+              stopGameLogOpen = stop;
+            },
+          })
+        ),
+        name: "LAUNCH",
+      });
     }
 
     function primaryButtonLabel() {
@@ -1495,6 +1517,27 @@ export async function createHypLauncher({
                               }}
                             >
                               {locale.get("FORCE_QUIT_GAME")}
+                            </button>
+                          </Show>
+                          <Show
+                            when={
+                              selectedGame().client.installState() ===
+                                "INSTALLED" &&
+                              wineInstalled() &&
+                              selectedGame().client.runtimeReady() &&
+                              selectedGame().client.updateRequired() &&
+                              !selectedGameRunning()
+                            }
+                          >
+                            <button
+                              class="hyp-menu-item"
+                              disabled={actionDisabled()}
+                              onClick={() => {
+                                void startGameLaunch(selectedGame());
+                                onClose();
+                              }}
+                            >
+                              {locale.get("LAUNCH_WITHOUT_UPDATE")}
                             </button>
                           </Show>
                         </div>

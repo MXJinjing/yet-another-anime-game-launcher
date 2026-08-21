@@ -9,6 +9,10 @@ import {
 import MIT_LICENSE_URL from "../assets/licenses/mit-license.md?url";
 import COPYRIGHT_NOTICE_URL from "../assets/licenses/copyright-notice.md?url";
 import { Locale } from "../locale";
+import { open } from "../platform/neutralino";
+
+const GITHUB_LICENSE_URL =
+  "https://github.com/MXJinjing/yet-another-anime-game-launcher/blob/main/LICENSE";
 
 type MarkdownBlock =
   | { type: "heading"; text: string }
@@ -104,21 +108,12 @@ function MarkdownLicense(props: { content: string; failed: boolean }) {
   );
 }
 
-function markdownToPlainText(source: string) {
-  return source
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/`([^`]+)`/g, "$1")
-    .trim();
-}
-
 const LICENSE_URLS = [MIT_LICENSE_URL, COPYRIGHT_NOTICE_URL];
 
 export function LicenseModal(props: { locale: Locale }) {
   const [selectedLicense, setSelectedLicense] = createSignal(0);
   const [licenseContents, setLicenseContents] = createSignal<string[]>([]);
   const [loadError, setLoadError] = createSignal(false);
-  const licenseText = () =>
-    markdownToPlainText(licenseContents()[selectedLicense()] ?? "");
 
   onMount(() => {
     void Promise.all(
@@ -146,17 +141,16 @@ export function LicenseModal(props: { locale: Locale }) {
     >
       <HStack class="license-tabs-header" mb={"$4"}>
         <TabList>
-          <Tab>MIT</Tab>
+          <Tab>MIT License</Tab>
           <Tab>Copyright Notice</Tab>
         </TabList>
         <Button
-          class="license-tabs-copy"
+          class="license-tabs-online"
           variant="ghost"
           size="sm"
-          disabled={!licenseText()}
-          onClick={() => Neutralino.clipboard.writeText(licenseText())}
+          onClick={() => void open(GITHUB_LICENSE_URL)}
         >
-          {props.locale.get("LICENSE_COPY")}
+          {props.locale.get("LICENSE_VIEW_ONLINE")}
         </Button>
       </HStack>
       <TabPanel px={0} pt={0} pb={0} overflowY="auto">

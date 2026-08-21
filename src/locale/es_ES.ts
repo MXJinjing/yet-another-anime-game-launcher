@@ -20,6 +20,7 @@ export const es_ES: typeof zh_CN = {
   BOOT_INITIALIZATION_FAILED: "La inicialización ha fallado",
   LAUNCH: "Iniciar el juego",
   INSTALL: "Instalar el juego",
+  CONTINUE_INSTALL: "Continuar instalación",
   UPDATING: "Actualizando",
   DOWNLOADING: "Descargando",
   DOWNLOAD_PAUSED: "Descarga en pausa",
@@ -178,6 +179,8 @@ export const es_ES: typeof zh_CN = {
   NO_ENOUGH_DISKSPACE_DESC: en.NEW_VERSION_AVAILABLE_DESC,
 
   UPDATE: en.UPDATE,
+
+  LAUNCH_WITHOUT_UPDATE: "Iniciar sin actualizar",
   GAME_VERSION_TOO_OLD_DESC: en.GAME_VERSION_TOO_OLD_DESC,
 
   PREDOWNLOAD_READY: en.PREDOWNLOAD_READY,
@@ -227,13 +230,24 @@ export const es_ES: typeof zh_CN = {
   SETTING_HOSTS_HELPER_REREGISTER_SUCCESS:
     "The Hosts Helper registration was repaired",
   SETTING_TIMEOUT_FIX: "Activar ajuste de timeout de Wine",
-  SETTING_WORKAROUND4:
-    "Reemplazar temporalmente mhypbase.dll mientras el juego se ejecuta",
-  SETTING_WORKAROUND4_DESC:
-    "Antes de iniciar, la mhypbase.dll antigua seleccionada se copia en la carpeta del juego y se mantiene mientras el juego se ejecuta. El archivo original se restaura cuando se cierra el juego. El launcher no incluye ni distribuye esta DLL.",
   SETTING_WORKAROUND4_PICK: "Elegir archivo...",
   SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "Botón de selección",
-  SETTING_WORKAROUND4_REVERT_BTN: "Restaurar ahora la mhypbase.dll original",
+  SETTING_RUNTIME_REPLACEMENT_TITLE:
+    "Reemplazar archivos mientras el juego se ejecuta",
+  SETTING_RUNTIME_REPLACEMENT_DESC:
+    "Antes de iniciar, los archivos seleccionados se copian sobre los archivos de destino de la carpeta del juego y se mantienen mientras el juego se ejecuta. Los originales se restauran al cerrar el juego.",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_ENABLED: "Habilitado",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_TARGET: "Archivo a reemplazar",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_REPLACEMENT: "Archivo de reemplazo",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_DELETE: "Eliminar",
+  SETTING_RUNTIME_REPLACEMENT_ROW_ENABLED: "Habilitar fila {0}",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TARGET: "Elegir el archivo a reemplazar",
+  SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT:
+    "Elegir el archivo de reemplazo",
+  SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "Eliminar esta fila",
+  SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "Añadir fila",
+  SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL:
+    "Restaurar todas las copias de seguridad ahora",
   SETTING_LICENSES: "Licencias",
 
   SETTING_ENABLE_HDR: "Activar HDR",
@@ -253,7 +267,11 @@ export const es_ES: typeof zh_CN = {
     "Hay una nueva versión del juego disponible. ¿Instalar ahora?",
   SETTING_CONFIRM_INSTALL: "Confirmar instalación",
   SETTING_CANCEL_INSTALL: "Cancelar instalación",
+  CANCEL_UPDATE: "Cancelar actualización",
   ALREADY_LATEST_VERSION: "Ya estás utilizando la última versión.",
+  AHEAD_OF_LATEST_TITLE: "Más nuevo que la última versión",
+  AHEAD_OF_LATEST_JOKE:
+    "Mientras la versión oficial aún va con cuentagotas 🐌, tú ya estás en la próxima generación 🚀. Discreto, nada de spoilers 🤫.",
   UPDATE_LAUNCHER: "Actualizar Launcher",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
@@ -290,7 +308,7 @@ export const es_ES: typeof zh_CN = {
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Seguir desplazamiento",
   LOG_VIEWER_COPY: "Copiar logs",
-  LICENSE_COPY: "Copiar licencia actual",
+  LICENSE_VIEW_ONLINE: "Ver en línea",
   SETTING_GITHUB_ACCELERATED_PREFIX: "Usar prefijo de aceleración de GitHub",
   SETTING_GITHUB_ACCELERATED_PREFIX_URL:
     "URL del prefijo de aceleración de GitHub",

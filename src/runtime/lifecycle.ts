@@ -1,5 +1,6 @@
 import { execCommand } from "../platform/neutralino/process";
 import { env, exit, restart } from "../platform/neutralino/system";
+import { wait } from "./async";
 
 const hooks: Array<(forced: boolean) => Promise<boolean>> = [];
 
@@ -27,9 +28,20 @@ export async function _safeRelaunch() {
   await shutdown();
   if (import.meta.env.PROD) {
     const app = await env("PATH_LAUNCH");
-    await execCommand(`open "${app}"`, { background: true });
+    // `-n` forces a brand-new instance even while the current process is
+    // still registered as running; a plain `open` may only activate the old
+    // instance, after which exit() would leave the launcher closed instead of
+    // restarting into the freshly updated resources.neu. Give the new
+    // instance a short head start before the old process (and its aria2 child
+    // holding port 6868) exits, so the relaunch does not fail on startup.
+    await execCommand(`open -n "${app}"`, { background: true });
+    await wait(1000);
     exit(0);
   } else {
+    // Mirror the production relaunch hand-off: give the current aria2 a
+    // moment to release port 6868 before the restarted instance tries to
+    // bind it, so the relaunch does not fail on startup.
+    await wait(500);
     restart();
   }
 }

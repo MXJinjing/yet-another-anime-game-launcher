@@ -88,6 +88,12 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Push the first footer link (release-log) to the far bottom-left while the
+   LICENSE link stays at the bottom-right. */
+.about-footer-link-left {
+  margin-right: auto;
+}
+
 /* Version line with a check-for-updates button on its right. */
 .about-version-row {
   display: flex;

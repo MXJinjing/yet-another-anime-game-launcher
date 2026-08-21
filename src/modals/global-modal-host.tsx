@@ -3,15 +3,24 @@ import type { JSXElement } from "solid-js";
 import { AppModal } from "../components/app-modal";
 import { LicenseModal } from "./license-modal";
 import { Locale } from "../locale";
-import { AboutLicenseLink, AboutModalContent } from "./about-modal";
+import {
+  AboutLicenseLink,
+  AboutModalContent,
+  AboutReleaseLogLink,
+} from "./about-modal";
+import { ShowReleaseLogModal } from "./show-release-log-modal";
 
-export type GlobalModalRoute = "settings" | "about" | "license";
+export type GlobalModalRoute = "settings" | "about" | "license" | "release-log";
 
 /**
- * Shared modal shell for the launcher-wide Settings / About / License pages.
- * All three are hosted by a single persistent `AppModal`, so the overlay
- * (backdrop) stays mounted when navigating from one page to another (e.g.
- * Settings -> License); only the body content swaps.
+ * Shared modal shell for the launcher-wide Settings / About / License /
+ * Release-log pages. All of them are hosted by a single persistent `AppModal`,
+ * so the overlay (backdrop) stays mounted when navigating from one page to
+ * another (e.g. Settings -> License); only the body content swaps.
+ *
+ * Sub-pages (About / License / Release log) get a back button in the left
+ * side of the title bar that navigates back to the page they were opened
+ * from (Settings or About).
  */
 export function GlobalModals(props: {
   route: () => GlobalModalRoute | null;
@@ -33,7 +42,25 @@ export function GlobalModals(props: {
   onCheckUpdate: () => void;
 }) {
   const route = () => props.route();
-  const title = () => {
+  // Remember which page each sub-page was opened from, so the back button
+  // returns to the real parent: License can be entered from Settings or About,
+  // while About / Release log are only entered from Settings / About.
+  let previousRoute: GlobalModalRoute | null = null;
+  const navigate = (next: GlobalModalRoute | null) => {
+    if (next != null) {
+      const current = route();
+      if (current != null && current !== next) {
+        previousRoute = current;
+      }
+    }
+    props.onRouteChange(next);
+  };
+  const backTarget = (): GlobalModalRoute | null => {
+    const r = route();
+    if (r === "settings") return null;
+    return previousRoute ?? (r === "about" ? "settings" : "about");
+  };
+  const routeTitle = () => {
     const r = route();
     if (r === "settings") return props.locale.get("SETTING_GLOBAL");
     if (r === "about") {
@@ -41,19 +68,62 @@ export function GlobalModals(props: {
         ? "关于 Yaaglm"
         : "About Yaaglm";
     }
+    if (r === "release-log") {
+      return props.locale.currentLanguage.startsWith("zh")
+        ? "更新日志"
+        : "Update Log";
+    }
     return props.locale.get("SETTING_LICENSES");
   };
-  const width = () => (route() === "about" ? 600 : 800);
-  // Keep both route heights numeric so the shared modal can interpolate them
-  // when switching between About and the larger Settings/License pages.
-  const height = () => (route() === "about" ? 500 : 600);
+  // The back button lives in the title bar (left of the title), so all
+  // sub-pages share the same navigation chrome regardless of their body.
+  const title = () => {
+    const target = backTarget();
+    if (!target) return routeTitle();
+    return (
+      <div class="global-modal-title-row">
+        <button
+          type="button"
+          class="global-modal-back"
+          aria-label={
+            props.locale.currentLanguage.startsWith("zh") ? "返回" : "Back"
+          }
+          onClick={() => navigate(target)}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <span>{routeTitle()}</span>
+      </div>
+    );
+  };
+  // The release-log page shares About's size.
+  const width = () =>
+    route() === "about" || route() === "release-log" ? 600 : 800;
+  // Keep route heights numeric so the shared modal can interpolate them when
+  // switching between About and the larger Settings/License pages.
+  const height = () =>
+    route() === "about" || route() === "release-log" ? 500 : 600;
   const bodyClass = () =>
-    route() === "about" ? "app-modal-body-about" : "app-modal-body-settings";
+    route() === "about"
+      ? "app-modal-body-about"
+      : route() === "release-log"
+        ? "app-modal-body-release-log"
+        : "app-modal-body-settings";
 
   return (
     <AppModal
       opened={route() != null}
-      onClose={() => props.onRouteChange(null)}
+      onClose={() => navigate(null)}
       title={title()}
       maxWidth={width()}
       height={height()}
@@ -61,7 +131,17 @@ export function GlobalModals(props: {
       contentClass="global-modal-content"
       footer={
         route() === "about" ? (
-          <AboutLicenseLink onClick={() => props.onRouteChange("license")} />
+          <>
+            <AboutReleaseLogLink
+              label={
+                props.locale.currentLanguage.startsWith("zh")
+                  ? "查看更新日志"
+                  : "View Update Log"
+              }
+              onClick={() => navigate("release-log")}
+            />
+            <AboutLicenseLink onClick={() => navigate("license")} />
+          </>
         ) : undefined
       }
     >
@@ -75,8 +155,8 @@ export function GlobalModals(props: {
               onClose={() => undefined}
               onOpenLogs={props.onOpenLogs}
               actionDisabled={props.actionDisabled}
-              onOpenAbout={() => props.onRouteChange("about")}
-              onOpenLicense={() => props.onRouteChange("license")}
+              onOpenAbout={() => navigate("about")}
+              onOpenLicense={() => navigate("license")}
             />
           );
         })()}
@@ -87,6 +167,9 @@ export function GlobalModals(props: {
           channelCode={props.channelCode}
           onCheckUpdate={props.onCheckUpdate}
         />
+      </Show>
+      <Show when={route() === "release-log"}>
+        <ShowReleaseLogModal locale={props.locale} />
       </Show>
       <Show when={route() === "license"}>
         <LicenseModal locale={props.locale} />

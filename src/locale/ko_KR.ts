@@ -20,6 +20,7 @@ export const ko_KR: typeof zh_CN = {
   BOOT_INITIALIZATION_FAILED: "초기화 실패",
   LAUNCH: "게임 실행",
   INSTALL: "게임 다운로드",
+  CONTINUE_INSTALL: "설치 계속하기",
   UPDATING: "업데이트 중",
   DOWNLOADING: "다운로드 중",
   DOWNLOAD_PAUSED: "다운로드 일시정지됨",
@@ -178,6 +179,8 @@ export const ko_KR: typeof zh_CN = {
     "디스크에 최소 {0}GiB ({1}GB)의 여유 공간이 필요합니다.",
 
   UPDATE: "게임 업데이트",
+
+  LAUNCH_WITHOUT_UPDATE: "업데이트 없이 실행",
   GAME_VERSION_TOO_OLD_DESC:
     "현재 게임 버전({0})은 점진적으로 업데이트하기에는 너무 오래되었습니다. 게임을 다시 설치해 주세요",
 
@@ -229,12 +232,21 @@ export const ko_KR: typeof zh_CN = {
   SETTING_HOSTS_HELPER_REREGISTER_SUCCESS:
     "The Hosts Helper registration was repaired",
   SETTING_TIMEOUT_FIX: "Wine 타임아웃 우회 활성화",
-  SETTING_WORKAROUND4: "게임 실행 중 mhypbase.dll 임시 교체",
-  SETTING_WORKAROUND4_DESC:
-    "실행 전에 선택한 이전 버전의 mhypbase.dll을 게임 폴더에 복사하고, 게임이 실행되는 동안 유지합니다. 게임이 종료되면 원본 파일을 복원합니다. 런처는 이 DLL을 포함하거나 배포하지 않습니다.",
   SETTING_WORKAROUND4_PICK: "파일 선택...",
   SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "선택 버튼",
-  SETTING_WORKAROUND4_REVERT_BTN: "원본 mhypbase.dll 지금 복원",
+  SETTING_RUNTIME_REPLACEMENT_TITLE: "실행 중 파일 교체",
+  SETTING_RUNTIME_REPLACEMENT_DESC:
+    "실행 전에 선택한 파일을 게임 폴더의 대상 파일에 덮어쓰고, 게임 종료 후 백업에서 자동으로 복원합니다.",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_ENABLED: "사용",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_TARGET: "교체할 파일",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_REPLACEMENT: "교체 파일",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_DELETE: "삭제",
+  SETTING_RUNTIME_REPLACEMENT_ROW_ENABLED: "{0}번째 행 사용",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TARGET: "교체할 파일 선택",
+  SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT: "교체 파일 선택",
+  SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "이 행 삭제",
+  SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "행 추가",
+  SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL: "모든 백업 지금 복원",
   SETTING_LICENSES: "라이선스",
   SETTING_ENABLE_HDR: "HDR 활성화",
 
@@ -253,7 +265,11 @@ export const ko_KR: typeof zh_CN = {
     "게임에 새 버전이 있습니다. 지금 설치하시겠습니까?",
   SETTING_CONFIRM_INSTALL: "설치 확인",
   SETTING_CANCEL_INSTALL: "설치 취소",
+  CANCEL_UPDATE: "업데이트 취소",
   ALREADY_LATEST_VERSION: "이미 최신 버전을 사용 중입니다.",
+  AHEAD_OF_LATEST_TITLE: "최신 릴리스보다 최신",
+  AHEAD_OF_LATEST_JOKE:
+    "공식 버전이 아직 조금씩 업데이트를 내놓는 동안🐌, 당신은 이미 다음 세대🚀. 조용히, 스포일러 금지🤫.",
   UPDATE_LAUNCHER: "런처 업데이트",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
@@ -290,7 +306,7 @@ export const ko_KR: typeof zh_CN = {
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "스크롤 따라가기",
   LOG_VIEWER_COPY: "로그 복사",
-  LICENSE_COPY: "현재 라이선스 복사",
+  LICENSE_VIEW_ONLINE: "온라인으로 보기",
   SETTING_GITHUB_ACCELERATED_PREFIX: "GitHub 가속 접두사 사용",
   SETTING_GITHUB_ACCELERATED_PREFIX_URL: "GitHub 가속 접두사 URL",
   SETTING_GITHUB_ACCELERATED_PREFIX_TEST: "테스트",

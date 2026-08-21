@@ -20,6 +20,7 @@ export const th_TH: typeof zh_CN = {
   BOOT_INITIALIZATION_FAILED: "เริ่มต้นไม่สำเร็จ",
   LAUNCH: "เริ่มเกม",
   INSTALL: "ติดตั้งเกม",
+  CONTINUE_INSTALL: "ติดตั้งต่อ",
   UPDATING: "กำลังอัปเดต",
   DOWNLOADING: "กำลังดาวน์โหลด",
   DOWNLOAD_PAUSED: "ดาวน์โหลดหยุดชั่วคราว",
@@ -176,6 +177,8 @@ export const th_TH: typeof zh_CN = {
   NO_ENOUGH_DISKSPACE_DESC: "ต้องการพื้นที่ว่างบนดิสก์อย่างน้อย {0}GiB ({1}GB)",
 
   UPDATE: "อัปเดตเกม",
+
+  LAUNCH_WITHOUT_UPDATE: "เริ่มเกมโดยไม่อัปเดต",
   GAME_VERSION_TOO_OLD_DESC:
     "เนื่องจากเวอร์ชันเกม ({0}) เก่าเกินไป จึงไม่สามารถอัปเดตแพตช์ได้ กรุณาติดตั้งเกมใหม่ทั้งหมด",
 
@@ -227,12 +230,21 @@ export const th_TH: typeof zh_CN = {
   SETTING_HOSTS_HELPER_REREGISTER_SUCCESS:
     "The Hosts Helper registration was repaired",
   SETTING_TIMEOUT_FIX: "เปิดใช้การเลี่ยง timeout ของ Wine",
-  SETTING_WORKAROUND4: "แทนที่ mhypbase.dll ชั่วคราวระหว่างที่เกมทำงาน",
-  SETTING_WORKAROUND4_DESC:
-    "ก่อนเริ่มเกม ไฟล์ mhypbase.dll เวอร์ชันเก่าที่เลือกไว้จะถูกคัดลอกไปยังโฟลเดอร์เกมและคงไว้ระหว่างที่เกมทำงาน หลังจากออกจากเกมแล้ว ไฟล์เดิมจะถูกกู้คืน Launcher จะไม่รวมไฟล์ DLL นี้ไว้ในแอปหรือแจกจ่ายไฟล์นี้",
   SETTING_WORKAROUND4_PICK: "เลือกไฟล์...",
   SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "ปุ่มเลือก",
-  SETTING_WORKAROUND4_REVERT_BTN: "กู้คืน mhypbase.dll เดิมทันที",
+  SETTING_RUNTIME_REPLACEMENT_TITLE: "แทนที่ไฟล์ระหว่างที่เกมทำงาน",
+  SETTING_RUNTIME_REPLACEMENT_DESC:
+    "ก่อนเริ่มเกม ไฟล์ที่เลือกจะถูกคัดลอกทับไฟล์เป้าหมายในโฟลเดอร์เกมและคงไว้ระหว่างที่เกมทำงาน ไฟล์ต้นฉบับจะถูกกู้คืนหลังจากออกจากเกม",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_ENABLED: "เปิดใช้",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_TARGET: "ไฟล์ที่จะแทนที่",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_REPLACEMENT: "ไฟล์แทนที่",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_DELETE: "ลบ",
+  SETTING_RUNTIME_REPLACEMENT_ROW_ENABLED: "เปิดใช้แถวที่ {0}",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TARGET: "เลือกไฟล์ที่จะแทนที่",
+  SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT: "เลือกไฟล์แทนที่",
+  SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "ลบแถวนี้",
+  SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "เพิ่มแถว",
+  SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL: "กู้คืนข้อมูลสำรองทั้งหมดทันที",
   SETTING_LICENSES: "สัญญาอนุญาต",
   SETTING_ENABLE_HDR: "เปิดใช้ HDR",
 
@@ -250,7 +262,11 @@ export const th_TH: typeof zh_CN = {
     "พบเวอร์ชันใหม่ของเกม ต้องการติดตั้งตอนนี้หรือไม่",
   SETTING_CONFIRM_INSTALL: "ยืนยันการติดตั้ง",
   SETTING_CANCEL_INSTALL: "ยกเลิกการติดตั้ง",
+  CANCEL_UPDATE: "ยกเลิกการอัปเดต",
   ALREADY_LATEST_VERSION: "คุณใช้เวอร์ชันล่าสุดอยู่แล้ว",
+  AHEAD_OF_LATEST_TITLE: "ใหม่กว่าเวอร์ชันล่าสุด",
+  AHEAD_OF_LATEST_JOKE:
+    "ในขณะที่เวอร์ชันทางการยังทยอยอัปเดต🐌 คุณก็อยู่รุ่นถัดไปแล้ว🚀 เงียบๆ หน่อย อย่าสปอยล์🤫",
   UPDATE_LAUNCHER: "อัปเดต Launcher",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
@@ -287,7 +303,7 @@ export const th_TH: typeof zh_CN = {
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "เลื่อนตามอัตโนมัติ",
   LOG_VIEWER_COPY: "คัดลอกบันทึก",
-  LICENSE_COPY: "คัดลอก License ปัจจุบัน",
+  LICENSE_VIEW_ONLINE: "ดูออนไลน์",
   SETTING_GITHUB_ACCELERATED_PREFIX: "ใช้คำนำหน้าเร่งความเร็ว GitHub",
   SETTING_GITHUB_ACCELERATED_PREFIX_URL: "URL คำนำหน้าเร่งความเร็ว GitHub",
   SETTING_GITHUB_ACCELERATED_PREFIX_TEST: "ทดสอบ",

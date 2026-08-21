@@ -20,6 +20,7 @@ export const de_DE: typeof zh_CN = {
   BOOT_INITIALIZATION_FAILED: "Initialisierung fehlgeschlagen",
   LAUNCH: "Spiel starten",
   INSTALL: "Spiel installieren",
+  CONTINUE_INSTALL: "Installation fortsetzen",
   UPDATING: "Aktualisieren",
   DOWNLOADING: "Herunterladen",
   DOWNLOAD_PAUSED: "Download pausiert",
@@ -181,6 +182,8 @@ export const de_DE: typeof zh_CN = {
     "Mindestens {0}GiB ({1}GB) freier Speicherplatz ist auf Ihrer Festplatte erforderlich.",
 
   UPDATE: "Spiel aktualisieren",
+
+  LAUNCH_WITHOUT_UPDATE: "Ohne Update starten",
   GAME_VERSION_TOO_OLD_DESC:
     "Ihre aktuelle Spielversion ({0}) ist zu alt, um inkrementell aktualisiert zu werden. Bitte installieren Sie das Spiel neu.",
 
@@ -232,13 +235,22 @@ export const de_DE: typeof zh_CN = {
   SETTING_HOSTS_HELPER_REREGISTER_SUCCESS:
     "The Hosts Helper registration was repaired",
   SETTING_TIMEOUT_FIX: "Wine-Timeout-Workaround aktivieren",
-  SETTING_WORKAROUND4: "mhypbase.dll während des Spiels temporär ersetzen",
-  SETTING_WORKAROUND4_DESC:
-    "Vor dem Start wird die ausgewählte ältere mhypbase.dll in den Spielordner kopiert und während des laufenden Spiels beibehalten. Nach dem Beenden des Spiels wird die Originaldatei wiederhergestellt. Der Launcher enthält oder verteilt diese DLL nicht.",
   SETTING_WORKAROUND4_PICK: "Datei auswählen ...",
   SETTING_RUNTIME_REPLACEMENT_PICK_TOOLTIP: "Auswahltaste",
-  SETTING_WORKAROUND4_REVERT_BTN:
-    "Originale mhypbase.dll jetzt wiederherstellen",
+  SETTING_RUNTIME_REPLACEMENT_TITLE: "Dateien während des Spiels ersetzen",
+  SETTING_RUNTIME_REPLACEMENT_DESC:
+    "Vor dem Start werden die ausgewählten Dateien über die Zieldateien im Spielordner kopiert und während des laufenden Spiels beibehalten. Nach dem Beenden des Spiels werden die Originale wiederhergestellt.",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_ENABLED: "Aktiviert",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_TARGET: "Zu ersetzende Datei",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_REPLACEMENT: "Ersatzdatei",
+  SETTING_RUNTIME_REPLACEMENT_HEADER_DELETE: "Löschen",
+  SETTING_RUNTIME_REPLACEMENT_ROW_ENABLED: "Zeile {0} aktivieren",
+  SETTING_RUNTIME_REPLACEMENT_PICK_TARGET: "Zu ersetzende Datei auswählen",
+  SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT: "Ersatzdatei auswählen",
+  SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "Diese Zeile löschen",
+  SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "Zeile hinzufügen",
+  SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL:
+    "Alle Sicherungen jetzt wiederherstellen",
   SETTING_LICENSES: "Lizenzen",
   SETTING_ENABLE_HDR: "HDR aktivieren",
 
@@ -257,7 +269,11 @@ export const de_DE: typeof zh_CN = {
     "Eine neue Version des Spiels ist verfügbar. Jetzt installieren?",
   SETTING_CONFIRM_INSTALL: "Installation bestätigen",
   SETTING_CANCEL_INSTALL: "Installation abbrechen",
+  CANCEL_UPDATE: "Update abbrechen",
   ALREADY_LATEST_VERSION: "Sie verwenden bereits die neueste Version.",
+  AHEAD_OF_LATEST_TITLE: "Neuer als die neueste Version",
+  AHEAD_OF_LATEST_JOKE:
+    "Während die offizielle Version noch im Schneckentempo aktualisiert 🐌, bist du schon in der nächsten Generation 🚀. Bleib unauffällig \u2013 nicht spoilern 🤫.",
   UPDATE_LAUNCHER: "Launcher aktualisieren",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
@@ -294,7 +310,7 @@ export const de_DE: typeof zh_CN = {
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Automatisch scrollen",
   LOG_VIEWER_COPY: "Logs kopieren",
-  LICENSE_COPY: "Aktuelle Lizenz kopieren",
+  LICENSE_VIEW_ONLINE: "Online ansehen",
   SETTING_GITHUB_ACCELERATED_PREFIX: "GitHub-Beschleunigungspräfix verwenden",
   SETTING_GITHUB_ACCELERATED_PREFIX_URL:
     "URL des GitHub-Beschleunigungspräfixes",

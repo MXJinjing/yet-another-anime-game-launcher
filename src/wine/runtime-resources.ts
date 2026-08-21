@@ -37,6 +37,13 @@ export const DXVK_FILES = [
 ];
 export const DXMT_FILES = ["d3d10core.dll", "d3d11.dll", "dxgi.dll"];
 
+export async function isDXMTInstalled(): Promise<boolean> {
+  return eq(
+    CURRENT_DXMT_VERSION,
+    await getKeyOrDefault("installed_dxmt_version", "0.0.0")
+  );
+}
+
 function downloadProgress(progress: {
   completedLength: bigint;
   totalLength: bigint;
