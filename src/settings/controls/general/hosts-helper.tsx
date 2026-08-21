@@ -14,6 +14,7 @@ import {
   getPrivilegedHostsHelperVersion,
   installPrivilegedHostsHelper,
   PrivilegedHostsHelperStatus,
+  reRegisterPrivilegedHostsHelper,
   uninstallPrivilegedHostsHelper,
 } from "../../../system/privileged-hosts";
 import "./auto-update.css";
@@ -24,6 +25,8 @@ function statusKey(status: PrivilegedHostsHelperStatus) {
       return "SETTING_HOSTS_HELPER_STATUS_RUNNING";
     case "installed-stopped":
       return "SETTING_HOSTS_HELPER_STATUS_STOPPED";
+    case "registration-conflict":
+      return "SETTING_HOSTS_HELPER_STATUS_REGISTRATION_CONFLICT";
     case "not-installed":
     case "untrusted":
       return "SETTING_HOSTS_HELPER_STATUS_NOT_INSTALLED";
@@ -101,7 +104,8 @@ export function HostsHelperControl(props: { locale: Locale }) {
             when={
               !isDevelopment &&
               status() != "running" &&
-              status() != "installed-stopped"
+              status() != "installed-stopped" &&
+              status() != "registration-conflict"
             }
           >
             <Button
@@ -111,6 +115,23 @@ export function HostsHelperControl(props: { locale: Locale }) {
               onClick={() => run(installPrivilegedHostsHelper)}
             >
               {props.locale.get("SETTING_HOSTS_HELPER_INSTALL")}
+            </Button>
+          </Show>
+          <Show
+            when={
+              !isDevelopment &&
+              (status() == "registration-conflict" ||
+                status() == "installed-stopped")
+            }
+          >
+            <Button
+              size="xs"
+              variant="solid"
+              colorScheme="primary"
+              disabled={busy()}
+              onClick={() => run(reRegisterPrivilegedHostsHelper)}
+            >
+              {props.locale.get("SETTING_HOSTS_HELPER_REREGISTER")}
             </Button>
           </Show>
           <Show when={!isDevelopment && status() != "not-installed"}>

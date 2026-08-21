@@ -33,8 +33,10 @@ import { startAria2Service } from "./download/aria2-service";
 import { hasActiveDownloads } from "./download/control";
 import { createUpdater, downloadProgram } from "./update/updater";
 import {
+  getPrivilegedHostsHelperStatus,
   getPrivilegedHostsHelperTokenRecoveryState,
-  installPrivilegedHostsHelper,
+  isPrivilegedHostsHelperStatusRepairable,
+  reRegisterPrivilegedHostsHelper,
   uninstallPrivilegedHostsHelper,
   unblockPrivilegedHosts,
 } from "./system/privileged-hosts";
@@ -223,7 +225,10 @@ export async function createApp() {
     );
     const [showTokenRecovery, setShowTokenRecovery] = createSignal(false);
     const [tokenRecoveryBusy, setTokenRecoveryBusy] = createSignal(false);
+    const [tokenRecoveryBusyText, setTokenRecoveryBusyText] = createSignal("");
     const [tokenRecoveryError, setTokenRecoveryError] = createSignal("");
+    const [tokenRecoveryDescription, setTokenRecoveryDescription] =
+      createSignal("");
 
     showPromptSignal = setShowPrompt;
     setPendingUpdateInfoSignal = setPendingUpdateInfo;
@@ -235,73 +240,87 @@ export async function createApp() {
       const markerRaw = await getKeyOrDefault(HOSTS_HELPER_REREGISTER_KEY, "");
 
       if (recoveryState === "token-missing") {
-        // A missing token cannot be repaired safely by install.sh because the
-        // registry may still contain a secret that the frontend cannot read.
-        // Require explicit user confirmation and administrator authorization.
         if (markerRaw) await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
         setTokenRecoveryError("");
+        setTokenRecoveryDescription(
+          locale.get("SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC")
+        );
         setShowTokenRecovery(true);
         return;
       }
 
-      if (recoveryState !== "token-present" || !markerRaw) return;
-
-      let marker: HostsHelperReregisterMarker | undefined;
-      try {
-        const parsed = JSON.parse(
-          markerRaw
-        ) as Partial<HostsHelperReregisterMarker>;
-        if (
-          typeof parsed.targetVersion === "string" &&
-          typeof parsed.attempted === "boolean"
-        ) {
-          marker = {
-            targetVersion: parsed.targetVersion,
-            attempted: parsed.attempted,
-          };
+      if (recoveryState === "token-present" && markerRaw) {
+        let marker: HostsHelperReregisterMarker | undefined;
+        try {
+          const parsed = JSON.parse(
+            markerRaw
+          ) as Partial<HostsHelperReregisterMarker>;
+          if (
+            typeof parsed.targetVersion === "string" &&
+            typeof parsed.attempted === "boolean"
+          ) {
+            marker = {
+              targetVersion: parsed.targetVersion,
+              attempted: parsed.attempted,
+            };
+          }
+        } catch {
+          // Invalid marker is stale and should not trigger an install.
         }
-      } catch {
-        // Invalid marker is stale and should not trigger an install.
+
+        if (
+          marker &&
+          marker.targetVersion === CURRENT_YAAGL_VERSION &&
+          !marker.attempted
+        ) {
+          await setKey(
+            HOSTS_HELPER_REREGISTER_KEY,
+            JSON.stringify({ ...marker, attempted: true })
+          );
+          await locale.alert(
+            "SETTING_HOSTS_HELPER",
+            "SETTING_HOSTS_HELPER_REREGISTERING",
+            [],
+            "info"
+          );
+          try {
+            await reRegisterPrivilegedHostsHelper();
+            await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
+            return;
+          } catch (error) {
+            await log(
+              `Hosts Helper automatic re-registration failed: ${String(error)}`
+            );
+            await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
+            await locale.alert(
+              "SETTING_HOSTS_HELPER",
+              "SETTING_HOSTS_HELPER_REREGISTER_FAILED",
+              [],
+              "warning"
+            );
+          }
+        } else {
+          await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
+        }
       }
 
-      if (
-        !marker ||
-        marker.targetVersion !== CURRENT_YAAGL_VERSION ||
-        marker.attempted
-      ) {
-        await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
-        return;
-      }
-
-      await setKey(
-        HOSTS_HELPER_REREGISTER_KEY,
-        JSON.stringify({ ...marker, attempted: true })
+      // Use the full STATUS-based check so startup also catches registration
+      // conflicts, a stopped daemon, and broken installs, not only a missing
+      // token file.
+      const status = await getPrivilegedHostsHelperStatus();
+      if (!isPrivilegedHostsHelperStatusRepairable(status)) return;
+      setTokenRecoveryError("");
+      setTokenRecoveryDescription(
+        locale.get("SETTING_HOSTS_HELPER_REPAIR_DESC")
       );
-      await locale.alert(
-        "SETTING_HOSTS_HELPER",
-        "SETTING_HOSTS_HELPER_REREGISTERING",
-        [],
-        "info"
-      );
-      try {
-        await installPrivilegedHostsHelper();
-        await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
-      } catch (error) {
-        await log(
-          `Hosts Helper automatic re-registration failed: ${String(error)}`
-        );
-        await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
-        await locale.alert(
-          "SETTING_HOSTS_HELPER",
-          "SETTING_HOSTS_HELPER_REREGISTER_FAILED",
-          [],
-          "warning"
-        );
-      }
+      setShowTokenRecovery(true);
     }
 
     async function deleteMissingTokenRegistration() {
       setTokenRecoveryBusy(true);
+      setTokenRecoveryBusyText(
+        locale.get("SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY")
+      );
       setTokenRecoveryError("");
       try {
         // Best-effort cleanup. Missing token normally makes this request fail
@@ -331,6 +350,32 @@ export async function createApp() {
         );
         setTokenRecoveryError(
           locale.get("SETTING_HOSTS_HELPER_DELETE_REGISTRATION_AUTH_REQUIRED")
+        );
+      } finally {
+        setTokenRecoveryBusy(false);
+      }
+    }
+
+    async function repairHostsHelperRegistration() {
+      setTokenRecoveryBusy(true);
+      setTokenRecoveryBusyText(
+        locale.get("SETTING_HOSTS_HELPER_REREGISTERING")
+      );
+      setTokenRecoveryError("");
+      try {
+        await reRegisterPrivilegedHostsHelper();
+        await setKey(HOSTS_HELPER_REREGISTER_KEY, null);
+        setShowTokenRecovery(false);
+        await locale.alert(
+          "SETTING_HOSTS_HELPER",
+          "SETTING_HOSTS_HELPER_REREGISTER_SUCCESS",
+          [],
+          "success"
+        );
+      } catch (error) {
+        await log(`Hosts Helper startup repair failed: ${String(error)}`);
+        setTokenRecoveryError(
+          locale.get("SETTING_HOSTS_HELPER_REREGISTER_FAILED")
         );
       } finally {
         setTokenRecoveryBusy(false);
@@ -396,8 +441,11 @@ export async function createApp() {
           opened={showTokenRecovery}
           busy={tokenRecoveryBusy}
           error={tokenRecoveryError}
+          description={tokenRecoveryDescription}
+          busyText={tokenRecoveryBusyText}
           locale={locale}
           onClose={() => setShowTokenRecovery(false)}
+          onRepair={repairHostsHelperRegistration}
           onDelete={deleteMissingTokenRegistration}
         />
         <CloseConfirmationModal

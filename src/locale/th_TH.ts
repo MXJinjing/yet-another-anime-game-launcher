@@ -194,6 +194,9 @@ export const th_TH: typeof zh_CN = {
   SETTING_HOSTS_HELPER: "Hosts permission helper",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
   SETTING_HOSTS_HELPER_STATUS_STOPPED: "Status: installed but not running",
+  SETTING_HOSTS_HELPER_STATUS_REGISTRATION_CONFLICT:
+    "Status: installed but registration conflict",
+  SETTING_HOSTS_HELPER_REREGISTER: "Re-register",
   SETTING_HOSTS_HELPER_STATUS_NOT_INSTALLED: "Status: not installed",
   SETTING_HOSTS_HELPER_STATUS_ERROR: "Status: needs attention",
   SETTING_HOSTS_HELPER_INSTALL: "Install",
@@ -207,7 +210,7 @@ export const th_TH: typeof zh_CN = {
   SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE:
     "Hosts Helper registration needs repair",
   SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
-    "The Hosts Helper token is missing. Delete the current registration before installing Hosts Helper again. macOS administrator authorization is required.",
+    "The Hosts Helper is installed but the current launcher cannot authenticate it. Re-registering replaces only this bundle's registration and rotates its token, without affecting other registrations. macOS administrator authorization is required.",
   SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "Delete current registration",
   SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
     "Requesting administrator authorization and deleting the registration…",
@@ -218,7 +221,11 @@ export const th_TH: typeof zh_CN = {
     "Administrator authorization is required to delete the Hosts Helper registration",
   SETTING_HOSTS_HELPER_REREGISTERING: "Updating Hosts Helper registration…",
   SETTING_HOSTS_HELPER_REREGISTER_FAILED:
-    "Automatic Hosts Helper re-registration failed. Reinstall it from Global Settings.",
+    "Hosts Helper re-registration failed. Try again, or uninstall and reinstall it from Global Settings.",
+  SETTING_HOSTS_HELPER_REPAIR_DESC:
+    "The Hosts Helper is installed but the current launcher cannot authenticate it. Re-registering replaces only this bundle's registration and rotates its token, without affecting other registrations. macOS administrator authorization is required.",
+  SETTING_HOSTS_HELPER_REREGISTER_SUCCESS:
+    "The Hosts Helper registration was repaired",
   SETTING_TIMEOUT_FIX: "เปิดใช้การเลี่ยง timeout ของ Wine",
   SETTING_WORKAROUND4: "แทนที่ mhypbase.dll ชั่วคราวระหว่างที่เกมทำงาน",
   SETTING_WORKAROUND4_DESC:

@@ -27,15 +27,25 @@ const installedHelperPath =
   "/Library/PrivilegedHelperTools/yaaglm-hosts-helper";
 const installedPlistPath =
   "/Library/LaunchDaemons/com.3shain.yaaglm.hosts-helper.plist";
-
 export type PrivilegedHostsHelperStatus =
   | "running"
   | "installed-stopped"
+  | "registration-conflict"
   | "not-installed"
   | "error"
   | "untrusted"
   | "tampered"
   | "disabled";
+
+export function isPrivilegedHostsHelperStatusRepairable(
+  status: PrivilegedHostsHelperStatus
+) {
+  return (
+    status == "registration-conflict" ||
+    status == "installed-stopped" ||
+    status == "error"
+  );
+}
 
 type HostsHelperAction = "status" | "ensure" | "block" | "unblock";
 
@@ -164,7 +174,7 @@ async function ensureLocalHelperBinary() {
   await exec(["test", "-x", await helperPath()]);
 }
 
-async function installHelper(ctx: HostsHelperContext) {
+async function installHelper(ctx: HostsHelperContext, reRegister = false) {
   await log("Installing YAAGLM privileged hosts helper");
   const helper = await helperPath();
   // Sanity check: the shipped binary should match what the build recorded in
@@ -186,18 +196,16 @@ async function installHelper(ctx: HostsHelperContext) {
       // hash check is best-effort
     }
   }
-  await exec(
-    [
-      "/bin/sh",
-      installScriptPath(),
-      "--bundle",
-      ctx.bundlePath!,
-      "--helper",
-      helper,
-    ],
-    {},
-    true
-  );
+  const installArgs = [
+    "/bin/sh",
+    installScriptPath(),
+    "--bundle",
+    ctx.bundlePath!,
+    "--helper",
+    helper,
+  ];
+  if (reRegister) installArgs.push("--re-register");
+  await exec(installArgs, {}, true);
 }
 
 async function ensureHelperReady(ctx: HostsHelperContext) {
@@ -347,15 +355,39 @@ export async function unblockPrivilegedHosts() {
   );
 }
 
-async function helperAvailable(ctx: HostsHelperContext) {
+interface StatusDiagnostics {
+  code?: string;
+  tokenFileUnreadable?: boolean;
+}
+
+async function requestStatusDiagnostics(
+  ctx: HostsHelperContext
+): Promise<StatusDiagnostics> {
   try {
-    await requestHelper(
-      helperArgs(ctx.manifest!.bundleId, ctx.manifest!.version, "status", [])
-    );
-    return true;
-  } catch {
-    return false;
+    const registeredVersion = await requestStatus(ctx);
+    return registeredVersion == ctx.manifest!.version
+      ? { code: "OK" }
+      : { code: "OK_VERSION_MISMATCH" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      code: parseHelperError(error),
+      tokenFileUnreadable: message.includes("cannot read token file"),
+    };
   }
+}
+
+async function helperAvailable(ctx: HostsHelperContext) {
+  return (await requestStatusDiagnostics(ctx)).code == "OK";
+}
+
+function isRegistrationConflictCode(code: string | undefined) {
+  return (
+    code == "UNREGISTERED" ||
+    code == "VERSION_MISMATCH" ||
+    code == "UNAUTHORIZED" ||
+    code == "OK_VERSION_MISMATCH"
+  );
 }
 
 export async function getPrivilegedHostsHelperStatus(): Promise<PrivilegedHostsHelperStatus> {
@@ -363,16 +395,21 @@ export async function getPrivilegedHostsHelperStatus(): Promise<PrivilegedHostsH
   if (tampered) return "tampered";
   const ctx = await getHostsHelperContext();
   if (!ctx.trusted) return "untrusted";
-  try {
-    if (await helperAvailable(ctx)) return "running";
-  } catch {
-    // fall through to installed-state detection
+  const diagnostics = await requestStatusDiagnostics(ctx);
+  if (diagnostics.code == "OK") return "running";
+  if (diagnostics.code == "TAMPERED") return "tampered";
+  if (isRegistrationConflictCode(diagnostics.code)) {
+    return "registration-conflict";
   }
   if (tampered) return "tampered";
   try {
     await exec(["test", "-x", installedHelperPath]);
     await exec(["test", "-f", installedPlistPath]);
-    return "installed-stopped";
+    // A missing or unreadable token is a registration conflict too: the helper
+    // files are present, but install.sh must run to provision a fresh token.
+    return diagnostics.tokenFileUnreadable
+      ? "registration-conflict"
+      : "installed-stopped";
   } catch {
     try {
       await exec(["test", "-e", installedHelperPath]);
@@ -456,6 +493,30 @@ export async function uninstallPrivilegedHostsHelper() {
     {},
     true
   );
+}
+
+export async function reRegisterPrivilegedHostsHelper() {
+  if (isPrivilegedHostsHelperDisabledForDevelopment()) {
+    throw new Error("Hosts helper is disabled in development builds");
+  }
+  const ctx = await getHostsHelperContext();
+  if (!ctx.trusted) {
+    throw new Error(
+      "Cannot re-register YAAGLM hosts helper: launcher bundle is not trusted"
+    );
+  }
+  await log("Re-registering YAAGLM privileged hosts helper");
+  // --re-register replaces only this bundle's registry row and rotates the
+  // token inside install.sh, so other registered channels are never touched.
+  await installHelper(ctx, true);
+  const diagnostics = await requestStatusDiagnostics(ctx);
+  if (diagnostics.code != "OK") {
+    throw new Error(
+      `YAAGLM hosts helper re-registration failed (status: ${String(
+        diagnostics.code
+      )})`
+    );
+  }
 }
 
 function validateBlockTtl(ttl: number) {

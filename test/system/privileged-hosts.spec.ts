@@ -347,6 +347,91 @@ describe("trusted helper arguments", () => {
   });
 });
 
+describe("registration conflict status and re-registration", () => {
+  beforeEach(() => {
+    resetMocks();
+    makeTrusted();
+  });
+
+  it("reports registration-conflict when STATUS fails with a conflict error", async () => {
+    exec.mockRejectedValue(helperError("ERR_UNAUTHORIZED"));
+    const { getPrivilegedHostsHelperStatus } = await loadModule();
+    await expect(getPrivilegedHostsHelperStatus()).resolves.toBe(
+      "registration-conflict"
+    );
+    expect(callsFor("install.sh")).toHaveLength(0);
+    expect(callsFor("uninstall.sh")).toHaveLength(0);
+  });
+
+  it("reports registration-conflict when STATUS succeeds with a drifted version", async () => {
+    exec.mockResolvedValue(okResult("OK 0.9.0\n"));
+    const { getPrivilegedHostsHelperStatus } = await loadModule();
+    await expect(getPrivilegedHostsHelperStatus()).resolves.toBe(
+      "registration-conflict"
+    );
+  });
+
+  it("reports registration-conflict when the token file is unreadable but the helper is installed", async () => {
+    exec.mockImplementation(async (command: string[]) => {
+      if (command[0] == "test" && command[1] == "-x") return okResult();
+      if (command[0] == "test" && command[1] == "-f") return okResult();
+      throw new Error(
+        "Command return non-zero code (1) \n" +
+          HELPER_BINARY +
+          " --request " +
+          BUNDLE_ID +
+          " " +
+          VERSION +
+          " status --token-file " +
+          TOKEN_PATH +
+          "\nStdOut:\n\nStdErr:\ncannot read token file: " +
+          TOKEN_PATH
+      );
+    });
+    const { getPrivilegedHostsHelperStatus } = await loadModule();
+    await expect(getPrivilegedHostsHelperStatus()).resolves.toBe(
+      "registration-conflict"
+    );
+  });
+
+  it("treats installed but unusable statuses as repairable", async () => {
+    const { isPrivilegedHostsHelperStatusRepairable } = await loadModule();
+    expect(
+      isPrivilegedHostsHelperStatusRepairable("registration-conflict")
+    ).toBe(true);
+    expect(isPrivilegedHostsHelperStatusRepairable("installed-stopped")).toBe(
+      true
+    );
+    expect(isPrivilegedHostsHelperStatusRepairable("error")).toBe(true);
+    expect(isPrivilegedHostsHelperStatusRepairable("running")).toBe(false);
+    expect(isPrivilegedHostsHelperStatusRepairable("tampered")).toBe(false);
+  });
+
+  it("re-registers with install.sh --re-register without uninstalling first", async () => {
+    const { reRegisterPrivilegedHostsHelper } = await loadModule();
+    exec
+      .mockResolvedValueOnce(okResult()) // shasum hash guard
+      .mockResolvedValueOnce(okResult()) // install.sh --re-register
+      .mockResolvedValueOnce(okResult("OK 1.0.0\n")); // STATUS after install
+    await reRegisterPrivilegedHostsHelper();
+    expect(callsFor("uninstall.sh")).toHaveLength(0);
+    const installCall = exec.mock.calls.filter(call =>
+      call[0].includes(INSTALL_SCRIPT)
+    )[0];
+    expect(installCall[0]).toEqual([
+      "/bin/sh",
+      INSTALL_SCRIPT,
+      "--bundle",
+      BUNDLE_PATH,
+      "--helper",
+      HELPER_BINARY,
+      "--re-register",
+    ]);
+    expect(installCall[2]).toBe(true);
+    expect(callsFor("status")).toHaveLength(1);
+  });
+});
+
 describe("token recovery", () => {
   beforeEach(() => {
     resetMocks();

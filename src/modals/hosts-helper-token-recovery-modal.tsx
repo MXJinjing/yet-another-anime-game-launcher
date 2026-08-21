@@ -6,8 +6,11 @@ export function HostsHelperTokenRecoveryModal(props: {
   opened: Accessor<boolean>;
   busy: Accessor<boolean>;
   error: Accessor<string>;
+  description: Accessor<string>;
+  busyText: Accessor<string>;
   locale: Locale;
   onClose: () => void;
+  onRepair: () => void | Promise<void>;
   onDelete: () => void | Promise<void>;
 }) {
   return (
@@ -27,6 +30,13 @@ export function HostsHelperTokenRecoveryModal(props: {
             {props.locale.get("SETTING_HOSTS_HELPER_LATER")}
           </AppModalButton>
           <AppModalButton
+            variant="primary"
+            disabled={props.busy()}
+            onClick={() => void props.onRepair()}
+          >
+            {props.locale.get("SETTING_HOSTS_HELPER_REREGISTER")}
+          </AppModalButton>
+          <AppModalButton
             variant="danger"
             disabled={props.busy()}
             onClick={() => void props.onDelete()}
@@ -36,13 +46,9 @@ export function HostsHelperTokenRecoveryModal(props: {
         </>
       }
     >
-      <div class="app-modal-message">
-        {props.locale.get("SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC")}
-      </div>
+      <div class="app-modal-message">{props.description()}</div>
       {props.busy() ? (
-        <div class="app-modal-message">
-          {props.locale.get("SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY")}
-        </div>
+        <div class="app-modal-message">{props.busyText()}</div>
       ) : null}
       {props.error() ? (
         <div class="app-modal-message" style={{ color: "#ff8080" }}>

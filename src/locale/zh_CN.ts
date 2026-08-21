@@ -190,6 +190,8 @@ export const zh_CN = {
   SETTING_HOSTS_HELPER: "hosts 权限助手",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "状态：已安装并运行中",
   SETTING_HOSTS_HELPER_STATUS_STOPPED: "状态：已安装但未运行",
+  SETTING_HOSTS_HELPER_STATUS_REGISTRATION_CONFLICT: "状态：已安装但注册冲突",
+  SETTING_HOSTS_HELPER_REREGISTER: "重新注册",
   SETTING_HOSTS_HELPER_STATUS_NOT_INSTALLED: "状态：未安装",
   SETTING_HOSTS_HELPER_STATUS_ERROR: "状态：需要处理",
   SETTING_HOSTS_HELPER_INSTALL: "安装",
@@ -200,7 +202,7 @@ export const zh_CN = {
   SETTING_HOSTS_HELPER_DEV_TOOLTIP: "开发版本已禁用 Hosts Helper",
   SETTING_HOSTS_HELPER_TOKEN_MISSING_TITLE: "Hosts Helper 注册需要修复",
   SETTING_HOSTS_HELPER_TOKEN_MISSING_DESC:
-    "当前 Hosts Helper token 已丢失，启动器无法认证旧注册项。删除当前 bundle 的注册项后，才能重新安装 Hosts Helper。删除操作需要 macOS 管理员授权。",
+    "Hosts Helper 已安装但当前启动器无法正常认证。重新注册会仅替换当前 bundle 的注册项并轮换 token，不影响其他注册项；操作需要 macOS 管理员授权。",
   SETTING_HOSTS_HELPER_DELETE_REGISTRATION: "删除当前注册项",
   SETTING_HOSTS_HELPER_DELETE_REGISTRATION_BUSY:
     "正在请求管理员授权并删除注册项……",
@@ -211,7 +213,10 @@ export const zh_CN = {
     "需要管理员授权才能删除 Hosts Helper 注册项",
   SETTING_HOSTS_HELPER_REREGISTERING: "正在更新 Hosts Helper 注册……",
   SETTING_HOSTS_HELPER_REREGISTER_FAILED:
-    "Hosts Helper 自动重新注册失败，请在全局设置中重新安装",
+    "Hosts Helper 重新注册失败，请稍后重试；也可在全局设置中卸载后重新安装",
+  SETTING_HOSTS_HELPER_REPAIR_DESC:
+    "Hosts Helper 已安装但当前启动器无法正常认证。重新注册会仅替换当前 bundle 的注册项并轮换 token，不影响其他注册项；操作需要 macOS 管理员授权。",
+  SETTING_HOSTS_HELPER_REREGISTER_SUCCESS: "Hosts Helper 已重新注册",
   SETTING_TIMEOUT_FIX: "启用 Wine 超时绕过",
   SETTING_WORKAROUND4: "运行期间临时替换 mhypbase.dll",
   SETTING_WORKAROUND4_DESC:
