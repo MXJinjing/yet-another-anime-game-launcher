@@ -38,6 +38,7 @@ jobs:
         run: ./configure.sh
         env:
           YAAGL_NEU_TAG: latest
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update hosts helper from release
         run: bash scripts/update-hosts-helper-release.sh

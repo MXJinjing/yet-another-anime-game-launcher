@@ -31,6 +31,8 @@ jobs:
 
       - name: Configure channel secrets and Neutralino runtime
         run: ./configure.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Type check, lint, and format
         run: pnpm run precommit

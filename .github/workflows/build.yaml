@@ -37,6 +37,7 @@ jobs:
         run: ./configure.sh
         env:
           YAAGL_NEU_TAG: latest
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Type check, lint, and format
         run: pnpm run precommit

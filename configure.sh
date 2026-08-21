@@ -68,19 +68,46 @@ mkdir -p "$EXTERNAL/hkrpg/os/files"
 YAAGL_NEU_REPO="MXJinjing/yaagl-neutralinojs"
 YAAGL_NEU_TAG="${YAAGL_NEU_TAG:-latest}"
 
+# GitHub API calls are unauthenticated here and subject to a 60 req/h rate
+# limit per IP. GitHub-hosted runners share egress IPs, so api.github.com can
+# answer 403 even when the release exists. Resolve the latest tag through the
+# plain /releases/latest redirect instead (no API, no rate limit), and keep
+# the API only as a best-effort lookup for the release commit marker.
+yaagl_neu_api() {
+  if [ -n "${GH_TOKEN:-}" ]; then
+    curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$1"
+  elif [ -n "${GITHUB_TOKEN:-}" ]; then
+    curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" "$1"
+  else
+    curl -fsSL "$1"
+  fi
+}
+
+yaagl_neu_resolve_latest_tag() {
+  # /releases/latest redirects (302) to /releases/tag/<tag>; keep the final URL.
+  YAAGL_NEU_LOCATION=$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+    "https://github.com/${YAAGL_NEU_REPO}/releases/latest") || return 1
+  YAAGL_NEU_TAG=${YAAGL_NEU_LOCATION##*/}
+  [ -n "$YAAGL_NEU_TAG" ] || return 1
+}
+
+yaagl_neu_resolve_commit() {
+  # Best-effort: the commit marker is verified when available, skipped otherwise.
+  YAAGL_NEU_COMMIT=""
+  YAAGL_NEU_RELEASE_JSON=$(yaagl_neu_api \
+    "https://api.github.com/repos/${YAAGL_NEU_REPO}/releases/tags/${YAAGL_NEU_TAG}" 2>/dev/null) || return 0
+  YAAGL_NEU_COMMIT=$(printf '%s' "$YAAGL_NEU_RELEASE_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("target_commitish",""))' 2>/dev/null) || YAAGL_NEU_COMMIT=""
+  return 0
+}
+
 yaagl_neu_resolve_release() {
   if [ "$YAAGL_NEU_TAG" = "latest" ]; then
-    YAAGL_NEU_RELEASE_URL="https://api.github.com/repos/${YAAGL_NEU_REPO}/releases/latest"
-  else
-    YAAGL_NEU_RELEASE_URL="https://api.github.com/repos/${YAAGL_NEU_REPO}/releases/tags/${YAAGL_NEU_TAG}"
+    yaagl_neu_resolve_latest_tag || return 1
   fi
-
-  YAAGL_NEU_RELEASE_JSON=$(curl -fsSL "$YAAGL_NEU_RELEASE_URL") || return 1
-  YAAGL_NEU_TAG=$(printf '%s' "$YAAGL_NEU_RELEASE_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])') || return 1
-  YAAGL_NEU_COMMIT=$(printf '%s' "$YAAGL_NEU_RELEASE_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_commitish"])') || return 1
+  yaagl_neu_resolve_commit
   YAAGL_NEU_ARCHIVE="neutralinojs-${YAAGL_NEU_TAG}.zip"
   YAAGL_NEU_URL="https://github.com/${YAAGL_NEU_REPO}/releases/download/${YAAGL_NEU_TAG}/${YAAGL_NEU_ARCHIVE}"
-  YAAGL_NEU_SHA_URL=$(printf '%s' "$YAAGL_NEU_RELEASE_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(a["browser_download_url"] for a in d.get("assets", []) if a.get("name") == "SHA256SUMS"))') || return 1
+  YAAGL_NEU_SHA_URL="https://github.com/${YAAGL_NEU_REPO}/releases/download/${YAAGL_NEU_TAG}/SHA256SUMS"
 }
 
 yaagl_neu_sha256() {
@@ -125,10 +152,16 @@ yaagl_neu_verify_capabilities() {
       echo "Neutralino binary is missing or not executable: $YAAGL_NEU_BINARY" >&2
       return 1
     fi
+    if [ -n "$YAAGL_NEU_COMMIT" ]; then
+      YAAGL_NEU_COMMIT_MARKERS="$YAAGL_NEU_COMMIT"
+    else
+      echo "Warning: release commit unavailable; skipping commit marker verification" >&2
+      YAAGL_NEU_COMMIT_MARKERS=""
+    fi
     for YAAGL_NEU_MARKER in \
       transparentTitleBar titleBarDragHeight \
       filesystem.removeFile filesystem.moveFile filesystem.copyFile \
-      "$YAAGL_NEU_COMMIT"; do
+      $YAAGL_NEU_COMMIT_MARKERS; do
       if ! strings "$YAAGL_NEU_BINARY" | grep -qFx "$YAAGL_NEU_MARKER"; then
         echo "Neutralino capability marker missing from $YAAGL_NEU_BINARY: $YAAGL_NEU_MARKER" >&2
         return 1
