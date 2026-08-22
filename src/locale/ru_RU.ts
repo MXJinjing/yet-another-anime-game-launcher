@@ -37,6 +37,15 @@ export const ru_RU: typeof zh_CN = {
   FORCE_QUIT_GAME: "Принудительно закрыть",
   FIXING_FILES: "Исправление игровых файлов {0}/{1}",
   PATCHING: "Патчинг игровых файлов",
+  GAME_STARTING: "Запуск игры",
+  GAME_CRASHED: "Обнаружено аварийное завершение игры",
+  GAME_CRASHED_DESC:
+    "Проверьте правильность окружения игры и параметров запуска.",
+  GAME_CRASHED_IGNORE: "Игнорировать",
+  GAME_CRASHED_SETTINGS: "Перейти к настройкам игры",
+  RUNTIME_REPLACEMENT_ERROR: "Ошибка временного файла замены",
+  RUNTIME_REPLACEMENT_ERROR_DESC:
+    "Не удалось проверить временный файл замены перед запуском игры. Проверьте ошибку ниже и измените путь в настройках игры.",
   GAME_RUNNING: "Игра запущена",
   GAME_RECOVERING: "Восстановление",
   GAME_RUNNING_CLOSE_TITLE: "Игра всё ещё запущена",
@@ -247,6 +256,18 @@ export const ru_RU: typeof zh_CN = {
   SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT: "Выбрать файл замены",
   SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "Удалить эту строку",
   SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "Добавить строку",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_TITLE:
+    "Пользовательские переменные среды",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_DESC:
+    "Добавляет пользовательские переменные среды в процесс Wine при запуске игры.",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_ENABLED: "Включено",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_KEY: "Ключ переменной среды",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_VALUE: "Значение",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_DELETE: "Удалить",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_ROW_ENABLED:
+    "Включить строку переменной {0}",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_DELETE_ROW: "Удалить эту строку",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_ADD_ROW: "Добавить строку",
   SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL:
     "Восстановить все резервные копии сейчас",
   SETTING_LICENSES: "Лицензии",
@@ -333,6 +354,7 @@ export const ru_RU: typeof zh_CN = {
   DOWNLOAD_TASK_ID: "ID задачи",
   DOWNLOAD_STATUS_QUEUED: "В очереди",
   DOWNLOAD_STATUS_ACTIVE: "Загрузка",
+  DOWNLOAD_STATUS_VERIFYING: "Проверка",
   DOWNLOAD_STATUS_PAUSED: "Приостановлено",
   DOWNLOAD_STATUS_COMPLETED: "Завершено",
   DOWNLOAD_STATUS_ERROR: "Ошибка",

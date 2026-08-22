@@ -267,6 +267,25 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
     `sidecar`
   );
   const buildArchs = buildArch == "universal" ? ["arm64", "x64"] : [buildArch];
+  const windowProbeBuildDir = path.resolve(process.cwd(), ".tmp", "window-probe");
+  await fs.ensureDir(windowProbeBuildDir);
+  for (const arch of buildArchs) {
+    const output = path.resolve(windowProbeBuildDir, arch, "window-probe");
+    await fs.ensureDir(path.dirname(output));
+    await execa("clang", [
+      path.resolve(process.cwd(), "native", "window-probe.c"),
+      "-Os",
+      "-arch",
+      arch == "x64" ? "x86_64" : "arm64",
+      "-mmacosx-version-min=10.15",
+      "-framework",
+      "ApplicationServices",
+      "-framework",
+      "CoreFoundation",
+      "-o",
+      output,
+    ]);
+  }
   const sophonDistFor = arch =>
     path.resolve(
       process.cwd(),
@@ -295,6 +314,10 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
         { preserveTimestamps: true }
       );
     }
+    await fs.copy(
+      path.resolve(windowProbeBuildDir, arch, "window-probe"),
+      path.resolve(sidecarDst, arch, "window-probe", "window-probe")
+    );
   }
   // Remove protonextras for hkrpg
   if (["hkrpgcn", "hkrpgos"].includes(process.env["YAAGL_CHANNEL_CLIENT"])) {
@@ -378,7 +401,14 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
       "yaaglm-hosts-helper"
     )
   );
-  for (const target of [launcherBinaryPath, ...helperBinaryPaths]) {
+  const windowProbeBinaryPaths = buildArchs.map(arch =>
+    path.resolve(sidecarDst, arch, "window-probe", "window-probe")
+  );
+  for (const target of [
+    launcherBinaryPath,
+    ...helperBinaryPaths,
+    ...windowProbeBinaryPaths,
+  ]) {
     await execa("codesign", [
       "--force",
       "--options",

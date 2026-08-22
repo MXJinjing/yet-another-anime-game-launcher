@@ -18,11 +18,19 @@ import { removeFileIfExists, stats, writeFile } from "@platform/neutralino";
 import { resolve } from "@platform/neutralino/path";
 import { downloadPercent } from "@runtime/format";
 import { dirname, join } from "path-browserify";
+import { log } from "../logging/logger";
 import { isDownloadCancelledError } from "../download/control";
 import { addCertsToWine } from "./cert";
 import { getWineDistributions } from "./distro";
 import type { WineDistribution } from "./distro";
 import { isWineDistroInstalled, type Wine } from "./wine";
+import {
+  createGameProcessMonitor,
+  parseTasklistCsv,
+  parseWinedbgProcesses,
+  type WineProcess,
+} from "./game-process-monitor";
+import { createNativeGameWindowState } from "./native-window-state";
 
 export const SHARED_WINE_TAG = "__shared__";
 const MULTI_GAME_WINES_DIR = "./yaaglm-wines";
@@ -34,6 +42,10 @@ export function createMultiGameWineProxy(ref: MultiGameWineRef): Wine {
     exec: (...args) => ref.current.exec(...args),
     exec2: (...args) => ref.current.exec2(...args),
     waitUntilServerOff: (...args) => ref.current.waitUntilServerOff(...args),
+    waitForWineServerExit: (...args) =>
+      ref.current.waitForWineServerExit(...args),
+    createGameProcessMonitor: (...args) =>
+      ref.current.createGameProcessMonitor(...args),
     cmd: (...args) => ref.current.cmd(...args),
     toWinePath: path => ref.current.toWinePath(path),
     get prefix() {
@@ -162,8 +174,63 @@ export async function createMultiGameWineFromRoot({
       false,
       logFile
     );
-  const waitUntilServerOff = () =>
+  const waitUntilServerOff = (_timeoutMs = 0) =>
     exec2([join(dirname(loaderBin), "wineserver"), "-w"], env());
+  const waitForWineServerExit = async ({
+    timeoutMs = 5_000,
+  }: { timeoutMs?: number } = {}) => {
+    const waitPromise = exec2(
+      [join(dirname(loaderBin), "wineserver"), "-w"],
+      env()
+    );
+    if (timeoutMs <= 0) {
+      await waitPromise;
+      return true;
+    }
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        waitPromise,
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(
+            () =>
+              reject(
+                new Error(`wineserver cleanup timed out after ${timeoutMs}ms`)
+              ),
+            timeoutMs
+          );
+        }),
+      ]);
+      return true;
+    } catch (error) {
+      await log(
+        `Wine server cleanup did not finish within the grace period: ${String(
+          error
+        )}`
+      );
+      waitPromise.catch(() => undefined);
+      return false;
+    } finally {
+      if (timeout != undefined) clearTimeout(timeout);
+    }
+  };
+  const listWineProcesses = async (): Promise<WineProcess[]> => {
+    try {
+      const result = await wineExec("tasklist", ["/fo", "csv", "/nh"]);
+      const processes = parseTasklistCsv(result.stdOut);
+      if (processes.length > 0) return processes;
+      throw new Error("tasklist returned no parseable process rows");
+    } catch (tasklistError) {
+      // Wine builds differ in whether tasklist is available; winedbg is the
+      // supported fallback and is still scoped by this Wine prefix.
+      const result = await wineExec("winedbg", ["--command", "info proc"]);
+      const processes = parseWinedbgProcesses(result.stdOut);
+      if (processes.length > 0) return processes;
+      throw new Error(
+        `Wine process enumeration failed: ${String(tasklistError)}`
+      );
+    }
+  };
   const killAll = async () => {
     try {
       await exec(
@@ -176,6 +243,13 @@ export async function createMultiGameWineFromRoot({
       /* best-effort cleanup */
     }
   };
+  const createGameProcessMonitorFor = (executable: string) =>
+    createGameProcessMonitor({
+      executable,
+      listProcesses: listWineProcesses,
+      getWindowState: createNativeGameWindowState(executable),
+      onWindowClosed: killAll,
+    });
   let netbiosname: string;
   try {
     netbiosname = await getKey("wine_netbiosname");
@@ -197,6 +271,8 @@ export async function createMultiGameWineFromRoot({
     exec: wineExec,
     exec2: wineExec2,
     waitUntilServerOff,
+    waitForWineServerExit,
+    createGameProcessMonitor: createGameProcessMonitorFor,
     killAll,
     cmd: (command, args) => wineExec("cmd", [command, ...args]),
     toWinePath,

@@ -233,10 +233,10 @@ export function createTaskRunner({
         if (taskName) notifier.taskCancelled(locale, taskName);
       } else if (isDownloadFailedError(error)) {
         await logerror(error instanceof Error ? error.message : String(error));
-        notifier.taskFailed(locale, taskName);
+        notifier.taskFailed(locale, taskName, undefined, key);
       } else if (isTaskFailedError(error)) {
         await logerror(error instanceof Error ? error.message : String(error));
-        notifier.taskFailed(locale, taskName, error);
+        notifier.taskFailed(locale, taskName, error, key);
       } else if (isConnectionError(error)) {
         await logerror(error instanceof Error ? error.message : String(error));
         notifier.connectionError(locale, taskName);

@@ -12,12 +12,14 @@ import { utf16le } from "@runtime/binary";
 import { mkdirp } from "@runtime/macos-filesystem";
 import { Wine } from "../../../wine";
 import { Config } from "@config";
+import { getCustomEnvironmentVariables } from "@config";
 import { normalizeHttpProxy } from "@config/proxy";
 import {
   putLocal,
   patchProgram,
   patchRevertProgram,
   applyMhypBaseReplacement,
+  isRuntimeReplacementFileMissingError,
   revertMhypBaseReplacement,
 } from "../patch";
 import { CN_BLOCK_URL, OS_BLOCK_URL } from "../../secret";
@@ -150,6 +152,12 @@ export async function* launchGameProgram({
         { domain: blockUrl, ip: "::1" },
       ])
     : [];
+  const processMonitor = wine.createGameProcessMonitor(gameExecutable);
+  if (await processMonitor.isRunning()) {
+    throw new Error(
+      `The game process is already running in Wine prefix ${wine.prefix}`
+    );
+  }
   yield* launchProgress(0, LAUNCH_PROGRESS_STEPS, "启动阶段：开始准备运行环境");
 
   yield* launchProgress(
@@ -200,10 +208,31 @@ cd /d "${wine.toWinePath(gameDir)}"
     LAUNCH_PROGRESS_STEPS,
     "启动阶段：检查 mhypbase.dll 临时替换"
   );
-  const mhypBaseReplaced = await applyMhypBaseReplacement(gameDir, config);
+  let mhypBaseReplaced = false;
+  try {
+    mhypBaseReplaced = await applyMhypBaseReplacement(gameDir, config);
+  } catch (error) {
+    if (!isRuntimeReplacementFileMissingError(error)) throw error;
+
+    // The validation happens after the regular patch phase. Restore that
+    // phase before surfacing the user-fixable error in the launcher modal.
+    await log(`Runtime replacement validation failed: ${String(error)}`);
+    try {
+      if (config.hk4eEnableHDR) await revertHDRRegistry({ wine, server });
+      await revertResolutionRegistry(wine, server);
+      await removeFile(resolve("config.bat"));
+      yield* patchRevertProgram(gameDir, wine, server, config);
+    } catch (cleanupError) {
+      await log(
+        `Runtime replacement failure cleanup failed: ${String(cleanupError)}`
+      );
+    }
+    throw error;
+  }
   yield* launchProgress(8, LAUNCH_PROGRESS_STEPS, "启动阶段：准备游戏日志目录");
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
+  let startupTimedOut = false;
   try {
     yield* launchProgress(
       9,
@@ -226,52 +255,77 @@ cd /d "${wine.toWinePath(gameDir)}"
     yield ["setProgress", 100];
     yield* launchProgress(10, LAUNCH_PROGRESS_STEPS, "启动阶段：启动游戏进程");
     yield ["setProgress", 100];
+    yield ["setStateText", "GAME_STARTING"];
+    let launchError: unknown;
+    void wine
+      .exec2(
+        config.steamPatch ? "C:\\windows\\system32\\steam.exe" : "cmd",
+        config.steamPatch
+          ? [wine.toWinePath(join(gameDir, gameExecutable))]
+          : ["/c", `${wine.toWinePath(resolve("./config.bat"))} `],
+        {
+          MTL_HUD_ENABLED: config.metalHud ? "1" : "",
+          WINEDLLOVERRIDES: "",
+          WINE_ENABLE_TIMEOUT_FIX: config.timeoutFix ? "1" : "0",
+          ...(wine.attributes.renderBackend == "dxmt"
+            ? {
+                WINEESYNC: "1",
+                DXMT_LOG_PATH: yaaglDir,
+                DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${
+                  config.preferredMaxFps
+                };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${
+                  config.metalFxEnable
+                    ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};`
+                    : ""
+                }`,
+                DXMT_METALFX_SPATIAL_SWAPCHAIN: config.metalFxEnable ? "1" : "",
+                DXMT_CONFIG_FILE: join(yaaglDir, "dxmt.conf"),
+                GST_PLUGIN_FEATURE_RANK: "atdec:MAX,avdec_h264:MAX",
+              }
+            : {
+                WINEESYNC: "1",
+              }),
+          ...(config.proxyEnabled
+            ? {
+                HTTP_PROXY: normalizeHttpProxy(config.proxyHost),
+                HTTPS_PROXY: normalizeHttpProxy(config.proxyHost),
+              }
+            : {}),
+          ...getCustomEnvironmentVariables(config),
+        },
+        logfile
+      )
+      .catch(error => {
+        launchError = error;
+      });
+    const startState = await processMonitor.waitForStart();
+    if (startState === "timed-out") {
+      startupTimedOut = true;
+      throw new Error(
+        `The game process did not appear within the startup timeout (${gameExecutable})`
+      );
+    }
     yield ["setStateText", "GAME_RUNNING"];
-    await wine.exec2(
-      config.steamPatch ? "C:\\windows\\system32\\steam.exe" : "cmd",
-      config.steamPatch
-        ? [wine.toWinePath(join(gameDir, gameExecutable))]
-        : ["/c", `${wine.toWinePath(resolve("./config.bat"))} `],
-      {
-        MTL_HUD_ENABLED: config.metalHud ? "1" : "",
-        WINEDLLOVERRIDES: "",
-        WINE_ENABLE_TIMEOUT_FIX: config.timeoutFix ? "1" : "0",
-        ...(wine.attributes.renderBackend == "dxmt"
-          ? {
-              WINEESYNC: "1",
-              DXMT_LOG_PATH: yaaglDir,
-              DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${
-                config.preferredMaxFps
-              };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${
-                config.metalFxEnable
-                  ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};`
-                  : ""
-              }`,
-              DXMT_METALFX_SPATIAL_SWAPCHAIN: config.metalFxEnable ? "1" : "",
-              DXMT_CONFIG_FILE: join(yaaglDir, "dxmt.conf"),
-              GST_PLUGIN_FEATURE_RANK: "atdec:MAX,avdec_h264:MAX",
-            }
-          : {
-              WINEESYNC: "1",
-            }),
-        ...(config.proxyEnabled
-          ? {
-              HTTP_PROXY: normalizeHttpProxy(config.proxyHost),
-              HTTPS_PROXY: normalizeHttpProxy(config.proxyHost),
-            }
-          : {}),
-      },
-      logfile
-    );
+    const exitState = await processMonitor.waitForExit();
     yield* revertProgress(0, REVERT_STEPS, "还原阶段：等待 Wine 服务退出");
-    await wine.waitUntilServerOff();
+    if (exitState === "unknown") {
+      await wine.waitForWineServerExit({ timeoutMs: 0 });
+    } else {
+      await wine.waitForWineServerExit({ timeoutMs: 5_000 });
+    }
+    if (exitState === "crashed") {
+      await log(`Game crash detected: ${gameExecutable}`);
+      yield ["setStateText", "GAME_CRASHED"];
+    }
     if (config.hk4eEnableHDR) {
       yield* revertProgress(1, REVERT_STEPS, "还原阶段：还原 HDR 注册表配置");
       await revertHDRRegistry({ wine, server });
     }
+    if (launchError !== undefined) await log(String(launchError));
   } catch (e: unknown) {
     // it seems game crashed?
     await log(String(e));
+    if (startupTimedOut) await wine.killAll();
   }
 
   // await removeFile(resolve("bWh5cHJvdDJfcnVubmluZy5yZWcK.reg"));

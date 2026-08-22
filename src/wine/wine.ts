@@ -15,6 +15,14 @@ import { rmrf_dangerously } from "@runtime/macos-filesystem";
 import { getKey, setKey } from "@runtime/storage";
 import { dirname, join } from "path-browserify";
 import type { WineDistribution, WineDistributionAttributes } from "./distro";
+import {
+  createGameProcessMonitor,
+  parseTasklistCsv,
+  parseWinedbgProcesses,
+  type GameProcessMonitor,
+  type WineProcess,
+} from "./game-process-monitor";
+import { createNativeGameWindowState } from "./native-window-state";
 
 export function getWineInstallDir(distroId: string) {
   return resolve(`./wines/${distroId}`);
@@ -91,7 +99,8 @@ export async function createWine(options: {
     program: string,
     args: string[],
     env?: { [key: string]: string },
-    log_file: string | undefined = undefined
+    log_file: string | undefined = undefined,
+    options: { timeoutMs?: number } = {}
   ) {
     return await unixExec2(
       program == "copy"
@@ -102,7 +111,8 @@ export async function createWine(options: {
         ...(env ?? {}),
       },
       false,
-      log_file
+      log_file,
+      options
     );
   }
 
@@ -147,6 +157,51 @@ export async function createWine(options: {
       if (timeout != undefined) {
         clearTimeout(timeout);
       }
+    }
+  }
+
+  /**
+   * Wait for this prefix's Wine server to finish its normal shutdown without
+   * showing the stale-process confirmation dialog or killing anything.
+   * timeoutMs=0 intentionally means wait indefinitely for unknown monitor
+   * state; a positive timeout is best-effort cleanup after game exit.
+   */
+  async function waitForWineServerExit({
+    timeoutMs = 5_000,
+  }: { timeoutMs?: number } = {}) {
+    const waitPromise = unixExec2(
+      [join(dirname(loaderBin), "wineserver"), "-w"],
+      { ...getEnvironmentVariables() }
+    );
+    if (timeoutMs <= 0) {
+      await waitPromise;
+      return true;
+    }
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        waitPromise,
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(
+            () =>
+              reject(
+                new Error(`wineserver cleanup timed out after ${timeoutMs}ms`)
+              ),
+            timeoutMs
+          );
+        }),
+      ]);
+      return true;
+    } catch (error) {
+      await log(
+        `Wine server cleanup did not finish within the grace period: ${String(
+          error
+        )}`
+      );
+      waitPromise.catch(() => undefined);
+      return false;
+    } finally {
+      if (timeout != undefined) clearTimeout(timeout);
     }
   }
 
@@ -273,6 +328,44 @@ export async function createWine(options: {
     };
   }
 
+  async function listWineProcesses(): Promise<WineProcess[]> {
+    try {
+      const result = await exec2(
+        "tasklist",
+        ["/fo", "csv", "/nh"],
+        undefined,
+        undefined,
+        { timeoutMs: 10_000 }
+      );
+      const processes = parseTasklistCsv(result.stdOut);
+      if (processes.length > 0) return processes;
+      throw new Error("tasklist returned no parseable process rows");
+    } catch (tasklistError) {
+      await log(
+        `tasklist process enumeration failed: ${String(tasklistError)}`
+      );
+      const result = await exec2(
+        "winedbg",
+        ["--command", "info proc"],
+        undefined,
+        undefined,
+        { timeoutMs: 10_000 }
+      );
+      const processes = parseWinedbgProcesses(result.stdOut);
+      if (processes.length > 0) return processes;
+      throw new Error("winedbg returned no parseable process rows");
+    }
+  }
+
+  function createGameProcessMonitorFor(executable: string): GameProcessMonitor {
+    return createGameProcessMonitor({
+      executable,
+      listProcesses: listWineProcesses,
+      getWindowState: createNativeGameWindowState(executable),
+      onWindowClosed: killAll,
+    });
+  }
+
   async function openCmdWindow({ gameDir }: { gameDir: string }) {
     return await unixExec2(
       [
@@ -365,6 +458,8 @@ reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v F
     exec,
     exec2,
     waitUntilServerOff,
+    waitForWineServerExit,
+    createGameProcessMonitor: createGameProcessMonitorFor,
     killAll,
     cmd,
     toWinePath,

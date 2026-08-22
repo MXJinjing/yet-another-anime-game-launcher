@@ -6,7 +6,11 @@ import {
   relative,
   resolve as resolvePath,
 } from "path-browserify";
-import type { TaskProgram, TaskProgressCommand } from "@tasks/task-program";
+import {
+  TaskFailedError,
+  type TaskProgram,
+  type TaskProgressCommand,
+} from "@tasks/task-program";
 import { Server } from "@constants";
 import { log } from "@logging/logger";
 import {
@@ -318,6 +322,20 @@ export type RuntimeReplacementManifest = {
     backupRelativePath: string;
   }>;
 };
+
+/** A user-fixable launch failure caused by a missing replacement source file. */
+export class RuntimeReplacementFileMissingError extends TaskFailedError {
+  constructor(message: string) {
+    super(message);
+    this.name = "RuntimeReplacementFileMissingError";
+  }
+}
+
+export function isRuntimeReplacementFileMissingError(
+  error: unknown
+): error is RuntimeReplacementFileMissingError {
+  return error instanceof RuntimeReplacementFileMissingError;
+}
 
 type RuntimeReplacementPlan = {
   entry: RuntimeReplacementEntry;
@@ -644,6 +662,7 @@ async function buildRuntimeReplacementPlans(
   entries: RuntimeReplacementEntry[]
 ): Promise<RuntimeReplacementPlan[]> {
   const failures: string[] = [];
+  let missingReplacementFile = false;
   const plans: RuntimeReplacementPlan[] = [];
   const seenTargets = new Set<string>();
 
@@ -675,6 +694,7 @@ async function buildRuntimeReplacementPlans(
       resolveReplacementCandidates(gameDir, replacementPath)
     );
     if (!source) {
+      missingReplacementFile = true;
       failures.push(`替换文件不存在：${label}`);
       continue;
     }
@@ -710,7 +730,11 @@ async function buildRuntimeReplacementPlans(
   }
 
   if (failures.length > 0) {
-    throw new Error(`运行时文件替换配置无效：${failures.join("；")}`);
+    const message = `运行时文件替换配置无效：${failures.join("；")}`;
+    if (missingReplacementFile) {
+      throw new RuntimeReplacementFileMissingError(message);
+    }
+    throw new Error(message);
   }
   return plans;
 }

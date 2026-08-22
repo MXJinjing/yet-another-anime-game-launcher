@@ -8,6 +8,7 @@ export function LaunchTab(props: {
   }) => JSXElement;
   onOpenGlobalSettings?: () => void;
   DebugModeConfig: () => JSXElement;
+  CustomEnvironmentVariablesConfig: () => JSXElement;
 }) {
   return (
     <SettingsTabPanel>
@@ -17,6 +18,8 @@ export function LaunchTab(props: {
         <props.ChannelClientConfig
           onOpenGlobalSettings={props.onOpenGlobalSettings}
         />
+        <Divider />
+        <props.CustomEnvironmentVariablesConfig />
       </>
     </SettingsTabPanel>
   );

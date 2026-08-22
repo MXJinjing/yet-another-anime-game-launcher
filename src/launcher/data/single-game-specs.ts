@@ -33,7 +33,7 @@ export const SINGLE_GAME_CHANNEL_META: Record<string, SingleGameChannelMeta> = {
     id: "hkrpgcn",
     title: atob("SG9ua2FpOiBTdGFyIFJhaWwgQ04="),
     serverLabel: "SERVER_LABEL_CN",
-    fallbackIcon: GAME_ICON_URLS["hsr"],
+    fallbackIcon: GAME_ICON_URLS_CN["hsr"],
   },
   hkrpgos: {
     id: "hkrpgos",
@@ -45,7 +45,7 @@ export const SINGLE_GAME_CHANNEL_META: Record<string, SingleGameChannelMeta> = {
     id: "napcn",
     title: atob("WmVubGVzcyBab25lIFplcm8gQ04="),
     serverLabel: "SERVER_LABEL_CN",
-    fallbackIcon: GAME_ICON_URLS["zzz"],
+    fallbackIcon: GAME_ICON_URLS_CN["zzz"],
   },
   napos: {
     id: "napos",

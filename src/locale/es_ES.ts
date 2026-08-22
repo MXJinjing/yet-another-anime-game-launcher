@@ -37,6 +37,15 @@ export const es_ES: typeof zh_CN = {
   FORCE_QUIT_GAME: "Forzar cierre",
   FIXING_FILES: "Arreglando archivos del juego {0}/{1}",
   PATCHING: "Parchando archivos del juego",
+  GAME_STARTING: "Iniciando el juego",
+  GAME_CRASHED: "Se detectó un cierre inesperado",
+  GAME_CRASHED_DESC:
+    "Comprueba que el entorno del juego y los ajustes de inicio sean correctos.",
+  GAME_CRASHED_IGNORE: "Ignorar",
+  GAME_CRASHED_SETTINGS: "Ir a los ajustes del juego",
+  RUNTIME_REPLACEMENT_ERROR: "Error del archivo de reemplazo temporal",
+  RUNTIME_REPLACEMENT_ERROR_DESC:
+    "No se pudo validar un archivo de reemplazo temporal antes de iniciar el juego. Comprueba el error y actualiza la ruta en los ajustes del juego.",
   GAME_RUNNING: "El juego se está ejecutando",
   GAME_RECOVERING: "Restaurando",
   GAME_RUNNING_CLOSE_TITLE: "El juego sigue ejecutándose",
@@ -246,6 +255,19 @@ export const es_ES: typeof zh_CN = {
     "Elegir el archivo de reemplazo",
   SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "Eliminar esta fila",
   SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "Añadir fila",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_TITLE:
+    "Variables de entorno personalizadas",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_DESC:
+    "Añade variables de entorno personalizadas al proceso Wine al iniciar el juego.",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_ENABLED: "Habilitado",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_KEY:
+    "Clave de variable de entorno",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_VALUE: "Valor",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_DELETE: "Eliminar",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_ROW_ENABLED:
+    "Habilitar fila de variable {0}",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_DELETE_ROW: "Eliminar esta fila",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_ADD_ROW: "Añadir fila",
   SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL:
     "Restaurar todas las copias de seguridad ahora",
   SETTING_LICENSES: "Licencias",
@@ -335,6 +357,7 @@ export const es_ES: typeof zh_CN = {
   DOWNLOAD_TASK_ID: "ID de tarea",
   DOWNLOAD_STATUS_QUEUED: "En cola",
   DOWNLOAD_STATUS_ACTIVE: "Descargando",
+  DOWNLOAD_STATUS_VERIFYING: "Verificando",
   DOWNLOAD_STATUS_PAUSED: "En pausa",
   DOWNLOAD_STATUS_COMPLETED: "Completado",
   DOWNLOAD_STATUS_ERROR: "Error",

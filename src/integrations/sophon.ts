@@ -154,6 +154,7 @@ export class SophonClient {
       taskId,
       key: getActiveStorageNamespace() ?? undefined,
       title: `${type} (${options.game_type})`,
+      phaseKind: type === "repair" ? "verifying" : "transferring",
       status: "active",
       progress: 0,
       speed: 0,
@@ -319,6 +320,17 @@ export class SophonClient {
           // Array is not empty. message is not null.
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           const message = messageQueue.shift()!;
+
+          if (
+            message.type === "file_download_start" ||
+            message.type === "ldiff_download_start" ||
+            message.type === "chunk_progress" ||
+            message.type === "ldiff_download_complete"
+          ) {
+            updateStream(`sophon:${taskId}`, {
+              phaseKind: "transferring",
+            });
+          }
 
           if (message.overall_progress) {
             const op = message.overall_progress;

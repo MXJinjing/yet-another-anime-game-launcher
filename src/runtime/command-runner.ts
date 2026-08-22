@@ -5,6 +5,7 @@ import {
   offSpawnedProcess,
   onSpawnedProcess,
   spawnProcess,
+  updateSpawnedProcess,
 } from "../platform/neutralino";
 import { build, CommandSegments, rawString } from "../platform/shell";
 
@@ -33,7 +34,8 @@ export async function exec2(
   segments: CommandSegments,
   env?: { [key: string]: string },
   sudo = false,
-  log_redirect: string | undefined = undefined
+  log_redirect: string | undefined = undefined,
+  options: { timeoutMs?: number } = {}
 ): Promise<Neutralino.os.ExecCommandResult> {
   const cmd = build(
     [...segments, ...(log_redirect ? [rawString("&>"), log_redirect] : [])],
@@ -49,6 +51,14 @@ export async function exec2(
   const pendingEvents: Neutralino.os.SpawnProcessResult[] = [];
   let handler!: Neutralino.events.Handler<Neutralino.os.SpawnProcessResult>;
   let finish: (exit: number) => void = () => undefined;
+  let fail: (error: unknown) => void = () => undefined;
+  let settled = false;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  const cleanup = () => {
+    if (timeout != undefined) clearTimeout(timeout);
+    void offSpawnedProcess(handler);
+  };
 
   const handleDetail = (detail: Neutralino.os.SpawnProcessResult) => {
     if (detail.id != id) return;
@@ -59,7 +69,9 @@ export async function exec2(
 
   const result = new Promise<Neutralino.os.ExecCommandResult>((res, rej) => {
     finish = (exit: number) => {
-      offSpawnedProcess(handler);
+      if (settled) return;
+      settled = true;
+      cleanup();
       if (exit == 0) res({ pid, exitCode: exit, stdErr, stdOut });
       else {
         rej(
@@ -68,6 +80,12 @@ export async function exec2(
           )
         );
       }
+    };
+    fail = error => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      rej(error);
     };
     handler = event => {
       if (!event) return;
@@ -82,9 +100,18 @@ export async function exec2(
     id = spawned.id;
     pid = spawned.pid;
     for (const detail of pendingEvents) handleDetail(detail);
+    if (!settled && options.timeoutMs != undefined && options.timeoutMs > 0) {
+      timeout = setTimeout(() => {
+        if (settled || id == undefined) return;
+        const timedOutId = id;
+        fail(
+          new Error(`Command timed out after ${options.timeoutMs}ms: ${cmd}`)
+        );
+        void updateSpawnedProcess(timedOutId, "exit").catch(() => undefined);
+      }, options.timeoutMs);
+    }
   } catch (error) {
-    await offSpawnedProcess(handler);
-    throw error;
+    fail(error);
   }
   return result;
 }

@@ -10,6 +10,7 @@ import {
   reportBootProgress,
 } from "./boot-progress";
 import { getChannelBootIcon } from "./boot-icon";
+import { installInputEditingShortcuts } from "./input-editing-shortcuts";
 
 function createPlates(
   tag: string,
@@ -30,6 +31,7 @@ if (typeof Neutralino == "undefined") {
   console.log(`This app doesn't work on browser.`);
 } else {
   Neutralino.init();
+  installInputEditingShortcuts();
   if (import.meta.env.PROD) {
     document.addEventListener("contextmenu", event => event.preventDefault());
   }

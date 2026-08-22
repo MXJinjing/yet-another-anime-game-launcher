@@ -10,3 +10,9 @@ export {
   withDefault,
 } from "./config-codecs";
 export { configEntries } from "./shared-entries";
+export {
+  getCustomEnvironmentVariables,
+  parseCustomEnvironmentVariables,
+  serializeCustomEnvironmentVariables,
+} from "./custom-environment-variables";
+export type { CustomEnvironmentVariable } from "./custom-environment-variables";

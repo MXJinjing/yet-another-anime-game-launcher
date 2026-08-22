@@ -6,6 +6,7 @@ import type {
   DownloadTaskMetadata,
   DownloadTaskOverallUpdate,
   DownloadTaskSnapshot,
+  DownloadTaskPhase,
 } from "./types";
 
 export type {
@@ -19,6 +20,7 @@ type DownloadTaskRecord = {
   id: string;
   key?: string;
   title: string;
+  phaseKind?: DownloadTaskPhase;
   phase: string;
   phaseTransferring: boolean;
   materialized: boolean;
@@ -106,6 +108,7 @@ function toSnapshot(record: DownloadTaskRecord): DownloadTaskSnapshot {
     id: record.id,
     key: record.key,
     title: record.title,
+    phaseKind: record.phaseKind,
     phase: record.phase,
     transferring: record.phaseTransferring,
     status: taskStatus(record),
@@ -154,6 +157,7 @@ export function beginDownloadTask(metadata: DownloadTaskMetadata): string {
     id,
     key: metadata.key,
     title: metadata.title,
+    phaseKind: undefined,
     phase: "",
     phaseTransferring: true,
     materialized: false,
@@ -200,6 +204,7 @@ export function attachDownloadStream(stream: DownloadStream): string {
   }
   const attachedTaskId = record.id;
   stream.ownerTaskId = attachedTaskId;
+  record.phaseKind = stream.phaseKind;
   record.materialized = true;
   record.streams.set(stream.id, stream);
   record.engines.add(stream.kind);
@@ -213,6 +218,7 @@ export function updateDownloadStream(stream: DownloadStream) {
   const record = stream.ownerTaskId ? tasks.get(stream.ownerTaskId) : undefined;
   if (!record) return;
   record.streams.set(stream.id, stream);
+  if (stream.phaseKind !== undefined) record.phaseKind = stream.phaseKind;
   record.engines.add(stream.kind);
   if (stream.kind === "sophon" && stream.total > 0) {
     Object.assign(record, {

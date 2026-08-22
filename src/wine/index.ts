@@ -4,3 +4,4 @@ export * from "./distro";
 export * from "./environment-service";
 export * from "./multi-game";
 export * from "./runtime-resources";
+export * from "./game-process-monitor";

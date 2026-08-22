@@ -14,6 +14,7 @@ import { mkdirp } from "@runtime/macos-filesystem";
 import { getKeyOrDefault } from "@runtime/storage";
 import { Wine } from "@wine";
 import { Config } from "@config";
+import { getCustomEnvironmentVariables } from "@config";
 import { normalizeHttpProxy } from "@config/proxy";
 import { putLocal, patchProgram, patchRevertProgram } from "../patch";
 import { HKRPG_CN_BLOCK_URL, HKRPG_OS_BLOCK_URL } from "../../secret";
@@ -42,6 +43,12 @@ export async function* launchGameProgram({
   const blockHosts = config.blockNet
     ? buildBlockHosts(config, [{ domain: blockUrl, ip: "0.0.0.0" }])
     : [];
+  const processMonitor = wine.createGameProcessMonitor(gameExecutable);
+  if (await processMonitor.isRunning()) {
+    throw new Error(
+      `The game process is already running in Wine prefix ${wine.prefix}`
+    );
+  }
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "PATCHING"];
 
@@ -59,8 +66,9 @@ cd /d "${wine.toWinePath(gameDir)}"
   yield* patchProgram(gameDir, wine, server, config);
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
+  let startupTimedOut = false;
   try {
-    yield ["setStateText", "GAME_RUNNING"];
+    yield ["setStateText", "GAME_STARTING"];
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
 
     if (config.blockNet) {
@@ -69,44 +77,73 @@ cd /d "${wine.toWinePath(gameDir)}"
       );
     }
 
-    await wine.exec2(
-      "cmd",
-      ["/c", `${wine.toWinePath(resolve("./config.bat"))}`],
-      {
-        MTL_HUD_ENABLED: config.metalHud ? "1" : "",
-        WINEDLLOVERRIDES: "",
-        ...(wine.attributes.renderBackend == "dxmt"
-          ? {
-              WINEMSYNC: "1",
-              DXMT_LOG_PATH: yaaglDir,
-              DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${
-                config.preferredMaxFps
-              };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${
-                config.metalFxEnable
-                  ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};`
-                  : ""
-              }dxgi.customVendorId=10de;dxgi.customDeviceId=2684`,
-              DXMT_METALFX_SPATIAL_SWAPCHAIN: config.metalFxEnable ? "1" : "",
-              DXMT_CONFIG_FILE: join(yaaglDir, "dxmt.conf"),
-              DXMT_ENABLE_NVEXT: "1",
-              GST_PLUGIN_FEATURE_RANK: "atdec:MAX,avdec_h264:MAX",
-            }
-          : {
-              WINEESYNC: "1",
-            }),
-        ...(config.proxyEnabled
-          ? {
-              HTTP_PROXY: normalizeHttpProxy(config.proxyHost),
-              HTTPS_PROXY: normalizeHttpProxy(config.proxyHost),
-            }
-          : {}),
-      },
-      logfile
-    );
-    await wine.waitUntilServerOff();
+    let launchError: unknown;
+    void wine
+      .exec2(
+        "cmd",
+        ["/c", `${wine.toWinePath(resolve("./config.bat"))}`],
+        {
+          MTL_HUD_ENABLED: config.metalHud ? "1" : "",
+          WINEDLLOVERRIDES: "",
+          ...(wine.attributes.renderBackend == "dxmt"
+            ? {
+                WINEMSYNC: "1",
+                DXMT_LOG_PATH: yaaglDir,
+                DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${
+                  config.preferredMaxFps
+                };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${
+                  config.metalFxEnable
+                    ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};`
+                    : ""
+                }dxgi.customVendorId=10de;dxgi.customDeviceId=2684`,
+                DXMT_METALFX_SPATIAL_SWAPCHAIN: config.metalFxEnable ? "1" : "",
+                DXMT_CONFIG_FILE: join(yaaglDir, "dxmt.conf"),
+                DXMT_ENABLE_NVEXT: "1",
+                GST_PLUGIN_FEATURE_RANK: "atdec:MAX,avdec_h264:MAX",
+              }
+            : {
+                WINEESYNC: "1",
+              }),
+          ...(config.proxyEnabled
+            ? {
+                HTTP_PROXY: normalizeHttpProxy(config.proxyHost),
+                HTTPS_PROXY: normalizeHttpProxy(config.proxyHost),
+              }
+            : {}),
+          ...getCustomEnvironmentVariables(config),
+        },
+        logfile
+      )
+      .catch(error => {
+        launchError = error;
+      });
+
+    const startState = await processMonitor.waitForStart();
+    if (startState === "timed-out") {
+      startupTimedOut = true;
+      throw new Error(
+        `The game process did not appear within the startup timeout (${gameExecutable})`
+      );
+    }
+    yield ["setStateText", "GAME_RUNNING"];
+    // The Jadeite wrapper is not the game lifetime. It may remain attached
+    // after the real game process appears, so monitor the target independently
+    // and only log a late wrapper failure.
+    const exitState = await processMonitor.waitForExit();
+    if (exitState === "unknown") {
+      await wine.waitForWineServerExit({ timeoutMs: 0 });
+    } else {
+      await wine.waitForWineServerExit({ timeoutMs: 5_000 });
+    }
+    if (exitState === "crashed") {
+      await log(`Game crash detected: ${gameExecutable}`);
+      yield ["setStateText", "GAME_CRASHED"];
+    }
+    if (launchError !== undefined) await log(String(launchError));
   } catch (e: unknown) {
     // it seems game crashed?
     await log(String(e));
+    if (startupTimedOut) await wine.killAll();
   }
 
   await removeFile(resolve("config.bat"));

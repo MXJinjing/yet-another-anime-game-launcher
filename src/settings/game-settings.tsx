@@ -91,6 +91,7 @@ export class GameSettings extends SettingsController<GameLoadedSettings> {
           ChannelClientConfig={settings.channelClientGame}
           onOpenGlobalSettings={props.onOpenGlobalSettings}
           DebugModeConfig={settings.debugMode}
+          CustomEnvironmentVariablesConfig={settings.customEnvironmentVariables}
         />
         <Show when={this.showGameWineTab}>
           <GameWineTab

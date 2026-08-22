@@ -37,6 +37,15 @@ export const de_DE: typeof zh_CN = {
   FORCE_QUIT_GAME: "Sofort beenden",
   FIXING_FILES: "Spieldateien reparieren {0}/{1}",
   PATCHING: "Spieldateien patchen",
+  GAME_STARTING: "Spiel wird gestartet",
+  GAME_CRASHED: "Spielabsturz erkannt",
+  GAME_CRASHED_DESC:
+    "Bitte prüfe, ob die Spielumgebung und die Starteinstellungen korrekt sind.",
+  GAME_CRASHED_IGNORE: "Ignorieren",
+  GAME_CRASHED_SETTINGS: "Zu den Spieleinstellungen",
+  RUNTIME_REPLACEMENT_ERROR: "Fehler bei der temporären Ersatzdatei",
+  RUNTIME_REPLACEMENT_ERROR_DESC:
+    "Eine temporäre Ersatzdatei konnte vor dem Spielstart nicht überprüft werden. Prüfen Sie den Fehler unten und aktualisieren Sie den Pfad in den Spieleinstellungen.",
   GAME_RUNNING: "Spiel läuft",
   GAME_RECOVERING: "Wird wiederhergestellt",
   GAME_RUNNING_CLOSE_TITLE: "Das Spiel läuft noch",
@@ -249,6 +258,19 @@ export const de_DE: typeof zh_CN = {
   SETTING_RUNTIME_REPLACEMENT_PICK_REPLACEMENT: "Ersatzdatei auswählen",
   SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "Diese Zeile löschen",
   SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "Zeile hinzufügen",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_TITLE:
+    "Benutzerdefinierte Umgebungsvariablen",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_DESC:
+    "Fügt dem Wine-Prozess beim Start des Spiels benutzerdefinierte Umgebungsvariablen hinzu.",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_ENABLED: "Aktiv",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_KEY:
+    "Umgebungsvariablen-Schlüssel",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_VALUE: "Wert",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_DELETE: "Löschen",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_ROW_ENABLED:
+    "Umgebungsvariablen-Zeile {0} aktivieren",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_DELETE_ROW: "Diese Zeile löschen",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_ADD_ROW: "Zeile hinzufügen",
   SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL:
     "Alle Sicherungen jetzt wiederherstellen",
   SETTING_LICENSES: "Lizenzen",
@@ -336,6 +358,7 @@ export const de_DE: typeof zh_CN = {
   DOWNLOAD_TASK_ID: "Aufgaben-ID",
   DOWNLOAD_STATUS_QUEUED: "In der Warteschlange",
   DOWNLOAD_STATUS_ACTIVE: "Wird heruntergeladen",
+  DOWNLOAD_STATUS_VERIFYING: "Wird überprüft",
   DOWNLOAD_STATUS_PAUSED: "Angehalten",
   DOWNLOAD_STATUS_COMPLETED: "Abgeschlossen",
   DOWNLOAD_STATUS_ERROR: "Fehler",

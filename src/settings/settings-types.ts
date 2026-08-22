@@ -53,6 +53,7 @@ export type GameLoadedSettings = BaseLoadedSettings & {
   proxyEnabled: SettingsComponent;
   proxyHost: SettingsComponent;
   debugMode: SettingsComponent;
+  customEnvironmentVariables: SettingsComponent;
   gameProxyEnabled: Accessor<boolean>;
   channelClientGame: SettingsComponent;
   channelClientVideo?: SettingsComponent;

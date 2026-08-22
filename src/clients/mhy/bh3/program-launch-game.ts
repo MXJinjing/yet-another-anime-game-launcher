@@ -2,14 +2,13 @@ import { join } from "path-browserify";
 import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "@constants";
 import { log } from "@logging/logger";
-import { removeFile, resolve, stats, writeFile } from "@platform/neutralino";
-import { wait } from "@runtime/async";
-import { exec } from "@runtime/command-runner";
-import { forceMove, mkdirp } from "@runtime/macos-filesystem";
+import { removeFile, resolve, writeFile } from "@platform/neutralino";
+import { mkdirp } from "@runtime/macos-filesystem";
 import { Wine } from "@wine";
 import { Config } from "@config";
+import { getCustomEnvironmentVariables } from "@config";
 import { normalizeHttpProxy } from "@config/proxy";
-import { putLocal, patchProgram, patchRevertProgram } from "../patch";
+import { patchProgram, patchRevertProgram } from "../patch";
 
 export async function* launchGameProgram({
   gameDir,
@@ -24,6 +23,12 @@ export async function* launchGameProgram({
   config: Config;
   server: Server;
 }): TaskProgram {
+  const processMonitor = wine.createGameProcessMonitor(gameExecutable);
+  if (await processMonitor.isRunning()) {
+    throw new Error(
+      `The game process is already running in Wine prefix ${wine.prefix}`
+    );
+  }
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "PATCHING"];
 
@@ -38,12 +43,14 @@ cd /d "${wine.toWinePath(gameDir)}"
   await writeFile(resolve("config.bat"), cmd);
   yield* patchProgram(gameDir, wine, server, config);
   await mkdirp(resolve("./logs"));
+  let startupTimedOut = false;
   try {
-    yield ["setStateText", "GAME_RUNNING"];
+    yield ["setStateText", "GAME_STARTING"];
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
     const yaaglDir = resolve("./");
-    await Promise.all([
-      wine.exec2(
+    let launchError: unknown;
+    void wine
+      .exec2(
         "cmd",
         ["/c", `${wine.toWinePath(resolve("./config.bat"))}`],
         {
@@ -74,27 +81,39 @@ cd /d "${wine.toWinePath(gameDir)}"
                 HTTPS_PROXY: normalizeHttpProxy(config.proxyHost),
               }
             : {}),
+          ...getCustomEnvironmentVariables(config),
         },
         logfile
-      ),
-      (async () => {
-        // while (processRunning) {
-        //   if ((await exec("cat",[logfile])).stdOut.includes("GCGMAH active")) {
-        //     await log("Game Launch Successful");
-        //     await forceMove(
-        //       join(gameDir, atob("bWh5cGJhc2UuZGxs") + ".bak"),
-        //       join(gameDir, atob("bWh5cGJhc2UuZGxs"))
-        //     );
-        //     break;
-        //   }
-        //   await wait(200);
-        // }
-      })(),
-    ]);
-    await wine.waitUntilServerOff();
+      )
+      .catch(error => {
+        launchError = error;
+      });
+
+    const startState = await processMonitor.waitForStart();
+    if (startState === "timed-out") {
+      startupTimedOut = true;
+      throw new Error(
+        `The game process did not appear within the startup timeout (${gameExecutable})`
+      );
+    }
+    yield ["setStateText", "GAME_RUNNING"];
+    // Jadeite is only the wrapper. Track the actual game executable so a
+    // lingering wrapper or Wine service cannot delay patch restoration.
+    const exitState = await processMonitor.waitForExit();
+    if (exitState === "unknown") {
+      await wine.waitForWineServerExit({ timeoutMs: 0 });
+    } else {
+      await wine.waitForWineServerExit({ timeoutMs: 5_000 });
+    }
+    if (exitState === "crashed") {
+      await log(`Game crash detected: ${gameExecutable}`);
+      yield ["setStateText", "GAME_CRASHED"];
+    }
+    if (launchError !== undefined) await log(String(launchError));
   } catch (e: unknown) {
     // it seems game crashed?
     await log(String(e));
+    if (startupTimedOut) await wine.killAll();
   }
 
   await removeFile(resolve("config.bat"));

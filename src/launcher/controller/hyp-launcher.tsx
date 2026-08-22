@@ -1,5 +1,6 @@
 import { createGlobalSettings } from "@settings";
 import { Locale } from "@locale";
+import { hopeTaskNotifier } from "@tasks/task-notifications";
 import {
   activateStorageNamespace,
   exec2,
@@ -59,6 +60,9 @@ import {
 } from "@download/task-registry";
 import { DownloadQueueModal } from "../../modals/download-queue-modal";
 import { GameUpdatePromptModal } from "../../modals/game-update-prompt-modal";
+import { GameCrashModal } from "../../modals/game-crash-modal";
+import { RuntimeReplacementErrorModal } from "../../modals/runtime-replacement-error-modal";
+import { isRuntimeReplacementFileMissingError } from "../../clients/mhy/patch";
 import { getProgressPanelVisibility } from "../model/progress-panel-visibility";
 import {
   clearGameInstallationState,
@@ -519,13 +523,26 @@ export async function createHypLauncher({
     >({});
     const [gameLifecycleActiveByKey, setGameLifecycleActiveByKey] =
       createSignal<Record<string, boolean>>({});
+    const [crashedGame, setCrashedGame] = createSignal<HypGame>();
+    const [runtimeReplacementError, setRuntimeReplacementError] = createSignal<{
+      game: HypGame;
+      details: string;
+    }>();
+    const pendingCrashKeys = new Set<string>();
     let restoreNativeSettingsNamespace: (() => void) | undefined;
     const taskQueue = createConcurrentTaskQueueState({
       locale,
       onStateKey: (key, stateKey) => {
         if (key === GLOBAL_TASK_KEY) return;
+        if (stateKey === "GAME_CRASHED") pendingCrashKeys.add(key);
+        if (stateKey == null && pendingCrashKeys.delete(key)) {
+          setCrashedGame(games.find(game => game.id === key));
+        }
         const lifecycleActive =
-          stateKey == "GAME_RUNNING" || stateKey == "REVERT_PATCHING";
+          stateKey == "GAME_STARTING" ||
+          stateKey == "GAME_RUNNING" ||
+          stateKey == "GAME_CRASHED" ||
+          stateKey == "REVERT_PATCHING";
         const processRunning = stateKey == "GAME_RUNNING";
         const processPrev = gameRunningByKey();
         const lifecyclePrev = gameLifecycleActiveByKey();
@@ -544,6 +561,25 @@ export async function createHypLauncher({
           onGameRunningChange?.(Object.values(next).some(Boolean));
         }
       },
+      notifier: {
+        ...hopeTaskNotifier,
+        taskFailed: (taskLocale, taskName, error, taskKey) => {
+          if (
+            taskName === "LAUNCH" &&
+            isRuntimeReplacementFileMissingError(error)
+          ) {
+            const game = games.find(candidate => candidate.id === taskKey);
+            if (game) {
+              setRuntimeReplacementError({
+                game,
+                details: error.message,
+              });
+              return;
+            }
+          }
+          hopeTaskNotifier.taskFailed(taskLocale, taskName, error);
+        },
+      },
     });
 
     if (gameCloseHandler) {
@@ -554,8 +590,11 @@ export async function createHypLauncher({
         const processKeys = Object.entries(gameRunningByKey())
           .filter(([, running]) => running)
           .map(([key]) => key);
+        const startupKeys = lifecycleKeys.filter(
+          key => taskQueue.getState(key).statusArgs()?.key === "GAME_STARTING"
+        );
         const winesToStop = new Set<Wine>();
-        for (const key of processKeys) {
+        for (const key of new Set([...processKeys, ...startupKeys])) {
           const game = games.find(candidate => candidate.id === key);
           if (game) winesToStop.add(game.wineRef?.current ?? baseWine);
         }
@@ -711,7 +750,8 @@ export async function createHypLauncher({
         isEnvironmentDownload &&
         selectedGame().wineTag?.() !== undefined &&
         selectedGame().wineTag?.() !== SHARED_WINE_TAG;
-      const isGameRunning = args?.key === "GAME_RUNNING";
+      const isGameRunning =
+        args?.key === "GAME_RUNNING" || args?.key === "GAME_STARTING";
       const isLaunchPhase = taskStatusText.startsWith("启动阶段");
       const isRestorePhase =
         args?.key === "REVERT_PATCHING" ||
@@ -1054,6 +1094,9 @@ export async function createHypLauncher({
       }
       const gameTaskState = selectedGameTaskState();
       const gameStatusArgs = gameTaskState.statusArgs();
+      if (gameStatusArgs?.key === "GAME_STARTING") {
+        return locale.get("GAME_STARTING");
+      }
       const isRecovering =
         gameStatusArgs?.key === "REVERT_PATCHING" ||
         gameTaskState.statusText().startsWith("还原阶段");
@@ -1588,6 +1631,29 @@ export async function createHypLauncher({
               name: "UPDATE",
               downloadTask: gameDownloadTaskMetadata(target, locale, "release"),
             });
+          }}
+        />
+
+        <RuntimeReplacementErrorModal
+          opened={runtimeReplacementError() != undefined}
+          locale={locale}
+          details={runtimeReplacementError()?.details ?? ""}
+          onCancel={() => setRuntimeReplacementError()}
+          onOpenSettings={() => {
+            const failure = runtimeReplacementError();
+            setRuntimeReplacementError();
+            if (failure) void openNativeSettings(failure.game);
+          }}
+        />
+
+        <GameCrashModal
+          opened={crashedGame() != undefined}
+          locale={locale}
+          onIgnore={() => setCrashedGame()}
+          onOpenSettings={() => {
+            const game = crashedGame();
+            setCrashedGame();
+            if (game) void openNativeSettings(game);
           }}
         />
 

@@ -20,6 +20,7 @@ import { createDownloadServerConfig } from "./controls/download/download-server"
 import { createGithubAcceleratedPrefixConfig } from "./controls/download/github-accelerated-prefix";
 import { createWineDistroConfig } from "./controls/wine/wine-distribution";
 import { createDebugModeConfig } from "./controls/launch/debug-mode";
+import createCustomEnvironmentVariables from "./controls/launch/custom-environment-variables";
 import { GlobalSettings } from "./global-settings";
 import { GameSettings } from "./game-settings";
 import { resolveChannelClientConfig } from "./channel-client-config";
@@ -206,6 +207,10 @@ async function loadGameSettings(
     locale,
     store: configStore,
   });
+  const [customEnvironmentVariables] = await createCustomEnvironmentVariables({
+    locale,
+    config,
+  });
 
   const { channelClientGame, channelClientVideo } = resolveChannelClientConfig(
     await configForChannelClient(locale, config)
@@ -224,6 +229,7 @@ async function loadGameSettings(
     proxyEnabled,
     proxyHost,
     debugMode,
+    customEnvironmentVariables,
     gameProxyEnabled,
     channelClientGame,
     channelClientVideo,

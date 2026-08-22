@@ -19,8 +19,8 @@ export type GlobalModalRoute = "settings" | "about" | "license" | "release-log";
  * another (e.g. Settings -> License); only the body content swaps.
  *
  * Sub-pages (About / License / Release log) get a back button in the left
- * side of the title bar that navigates back to the page they were opened
- * from (Settings or About).
+ * side of the title bar. About always returns to Global Settings; License and
+ * Release log return to the page they were opened from.
  */
 export function GlobalModals(props: {
   route: () => GlobalModalRoute | null;
@@ -43,8 +43,8 @@ export function GlobalModals(props: {
 }) {
   const route = () => props.route();
   // Remember which page each sub-page was opened from, so the back button
-  // returns to the real parent: License can be entered from Settings or About,
-  // while About / Release log are only entered from Settings / About.
+  // returns to the real parent. About is handled as a fixed return to Settings
+  // below; License and Release log can be entered from Settings or About.
   let previousRoute: GlobalModalRoute | null = null;
   const navigate = (next: GlobalModalRoute | null) => {
     if (next != null) {
@@ -58,7 +58,8 @@ export function GlobalModals(props: {
   const backTarget = (): GlobalModalRoute | null => {
     const r = route();
     if (r === "settings") return null;
-    return previousRoute ?? (r === "about" ? "settings" : "about");
+    if (r === "about") return "settings";
+    return previousRoute ?? "about";
   };
   const routeTitle = () => {
     const r = route();

@@ -38,6 +38,15 @@ export const fr_FR: typeof zh_CN = {
   FORCE_QUIT_GAME: "Forcer la fermeture",
   FIXING_FILES: "Correction des fichiers de jeu {0}/{1}",
   PATCHING: "Ajout de correctifs sur les fichiers du jeu",
+  GAME_STARTING: "Démarrage du jeu",
+  GAME_CRASHED: "Plantage du jeu détecté",
+  GAME_CRASHED_DESC:
+    "Vérifiez que l’environnement du jeu et les paramètres de lancement sont corrects.",
+  GAME_CRASHED_IGNORE: "Ignorer",
+  GAME_CRASHED_SETTINGS: "Ouvrir les paramètres du jeu",
+  RUNTIME_REPLACEMENT_ERROR: "Erreur du fichier de remplacement temporaire",
+  RUNTIME_REPLACEMENT_ERROR_DESC:
+    "Impossible de vérifier un fichier de remplacement temporaire avant le lancement du jeu. Consultez l’erreur ci-dessous et modifiez le chemin dans les paramètres du jeu.",
   GAME_RUNNING: "Le jeu est lancé",
   GAME_RECOVERING: "Restauration en cours",
   GAME_RUNNING_CLOSE_TITLE: "Le jeu est toujours en cours d’exécution",
@@ -254,6 +263,19 @@ export const fr_FR: typeof zh_CN = {
     "Choisir le fichier de remplacement",
   SETTING_RUNTIME_REPLACEMENT_DELETE_ROW: "Supprimer cette ligne",
   SETTING_RUNTIME_REPLACEMENT_ADD_ROW: "Ajouter une ligne",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_TITLE:
+    "Variables d’environnement personnalisées",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_DESC:
+    "Ajoute des variables d’environnement personnalisées au processus Wine au lancement du jeu.",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_ENABLED: "Activé",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_KEY:
+    "Clé de variable d’environnement",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_VALUE: "Valeur",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_HEADER_DELETE: "Supprimer",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_ROW_ENABLED:
+    "Activer la ligne de variable {0}",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_DELETE_ROW: "Supprimer cette ligne",
+  SETTING_CUSTOM_ENVIRONMENT_VARIABLES_ADD_ROW: "Ajouter une ligne",
   SETTING_RUNTIME_REPLACEMENT_RESTORE_ALL:
     "Restaurer toutes les sauvegardes maintenant",
   SETTING_LICENSES: "Licences",
@@ -341,6 +363,7 @@ export const fr_FR: typeof zh_CN = {
   DOWNLOAD_TASK_ID: "ID de tâche",
   DOWNLOAD_STATUS_QUEUED: "En file d'attente",
   DOWNLOAD_STATUS_ACTIVE: "Téléchargement en cours",
+  DOWNLOAD_STATUS_VERIFYING: "Vérification en cours",
   DOWNLOAD_STATUS_PAUSED: "En pause",
   DOWNLOAD_STATUS_COMPLETED: "Terminé",
   DOWNLOAD_STATUS_ERROR: "Erreur",

@@ -39,6 +39,9 @@ function percent(value: number): string {
 }
 
 function taskStatusText(task: DownloadTaskSnapshot, locale: Locale): string {
+  if (task.status === "active" && task.phaseKind === "verifying") {
+    return locale.get("DOWNLOAD_STATUS_VERIFYING");
+  }
   if (task.status === "active" && !task.transferring && task.phase) {
     return task.phase;
   }

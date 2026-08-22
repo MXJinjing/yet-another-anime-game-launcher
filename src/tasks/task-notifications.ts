@@ -8,7 +8,12 @@ import type { Locale, LocaleTextKey } from "@locale";
 export interface TaskNotifier {
   taskCompleted(locale: Locale, taskName: LocaleTextKey): void;
   taskCancelled(locale: Locale, taskName: LocaleTextKey): void;
-  taskFailed(locale: Locale, taskName?: LocaleTextKey, error?: unknown): void;
+  taskFailed(
+    locale: Locale,
+    taskName?: LocaleTextKey,
+    error?: unknown,
+    taskKey?: string
+  ): void;
   connectionError(locale: Locale, taskName?: LocaleTextKey): void;
 }
 

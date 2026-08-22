@@ -3,6 +3,8 @@
  * depending on each other. */
 export type DownloadStreamKind = "aria2" | "sophon";
 
+export type DownloadTaskPhase = "verifying" | "transferring";
+
 export type DownloadStatus =
   | "queued"
   | "active"
@@ -29,6 +31,7 @@ export interface DownloadStream {
   /** Per-game control namespace. Undefined streams are launcher-global. */
   key?: string;
   title: string;
+  phaseKind?: DownloadTaskPhase;
   status: DownloadStatus;
   progress: number;
   speed: number;
@@ -48,6 +51,7 @@ export type DownloadTaskSnapshot = {
   id: string;
   key?: string;
   title: string;
+  phaseKind?: DownloadTaskPhase;
   phase: string;
   transferring: boolean;
   status: DownloadStatus;
@@ -70,6 +74,7 @@ export type DownloadTaskMetadata = { title: string; key?: string };
 export type DownloadStreamUpdate = Partial<
   Pick<
     DownloadStream,
+    | "phaseKind"
     | "status"
     | "progress"
     | "speed"
