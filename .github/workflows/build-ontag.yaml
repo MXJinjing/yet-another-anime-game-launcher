@@ -70,7 +70,6 @@ jobs:
         run: |
           test "$(find release-assets/arm64 -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 11
           test "$(find release-assets/x64 -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 11
-          test "$(find release-assets/universal -maxdepth 1 -name 'resources_*.neu' | wc -l | tr -d ' ')" -eq 11
           test "$(find release-assets/universal -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 22
 
       - name: Publish draft release
@@ -113,4 +112,3 @@ jobs:
             release-assets/arm64/*.tar.gz
             release-assets/x64/*.tar.gz
             release-assets/universal/*.tar.gz
-            release-assets/universal/*.neu

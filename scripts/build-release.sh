@@ -62,8 +62,6 @@ for i in "${!CHANNELS[@]}"; do
   tar -czf "$OUT/$dot.app-$ARCH.tar.gz" -C "release/$ARCH" "$app.app"
 
   if [ "$ARCH" = "universal" ]; then
-    cp "release/$ARCH/$app.app/Contents/Resources/resources.neu" \
-      "$OUT/resources_$channel.neu"
     tar -czf "$OUT/$dot.app.tar.gz" -C "release/$ARCH" "$app.app"
   fi
 done

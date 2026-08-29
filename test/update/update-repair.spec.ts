@@ -51,16 +51,12 @@ function manifest(version: string) {
   });
 }
 
-function releaseWithAssets(tagName: string, withSidecar = true) {
+function releaseWithAssets(tagName: string, withArchive = true) {
   return {
     tag_name: tagName,
     body: "body",
     assets: [
-      {
-        name: "resources_hk4ecn.neu",
-        browser_download_url: `https://github.com/example/download/${tagName}/resources_hk4ecn.neu`,
-      },
-      ...(withSidecar
+      ...(withArchive
         ? [
             {
               name: "Yaaglm.app.tar.gz",
@@ -116,14 +112,12 @@ describe("release assets for a pinned version", () => {
     mockedEnv.mockReset();
   });
 
-  it("returns the neu + sidecar archive URLs for the release tag", async () => {
+  it("returns the app archive URL for the release tag", async () => {
     const github = { api: vi.fn(async () => releaseWithAssets("1.1.0")) };
     await expect(
       getReleaseAssetsForVersion(github as never, "1.1.0")
     ).resolves.toEqual({
-      downloadUrl:
-        "https://github.com/example/download/1.1.0/resources_hk4ecn.neu",
-      sidecarDownloadUrl:
+      appDownloadUrl:
         "https://github.com/example/download/1.1.0/Yaaglm.app.tar.gz",
     });
     expect(github.api).toHaveBeenCalledWith(
@@ -131,20 +125,16 @@ describe("release assets for a pinned version", () => {
     );
   });
 
-  it("omits the sidecar URL when the release has no app bundle asset", async () => {
+  it("returns undefined when the release has no app archive asset", async () => {
     const github = {
       api: vi.fn(async () => releaseWithAssets("1.1.0", false)),
     };
     await expect(
       getReleaseAssetsForVersion(github as never, "1.1.0")
-    ).resolves.toEqual({
-      downloadUrl:
-        "https://github.com/example/download/1.1.0/resources_hk4ecn.neu",
-      sidecarDownloadUrl: undefined,
-    });
+    ).resolves.toBeUndefined();
   });
 
-  it("returns undefined when the release is missing the neu asset or the API fails", async () => {
+  it("returns undefined when the release is missing the app archive or the API fails", async () => {
     const noNeu = {
       api: vi.fn(async () => ({ tag_name: "1.1.0", assets: [] })),
     };

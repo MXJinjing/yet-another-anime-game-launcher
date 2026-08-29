@@ -26,7 +26,7 @@ import type { TaskProgram } from "../tasks/task-program";
 const owner = "MXJinjing";
 const repo = "yet-another-anime-game-launcher";
 
-const SIDECAR_APP_BUNDLES: Record<string, string> = {
+const RELEASE_APP_ARCHIVES: Record<string, string> = {
   hk4ecn: "Yaaglm.app.tar.gz",
   hk4eos: "Yaaglm.GI.OS.app.tar.gz",
   bh3glb: "Yaaglm.Honkai.Global.app.tar.gz",
@@ -40,7 +40,7 @@ const SIDECAR_APP_BUNDLES: Record<string, string> = {
   cbjqcn: "Yaaglm.SCZ.app.tar.gz",
 };
 
-const SIDECAR_TOP_LEVEL_DIRS: Record<string, string> = {
+const RELEASE_APP_TOP_LEVEL_DIRS: Record<string, string> = {
   "Yaaglm.app": "Yaaglm.app",
   "Yaaglm.GI.OS.app": "Yaaglm GI OS.app",
   "Yaaglm.Honkai.Global.app": "Yaaglm Honkai Global.app",
@@ -61,17 +61,17 @@ const SIDECAR_TOP_LEVEL_DIRS: Record<string, string> = {
  */
 export const UPDATE_DOWNLOAD_KEY = "launcher-update";
 
-export function getSidecarAppBundleName(updateVersion: string): string {
-  return SIDECAR_APP_BUNDLES[updateVersion] ?? "";
+export function getReleaseAppArchiveName(updateVersion: string): string {
+  return RELEASE_APP_ARCHIVES[updateVersion] ?? "";
 }
 
-export function getSidecarTopLevelDir(sidecarUrl: string): string {
+export function getReleaseAppTopLevelDir(appUrl: string): string {
   const archiveBase =
-    sidecarUrl
+    appUrl
       .split("/")
       .pop()
       ?.replace(/\.tar\.gz$/, "") ?? "";
-  return SIDECAR_TOP_LEVEL_DIRS[archiveBase] ?? archiveBase;
+  return RELEASE_APP_TOP_LEVEL_DIRS[archiveBase] ?? archiveBase;
 }
 
 /** Resolves the channel used to pick the release assets for this build. */
@@ -137,29 +137,23 @@ export async function isUpdateHalfApplied(): Promise<boolean> {
 }
 
 /**
- * Returns the release asset URLs (resources.neu + sidecar app bundle) for a
- * specific release tag, so the launcher can re-apply its own version after a
- * half-applied update. Returns undefined when the tag or assets are missing.
+ * Returns the release app archive URL for a specific release tag, so the
+ * launcher can re-apply its own version after a half-applied update. Returns
+ * undefined when the archive is missing.
  */
 export async function getReleaseAssetsForVersion(
   github: Github,
   version: string
-): Promise<{ downloadUrl: string; sidecarDownloadUrl?: string } | undefined> {
+): Promise<{ appDownloadUrl: string } | undefined> {
   try {
     const updateVersion = await resolveUpdateChannel();
     const release = (await github.api(
       `/repos/${owner}/${repo}/releases/tags/${encodeURIComponent(version)}`
     )) as GithubReleaseInfo;
-    const neu = release.assets.find(
-      x => x.name == `resources_${updateVersion}.neu`
-    );
-    if (!neu) return undefined;
-    const appBundleName = getSidecarAppBundleName(updateVersion);
-    const sidecar = release.assets.find(x => x.name == appBundleName);
-    return {
-      downloadUrl: neu.browser_download_url,
-      sidecarDownloadUrl: sidecar?.browser_download_url,
-    };
+    const appArchiveName = getReleaseAppArchiveName(updateVersion);
+    const appArchive = release.assets.find(x => x.name == appArchiveName);
+    if (!appArchive) return undefined;
+    return { appDownloadUrl: appArchive.browser_download_url };
   } catch (error) {
     await log(
       `Failed to fetch release assets for ${version}: ${String(error)}`
@@ -178,7 +172,8 @@ const UPDATE_EXTRACT_DIR = "./.update-app";
  *     the next launch's parameterized rsync has no old files left to re-merge;
  *  3. deletes the old sidecar in the launcher working directory and copies the
  *     new sidecar in its place (the old sidecar is never mixed with the new);
- *  4. refreshes build-manifest.json and icon.icns in the working directory.
+ *  4. refreshes build-manifest.json and icon.icns, and stages resources.neu
+ *     for an atomic replacement in the working directory.
  *
  * The bundle is replaced first: if a later working-dir step fails, the next
  * launch re-syncs the (now current) bundle Resources over the working dir and
@@ -201,6 +196,7 @@ export async function applyReleaseApp(
 
     // Sanity check the archive layout before touching anything on disk.
     await exec(["test", "-f", `${newResources}/build-manifest.json`]);
+    await exec(["test", "-f", `${newResources}/resources.neu`]);
 
     const bundlePath = await env("YAAGL_BUNDLE_PATH");
     if (bundlePath) {
@@ -241,6 +237,7 @@ export async function applyReleaseApp(
     // (hosts-helper registration/version checks use the manifest).
     await cp(`${newResources}/build-manifest.json`, "./build-manifest.json");
     await cp(`${newResources}/icon.icns`, "./icon.icns");
+    await cp(`${newResources}/resources.neu`, "./resources.neu.update");
   } finally {
     await rmrf_dangerously(UPDATE_EXTRACT_DIR);
   }
@@ -286,16 +283,13 @@ export async function createUpdater({
     const latest: GithubReleaseInfo = (await github.api(
       `/repos/${owner}/${repo}/releases/latest`
     )) as GithubReleaseInfo;
-    const update_neu = `resources_${updateVersion}.neu`;
-    const neu = latest.assets.find(x => x.name == update_neu);
-    const appBundleName = getSidecarAppBundleName(updateVersion);
-    const sidecar = latest.assets.find(x => x.name == appBundleName);
+    const appArchiveName = getReleaseAppArchiveName(updateVersion);
+    const appArchive = latest.assets.find(x => x.name == appArchiveName);
 
-    if (gt(latest.tag_name, currentVersion) && neu !== undefined) {
+    if (gt(latest.tag_name, currentVersion) && appArchive !== undefined) {
       return {
         latest: false,
-        downloadUrl: neu.browser_download_url,
-        sidecarDownloadUrl: sidecar?.browser_download_url,
+        appDownloadUrl: appArchive.browser_download_url,
         version: latest.tag_name,
         description: latest.body,
       } as const;
@@ -331,8 +325,7 @@ function assertNotAborted(signal?: AbortSignal) {
 
 export async function* downloadProgram(
   aria2: Aria2,
-  url: string,
-  sidecarUrl?: string,
+  appUrl: string,
   signal?: AbortSignal
 ): TaskProgram {
   if (CURRENT_YAAGL_VERSION === "development") {
@@ -358,53 +351,14 @@ export async function* downloadProgram(
     return;
   }
   yield ["setStateText", "DOWNLOADING_UPDATE_FILE"];
-  if (sidecarUrl) {
-    for await (const progress of aria2.doStreamingDownload({
-      uri: sidecarUrl,
-      absDst: resolve("./sidecar.tar.gz"),
-      downloadKey: UPDATE_DOWNLOAD_KEY,
-    })) {
-      yield [
-        "setProgress",
-        Number((progress.completedLength * BigInt(50)) / progress.totalLength),
-      ];
-      yield [
-        "setDownloadStats",
-        {
-          speed: Number(progress.downloadSpeed),
-          downloaded: Number(progress.completedLength),
-          total: Number(progress.totalLength),
-          fileName: "sidecar.tar.gz",
-        },
-      ];
-    }
-    assertNotAborted(signal);
-    const topLevelDir = getSidecarTopLevelDir(sidecarUrl);
-    // Replace the whole .app bundle and the working-dir app resources
-    // (sidecar + manifest + icon) from the release archive, so after the
-    // update neither the bundle nor the working directory can mix old and
-    // new files.
-    await applyReleaseApp("./sidecar.tar.gz", topLevelDir);
-
-    assertNotAborted(signal);
-    await removeFile("./sidecar.tar.gz");
-  }
-
-  assertNotAborted(signal);
-
   for await (const progress of aria2.doStreamingDownload({
-    uri: url,
-    absDst: resolve("./resources.neu.update"),
+    uri: appUrl,
+    absDst: resolve("./update-app.tar.gz"),
     downloadKey: UPDATE_DOWNLOAD_KEY,
   })) {
     yield [
       "setProgress",
-      sidecarUrl
-        ? 50 +
-          Number((progress.completedLength * BigInt(50)) / progress.totalLength)
-        : Number(
-            (progress.completedLength * BigInt(100)) / progress.totalLength
-          ),
+      Number((progress.completedLength * BigInt(100)) / progress.totalLength),
     ];
     yield [
       "setDownloadStats",
@@ -412,12 +366,16 @@ export async function* downloadProgram(
         speed: Number(progress.downloadSpeed),
         downloaded: Number(progress.completedLength),
         total: Number(progress.totalLength),
-        fileName: "resources.neu",
+        fileName: "update-app.tar.gz",
       },
     ];
   }
 
   assertNotAborted(signal);
   yield ["setUndeterminedProgress"];
+  const topLevelDir = getReleaseAppTopLevelDir(appUrl);
+  await applyReleaseApp("./update-app.tar.gz", topLevelDir);
+  assertNotAborted(signal);
   await forceMove("./resources.neu.update", "./resources.neu");
+  await removeFile("./update-app.tar.gz");
 }

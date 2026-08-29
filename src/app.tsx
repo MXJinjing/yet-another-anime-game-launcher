@@ -388,7 +388,7 @@ export async function createApp() {
     }
 
     function startUpdateFlow(
-      assets: { downloadUrl: string; sidecarDownloadUrl?: string },
+      assets: { appDownloadUrl: string },
       targetVersion?: string
     ) {
       if (targetVersion && CURRENT_YAAGL_VERSION !== "development") {
@@ -409,12 +409,7 @@ export async function createApp() {
           locale,
           image: UPDATE_UI_IMAGE,
           program: () =>
-            downloadProgram(
-              aria2,
-              assets.downloadUrl,
-              assets.sidecarDownloadUrl,
-              updateAbort.signal
-            ),
+            downloadProgram(aria2, assets.appDownloadUrl, updateAbort.signal),
           onRestart: _safeRelaunch,
           onFailed: () => setUpdaterComponent(undefined),
           onCancel: () => {
@@ -454,7 +449,7 @@ export async function createApp() {
             github,
             CURRENT_YAAGL_VERSION
           );
-          if (assets?.sidecarDownloadUrl) {
+          if (assets) {
             await log(
               "Re-applying current release to repair a half-applied update"
             );
@@ -482,8 +477,7 @@ export async function createApp() {
             onUpdate={info => {
               startUpdateFlow(
                 {
-                  downloadUrl: info.downloadUrl!,
-                  sidecarDownloadUrl: info.sidecarDownloadUrl,
+                  appDownloadUrl: info.appDownloadUrl!,
                 },
                 info.version
               );

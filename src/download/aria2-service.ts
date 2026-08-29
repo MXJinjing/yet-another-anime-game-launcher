@@ -15,7 +15,10 @@ export type Aria2ServiceOptions = {
   startupTimeoutMs?: number;
 };
 
-const DEFAULT_PORT = 6868;
+// Keep aria2 and Sophon in disjoint pools so their first random choices can
+// never collide within the same launcher instance.
+const PORT_MIN = 40000;
+const PORT_MAX = 49999;
 const ATTEMPT_TIMEOUT_MS = 3000;
 
 /** Starts the local aria2 sidecar and owns its shutdown hook. App composition
@@ -23,8 +26,11 @@ const ATTEMPT_TIMEOUT_MS = 3000;
 export async function startAria2Service(
   options: Aria2ServiceOptions = {}
 ): Promise<Aria2> {
-  const port = options.port ?? DEFAULT_PORT;
-  const sessionPath = resolve(options.sessionPath ?? "./aria2.session");
+  const instanceId = randomHex(8);
+  const configuredPort = options.port;
+  const sessionPath = resolve(
+    options.sessionPath ?? `./aria2.session.${instanceId}`
+  );
   const binaryPath =
     options.binaryPath ?? (await resolveSidecarPath("aria2/aria2c"));
   const startupTimeoutMs = options.startupTimeoutMs ?? 15000;
@@ -44,13 +50,13 @@ export async function startAria2Service(
     return true;
   });
 
-  // After a dev restart (`Neutralino.app.restartProcess()`) or during the
-  // production relaunch hand-off, the previous instance's aria2 may still be
-  // holding port 6868 for a moment. Retry the spawn + RPC handshake instead
-  // of failing the whole boot when the first bind/connect attempt races.
+  // Each launcher owns an authenticated aria2 instance. A secret prevents a
+  // failed bind from accidentally connecting to another launcher's RPC server.
   const deadline = Date.now() + startupTimeoutMs;
   let lastError: unknown = new Error("aria2 did not start");
   while (Date.now() < deadline) {
+    const port = configuredPort ?? randomPort();
+    const secret = randomHex(16);
     const parentPid = (await exec(["echo", rawString("$PPID")])).stdOut.split(
       "\n"
     )[0];
@@ -63,6 +69,8 @@ export async function startAria2Service(
       `--rpc-listen-port=${port}`,
       "--rpc-listen-all=true",
       "--rpc-allow-origin-all",
+      "--rpc-secret",
+      secret,
       "--input-file",
       sessionPath,
       "--save-session",
@@ -75,7 +83,7 @@ export async function startAria2Service(
     aria2Pid = pid;
     try {
       const aria2 = await Promise.race([
-        createAria2Retry({ host: "127.0.0.1", port }),
+        createAria2Retry({ host: "127.0.0.1", port, secret }),
         timeout(
           Math.min(ATTEMPT_TIMEOUT_MS, Math.max(500, deadline - Date.now()))
         ),
@@ -97,5 +105,19 @@ export async function startAria2Service(
   );
   throw new Error(
     "Failed to start download service. Please restart the application."
+  );
+}
+
+function randomPort(): number {
+  const values = new Uint32Array(1);
+  crypto.getRandomValues(values);
+  return PORT_MIN + (values[0] % (PORT_MAX - PORT_MIN + 1));
+}
+
+function randomHex(bytes: number): string {
+  const values = new Uint8Array(bytes);
+  crypto.getRandomValues(values);
+  return Array.from(values, value => value.toString(16).padStart(2, "0")).join(
+    ""
   );
 }
