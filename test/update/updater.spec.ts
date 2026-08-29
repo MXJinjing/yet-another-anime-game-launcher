@@ -9,8 +9,8 @@ import { getKey } from "@runtime/storage";
 import {
   createUpdater,
   downloadProgram,
-  getSidecarAppBundleName,
-  getSidecarTopLevelDir,
+  getReleaseAppArchiveName,
+  getReleaseAppTopLevelDir,
 } from "@src/update/updater";
 
 const mockedGetKey = vi.mocked(getKey);
@@ -42,9 +42,11 @@ describe("createUpdater", () => {
   ])(
     "maps %s to its sidecar archive and top-level directory",
     (channel, archive, topLevelDir) => {
-      expect(getSidecarAppBundleName(channel)).toBe(archive);
+      expect(getReleaseAppArchiveName(channel)).toBe(archive);
       expect(
-        getSidecarTopLevelDir(`https://github.com/example/download/${archive}`)
+        getReleaseAppTopLevelDir(
+          `https://github.com/example/download/${archive}`
+        )
       ).toBe(topLevelDir);
     }
   );
@@ -78,7 +80,7 @@ describe("createUpdater", () => {
     expect(result.latest).toBe(false);
     if (result.latest === false) {
       expect(result.version).toBe("9.9.9-dev");
-      expect(result.downloadUrl).toBe("development://mock-update");
+      expect(result.appDownloadUrl).toBe("development://mock-update");
     }
   });
 

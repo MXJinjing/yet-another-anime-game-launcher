@@ -72,14 +72,17 @@ async function getDownloadOptions() {
 export async function createAria2({
   host,
   port,
+  secret,
 }: {
   host: string;
   port: number;
+  secret?: string;
 }) {
   await wait(500); // FIXME:
   const rpc = new RPC.Client({
     host,
     port,
+    auth: secret ? { secret } : undefined,
   });
   const version = await Promise.race([rpc.getVersion(), timeout(3000)]);
 
@@ -467,13 +470,15 @@ export class Aria2OverallProgress {
 export async function createAria2Retry({
   host,
   port,
+  secret,
 }: {
   host: string;
   port: number;
+  secret?: string;
 }): Promise<Aria2> {
   for (let i = 0; i < 30; i++) {
     try {
-      return await createAria2({ host, port });
+      return await createAria2({ host, port, secret });
     } catch (e) {
       await log("Fail to create aria2 rpc, retrying... " + e);
     }

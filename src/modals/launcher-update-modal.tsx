@@ -8,8 +8,7 @@ import "./modal-markdown.css";
 export type LauncherUpdateInfo = {
   version?: string;
   description?: string;
-  downloadUrl?: string;
-  sidecarDownloadUrl?: string;
+  appDownloadUrl?: string;
 };
 
 export function LauncherUpdateModal(props: {

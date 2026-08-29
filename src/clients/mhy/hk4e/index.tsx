@@ -127,24 +127,53 @@ export async function createHK4EChannelClient({
     bg_type === HoyoConnectGameBackgroundType.BACKGROUND_TYPE_VIDEO;
   const fallbackBg = "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)";
 
-  const sophon_port = Math.floor(Math.random() * (65535 - 40000)) + 40000;
   const sophon_host = "127.0.0.1";
-
-  const pid = (await exec(["echo", rawString("$PPID")])).stdOut.split("\n")[0];
-  const { pid: spid } = await spawn(
-    [await resolveSidecarPath("sophon_server/sophon-server")],
-    {
-      TERMINATE_WITH_PID: pid,
-      SOPHON_PORT: sophon_port.toString(),
-      SOPHON_HOST: sophon_host,
+  const sophonDeadline = Date.now() + 30000;
+  let sophon: Sophon | undefined;
+  let lastSophonError: unknown;
+  while (!sophon && Date.now() < sophonDeadline) {
+    const sophonPort = randomSophonPort();
+    const pid = (await exec(["echo", rawString("$PPID")])).stdOut.split(
+      "\n"
+    )[0];
+    const { pid: spid } = await spawn(
+      [await resolveSidecarPath("sophon_server/sophon-server")],
+      {
+        TERMINATE_WITH_PID: pid,
+        SOPHON_PORT: sophonPort.toString(),
+        SOPHON_HOST: sophon_host,
+      }
+    );
+    try {
+      const connectedSophon = await Promise.race([
+        createSophonRetry(sophon_host, sophonPort),
+        timeout(Math.max(500, sophonDeadline - Date.now())),
+      ]);
+      if (connectedSophon) sophon = connectedSophon;
+    } catch (error) {
+      lastSophonError = error;
+      await log(`Sophon startup failed (${String(error)}); retrying`);
+      try {
+        await exec(["kill", String(spid)]);
+      } catch {
+        // The process already exited, usually because the port was busy.
+      }
     }
-  );
-  const sophon = await Promise.race([
-    createSophonRetry(sophon_host, sophon_port),
-    timeout(30000),
-  ]).catch(() => Promise.reject(new Error("Fail to launch sophon.")));
+  }
+  if (!sophon) {
+    throw new Error(
+      `Fail to launch sophon.${
+        lastSophonError ? ` ${String(lastSophonError)}` : ""
+      }`
+    );
+  }
+  assertValueDefined(sophon);
+  const sophonClient = sophon;
 
-  const gameInfo = await sophon.getLatestOnlineGameInfo(releaseType, "hk4e");
+  const gameInfo = await sophonClient.getLatestOnlineGameInfo(
+    releaseType,
+    "hk4e"
+  );
   log(`Game info: ${JSON.stringify(gameInfo)}`);
   // Fallback to "0.0.0" when the backend could not determine the version.
   // Without this, `lt(gameCurrentVersion(), "")` / `gt(prev, "")` throw
@@ -216,7 +245,7 @@ export async function createHK4EChannelClient({
     }
 
     yield* updateGameProgram({
-      sophon,
+      sophon: sophonClient,
       gameDir: _gameInstallDir(),
       server,
       updatedGameVersion: LATEST_GAME_VERSION,
@@ -483,6 +512,10 @@ export async function createHK4EChannelClient({
       };
     },
   };
+}
+
+function randomSophonPort(): number {
+  return Math.floor(Math.random() * (65535 - 50000)) + 50000;
 }
 
 async function getGameVersionGI(gameDataDir: string) {

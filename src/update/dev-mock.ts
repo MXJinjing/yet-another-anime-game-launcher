@@ -5,8 +5,7 @@
  */
 
 export const DEV_UPDATE_INFO = {
-  downloadUrl: "development://mock-update",
-  sidecarDownloadUrl: undefined,
+  appDownloadUrl: "development://mock-update",
   version: "9.9.9-dev",
   description: `## 开发版 UI 测试更新
 
