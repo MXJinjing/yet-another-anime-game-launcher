@@ -92,9 +92,9 @@ export async function createNAPChannelClient({
   let launcherIconButtons: NonNullable<
     ChannelClient["uiContent"]["launcherIconButtons"]
   > = [];
-  let banners: NonNullable<ChannelClient["uiContent"]["banners"]> = [];
-  let posts: NonNullable<ChannelClient["uiContent"]["posts"]> = [];
-  let social_media_list: NonNullable<
+  const banners: NonNullable<ChannelClient["uiContent"]["banners"]> = [];
+  const posts: NonNullable<ChannelClient["uiContent"]["posts"]> = [];
+  const social_media_list: NonNullable<
     ChannelClient["uiContent"]["social_media_list"]
   > = [];
   let loadContent: Awaited<
@@ -131,7 +131,7 @@ export async function createNAPChannelClient({
   const fallbackBg = "linear-gradient(135deg, #fa709a 0%, #fee140 100%)";
   // Uninstalled games skip the online version request during startup. Keep a
   // valid semver value so updateRequired() remains safe before installation.
-  let GAME_LATEST_VERSION: string = "0.0.0";
+  let GAME_LATEST_VERSION = "0.0.0";
   let game_pkgs: { url: string; size: string }[];
   let decompressed_path: string;
   let patches: HoyoConnectGamePackages[];
@@ -150,19 +150,20 @@ export async function createNAPChannelClient({
     versionLoaded = true;
   };
   const localGameState = await checkGameState(locale, server, storage);
-  if (localGameState.gameInstalled) try {
-    await loadVersionInfo();
-  } catch {
-    await locale.alert(
-      "CHECK_GAME_UPDATE_FAILED",
-      "CHECK_GAME_UPDATE_FAILED_DESC"
-    );
-    GAME_LATEST_VERSION = "0.0.0";
-    game_pkgs = [];
-    decompressed_path = "";
-    patches = [];
-    pre_download = { major: null, patches: [] };
-  }
+  if (localGameState.gameInstalled)
+    try {
+      await loadVersionInfo();
+    } catch {
+      await locale.alert(
+        "CHECK_GAME_UPDATE_FAILED",
+        "CHECK_GAME_UPDATE_FAILED_DESC"
+      );
+      GAME_LATEST_VERSION = "0.0.0";
+      game_pkgs = [];
+      decompressed_path = "";
+      patches = [];
+      pre_download = { major: null, patches: [] };
+    }
 
   const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
 
@@ -241,7 +242,10 @@ export async function createNAPChannelClient({
         try {
           await loadVersionInfo();
         } catch {
-          await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+          await locale.alert(
+            "CHECK_GAME_UPDATE_FAILED",
+            "CHECK_GAME_UPDATE_FAILED_DESC"
+          );
           return;
         }
       }
@@ -575,7 +579,11 @@ export async function createNAPChannelClient({
   };
 }
 
-async function checkGameState(locale: Locale, server: Server, storage: Storage) {
+async function checkGameState(
+  locale: Locale,
+  server: Server,
+  storage: Storage
+) {
   let gameDir = "";
   try {
     gameDir = await storage.getKey("game_install_dir");

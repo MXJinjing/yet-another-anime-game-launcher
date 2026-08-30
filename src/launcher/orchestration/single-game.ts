@@ -53,24 +53,26 @@ export async function createLauncher({
   reportBootProgress("BOOT_INITIALIZING_GAME_CLIENT", 80);
   const { UI: ConfigurationUI, config } = await (bootPerformance?.measure(
     "single-game-settings",
-    () => createGameSettings({
+    () =>
+      createGameSettings({
+        locale,
+        storage: globalStorage,
+        gameInstallDir: channelClient.installDir,
+        onGameInstallDirChange: channelClient.changeInstallDir,
+        configForChannelClient: (locale, config) =>
+          bootPerformance?.measure("single-game-channel-config", () =>
+            channelClient.createConfig(locale, config)
+          ) ?? channelClient.createConfig(locale, config),
+      })
+  ) ??
+    createGameSettings({
       locale,
       storage: globalStorage,
       gameInstallDir: channelClient.installDir,
       onGameInstallDirChange: channelClient.changeInstallDir,
       configForChannelClient: (locale, config) =>
-        bootPerformance?.measure("single-game-channel-config", () =>
-          channelClient.createConfig(locale, config)
-        ) ?? channelClient.createConfig(locale, config),
-    })
-  ) ?? createGameSettings({
-    locale,
-    storage: globalStorage,
-    gameInstallDir: channelClient.installDir,
-    onGameInstallDirChange: channelClient.changeInstallDir,
-    configForChannelClient: (locale, config) =>
-      channelClient.createConfig(locale, config),
-  }));
+        channelClient.createConfig(locale, config),
+    }));
   const game: HypGame = {
     id: meta.id,
     title: meta.title,

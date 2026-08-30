@@ -182,15 +182,24 @@ export class SophonClient {
     return taskId;
   }
 
-  async startInstallation(options: SophonInstallOptions, downloadKey?: string): Promise<string> {
+  async startInstallation(
+    options: SophonInstallOptions,
+    downloadKey?: string
+  ): Promise<string> {
     return this.startGameOperation("install", options, downloadKey);
   }
 
-  async startRepair(options: SophonRepairOptions, downloadKey?: string): Promise<string> {
+  async startRepair(
+    options: SophonRepairOptions,
+    downloadKey?: string
+  ): Promise<string> {
     return this.startGameOperation("repair", options, downloadKey);
   }
 
-  async startUpdate(options: SophonUpdateOptions, downloadKey?: string): Promise<string> {
+  async startUpdate(
+    options: SophonUpdateOptions,
+    downloadKey?: string
+  ): Promise<string> {
     return this.startGameOperation("update", options, downloadKey);
   }
 

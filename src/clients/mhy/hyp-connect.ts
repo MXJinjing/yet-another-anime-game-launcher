@@ -133,7 +133,9 @@ export async function getLatestLauncherContent(
   backgrounds: HoyoConnectGameBackground[];
   launcherIconButtons: HoyoConnectLauncherIcon[];
   content: HoyoConnectGetGameContentResponse["data"]["content"];
-  loadContent?: () => Promise<HoyoConnectGetGameContentResponse["data"]["content"]>;
+  loadContent?: () => Promise<
+    HoyoConnectGetGameContentResponse["data"]["content"]
+  >;
 }> {
   const region = getHoyoPlayRegion(server);
   const language = region === "CN" ? "zh-cn" : locale.get("CONTENT_LANG_ID");

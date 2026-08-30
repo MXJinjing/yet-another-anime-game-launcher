@@ -246,7 +246,11 @@ export async function createUpdater({
 
     const latestVersion =
       typeof latest.tag_name === "string" ? latest.tag_name : undefined;
-    if (latestVersion && gt(latestVersion, currentVersion) && appArchive !== undefined) {
+    if (
+      latestVersion &&
+      gt(latestVersion, currentVersion) &&
+      appArchive !== undefined
+    ) {
       return {
         latest: false,
         appDownloadUrl: appArchive.browser_download_url,

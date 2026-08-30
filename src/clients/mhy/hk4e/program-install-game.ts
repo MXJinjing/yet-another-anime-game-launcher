@@ -25,11 +25,14 @@ export async function* downloadAndInstallGameProgram({
   yield ["setUndeterminedProgress"];
   log("Starting game installation process...");
 
-  const taskId = await sophonClient.startInstallation({
-    gamedir: gameDir,
-    game_type: "hk4e",
-    install_reltype: installReltype,
-  }, downloadKey);
+  const taskId = await sophonClient.startInstallation(
+    {
+      gamedir: gameDir,
+      game_type: "hk4e",
+      install_reltype: installReltype,
+    },
+    downloadKey
+  );
   log(`Installation task started with ID: ${taskId}`);
 
   let currentFileIndex = 0;

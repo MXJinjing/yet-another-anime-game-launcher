@@ -233,24 +233,28 @@ export async function createApp(bootPerformance?: BootPerformance) {
   let MainApp: () => JSXElement;
   if (isMergedChannel) {
     reportBootProgress("BOOT_INITIALIZING_GAME_CLIENT", 66);
-    MainApp = await measure("multi-game-client-init", () => createMultiGameLauncher({
-      ...sharedLauncherProps,
-      aria2,
-      region: channel == "mhycn" ? "CN" : "OS",
-      specs: channel == "mhycn" ? MULTI_GAME_CN_GAME_SPECS : undefined,
-      bootPerformance,
-    }));
+    MainApp = await measure("multi-game-client-init", () =>
+      createMultiGameLauncher({
+        ...sharedLauncherProps,
+        aria2,
+        region: channel == "mhycn" ? "CN" : "OS",
+        specs: channel == "mhycn" ? MULTI_GAME_CN_GAME_SPECS : undefined,
+        bootPerformance,
+      })
+    );
   } else {
     reportBootProgress("BOOT_INITIALIZING_GAME_CLIENT", 66);
-    MainApp = await measure("single-game-client-init", async () => createLauncher({
-      ...sharedLauncherProps,
-      aria2,
-      channel,
-      channelClient: await measure("channel-client-create", () =>
-        createClient({ wine, aria2, locale, bootPerformance })
-      ),
-      bootPerformance,
-    }));
+    MainApp = await measure("single-game-client-init", async () =>
+      createLauncher({
+        ...sharedLauncherProps,
+        aria2,
+        channel,
+        channelClient: await measure("channel-client-create", () =>
+          createClient({ wine, aria2, locale, bootPerformance })
+        ),
+        bootPerformance,
+      })
+    );
   }
   reportBootProgress("BOOT_COMPLETE", 100);
   bootPerformance?.mark("create-app-complete");

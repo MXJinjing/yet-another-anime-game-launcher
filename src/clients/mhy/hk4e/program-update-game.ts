@@ -28,12 +28,15 @@ async function* downloadAndPatch(
   // update progress should skip already downloaded files
   // and delete, patch, and download necessary files.
   const downloadTmp = join(gameDir, ".tmp");
-  const taskId = await sophon.startUpdate({
-    gamedir: gameDir,
-    game_type: "hk4e",
-    tempdir: downloadTmp,
-    predownload: false,
-  }, downloadKey);
+  const taskId = await sophon.startUpdate(
+    {
+      gamedir: gameDir,
+      game_type: "hk4e",
+      tempdir: downloadTmp,
+      predownload: false,
+    },
+    downloadKey
+  );
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "ALLOCATING_FILE"];
   let currentFileIndex = 0;
@@ -213,12 +216,15 @@ async function* predownload(
   downloadKey?: string
 ): TaskProgram {
   const downloadTmp = join(gameDir, ".tmp");
-  const taskId = await sophon.startUpdate({
-    gamedir: gameDir,
-    game_type: "hk4e",
-    tempdir: downloadTmp,
-    predownload: true,
-  }, downloadKey);
+  const taskId = await sophon.startUpdate(
+    {
+      gamedir: gameDir,
+      game_type: "hk4e",
+      tempdir: downloadTmp,
+      predownload: true,
+    },
+    downloadKey
+  );
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "ALLOCATING_FILE"];
   let currentFileIndex = 0;

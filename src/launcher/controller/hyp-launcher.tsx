@@ -1,12 +1,7 @@
 import { createGlobalSettings } from "@settings";
 import { Locale } from "@locale";
 import { hopeTaskNotifier } from "@tasks/task-notifications";
-import {
-  exec2,
-  fatal,
-  getKeyOrDefault,
-  setKey,
-} from "@runtime";
+import { exec2, fatal, getKeyOrDefault, setKey } from "@runtime";
 import { log } from "@logging/logger";
 import { openDir } from "@platform/neutralino";
 import { getWineDistributions, type Wine, type WineDistribution } from "@wine";
@@ -353,9 +348,15 @@ export async function createHypLauncher({
     const selectedGame = () => games[selectedGameIndex()];
     onMount(() => {
       const hydrate = (game: HypGame) => {
-        void game.client.hydrateUiContent?.().catch(error =>
-          log(`[hyp-connect] deferred UI hydration failed for ${game.id}: ${String(error)}`)
-        );
+        void game.client
+          .hydrateUiContent?.()
+          .catch(error =>
+            log(
+              `[hyp-connect] deferred UI hydration failed for ${
+                game.id
+              }: ${String(error)}`
+            )
+          );
       };
       const usesIdleCallback = "requestIdleCallback" in window;
       const scheduled = usesIdleCallback

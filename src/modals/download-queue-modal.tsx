@@ -164,7 +164,6 @@ export function DownloadQueueModal(props: {
                         task.fileIndex
                       } / ${task.fileCount}`}
                     </Show>
-              
                   </span>
                   <span>{formatDownloadSpeed(task.speed)}</span>
                 </div>
@@ -195,12 +194,12 @@ export function DownloadQueueModal(props: {
                                   <span>{percent(file.progress)}</span>
                                   <span>{formatDownloadSpeed(file.speed)}</span>
                                   <span>
-                                  {humanFileSize(file.downloaded)} /{" "}
-                                  {file.total > 0
-                                    ? humanFileSize(file.total)
-                                    : props.locale.get(
-                                        "DOWNLOAD_TASK_UNKNOWN_SIZE"
-                                      )}
+                                    {humanFileSize(file.downloaded)} /{" "}
+                                    {file.total > 0
+                                      ? humanFileSize(file.total)
+                                      : props.locale.get(
+                                          "DOWNLOAD_TASK_UNKNOWN_SIZE"
+                                        )}
                                   </span>
                                 </div>
                               </div>
@@ -216,7 +215,6 @@ export function DownloadQueueModal(props: {
                                   borderRadius={6}
                                 />
                               </Progress>
-
                             </div>
                           )}
                         </For>

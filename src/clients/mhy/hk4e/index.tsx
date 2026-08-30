@@ -96,9 +96,9 @@ export async function createHK4EChannelClient({
   let launcherIconButtons: NonNullable<
     ChannelClient["uiContent"]["launcherIconButtons"]
   > = [];
-  let banners: NonNullable<ChannelClient["uiContent"]["banners"]> = [];
-  let posts: NonNullable<ChannelClient["uiContent"]["posts"]> = [];
-  let social_media_list: NonNullable<
+  const banners: NonNullable<ChannelClient["uiContent"]["banners"]> = [];
+  const posts: NonNullable<ChannelClient["uiContent"]["posts"]> = [];
+  const social_media_list: NonNullable<
     ChannelClient["uiContent"]["social_media_list"]
   > = [];
   let loadContent: Awaited<
@@ -344,10 +344,14 @@ export async function createHK4EChannelClient({
           LATEST_GAME_VERSION = gameInfo.version || "0.0.0";
           UPDATABLE_VERSIONS = gameInfo.updatable_versions;
           PRE_DOWNLOAD_VERSION = gameInfo.pre_download_version || "0.0.0";
-          PRE_DOWNLOAD_AVAILABLE = releaseType === "os" && gameInfo.pre_download;
+          PRE_DOWNLOAD_AVAILABLE =
+            releaseType === "os" && gameInfo.pre_download;
           INSTALL_SIZE_BYTES = gameInfo.install_size;
         } catch {
-          await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+          await locale.alert(
+            "CHECK_GAME_UPDATE_FAILED",
+            "CHECK_GAME_UPDATE_FAILED_DESC"
+          );
           return;
         }
       }
@@ -607,7 +611,11 @@ async function getGameVersionGI(gameDataDir: string) {
   }
 }
 
-async function checkGameState(locale: Locale, server: Server, storage: Storage) {
+async function checkGameState(
+  locale: Locale,
+  server: Server,
+  storage: Storage
+) {
   let gameDir = "";
   try {
     gameDir = await storage.getKey("game_install_dir");

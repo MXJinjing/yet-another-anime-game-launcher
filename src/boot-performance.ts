@@ -75,7 +75,9 @@ export class BootPerformance {
     const summary = report.entries
       .map(entry => `${entry.name}=${entry.durationMs.toFixed(1)}ms`)
       .join(", ");
-    const message = `[boot-performance] total=${report.totalMs.toFixed(1)}ms ${summary}`;
+    const message = `[boot-performance] total=${report.totalMs.toFixed(
+      1
+    )}ms ${summary}`;
     console.info(message);
     const output = JSON.stringify({
       recordedAt: new Date().toISOString(),

@@ -18,8 +18,8 @@ describe("resolveResource", () => {
   });
 
   it("preserves absolute resource paths", () => {
-    expect(resolveResource("/Applications/Yaaglm.app/Contents/Resources/sidecar")).toBe(
-      "/Applications/Yaaglm.app/Contents/Resources/sidecar"
-    );
+    expect(
+      resolveResource("/Applications/Yaaglm.app/Contents/Resources/sidecar")
+    ).toBe("/Applications/Yaaglm.app/Contents/Resources/sidecar");
   });
 });

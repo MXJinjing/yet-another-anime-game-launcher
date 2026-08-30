@@ -420,7 +420,7 @@ export class Aria2OverallProgress {
   private knownTotal: bigint | null;
   private runningTotal = BigInt(0);
   private lastTotal = BigInt(0);
-  private taskId: string;
+  private taskId: string | undefined;
 
   constructor(totalBytes?: bigint, downloadKey?: string) {
     this.knownTotal = totalBytes ?? null;

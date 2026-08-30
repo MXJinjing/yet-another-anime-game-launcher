@@ -9,24 +9,29 @@ import {
   humanFileSize,
 } from "@runtime/format";
 import { md5 } from "@runtime/patching";
-import { setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { createTransferProgressTracker } from "./download-progress";
 
 export async function* checkIntegrityProgram({
   sophon,
   gameDir,
   downloadKey,
+  storage = globalStorage,
 }: {
   gameDir: string;
   sophon: Sophon;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
+  storage?: Storage;
 }): TaskProgram {
-  const taskId = await sophon.startRepair({
-    gamedir: gameDir,
-    game_type: "hk4e",
-    repair_mode: "reliable",
-  }, downloadKey);
+  const taskId = await sophon.startRepair(
+    {
+      gamedir: gameDir,
+      game_type: "hk4e",
+      repair_mode: "reliable",
+    },
+    downloadKey
+  );
 
   yield ["setStateText", "SCANNING_FILES", "0", "0"];
 

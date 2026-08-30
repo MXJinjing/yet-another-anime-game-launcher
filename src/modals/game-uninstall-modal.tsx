@@ -23,7 +23,7 @@ export async function createGameUninstallDialog({
   actionDisabled?: () => boolean;
   onUninstall?: () => Promise<void>;
   /** Per-game storage for the fallback install-dir reset path. */
-  storage?: () => Storage;
+  storage?: () => Storage | undefined;
 }) {
   const home = await env("HOME");
   const [open, setOpen] = createSignal(false);

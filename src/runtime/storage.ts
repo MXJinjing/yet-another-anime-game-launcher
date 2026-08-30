@@ -71,9 +71,7 @@ function oldYaaglmStorageAppsForNamespace(namespace: string | undefined) {
 
 function getNeutralinoStorageKey(key: string, namespace?: string) {
   const namespacedKey =
-    namespace && shouldNamespaceStorageKey(key)
-      ? `${namespace}_${key}`
-      : key;
+    namespace && shouldNamespaceStorageKey(key) ? `${namespace}_${key}` : key;
   const validKey = namespacedKey.replace(/[^a-zA-Z0-9_-]/g, "_");
   if (validKey.length <= 50) return validKey;
   const validNamespace = namespace

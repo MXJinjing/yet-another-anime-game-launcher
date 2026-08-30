@@ -8,7 +8,9 @@ export interface ConfigStore {
   remove<T>(entry: ConfigEntry<T>): Promise<void>;
 }
 
-export function createConfigStore(storage: Storage = globalStorage): ConfigStore {
+export function createConfigStore(
+  storage: Storage = globalStorage
+): ConfigStore {
   return {
     async read<T>(entry: ConfigEntry<T>) {
       validateConfigKey(entry.key);

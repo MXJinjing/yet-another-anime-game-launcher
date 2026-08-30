@@ -76,9 +76,9 @@ export async function createBH3ChannelClient({
   let launcherIconButtons: NonNullable<
     ChannelClient["uiContent"]["launcherIconButtons"]
   > = [];
-  let banners: NonNullable<ChannelClient["uiContent"]["banners"]> = [];
-  let posts: NonNullable<ChannelClient["uiContent"]["posts"]> = [];
-  let social_media_list: NonNullable<
+  const banners: NonNullable<ChannelClient["uiContent"]["banners"]> = [];
+  const posts: NonNullable<ChannelClient["uiContent"]["posts"]> = [];
+  const social_media_list: NonNullable<
     ChannelClient["uiContent"]["social_media_list"]
   > = [];
   let loadContent: Awaited<
@@ -109,16 +109,19 @@ export async function createBH3ChannelClient({
   const fallbackBg = "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)";
   // Uninstalled games skip the online version request during startup. Keep a
   // valid semver value so updateRequired() remains safe before installation.
-  let GAME_LATEST_VERSION: string = "0.0.0";
+  let GAME_LATEST_VERSION = "0.0.0";
   let diffs: LauncherResourceData["data"]["game"]["diffs"];
   let decompressed_path: string;
   let path: string;
-  let pre_download_game: LauncherResourceData["data"]["pre_download_game"] = null;
+  let pre_download_game: LauncherResourceData["data"]["pre_download_game"] =
+    null;
   let hasPreDownload = false;
   let size: string;
   let versionLoaded = false;
   const loadVersionInfo = async () => {
-    const versionInfo: LauncherResourceData = await getLatestVersionInfo(server);
+    const versionInfo: LauncherResourceData = await getLatestVersionInfo(
+      server
+    );
     GAME_LATEST_VERSION = versionInfo.data.game.latest.version || "0.0.0";
     diffs = versionInfo.data.game.diffs;
     decompressed_path = versionInfo.data.game.latest.decompressed_path;
@@ -129,21 +132,22 @@ export async function createBH3ChannelClient({
     versionLoaded = true;
   };
   const localGameState = await checkGameState(locale, server, storage);
-  if (localGameState.gameInstalled) try {
-    await loadVersionInfo();
-  } catch {
-    await locale.alert(
-      "CHECK_GAME_UPDATE_FAILED",
-      "CHECK_GAME_UPDATE_FAILED_DESC"
-    );
-    GAME_LATEST_VERSION = "0.0.0";
-    diffs = [];
-    decompressed_path = "";
-    path = "";
-    size = "0";
-    pre_download_game = null;
-    hasPreDownload = false;
-  }
+  if (localGameState.gameInstalled)
+    try {
+      await loadVersionInfo();
+    } catch {
+      await locale.alert(
+        "CHECK_GAME_UPDATE_FAILED",
+        "CHECK_GAME_UPDATE_FAILED_DESC"
+      );
+      GAME_LATEST_VERSION = "0.0.0";
+      diffs = [];
+      decompressed_path = "";
+      path = "";
+      size = "0";
+      pre_download_game = null;
+      hasPreDownload = false;
+    }
   const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
 
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
@@ -221,7 +225,10 @@ export async function createBH3ChannelClient({
         try {
           await loadVersionInfo();
         } catch {
-          await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+          await locale.alert(
+            "CHECK_GAME_UPDATE_FAILED",
+            "CHECK_GAME_UPDATE_FAILED_DESC"
+          );
           return;
         }
       }
@@ -509,7 +516,11 @@ export async function createBH3ChannelClient({
   };
 }
 
-async function checkGameState(locale: Locale, server: Server, storage: Storage) {
+async function checkGameState(
+  locale: Locale,
+  server: Server,
+  storage: Storage
+) {
   let gameDir = "";
   try {
     gameDir = await storage.getKey("game_install_dir");

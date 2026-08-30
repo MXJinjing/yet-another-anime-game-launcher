@@ -237,9 +237,9 @@ async function* predownload(
     ];
   }
   await storage.setKey(
-      `predownloaded_${(await sha1sum(basename(updateFileZip))).slice(0, 32)}`,
-      "true"
-    );
+    `predownloaded_${(await sha1sum(basename(updateFileZip))).slice(0, 32)}`,
+    "true"
+  );
 }
 
 export async function* predownloadGameProgram({

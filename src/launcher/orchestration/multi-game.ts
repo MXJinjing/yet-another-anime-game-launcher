@@ -115,7 +115,14 @@ export async function createMultiGameLauncher({
           storage,
           bootPerformance,
         })
-    ) ?? spec.createClient({ wine: gameWine, aria2, locale, storage, bootPerformance }));
+    ) ??
+      spec.createClient({
+        wine: gameWine,
+        aria2,
+        locale,
+        storage,
+        bootPerformance,
+      }));
     const initialWineTag = await (bootPerformance?.measure(
       `game-wine-config:${spec.id}`,
       () => getMultiGameGameWineTag(spec.id)
@@ -140,9 +147,8 @@ export async function createMultiGameLauncher({
         gameInstallDir: client.installDir,
         onGameInstallDirChange: client.changeInstallDir,
         configForChannelClient: (locale, config) =>
-          bootPerformance?.measure(
-            `game-channel-config:${spec.id}`,
-            () => client.createConfig(locale, config)
+          bootPerformance?.measure(`game-channel-config:${spec.id}`, () =>
+            client.createConfig(locale, config)
           ) ?? client.createConfig(locale, config),
         wineTag,
         wineOptions,
@@ -181,7 +187,9 @@ export async function createMultiGameLauncher({
           error instanceof Error
             ? `${error.name}: ${error.message}\n${error.stack ?? ""}`
             : String(error);
-        await log(`[multi-game] Initialization failed for ${spec.id}: ${detail}`);
+        await log(
+          `[multi-game] Initialization failed for ${spec.id}: ${detail}`
+        );
         failure = error;
       }
     }

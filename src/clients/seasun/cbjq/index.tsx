@@ -75,12 +75,16 @@ export async function createCBJQChannelClient({
     versionLoaded = true;
   };
   const localGameState = await checkGameState(locale, server, storage);
-  if (localGameState.gameInstalled) try {
-    await loadVersionInfo();
-  } catch {
-    isFallback = true;
-    resourceData = { projectVersion: "0.0.0", hashList: [] } as unknown as LauncherResourceData;
-  }
+  if (localGameState.gameInstalled)
+    try {
+      await loadVersionInfo();
+    } catch {
+      isFallback = true;
+      resourceData = {
+        projectVersion: "0.0.0",
+        hashList: [],
+      } as unknown as LauncherResourceData;
+    }
   let GAME_LATEST_VERSION: string = resourceData.projectVersion || "0.0.0";
 
   const isUiFallback = isFallback;
@@ -108,7 +112,7 @@ export async function createCBJQChannelClient({
     showPredownloadPrompt,
     installDir: _gameInstallDir,
     gameLogLocations: CBJQ_GAME_LOG_LOCATIONS,
-      gameVersion: gameCurrentVersion,
+    gameVersion: gameCurrentVersion,
     latestVersion: () => GAME_LATEST_VERSION,
     updateRequired,
     uiContent: {
@@ -139,7 +143,10 @@ export async function createCBJQChannelClient({
           await loadVersionInfo();
           GAME_LATEST_VERSION = resourceData.projectVersion || "0.0.0";
         } catch {
-          await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+          await locale.alert(
+            "CHECK_GAME_UPDATE_FAILED",
+            "CHECK_GAME_UPDATE_FAILED_DESC"
+          );
           return;
         }
       }
@@ -314,7 +321,11 @@ export async function createCBJQChannelClient({
   };
 }
 
-async function checkGameState(locale: Locale, server: Server, storage: Storage) {
+async function checkGameState(
+  locale: Locale,
+  server: Server,
+  storage: Storage
+) {
   let gameDir = "";
   try {
     gameDir = await storage.getKey("game_install_dir");
