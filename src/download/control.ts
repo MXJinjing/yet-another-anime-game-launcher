@@ -1,4 +1,3 @@
-import { getActiveStorageNamespace } from "../runtime/storage";
 import {
   cancelStream,
   getStreams,
@@ -35,8 +34,7 @@ export const isDownloadCancelledError = (error: unknown) =>
   error instanceof DownloadCancelledError;
 export const isDownloadFailedError = (error: unknown) =>
   error instanceof DownloadFailedError;
-const resolveKey = (key?: string) =>
-  key || getActiveStorageNamespace() || DEFAULT_KEY;
+const resolveKey = (key?: string) => key || DEFAULT_KEY;
 const listenersByKey = new Map<
   string,
   Set<(state: DownloadControlState) => void>

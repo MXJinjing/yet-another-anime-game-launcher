@@ -2,7 +2,7 @@ import { Box, Button, Text } from "@hope-ui/solid";
 import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined } from "@runtime/assertions";
-import { getKey, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { Config, NOOP } from "@config/config-def";
 import { SettingSwitch } from "../../../../components/setting-switch";
 import { getPrivilegedHostsHelperStatus } from "@system/privileged-hosts";
@@ -30,11 +30,14 @@ export default async function ({
   locale,
   config,
   defaultHostsText,
+  storage = globalStorage,
 }: {
   config: Partial<Config>;
   locale: Locale;
   defaultHostsText: string;
+  storage?: Storage;
 }) {
+  const { getKey, setKey } = storage;
   const defaultEntries = parseBlockHostRulesText(defaultHostsText);
   let storedHostsText = defaultHostsText;
   let storedRulesText = "";

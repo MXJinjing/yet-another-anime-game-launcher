@@ -26,7 +26,7 @@ import {
 import { exec } from "@runtime/command-runner";
 import { cp, forceMove, mkdirp } from "@runtime/macos-filesystem";
 import { xdelta3 } from "@runtime/patching";
-import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { Config } from "@config";
 import { disableUnityFeature } from "./unity";
 import { Wine } from "@wine";
@@ -46,7 +46,8 @@ export async function* patchProgram(
   wine: Wine,
   server: Server,
   config: Config,
-  progressRange: PatchProgressRange = { start: 0, end: 0 }
+  progressRange: PatchProgressRange = { start: 0, end: 0 },
+  storage: Storage = globalStorage
 ): TaskProgram {
   const progressSpan = progressRange.end - progressRange.start;
   const report = async function* (
@@ -62,7 +63,7 @@ export async function* patchProgram(
     }
   };
 
-  if ((await getKeyOrDefault("patched", "NOTFOUND")) != "NOTFOUND") {
+  if ((await storage.getKeyOrDefault("patched", "NOTFOUND")) != "NOTFOUND") {
     yield* report(1, 1, "启动阶段：已检测到补丁状态，跳过重复应用");
     return;
   }
@@ -214,17 +215,18 @@ export async function* patchProgram(
   }
 
   yield* report(totalSteps, totalSteps, "补丁阶段：记录补丁状态");
-  await setKey("patched", "1");
+  await storage.setKey("patched", "1");
 }
 
 export async function* patchRevertProgram(
   gameDir: string,
   wine: Wine,
   server: Server,
-  config: Config
+  config: Config,
+  storage: Storage = globalStorage
 ): TaskProgram {
   try {
-    await getKey("patched");
+    await storage.getKey("patched");
   } catch {
     yield ["setRawStateText", "还原阶段：未检测到补丁状态，跳过还原"];
     return;
@@ -296,7 +298,7 @@ export async function* patchRevertProgram(
   }
   step = totalSteps;
   yield* report("还原阶段：清除补丁状态");
-  await setKey("patched", null);
+  await storage.setKey("patched", null);
 }
 
 // ---------------------------------------------------------------------------

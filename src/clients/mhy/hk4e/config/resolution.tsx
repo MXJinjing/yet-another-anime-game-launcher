@@ -2,7 +2,7 @@ import { FormControl, FormLabel, HStack, Input, VStack } from "@hope-ui/solid";
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined } from "@runtime/assertions";
-import { getKey, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { Config, NOOP } from "@config/config-def";
 
 declare module "@config/config-def" {
@@ -20,10 +20,13 @@ const CONFIG_KEY_HEIGHT = "config_resolution_height";
 export default async function ({
   locale,
   config,
+  storage = globalStorage,
 }: {
   config: Partial<Config>;
   locale: Locale;
+  storage?: Storage;
 }) {
+  const { getKey, setKey } = storage;
   try {
     config.resolutionCustom = (await getKey(CONFIG_KEY_CUSTOM)) == "true";
   } catch {

@@ -3,23 +3,28 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@runtime/storage", () => ({
   getKey: vi.fn(),
   setKey: vi.fn(),
+  globalStorage: {
+    namespace: undefined,
+    getKey: vi.fn(),
+    getKeyOrDefault: vi.fn(),
+    setKey: vi.fn(),
+  },
 }));
 
-import { getKey, setKey } from "@runtime/storage";
+import { globalStorage } from "@runtime/storage";
 import { createConfigStore } from "@config/config-store";
 import { configEntries } from "@config/shared-entries";
 
-const mockedGetKey = vi.mocked(getKey);
-const mockedSetKey = vi.mocked(setKey);
-
 describe("ConfigStore", () => {
   beforeEach(() => {
-    mockedGetKey.mockReset();
-    mockedSetKey.mockReset();
+    vi.mocked(globalStorage.getKey).mockReset();
+    vi.mocked(globalStorage.setKey).mockReset();
   });
 
   it("decodes persisted values through their typed entries", async () => {
-    mockedGetKey.mockResolvedValueOnce("true").mockResolvedValueOnce("120");
+    vi.mocked(globalStorage.getKey)
+      .mockResolvedValueOnce("true")
+      .mockResolvedValueOnce("120");
     const store = createConfigStore();
 
     await expect(store.read(configEntries.retina)).resolves.toBe(true);
@@ -29,7 +34,7 @@ describe("ConfigStore", () => {
   });
 
   it("uses an entry default for unavailable or malformed values", async () => {
-    mockedGetKey
+    vi.mocked(globalStorage.getKey)
       .mockRejectedValueOnce(new Error("missing value"))
       .mockResolvedValueOnce("not-a-number");
     const store = createConfigStore();
@@ -48,7 +53,15 @@ describe("ConfigStore", () => {
     await store.write(configEntries.debugMode, true);
     await store.remove(configEntries.debugMode);
 
-    expect(setKey).toHaveBeenNthCalledWith(1, "config_debug_mode", "true");
-    expect(setKey).toHaveBeenNthCalledWith(2, "config_debug_mode", null);
+    expect(globalStorage.setKey).toHaveBeenNthCalledWith(
+      1,
+      "config_debug_mode",
+      "true"
+    );
+    expect(globalStorage.setKey).toHaveBeenNthCalledWith(
+      2,
+      "config_debug_mode",
+      null
+    );
   });
 });

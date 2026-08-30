@@ -6,6 +6,7 @@ import type { ChannelClient } from "../../channel-client";
 import type { Config } from "../../config/config-def";
 import type { Wine, WineDistribution } from "../../wine";
 import type { MultiGameWineRef } from "@wine/multi-game";
+import type { Storage } from "@runtime/storage";
 
 export type HypGameWineOption = {
   tag: string;
@@ -16,6 +17,7 @@ export type HypGameWineOption = {
 export type HypGame = {
   id: string;
   namespace?: string;
+  storage?: Storage;
   title: string;
   fallbackIcon: string;
   iconImage?: string;

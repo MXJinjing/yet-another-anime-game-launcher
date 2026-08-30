@@ -9,6 +9,8 @@ import { createHypLauncher } from "../controller/hyp-launcher";
 import type { HypGame } from "../controller/launcher-types";
 import { SINGLE_GAME_CHANNEL_META } from "../data/single-game-specs";
 import { reportBootProgress } from "../../boot-progress";
+import type { BootPerformance } from "../../boot-performance";
+import { globalStorage } from "@runtime/storage";
 
 export async function createLauncher({
   wine,
@@ -25,6 +27,7 @@ export async function createLauncher({
   onGameRunningChange,
   gameCloseHandler,
   onResetWineEnv,
+  bootPerformance,
 }: {
   wine: Wine;
   wineDistroId: string;
@@ -40,6 +43,7 @@ export async function createLauncher({
   onGameRunningChange?: (running: boolean) => void;
   gameCloseHandler?: { current?: () => Promise<void> };
   onResetWineEnv: () => Promise<void>;
+  bootPerformance?: BootPerformance;
 }) {
   const meta = SINGLE_GAME_CHANNEL_META[channel];
   if (!meta) {
@@ -47,18 +51,33 @@ export async function createLauncher({
   }
   const actionDisabledRef = { current: () => false };
   reportBootProgress("BOOT_INITIALIZING_GAME_CLIENT", 80);
-  const { UI: ConfigurationUI, config } = await createGameSettings({
+  const { UI: ConfigurationUI, config } = await (bootPerformance?.measure(
+    "single-game-settings",
+    () => createGameSettings({
+      locale,
+      storage: globalStorage,
+      gameInstallDir: channelClient.installDir,
+      onGameInstallDirChange: channelClient.changeInstallDir,
+      configForChannelClient: (locale, config) =>
+        bootPerformance?.measure("single-game-channel-config", () =>
+          channelClient.createConfig(locale, config)
+        ) ?? channelClient.createConfig(locale, config),
+    })
+  ) ?? createGameSettings({
     locale,
+    storage: globalStorage,
     gameInstallDir: channelClient.installDir,
     onGameInstallDirChange: channelClient.changeInstallDir,
-    configForChannelClient: channelClient.createConfig,
-  });
+    configForChannelClient: (locale, config) =>
+      channelClient.createConfig(locale, config),
+  }));
   const game: HypGame = {
     id: meta.id,
     title: meta.title,
     serverLabel: locale.get(meta.serverLabel),
     fallbackIcon: meta.fallbackIcon,
     client: channelClient,
+    storage: globalStorage,
     config: config as Config,
     ConfigurationUI,
   };

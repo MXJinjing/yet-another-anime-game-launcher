@@ -18,6 +18,7 @@ export async function* downloadAndInstallGameProgram({
   gameVersion,
   server,
   totalBytes,
+  downloadKey,
 }: {
   gameSegmentZips: string[];
   gameDir: string;
@@ -26,6 +27,8 @@ export async function* downloadAndInstallGameProgram({
   server: Server;
   /** Grand total of all segments in bytes, from the version-info API. */
   totalBytes?: bigint;
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
 }): TaskProgram {
   const downloadTmp = join(gameDir, ".ariatmp");
   const downloadedFiles: string[] = [];
@@ -37,12 +40,13 @@ export async function* downloadAndInstallGameProgram({
   // Track overall progress so the button's percentage covers every segment
   // instead of resetting to 0 for each file. The grand total from the
   // version-info API makes it accurate from the very first byte.
-  const overall = new Aria2OverallProgress(totalBytes);
+  const overall = new Aria2OverallProgress(totalBytes, downloadKey);
   for (const [fileNumber, gameFile7z] of gameSegmentZips.entries()) {
     const localFile = join(downloadTmp, basename(gameFile7z));
     for await (const progress of aria2.doStreamingDownload({
       uri: gameFile7z,
       absDst: localFile,
+      downloadKey,
     })) {
       const current = overall.current(progress);
       yield ["setProgress", overall.step(progress)];

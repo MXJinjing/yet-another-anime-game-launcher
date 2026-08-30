@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import { Locale } from "../locale";
 import { log } from "../logging/logger";
 import { env } from "../platform/neutralino";
-import { setKey } from "../runtime/storage";
+import { globalStorage, type Storage } from "../runtime/storage";
 import { AppModal, AppModalButton } from "../components/app-modal";
 import {
   clearGameInstallDirectory,
@@ -15,12 +15,15 @@ export async function createGameUninstallDialog({
   onGameInstallDirChange,
   actionDisabled,
   onUninstall,
+  storage,
 }: {
   locale: Locale;
   gameInstallDir: () => string;
   onGameInstallDirChange?: (path: string) => Promise<void>;
   actionDisabled?: () => boolean;
   onUninstall?: () => Promise<void>;
+  /** Per-game storage for the fallback install-dir reset path. */
+  storage?: () => Storage;
 }) {
   const home = await env("HOME");
   const [open, setOpen] = createSignal(false);
@@ -53,7 +56,8 @@ export async function createGameUninstallDialog({
     if (onUninstall) {
       await onUninstall();
     } else {
-      await setKey("game_install_dir", null);
+      const targetStorage = storage?.() ?? globalStorage;
+      await targetStorage.setKey("game_install_dir", null);
       await onGameInstallDirChange?.("");
     }
     setOpen(false);

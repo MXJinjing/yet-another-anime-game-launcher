@@ -11,7 +11,7 @@ import {
 } from "@platform/neutralino";
 import { utf16le } from "@runtime/binary";
 import { mkdirp } from "@runtime/macos-filesystem";
-import { getKeyOrDefault } from "@runtime/storage";
+import { getKeyOrDefault, globalStorage, type Storage } from "@runtime/storage";
 import { Wine } from "../../../wine";
 import { Config } from "@config";
 import { getCustomEnvironmentVariables } from "@config";
@@ -31,12 +31,14 @@ export async function* launchGameProgram({
   wine,
   config,
   server,
+  storage = globalStorage,
 }: {
   gameDir: string;
   gameExecutable: string;
   wine: Wine;
   config: Config;
   server: Server;
+  storage?: Storage;
 }): TaskProgram {
   const blockUrl =
     server.id == "nap_global" ? NAP_OS_BLOCK_URL : NAP_CN_BLOCK_URL;
@@ -69,7 +71,7 @@ copy "${wine.toWinePath(
 cd /d "${wine.toWinePath(gameDir)}"
 "${wine.toWinePath(join(gameDir, gameExecutable))}" ${args.join(" ")}`;
   await writeFile(resolve("config.bat"), cmd);
-  yield* patchProgram(gameDir, wine, server, config);
+  yield* patchProgram(gameDir, wine, server, config, undefined, storage);
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
   let startupTimedOut = false;
@@ -157,7 +159,7 @@ cd /d "${wine.toWinePath(gameDir)}"
   // await removeFile(resolve("bWh5cHJvdDJfcnVubmluZy5yZWcK.reg"));
   await removeFile(resolve("config.bat"));
   yield ["setStateText", "REVERT_PATCHING"];
-  yield* patchRevertProgram(gameDir, wine, server, config);
+  yield* patchRevertProgram(gameDir, wine, server, config, storage);
 }
 
 async function fixWebview(wine: Wine, server: Server) {

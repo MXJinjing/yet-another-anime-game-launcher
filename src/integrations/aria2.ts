@@ -24,7 +24,7 @@ import {
   formatDownloadSpeed,
   humanFileSize,
 } from "../runtime/format";
-import { getActiveStorageNamespace, getKeyOrDefault } from "../runtime/storage";
+import { getKeyOrDefault } from "../runtime/storage";
 import { sha256_16 } from "../runtime/binary";
 import { timeout, wait } from "../runtime/async";
 import { basename } from "path-browserify";
@@ -322,7 +322,7 @@ export async function createAria2({
       id: streamId,
       kind: "aria2",
       taskId: gid,
-      key: options.downloadKey ?? getActiveStorageNamespace() ?? undefined,
+      key: options.downloadKey,
       title: basename(options.absDst),
       status: "active",
       progress: 0,
@@ -420,12 +420,11 @@ export class Aria2OverallProgress {
   private knownTotal: bigint | null;
   private runningTotal = BigInt(0);
   private lastTotal = BigInt(0);
-  private taskId = resolveDownloadTaskId(
-    getActiveStorageNamespace() ?? undefined
-  );
+  private taskId: string;
 
-  constructor(totalBytes?: bigint) {
+  constructor(totalBytes?: bigint, downloadKey?: string) {
     this.knownTotal = totalBytes ?? null;
+    this.taskId = resolveDownloadTaskId(downloadKey);
   }
 
   /** Returns { completed, total } including the current status. */

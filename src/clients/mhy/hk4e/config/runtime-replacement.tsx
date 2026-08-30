@@ -4,7 +4,7 @@ import { createEffect, createSignal, For, Show } from "solid-js";
 import { Locale } from "@locale";
 import { log } from "@logging/logger";
 import { assertValueDefined } from "@runtime/assertions";
-import { getKey, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { Config, NOOP } from "@config/config-def";
 import { SettingSwitch } from "../../../../components/setting-switch";
 import {
@@ -101,11 +101,14 @@ export default async function ({
   locale,
   config,
   gameInstallDir,
+  storage = globalStorage,
 }: {
   locale: Locale;
   config: Partial<Config>;
   gameInstallDir?: () => string;
+  storage?: Storage;
 }) {
+  const { getKey, setKey } = storage;
   let stored: StoredRuntimeReplacements = { enabled: false, entries: [] };
   try {
     const parsed = JSON.parse(await getKey(RUNTIME_REPLACEMENTS_KEY));

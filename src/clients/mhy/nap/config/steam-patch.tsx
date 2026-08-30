@@ -1,7 +1,7 @@
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined } from "@runtime/assertions";
-import { getKey, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { Config, NOOP } from "@config/config-def";
 import { SettingSwitch } from "../../../../components/setting-switch";
 
@@ -16,10 +16,13 @@ const CONFIG_KEY = "config_steam_patch";
 export default async function ({
   locale,
   config,
+  storage = globalStorage,
 }: {
   config: Partial<Config>;
   locale: Locale;
+  storage?: Storage;
 }) {
+  const { getKey, setKey } = storage;
   try {
     config.steamPatch = (await getKey(CONFIG_KEY)) == "true";
   } catch {

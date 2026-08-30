@@ -14,10 +14,13 @@ export async function* downloadAndInstallGameProgram({
   sophonClient,
   gameDir,
   installReltype,
+  downloadKey,
 }: {
   sophonClient: SophonClient;
   gameDir: string;
   installReltype: string;
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
 }): TaskProgram {
   yield ["setUndeterminedProgress"];
   log("Starting game installation process...");
@@ -26,7 +29,7 @@ export async function* downloadAndInstallGameProgram({
     gamedir: gameDir,
     game_type: "hk4e",
     install_reltype: installReltype,
-  });
+  }, downloadKey);
   log(`Installation task started with ID: ${taskId}`);
 
   let currentFileIndex = 0;

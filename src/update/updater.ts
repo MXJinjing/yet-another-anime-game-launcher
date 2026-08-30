@@ -244,7 +244,9 @@ export async function createUpdater({
     const appArchiveName = getReleaseAppArchiveName(updateVersion);
     const appArchive = latest.assets.find(x => x.name == appArchiveName);
 
-    if (gt(latest.tag_name, currentVersion) && appArchive !== undefined) {
+    const latestVersion =
+      typeof latest.tag_name === "string" ? latest.tag_name : undefined;
+    if (latestVersion && gt(latestVersion, currentVersion) && appArchive !== undefined) {
       return {
         latest: false,
         appDownloadUrl: appArchive.browser_download_url,
@@ -252,7 +254,7 @@ export async function createUpdater({
         description: latest.body,
       } as const;
     }
-    if (gt(currentVersion, latest.tag_name)) {
+    if (latestVersion && gt(currentVersion, latestVersion)) {
       // The local build is newer than the newest published release.
       return {
         latest: true,

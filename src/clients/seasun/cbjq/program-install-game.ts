@@ -18,6 +18,7 @@ export async function* downloadAndInstallGameProgram({
   gameDir,
   server,
   totalBytes,
+  downloadKey,
 }: {
   resourceData: LauncherResourceData;
   gameDir: string;
@@ -25,11 +26,13 @@ export async function* downloadAndInstallGameProgram({
   server: Server;
   /** Grand total of all paks in bytes, from the launcher resource data. */
   totalBytes?: bigint;
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
 }): TaskProgram {
   let index = 0;
   // Track overall progress so the button's percentage covers every pak.
   // The known grand total makes it accurate from the very first byte.
-  const overall = new Aria2OverallProgress(totalBytes);
+  const overall = new Aria2OverallProgress(totalBytes, downloadKey);
   for (const pak of resourceData.paks) {
     await mkdirp(join(gameDir, dirname(pak.name)));
     // TODO: change this to concurrent
@@ -39,7 +42,8 @@ export async function* downloadAndInstallGameProgram({
       join(gameDir, pak.name),
       index++,
       resourceData.paks.length,
-      overall
+      overall,
+      downloadKey
     );
   }
 
@@ -52,7 +56,8 @@ async function* downloadOrRecover(
   localUrl: string,
   fileIndex: number,
   totalFileCount: number,
-  overall: Aria2OverallProgress
+  overall: Aria2OverallProgress,
+  downloadKey?: string
 ): TaskProgram<void> {
   try {
     await stats(localUrl);
@@ -64,6 +69,7 @@ async function* downloadOrRecover(
     for await (const progress of aria2.doStreamingDownload({
       uri: remoteUrl,
       absDst: localUrl,
+      downloadKey,
     })) {
       if (!gameFileStart && progress.downloadSpeed == BigInt(0)) {
         continue;

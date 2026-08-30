@@ -1,4 +1,5 @@
 import { batch, createSignal } from "solid-js";
+import { createStore } from "solid-js/store";
 import { Divider } from "@hope-ui/solid";
 import { TaskFailedError, type TaskProgram } from "@tasks/task-program";
 import {
@@ -13,10 +14,10 @@ import { stats } from "@platform/neutralino";
 import { resolveSidecarPath } from "@platform/neutralino/sidecar";
 import { rawString } from "@platform/shell";
 import { assertValueDefined } from "@runtime/assertions";
-import { timeout, waitImageReady } from "@runtime/async";
+import { timeout } from "@runtime/async";
 import { exec, spawn } from "@runtime/command-runner";
 import { getFreeSpace } from "@runtime/macos-filesystem";
-import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
 import { gt, lt, SemVer } from "semver";
 import { Config } from "@config";
@@ -37,7 +38,7 @@ import {
   checkAndDownloadReshade,
   isDXMTInstalled,
 } from "@wine/runtime-resources";
-import createMhypBaseReplacement from "./config/mhypbase-replacement";
+import createMhypBaseReplacement from "./config/runtime-replacement";
 import createPatchOff from "./config/patch-off";
 import createSteamPatch from "./config/steam-patch";
 import createBlockNet from "./config/block-net";
@@ -57,6 +58,7 @@ import {
   mapBackgroundsToUiContent,
 } from "../hyp-connect";
 import { HK4E_GAME_LOG_LOCATIONS } from "../../game-log-paths";
+import type { BootPerformance } from "../../../boot-performance";
 
 // no need to check supported version
 // const CURRENT_SUPPORTED_VERSION = "4.8.0";
@@ -67,13 +69,23 @@ export async function createHK4EChannelClient({
   aria2,
   wine,
   releaseType,
+  bootPerformance,
+  storage = globalStorage,
 }: {
   server: Server;
   locale: Locale;
   aria2: Aria2;
   wine: Wine;
   releaseType: "os" | "cn" | "bb";
+  bootPerformance?: BootPerformance;
+  storage?: Storage;
 }): Promise<ChannelClient> {
+  const { getKey, getKeyOrDefault, setKey } = storage;
+  function measure<T>(name: string, operation: () => Promise<T>) {
+    return bootPerformance
+      ? bootPerformance.measure(`hk4e:${name}`, operation)
+      : operation();
+  }
   let background: string;
   let icon: string;
   let icon_link: string;
@@ -89,9 +101,14 @@ export async function createHK4EChannelClient({
   let social_media_list: NonNullable<
     ChannelClient["uiContent"]["social_media_list"]
   > = [];
+  let loadContent: Awaited<
+    ReturnType<typeof getLatestLauncherContent>
+  >["loadContent"];
   let isAdvFallback = false;
   try {
-    const launcherContent = await getLatestLauncherContent(locale, server);
+    const launcherContent = await measure("launcher-content", () =>
+      getLatestLauncherContent(locale, server, { deferContent: true })
+    );
     const advInfos = launcherContent.backgrounds;
     const advInfo = advInfos[0];
     background = advInfo.background.url;
@@ -102,9 +119,7 @@ export async function createHK4EChannelClient({
     bg_type = advInfo.type;
     backgrounds = mapBackgroundsToUiContent(advInfos);
     launcherIconButtons = launcherContent.launcherIconButtons;
-    banners = launcherContent.content.banners;
-    posts = launcherContent.content.posts;
-    social_media_list = launcherContent.content.social_media_list;
+    loadContent = launcherContent.loadContent;
   } catch {
     log("Failed to fetch adv info, using fallback UI");
     isAdvFallback = true;
@@ -114,13 +129,6 @@ export async function createHK4EChannelClient({
     video_url = "";
     theme_url = "";
     bg_type = HoyoConnectGameBackgroundType.BACKGROUND_TYPE_UNSPECIFIED;
-  }
-  // Preload every background image so the switcher can fade between them
-  // without waiting on the network during a switch.
-  for (const bg of backgrounds) {
-    if (bg.background) {
-      waitImageReady(bg.background).catch(() => undefined);
-    }
   }
   const IS_VIDEO_BG =
     !isAdvFallback &&
@@ -145,10 +153,12 @@ export async function createHK4EChannelClient({
       }
     );
     try {
-      const connectedSophon = await Promise.race([
-        createSophonRetry(sophon_host, sophonPort),
-        timeout(Math.max(500, sophonDeadline - Date.now())),
-      ]);
+      const connectedSophon = await measure("sophon-connect", () =>
+        Promise.race([
+          createSophonRetry(sophon_host, sophonPort),
+          timeout(Math.max(500, sophonDeadline - Date.now())),
+        ])
+      );
       if (connectedSophon) sophon = connectedSophon;
     } catch (error) {
       lastSophonError = error;
@@ -170,45 +180,58 @@ export async function createHK4EChannelClient({
   assertValueDefined(sophon);
   const sophonClient = sophon;
 
-  const gameInfo = await sophonClient.getLatestOnlineGameInfo(
-    releaseType,
-    "hk4e"
+  // Determine local installation state before the expensive online manifest
+  // query. An uninstalled game has no current version to compare and does not
+  // need online version metadata during launcher startup.
+  const localGameState = await measure("check-game-state", () =>
+    checkGameState(locale, server, storage)
   );
-  log(`Game info: ${JSON.stringify(gameInfo)}`);
+  let gameInfo = localGameState.gameInstalled
+    ? await measure("sophon-game-info", () =>
+        sophonClient.getLatestOnlineGameInfo(releaseType, "hk4e")
+      )
+    : {
+        game_type: "hk4e" as const,
+        version: "0.0.0",
+        install_size: 0,
+        updatable_versions: [],
+        release_type: releaseType,
+        pre_download: false,
+        pre_download_version: "0.0.0",
+      };
+  if (localGameState.gameInstalled) {
+    log(`Game info: ${JSON.stringify(gameInfo)}`);
+  }
   // Fallback to "0.0.0" when the backend could not determine the version.
   // Without this, `lt(gameCurrentVersion(), "")` / `gt(prev, "")` throw
   // "Invalid Version" and crash the launcher whenever the sophon backend
   // returns an empty version (e.g. on network failure or API key parse error).
-  const LATEST_GAME_VERSION: string = gameInfo.version || "0.0.0";
-  const UPDATABLE_VERSIONS: string[] = gameInfo.updatable_versions;
-  const PRE_DOWNLOAD_VERSION: string = gameInfo.pre_download_version || "0.0.0";
+  let LATEST_GAME_VERSION: string = gameInfo.version || "0.0.0";
+  let UPDATABLE_VERSIONS: string[] = gameInfo.updatable_versions;
+  let PRE_DOWNLOAD_VERSION: string = gameInfo.pre_download_version || "0.0.0";
   // The CN/BB Sophon pre-download currently omits part of the resources.
   // Keep the feature unreachable for domestic releases until the upstream
   // pre-download manifests can be handled completely.
-  const PRE_DOWNLOAD_AVAILABLE: boolean =
+  let PRE_DOWNLOAD_AVAILABLE: boolean =
     releaseType === "os" && gameInfo.pre_download;
-  const INSTALL_SIZE_BYTES: number = gameInfo.install_size;
+  let INSTALL_SIZE_BYTES: number = gameInfo.install_size;
 
-  if (background) {
-    await waitImageReady(background);
-  }
-
-  const { gameInstalled, gameInstallDir, gameVersion } = await checkGameState(
-    locale,
-    server
-  );
+  const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
 
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
   );
-  const [runtimeReady, setRuntimeReady] = createSignal(await isDXMTInstalled());
+  const [runtimeReady, setRuntimeReady] = createSignal(
+    await measure("dxmt-installed-check", isDXMTInstalled)
+  );
   const [showPredownloadPrompt, setShowPredownloadPrompt] =
     createSignal<boolean>(
       PRE_DOWNLOAD_AVAILABLE &&
-        (await getKeyOrDefault("predownloaded_all", "NOTFOUND")) !=
-          PRE_DOWNLOAD_VERSION && // this version has not been downloaded yet
+        (await measure("predownload-storage", () =>
+          getKeyOrDefault("predownloaded_all", "NOTFOUND")
+        )) != PRE_DOWNLOAD_VERSION && // this version has not been downloaded yet
         gameInstalled && // game installed
-        gt(PRE_DOWNLOAD_VERSION, gameVersion) // predownload version is greater
+        gt(PRE_DOWNLOAD_VERSION, gameVersion ?? "0.0.0") // predownload version is greater
     );
   const [_gameInstallDir, setGameInstallDir] = createSignal(
     gameInstallDir ?? ""
@@ -249,6 +272,8 @@ export async function createHK4EChannelClient({
       gameDir: _gameInstallDir(),
       server,
       updatedGameVersion: LATEST_GAME_VERSION,
+      downloadKey: storage.namespace,
+      storage,
     });
     const installedVersion = await refreshInstalledGameVersion();
     if (lt(installedVersion, LATEST_GAME_VERSION)) {
@@ -259,6 +284,20 @@ export async function createHK4EChannelClient({
     return true;
   }
 
+  const [uiContent, setUiContent] = createStore<ChannelClient["uiContent"]>({
+    background: background,
+    background_video: IS_VIDEO_BG ? video_url : undefined,
+    background_theme: IS_VIDEO_BG ? theme_url : undefined,
+    backgrounds,
+    launcherIconButtons,
+    banners,
+    posts,
+    social_media_list,
+    launcherContentLoaded: !loadContent,
+    url: icon_link,
+    channelName: isAdvFallback ? server.id : undefined,
+    fallbackBackground: isAdvFallback ? fallbackBg : undefined,
+  });
   return {
     installState: installed,
     showPredownloadPrompt,
@@ -267,18 +306,19 @@ export async function createHK4EChannelClient({
     gameVersion: gameCurrentVersion,
     latestVersion: () => LATEST_GAME_VERSION,
     updateRequired,
-    uiContent: {
-      background: background, // Always show image
-      background_video: IS_VIDEO_BG ? video_url : undefined,
-      background_theme: IS_VIDEO_BG ? theme_url : undefined,
-      backgrounds,
-      launcherIconButtons,
-      banners,
-      posts,
-      social_media_list,
-      url: icon_link,
-      channelName: isAdvFallback ? server.id : undefined,
-      fallbackBackground: isAdvFallback ? fallbackBg : undefined,
+    uiContent,
+    async hydrateUiContent() {
+      if (!loadContent) return;
+      try {
+        const content = await loadContent();
+        setUiContent({
+          banners: content.banners,
+          posts: content.posts,
+          social_media_list: content.social_media_list,
+        });
+      } finally {
+        setUiContent("launcherContentLoaded", true);
+      }
     },
     predownloadVersion: () =>
       PRE_DOWNLOAD_AVAILABLE ? PRE_DOWNLOAD_VERSION : "",
@@ -291,11 +331,26 @@ export async function createHK4EChannelClient({
     },
     async *continueInstall(): TaskProgram {
       if (wine.attributes.renderBackend == "dxmt") {
-        yield* checkAndDownloadDXMT(aria2);
+        yield* checkAndDownloadDXMT(aria2, storage.namespace);
       }
       setRuntimeReady(true);
     },
     async *install(selection: string): TaskProgram {
+      if (!localGameState.gameInstalled && gameInfo.version === "0.0.0") {
+        try {
+          gameInfo = await measure("sophon-game-info-install", () =>
+            sophonClient.getLatestOnlineGameInfo(releaseType, "hk4e")
+          );
+          LATEST_GAME_VERSION = gameInfo.version || "0.0.0";
+          UPDATABLE_VERSIONS = gameInfo.updatable_versions;
+          PRE_DOWNLOAD_VERSION = gameInfo.pre_download_version || "0.0.0";
+          PRE_DOWNLOAD_AVAILABLE = releaseType === "os" && gameInfo.pre_download;
+          INSTALL_SIZE_BYTES = gameInfo.install_size;
+        } catch {
+          await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+          return;
+        }
+      }
       try {
         await stats(join(selection, "pkg_version"));
       } catch {
@@ -326,9 +381,10 @@ export async function createHK4EChannelClient({
           sophonClient: sophon,
           gameDir: selection,
           installReltype: releaseType,
+          downloadKey: storage.namespace,
         });
         if (wine.attributes.renderBackend == "dxmt") {
-          yield* checkAndDownloadDXMT(aria2);
+          yield* checkAndDownloadDXMT(aria2, storage.namespace);
         }
         setRuntimeReady(true);
 
@@ -376,6 +432,8 @@ export async function createHK4EChannelClient({
         yield* checkIntegrityProgram({
           sophon,
           gameDir: selection,
+          downloadKey: storage.namespace,
+          storage,
         });
         // setGameInstalled
         batch(() => {
@@ -393,6 +451,8 @@ export async function createHK4EChannelClient({
         sophon,
         gameDir: _gameInstallDir(),
         targetVersion: PRE_DOWNLOAD_VERSION,
+        downloadKey: storage.namespace,
+        storage,
       });
     },
     async *update() {
@@ -414,7 +474,7 @@ export async function createHK4EChannelClient({
         yield* checkAndDownloadReshade(aria2, wine, _gameInstallDir());
       }
       if (wine.attributes.renderBackend == "dxmt") {
-        yield* checkAndDownloadDXMT(aria2);
+        yield* checkAndDownloadDXMT(aria2, storage.namespace);
       }
       yield* launchGameProgram({
         gameDir: _gameInstallDir(),
@@ -422,6 +482,7 @@ export async function createHK4EChannelClient({
         gameExecutable: server.executable,
         config,
         server,
+        storage,
       });
     },
     async *checkIntegrity() {
@@ -429,6 +490,8 @@ export async function createHK4EChannelClient({
       yield* checkIntegrityProgram({
         sophon,
         gameDir: _gameInstallDir(),
+        downloadKey: storage.namespace,
+        storage,
       });
       await refreshInstalledGameVersion();
     },
@@ -470,11 +533,19 @@ export async function createHK4EChannelClient({
         return;
       }
       try {
-        yield* patchRevertProgram(_gameInstallDir(), wine, server, config);
+        yield* patchRevertProgram(
+          _gameInstallDir(),
+          wine,
+          server,
+          config,
+          storage
+        );
       } catch {
         yield* checkIntegrityProgram({
           sophon,
           gameDir: _gameInstallDir(),
+          downloadKey: storage.namespace,
+          storage,
         });
       }
     },
@@ -483,9 +554,10 @@ export async function createHK4EChannelClient({
         locale,
         config,
         gameInstallDir: _gameInstallDir,
+        storage,
       });
-      const [PO] = await createPatchOff({ locale, config });
-      const [SP] = await createSteamPatch({ locale, config });
+      const [PO] = await createPatchOff({ locale, config, storage });
+      const [SP] = await createSteamPatch({ locale, config, storage });
       const blockUrl = server.id == "hk4e_global" ? OS_BLOCK_URL : CN_BLOCK_URL;
       const defaultHosts = [
         { domain: blockUrl, ip: "0.0.0.0" },
@@ -495,10 +567,11 @@ export async function createHK4EChannelClient({
         locale,
         config,
         defaultHostsText: getDefaultBlockHostsText(defaultHosts),
+        storage,
       });
-      const [HDR] = await createEnableHDRConfig({ locale, config });
-      const [RES] = await createResolution({ locale, config });
-      const [TF] = await createTimeoutFix({ locale, config });
+      const [HDR] = await createEnableHDRConfig({ locale, config, storage });
+      const [RES] = await createResolution({ locale, config, storage });
+      const [TF] = await createTimeoutFix({ locale, config, storage });
 
       return {
         launch() {
@@ -534,10 +607,10 @@ async function getGameVersionGI(gameDataDir: string) {
   }
 }
 
-async function checkGameState(locale: Locale, server: Server) {
+async function checkGameState(locale: Locale, server: Server, storage: Storage) {
   let gameDir = "";
   try {
-    gameDir = await getKey("game_install_dir");
+    gameDir = await storage.getKey("game_install_dir");
   } catch {
     return {
       gameInstalled: false,

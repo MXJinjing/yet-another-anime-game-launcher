@@ -10,6 +10,7 @@ import {
   reportBootProgress,
 } from "./boot-progress";
 import { getChannelBootIcon } from "./boot-icon";
+import { createBootPerformance } from "./boot-performance";
 import { installInputEditingShortcuts } from "./input-editing-shortcuts";
 import {
   CURRENT_YAAGL_CHANNEL,
@@ -34,7 +35,15 @@ function createPlates(
 if (typeof Neutralino == "undefined") {
   console.log(`This app doesn't work on browser.`);
 } else {
+  const bootPerformance = createBootPerformance(
+    import.meta.env.DEV && import.meta.env.YAAGL_BOOT_PERF === "1"
+  );
+  bootPerformance.mark("frontend-script-start");
+  void Neutralino.events.on("ready", () => {
+    bootPerformance.mark("neutralino-ready");
+  });
   Neutralino.init();
+  bootPerformance.mark("neutralino-init-called");
   installInputEditingShortcuts();
   if (import.meta.env.PROD) {
     document.addEventListener("contextmenu", event => event.preventDefault());
@@ -61,8 +70,9 @@ if (typeof Neutralino == "undefined") {
     document.getElementById("root") as HTMLElement
   );
   Neutralino.window.show();
+  bootPerformance.mark("window-shown");
   reportBootProgress("BOOT_INITIALIZING", 0);
-  createApp()
+  createApp(bootPerformance)
     .then(UI => {
       reportBootProgress("BOOT_ENTERING_MAIN_SCREEN", 100);
       // Remove the startup loading screen before mounting the real UI.
@@ -88,6 +98,11 @@ if (typeof Neutralino == "undefined") {
         ),
         document.getElementById("root") as HTMLElement
       );
+      bootPerformance.mark("main-ui-mounted");
+      requestAnimationFrame(() => {
+        bootPerformance.mark("main-ui-first-frame");
+        void bootPerformance.flush();
+      });
       Neutralino.window.show();
     })
     .catch(error => {

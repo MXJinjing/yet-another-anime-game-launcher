@@ -4,7 +4,7 @@ import type { TaskProgram } from "@tasks/task-program";
 import { log } from "@logging/logger";
 import { readAllLines, stats } from "@platform/neutralino";
 import { md5 } from "@runtime/patching";
-import { setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { LauncherResourceData } from "./launcher-info";
 import { Server } from "../server";
 
@@ -13,11 +13,16 @@ export async function* checkIntegrityProgram({
   gameDir,
   server,
   aria2,
+  downloadKey,
+  storage = globalStorage,
 }: {
   resourceData: LauncherResourceData;
   gameDir: string;
   server: Server;
   aria2: Aria2;
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
+  storage?: Storage;
 }): TaskProgram {
   const entries: {
     remoteName: string;
@@ -63,7 +68,7 @@ export async function* checkIntegrityProgram({
     ];
     yield ["setProgress", (count / entries.length) * 100];
   }
-  setKey("patched", null);
+  await storage.setKey("patched", null);
   if (toFix.length == 0) {
     return;
   }
@@ -79,6 +84,7 @@ export async function* checkIntegrityProgram({
     for await (const progress of aria2.doStreamingDownload({
       uri: remotePath,
       absDst: localPath,
+      downloadKey,
     })) {
       yield [
         "setProgress",

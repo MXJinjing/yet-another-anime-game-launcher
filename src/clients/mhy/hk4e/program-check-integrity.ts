@@ -15,15 +15,18 @@ import { createTransferProgressTracker } from "./download-progress";
 export async function* checkIntegrityProgram({
   sophon,
   gameDir,
+  downloadKey,
 }: {
   gameDir: string;
   sophon: Sophon;
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
 }): TaskProgram {
   const taskId = await sophon.startRepair({
     gamedir: gameDir,
     game_type: "hk4e",
     repair_mode: "reliable",
-  });
+  }, downloadKey);
 
   yield ["setStateText", "SCANNING_FILES", "0", "0"];
 

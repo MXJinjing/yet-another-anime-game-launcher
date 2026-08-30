@@ -4,16 +4,21 @@ import type { TaskProgram } from "@tasks/task-program";
 import { log } from "@logging/logger";
 import { readAllLines, stats } from "@platform/neutralino";
 import { md5 } from "@runtime/patching";
-import { setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 
 export async function* checkIntegrityProgram({
   gameDir,
   remoteDir,
   aria2,
+  downloadKey,
+  storage = globalStorage,
 }: {
   gameDir: string;
   remoteDir: string;
   aria2: Aria2;
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
+  storage?: Storage;
 }): TaskProgram {
   const entries: {
     remoteName: string;
@@ -56,13 +61,13 @@ export async function* checkIntegrityProgram({
     ];
     yield ["setProgress", (count / entries.length) * 100];
   }
-  setKey("patched", null);
+  await storage.setKey("patched", null);
   if (toFix.length == 0) {
     return;
   }
   count = 0;
   // Track overall progress so the button's percentage covers every fixed file.
-  const overall = new Aria2OverallProgress();
+  const overall = new Aria2OverallProgress(undefined, downloadKey);
   for (const { remoteName } of toFix) {
     const localPath = join(gameDir, remoteName);
     const remotePath = join(remoteDir, remoteName).replace(":/", "://"); //....join: wtf?
@@ -71,6 +76,7 @@ export async function* checkIntegrityProgram({
     for await (const progress of aria2.doStreamingDownload({
       uri: remotePath,
       absDst: localPath,
+      downloadKey,
     })) {
       yield ["setProgress", overall.step(progress)];
     }

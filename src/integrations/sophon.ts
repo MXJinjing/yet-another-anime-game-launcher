@@ -1,5 +1,5 @@
 import { log } from "../logging/logger";
-import { getActiveStorageNamespace, getKeyOrDefault } from "../runtime/storage";
+import { getKeyOrDefault } from "../runtime/storage";
 import {
   ConnectionError,
   isConnectionErrorMessage,
@@ -110,7 +110,8 @@ export class SophonClient {
 
   async startGameOperation(
     type: "install" | "repair" | "update",
-    options: SophonInstallOptions | SophonRepairOptions | SophonUpdateOptions
+    options: SophonInstallOptions | SophonRepairOptions | SophonUpdateOptions,
+    downloadKey?: string
   ): Promise<string> {
     log(`Starting ${type} operation with options: ${JSON.stringify(options)}`);
 
@@ -152,7 +153,7 @@ export class SophonClient {
       id: `sophon:${taskId}`,
       kind: "sophon",
       taskId,
-      key: getActiveStorageNamespace() ?? undefined,
+      key: downloadKey,
       title: `${type} (${options.game_type})`,
       phaseKind: type === "repair" ? "verifying" : "transferring",
       status: "active",
@@ -181,16 +182,16 @@ export class SophonClient {
     return taskId;
   }
 
-  async startInstallation(options: SophonInstallOptions): Promise<string> {
-    return this.startGameOperation("install", options);
+  async startInstallation(options: SophonInstallOptions, downloadKey?: string): Promise<string> {
+    return this.startGameOperation("install", options, downloadKey);
   }
 
-  async startRepair(options: SophonRepairOptions): Promise<string> {
-    return this.startGameOperation("repair", options);
+  async startRepair(options: SophonRepairOptions, downloadKey?: string): Promise<string> {
+    return this.startGameOperation("repair", options, downloadKey);
   }
 
-  async startUpdate(options: SophonUpdateOptions): Promise<string> {
-    return this.startGameOperation("update", options);
+  async startUpdate(options: SophonUpdateOptions, downloadKey?: string): Promise<string> {
+    return this.startGameOperation("update", options, downloadKey);
   }
 
   async *streamOperationProgress(

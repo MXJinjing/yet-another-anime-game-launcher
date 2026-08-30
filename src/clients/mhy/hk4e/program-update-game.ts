@@ -11,13 +11,17 @@ import {
   humanFileSize,
 } from "@runtime/format";
 import { mkdirp } from "@runtime/macos-filesystem";
-import { setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { gte } from "semver";
 import { createTransferProgressTracker } from "./download-progress";
 
 //https://stackoverflow.com/a/69399958
 
-async function* downloadAndPatch(sophon: Sophon, gameDir: string): TaskProgram {
+async function* downloadAndPatch(
+  sophon: Sophon,
+  gameDir: string,
+  downloadKey?: string
+): TaskProgram {
   // Predownload downloads diffs without applying,
   // doesn't delete any files, and download new files
   // We don't have to check about predownloads as the
@@ -29,7 +33,7 @@ async function* downloadAndPatch(sophon: Sophon, gameDir: string): TaskProgram {
     game_type: "hk4e",
     tempdir: downloadTmp,
     predownload: false,
-  });
+  }, downloadKey);
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "ALLOCATING_FILE"];
   let currentFileIndex = 0;
@@ -140,11 +144,16 @@ export async function* updateGameProgram({
   gameDir,
   server,
   updatedGameVersion,
+  downloadKey,
+  storage = globalStorage,
 }: {
   sophon: Sophon;
   gameDir: string;
   server: Server;
   updatedGameVersion: string;
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
+  storage?: Storage;
 }): TaskProgram {
   yield ["setStateText", "UPDATING"];
   // 3.6.0
@@ -193,19 +202,23 @@ export async function* updateGameProgram({
     }
   }
 
-  yield* downloadAndPatch(sophon, gameDir);
-  await setKey(`predownloaded_all`, null);
+  yield* downloadAndPatch(sophon, gameDir, downloadKey);
+  await storage.setKey(`predownloaded_all`, null);
   // Writing config.ini is done in python script
 }
 
-async function* predownload(sophon: Sophon, gameDir: string): TaskProgram {
+async function* predownload(
+  sophon: Sophon,
+  gameDir: string,
+  downloadKey?: string
+): TaskProgram {
   const downloadTmp = join(gameDir, ".tmp");
   const taskId = await sophon.startUpdate({
     gamedir: gameDir,
     game_type: "hk4e",
     tempdir: downloadTmp,
     predownload: true,
-  });
+  }, downloadKey);
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "ALLOCATING_FILE"];
   let currentFileIndex = 0;
@@ -281,11 +294,16 @@ export async function* predownloadGameProgram({
   sophon,
   gameDir,
   targetVersion,
+  downloadKey,
+  storage = globalStorage,
 }: {
   sophon: Sophon;
   gameDir: string;
   targetVersion: string;
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
+  storage?: Storage;
 }) {
-  yield* predownload(sophon, gameDir);
-  await setKey(`predownloaded_all`, targetVersion);
+  yield* predownload(sophon, gameDir, downloadKey);
+  await storage.setKey(`predownloaded_all`, targetVersion);
 }

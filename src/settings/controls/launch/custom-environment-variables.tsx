@@ -2,7 +2,7 @@ import { Box, Button, Checkbox, Input } from "@hope-ui/solid";
 import { createEffect, createSignal, For, Show } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined } from "@runtime/assertions";
-import { getKey, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { Config, NOOP } from "@config/config-def";
 import { parseCustomEnvironmentVariables } from "@config/custom-environment-variables";
 import type { CustomEnvironmentVariable } from "@config/custom-environment-variables";
@@ -37,10 +37,13 @@ function emptyEntry(): CustomEnvironmentVariable {
 export default async function ({
   locale,
   config,
+  storage = globalStorage,
 }: {
   locale: Locale;
   config: Partial<Config>;
+  storage?: Storage;
 }) {
+  const { getKey, setKey } = storage;
   let stored: StoredCustomEnvironmentVariables = {
     enabled: false,
     entries: [],

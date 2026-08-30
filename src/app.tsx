@@ -59,6 +59,7 @@ import {
   type WineDistribution,
 } from "./wine";
 import { reportBootProgress, setBootProgressLocale } from "./boot-progress";
+import type { BootPerformance } from "./boot-performance";
 
 type LauncherWineActions = {
   initializeWine: (distro: WineDistribution) => TaskProgram;
@@ -78,33 +79,37 @@ type HostsHelperReregisterMarker = {
  * Domain services are constructed here so views and launcher orchestration do
  * not have to know how Neutralino processes, Wine or update UI are wired.
  */
-export async function createApp() {
+export async function createApp(bootPerformance?: BootPerformance) {
+  function measure<T>(name: string, operation: () => Promise<T>) {
+    return bootPerformance
+      ? bootPerformance.measure(name, operation)
+      : operation();
+  }
   reportBootProgress("BOOT_INITIALIZING", 0);
-  await setKey("singleton", null);
+  await measure("local-storage-singleton", () => setKey("singleton", null));
 
-  const locale = await createLocale();
+  const locale = await measure("locale-load", createLocale);
   setBootProgressLocale(locale);
   reportBootProgress("BOOT_LOADING_LOCAL_SETTINGS", 8);
-  const github = await createGithubEndpoint();
-  const aria2 = await startAria2Service();
+  const github = await measure("github-endpoint", createGithubEndpoint);
+  const aria2 = await measure("aria2-startup", startAria2Service);
   reportBootProgress("BOOT_STARTING_DOWNLOAD_SERVICE", 26);
 
-  const initialUpdateCheck = await createUpdater({
-    github,
-    aria2,
-    automatic: true,
-  });
+  const initialUpdateCheck = await measure("launcher-update-check", () =>
+    createUpdater({ github, aria2, automatic: true })
+  );
   reportBootProgress("BOOT_CHECKING_LAUNCHER_UPDATE", 36);
   const ignoredVersion = await getKeyOrDefault("ignore_launcher_update", "");
 
-  const wineStatus = await checkWineEnvironment(DEFAULT_WINE_DISTRO_TAG);
+  const wineStatus = await measure("wine-environment-check", () =>
+    checkWineEnvironment(DEFAULT_WINE_DISTRO_TAG)
+  );
   reportBootProgress("BOOT_CHECKING_WINE_ENVIRONMENT", 48);
   const prefixPath = resolve("./wineprefix");
   const [wineInstalled, setWineInstalled] = createSignal(wineStatus.wineReady);
-  const wine = await createWine({
-    prefix: prefixPath,
-    distro: wineStatus.wineDistribution,
-  });
+  const wine = await measure("wine-create", () =>
+    createWine({ prefix: prefixPath, distro: wineStatus.wineDistribution })
+  );
   const wineEnvironment = createWineEnvironmentService({
     aria2,
     wine,
@@ -228,22 +233,27 @@ export async function createApp() {
   let MainApp: () => JSXElement;
   if (isMergedChannel) {
     reportBootProgress("BOOT_INITIALIZING_GAME_CLIENT", 66);
-    MainApp = await createMultiGameLauncher({
+    MainApp = await measure("multi-game-client-init", () => createMultiGameLauncher({
       ...sharedLauncherProps,
       aria2,
       region: channel == "mhycn" ? "CN" : "OS",
       specs: channel == "mhycn" ? MULTI_GAME_CN_GAME_SPECS : undefined,
-    });
+      bootPerformance,
+    }));
   } else {
     reportBootProgress("BOOT_INITIALIZING_GAME_CLIENT", 66);
-    MainApp = await createLauncher({
+    MainApp = await measure("single-game-client-init", async () => createLauncher({
       ...sharedLauncherProps,
       aria2,
       channel,
-      channelClient: await createClient({ wine, aria2, locale }),
-    });
+      channelClient: await measure("channel-client-create", () =>
+        createClient({ wine, aria2, locale, bootPerformance })
+      ),
+      bootPerformance,
+    }));
   }
   reportBootProgress("BOOT_COMPLETE", 100);
+  bootPerformance?.mark("create-app-complete");
 
   return function AppRoot() {
     const [updaterComponent, setUpdaterComponent] = createSignal<

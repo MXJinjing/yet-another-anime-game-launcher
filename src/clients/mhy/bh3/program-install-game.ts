@@ -18,6 +18,7 @@ export async function* downloadAndInstallGameProgram({
   gameDir,
   gameVersion,
   server,
+  downloadKey,
 }: {
   gameFileZip: string;
   gameDir: string;
@@ -25,6 +26,8 @@ export async function* downloadAndInstallGameProgram({
   gameVersion: string;
   aria2: Aria2;
   server: Server;
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
 }): TaskProgram {
   const downloadTmp = join(gameDir, ".ariatmp");
   const gameFileTmp = join(downloadTmp, "game.7z");
@@ -35,6 +38,7 @@ export async function* downloadAndInstallGameProgram({
   for await (const progress of aria2.doStreamingDownload({
     uri: gameFileZip,
     absDst: gameFileTmp,
+    downloadKey,
   })) {
     if (!gameFileStart && progress.downloadSpeed == BigInt(0)) {
       continue;

@@ -22,6 +22,7 @@
 }
 
 .hyp-mhy-board-stack {
+  --hyp-mhy-board-offset: 120px;
   position: absolute;
   top: 282px;
   left: 40px;
@@ -39,6 +40,9 @@
 }
 
 .hyp-mhy-board {
+  position: absolute;
+  top: var(--hyp-mhy-board-offset);
+  left: 0;
   width: 100%;
   padding: 2px;
   overflow: hidden;
@@ -58,11 +62,22 @@
 
 .hyp-mhy-banner-wrap {
   position: relative;
+  width: 100%;
   overflow: hidden;
   border-radius: 17px 17px 0 0;
 }
 
+.hyp-mhy-banner-skeleton {
+  display: block;
+  width: 100%;
+  aspect-ratio: 39 / 16;
+  border-radius: 17px 17px 0 0;
+}
+
 .hyp-mhy-icon-button {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
   max-width: 100%;
   padding: 0;
@@ -252,6 +267,20 @@
 
 .hyp-mhy-post:first-child {
   border-top: 0;
+}
+
+.hyp-mhy-post-skeleton {
+  cursor: default;
+}
+
+.hyp-mhy-post-title-skeleton {
+  width: 66%;
+  height: 12px;
+}
+
+.hyp-mhy-post-date-skeleton {
+  width: 54px;
+  height: 11px;
 }
 
 .hyp-mhy-post span {

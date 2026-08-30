@@ -9,10 +9,9 @@ import { Locale } from "@locale";
 import { log } from "@logging/logger";
 import { readFile, stats } from "@platform/neutralino";
 import { assertValueDefined } from "@runtime/assertions";
-import { waitImageReady } from "@runtime/async";
 import { exec } from "@runtime/command-runner";
 import { getFreeSpace } from "@runtime/macos-filesystem";
-import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
 import { gt, lt } from "semver";
 import { Config } from "@config";
@@ -56,39 +55,38 @@ export async function createCBJQChannelClient({
   locale,
   aria2,
   wine,
+  storage = globalStorage,
 }: {
   server: Server;
   locale: Locale;
   aria2: Aria2;
   wine: Wine;
+  storage?: Storage;
 }): Promise<ChannelClient> {
-  let resourceData: LauncherResourceData;
+  const { getKey, getKeyOrDefault, setKey } = storage;
+  let resourceData: LauncherResourceData = {
+    projectVersion: "0.0.0",
+    hashList: [],
+  } as unknown as LauncherResourceData;
   let isFallback = false;
-  try {
+  let versionLoaded = false;
+  const loadVersionInfo = async () => {
     resourceData = await getLatestVersionInfo(server);
+    versionLoaded = true;
+  };
+  const localGameState = await checkGameState(locale, server, storage);
+  if (localGameState.gameInstalled) try {
+    await loadVersionInfo();
   } catch {
     isFallback = true;
-    resourceData = {
-      projectVersion: "0.0.0",
-      hashList: [],
-    } as unknown as LauncherResourceData;
+    resourceData = { projectVersion: "0.0.0", hashList: [] } as unknown as LauncherResourceData;
   }
-  const { projectVersion: GAME_LATEST_VERSION }: LauncherResourceData =
-    resourceData;
+  let GAME_LATEST_VERSION: string = resourceData.projectVersion || "0.0.0";
 
-  let isImageFallback = false;
-  try {
-    await waitImageReady(server.background_url);
-  } catch {
-    isImageFallback = true;
-  }
-  const isUiFallback = isFallback || isImageFallback;
+  const isUiFallback = isFallback;
   const fallbackBg = "linear-gradient(135deg, #0ba360 0%, #3cba92 100%)";
 
-  const { gameInstalled, gameInstallDir, gameVersion } = await checkGameState(
-    locale,
-    server
-  );
+  const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
 
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
@@ -110,7 +108,7 @@ export async function createCBJQChannelClient({
     showPredownloadPrompt,
     installDir: _gameInstallDir,
     gameLogLocations: CBJQ_GAME_LOG_LOCATIONS,
-    gameVersion: gameCurrentVersion,
+      gameVersion: gameCurrentVersion,
     latestVersion: () => GAME_LATEST_VERSION,
     updateRequired,
     uiContent: {
@@ -131,11 +129,20 @@ export async function createCBJQChannelClient({
     },
     async *continueInstall(): TaskProgram {
       if (wine.attributes.renderBackend == "dxmt") {
-        yield* checkAndDownloadDXMT(aria2);
+        yield* checkAndDownloadDXMT(aria2, storage.namespace);
       }
       setRuntimeReady(true);
     },
     async *install(selection: string): TaskProgram {
+      if (!versionLoaded) {
+        try {
+          await loadVersionInfo();
+          GAME_LATEST_VERSION = resourceData.projectVersion || "0.0.0";
+        } catch {
+          await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+          return;
+        }
+      }
       const local_manifest = join(selection, "manifest.json");
       try {
         await stats(local_manifest);
@@ -152,9 +159,10 @@ export async function createCBJQChannelClient({
           resourceData,
           server,
           totalBytes,
+          downloadKey: storage.namespace,
         });
         if (wine.attributes.renderBackend == "dxmt") {
-          yield* checkAndDownloadDXMT(aria2);
+          yield* checkAndDownloadDXMT(aria2, storage.namespace);
         }
         setRuntimeReady(true);
 
@@ -189,6 +197,8 @@ export async function createCBJQChannelClient({
           aria2,
           gameDir: selection,
           server,
+          downloadKey: storage.namespace,
+          storage,
         });
         // setGameInstalled
         batch(() => {
@@ -208,6 +218,8 @@ export async function createCBJQChannelClient({
         aria2,
         gameDir: _gameInstallDir(),
         server,
+        downloadKey: storage.namespace,
+        storage,
       });
       batch(() => {
         setGameVersion(GAME_LATEST_VERSION);
@@ -229,7 +241,7 @@ export async function createCBJQChannelClient({
         yield* checkAndDownloadReshade(aria2, wine, _gameInstallDir());
       }
       if (wine.attributes.renderBackend == "dxmt") {
-        yield* checkAndDownloadDXMT(aria2);
+        yield* checkAndDownloadDXMT(aria2, storage.namespace);
       }
       yield* checkAndDownloadJadeite(aria2);
       yield* launchGameProgram({
@@ -238,6 +250,7 @@ export async function createCBJQChannelClient({
         gameExecutable: "Game/Binaries/Win64/Game.exe",
         config,
         server,
+        storage,
       });
     },
     async *checkIntegrity() {
@@ -246,6 +259,8 @@ export async function createCBJQChannelClient({
         aria2,
         gameDir: _gameInstallDir(),
         server,
+        downloadKey: storage.namespace,
+        storage,
       });
     },
     async changeInstallDir(selection: string) {
@@ -282,7 +297,7 @@ export async function createCBJQChannelClient({
         return;
       }
       try {
-        yield* patchRevertProgram(_gameInstallDir(), wine, config);
+        yield* patchRevertProgram(_gameInstallDir(), wine, config, storage);
       } catch {
         // yield* checkIntegrityProgram({
         //   aria2,
@@ -299,10 +314,10 @@ export async function createCBJQChannelClient({
   };
 }
 
-async function checkGameState(locale: Locale, server: Server) {
+async function checkGameState(locale: Locale, server: Server, storage: Storage) {
   let gameDir = "";
   try {
-    gameDir = await getKey("game_install_dir");
+    gameDir = await storage.getKey("game_install_dir");
   } catch {
     return {
       gameInstalled: false,
@@ -312,7 +327,7 @@ async function checkGameState(locale: Locale, server: Server) {
     return {
       gameInstalled: true,
       gameInstallDir: gameDir,
-      gameVersion: await getGameVersion(gameDir),
+      gameVersion: (await getGameVersion(gameDir)) || "0.0.0",
     } as const;
   } catch {
     return {

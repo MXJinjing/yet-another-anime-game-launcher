@@ -13,6 +13,14 @@ vi.mock("@logging/logger", () => ({
 
 vi.mock("@runtime/storage", () => ({
   setKey: vi.fn(async () => undefined),
+  globalStorage: {
+    namespace: undefined,
+    getKey: vi.fn(async () => {
+      throw new Error("not found");
+    }),
+    getKeyOrDefault: vi.fn(async () => "NOTFOUND"),
+    setKey: vi.fn(async () => undefined),
+  },
 }));
 
 vi.mock("@platform/neutralino", () => ({

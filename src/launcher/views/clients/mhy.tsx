@@ -6,6 +6,7 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
+import { Skeleton } from "@hope-ui/solid";
 import type { ChannelClient } from "../../../channel-client";
 import type { HoyoConnectSocialMedia } from "../../../clients/mhy/launcher-info";
 import { GameBanner } from "../../components/game-banner";
@@ -79,6 +80,9 @@ export function MhyClientView(props: {
   const bannerFallbackLabel = () =>
     props.client.uiContent.channelName ?? props.channelName ?? "";
   const recentPosts = createMemo(() => posts().slice(0, 3));
+  const contentPending = createMemo(
+    () => props.client.uiContent.launcherContentLoaded === false
+  );
   const hasContent = createMemo(
     () =>
       launcherIconButtons().length > 0 ||
@@ -94,7 +98,12 @@ export function MhyClientView(props: {
   }
 
   return (
-    <Show when={hasContent() && !props.client.uiContent.channelName}>
+    <Show
+      when={
+        (hasContent() || contentPending()) &&
+        !props.client.uiContent.channelName
+      }
+    >
       <div class="hyp-mhy-content" aria-label="公告和社交媒体">
         <Show when={socialMedia().length > 0}>
           <aside class="hyp-mhy-social" aria-label="社交媒体">
@@ -113,6 +122,8 @@ export function MhyClientView(props: {
                         <img
                           src={social.qr_image!.url}
                           alt={social.qr_desc || "二维码"}
+                          loading="lazy"
+                          decoding="async"
                         />
                         <Show when={social.qr_desc}>
                           <span>{social.qr_desc}</span>
@@ -126,7 +137,12 @@ export function MhyClientView(props: {
                       title={socialTitle()}
                       onClick={() => openLink(socialLink())}
                     >
-                      <img src={social.icon.url} alt="" />
+                      <img
+                        src={social.icon.url}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
                       <Show when={social.enable_red_dot}>
                         <span class="hyp-mhy-social-dot" aria-hidden="true" />
                       </Show>
@@ -165,7 +181,16 @@ export function MhyClientView(props: {
           </Show>
 
           <section class="hyp-mhy-board" aria-label="公告板">
-            <Show when={currentBanner()}>
+            <Show
+              when={currentBanner()}
+              fallback={
+                <Show when={contentPending()}>
+                  <div class="hyp-mhy-banner-wrap">
+                    <Skeleton class="hyp-mhy-banner-skeleton" />
+                  </div>
+                </Show>
+              }
+            >
               {banner => (
                 <div class="hyp-mhy-banner-wrap">
                   <button
@@ -177,6 +202,7 @@ export function MhyClientView(props: {
                     <GameBanner
                       src={banner().image.url}
                       label={bannerFallbackLabel()}
+                      loading={bannerIndex() === 0 ? "eager" : "lazy"}
                     />
                   </button>
                   <Show when={banners().length > 1}>
@@ -217,21 +243,35 @@ export function MhyClientView(props: {
               )}
             </Show>
 
-            <Show when={recentPosts().length > 0}>
+            <Show when={recentPosts().length > 0 || contentPending()}>
               <div class="hyp-mhy-posts">
-                <For each={recentPosts()}>
-                  {post => (
-                    <button
-                      type="button"
-                      class="hyp-mhy-post"
-                      onClick={() => openLink(post.link)}
-                      disabled={!post.link}
-                    >
-                      <span>{post.title}</span>
-                      <time>{post.date}</time>
-                    </button>
-                  )}
-                </For>
+                <Show
+                  when={recentPosts().length > 0}
+                  fallback={
+                    <For each={[0, 1, 2]}>
+                      {_ => (
+                        <div class="hyp-mhy-post hyp-mhy-post-skeleton">
+                          <Skeleton class="hyp-mhy-post-title-skeleton" />
+                          <Skeleton class="hyp-mhy-post-date-skeleton" />
+                        </div>
+                      )}
+                    </For>
+                  }
+                >
+                  <For each={recentPosts()}>
+                    {post => (
+                      <button
+                        type="button"
+                        class="hyp-mhy-post"
+                        onClick={() => openLink(post.link)}
+                        disabled={!post.link}
+                      >
+                        <span>{post.title}</span>
+                        <time>{post.date}</time>
+                      </button>
+                    )}
+                  </For>
+                </Show>
               </div>
             </Show>
           </section>

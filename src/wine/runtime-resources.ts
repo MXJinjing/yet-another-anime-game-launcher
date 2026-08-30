@@ -146,7 +146,10 @@ export async function* checkAndDownloadJadeite(aria2: Aria2): TaskProgram {
   await setKey("installed_jadeite_version", CURRENT_JADEITE_VERSION);
 }
 
-export async function* checkAndDownloadDXMT(aria2: Aria2): TaskProgram {
+export async function* checkAndDownloadDXMT(
+  aria2: Aria2,
+  downloadKey?: string
+): TaskProgram {
   if (
     eq(
       CURRENT_DXMT_VERSION,
@@ -161,6 +164,7 @@ export async function* checkAndDownloadDXMT(aria2: Aria2): TaskProgram {
   for await (const progress of aria2.doStreamingDownload({
     uri: `https://github.com/3Shain/dxmt/releases/download/v0.80/${archiveName}`,
     absDst: resolve(`./dxmt/${archiveName}`),
+    downloadKey,
   })) {
     yield [
       "setProgress",

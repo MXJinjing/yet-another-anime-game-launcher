@@ -13,7 +13,7 @@ import {
   humanFileSize,
 } from "@runtime/format";
 import { mkdirp } from "@runtime/macos-filesystem";
-import { getKey, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 
 export async function* downloadAndInstallGameProgram({
   aria2,
@@ -22,6 +22,8 @@ export async function* downloadAndInstallGameProgram({
   gameVersion,
   server,
   totalBytes,
+  downloadKey,
+  storage = globalStorage,
 }: {
   gameSegmentZips: string[];
   gameDir: string;
@@ -30,6 +32,9 @@ export async function* downloadAndInstallGameProgram({
   server: Server;
   /** Grand total of all segments in bytes, from the version-info API. */
   totalBytes?: bigint;
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
+  storage?: Storage;
 }): TaskProgram {
   const downloadTmp = join(gameDir, ".ariatmp");
 
@@ -39,7 +44,7 @@ export async function* downloadAndInstallGameProgram({
 
   // Track overall progress so the button's percentage covers every segment.
   // The grand total from the version-info API makes it accurate up front.
-  const overall = new Aria2OverallProgress(totalBytes);
+  const overall = new Aria2OverallProgress(totalBytes, downloadKey);
   for (const [fileNumber, segment] of gameSegmentZips.entries()) {
     deferredCleanup.push(
       yield* downloadOrRecover(
@@ -48,7 +53,9 @@ export async function* downloadAndInstallGameProgram({
         join(downloadTmp, basename(segment)),
         overall,
         fileNumber + 1,
-        gameSegmentZips.length
+        gameSegmentZips.length,
+        downloadKey,
+        storage
       )
     );
   }
@@ -90,10 +97,12 @@ async function* downloadOrRecover(
   localTempUrl: string,
   overall: Aria2OverallProgress,
   fileNumber: number,
-  fileCount: number
+  fileCount: number,
+  downloadKey?: string,
+  storage: Storage = globalStorage
 ): TaskProgram<() => Promise<void>> {
   try {
-    await getKey(
+    await storage.getKey(
       `predownloaded_${(await sha1sum(basename(remoteUrl))).slice(0, 32)}`
     );
     await stats(localTempUrl);
@@ -104,6 +113,7 @@ async function* downloadOrRecover(
     for await (const progress of aria2.doStreamingDownload({
       uri: remoteUrl,
       absDst: localTempUrl,
+      downloadKey,
     })) {
       if (!gameFileStart && progress.downloadSpeed == BigInt(0)) {
         continue;
@@ -124,14 +134,14 @@ async function* downloadOrRecover(
       ];
     }
     overall.finishFile();
-    await setKey(
+    await storage.setKey(
       `predownloaded_${(await sha1sum(basename(remoteUrl))).slice(0, 32)}`,
       "1"
     );
   }
   return async () => {
     await removeFile(localTempUrl);
-    await setKey(
+    await storage.setKey(
       `predownloaded_${(await sha1sum(basename(remoteUrl))).slice(0, 32)}`,
       null
     );

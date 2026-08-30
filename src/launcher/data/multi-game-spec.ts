@@ -2,6 +2,8 @@ import type { Aria2 } from "@aria2";
 import type { Locale, LocaleTextKey } from "@locale";
 import type { ChannelClient } from "../../channel-client";
 import type { Wine } from "../../wine";
+import type { BootPerformance } from "../../boot-performance";
+import type { Storage } from "../../runtime/storage";
 
 export type MultiGameGameSpec = {
   id: string;
@@ -16,5 +18,7 @@ export type MultiGameGameSpec = {
     wine: Wine;
     aria2: Aria2;
     locale: Locale;
+    storage: Storage;
+    bootPerformance?: BootPerformance;
   }) => Promise<ChannelClient>;
 };

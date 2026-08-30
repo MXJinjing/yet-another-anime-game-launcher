@@ -1,16 +1,12 @@
 import type { Aria2 } from "../../integrations/aria2";
 import type { TaskProgram } from "@tasks/task-program";
 import type { Locale } from "../../locale";
-import {
-  getKeyOrDefault,
-  setKey,
-  withStorageNamespace,
-} from "@runtime/storage";
+import { getKeyOrDefault } from "@runtime/storage";
 import { ensureMultiGameGameWine } from "@wine/multi-game";
 import { openGameLogFile } from "../../logging/game-log-tail";
 import type { HypGame } from "./launcher-types";
 
-/** Wrap a game operation with its per-game Wine and storage namespace. */
+/** Wrap a game operation with its per-game Wine selection. */
 export function gameProgram(
   aria2: Aria2,
   baseWine: import("../../wine").Wine,
@@ -20,22 +16,17 @@ export function gameProgram(
   if (!game.namespace || !game.wineRef || !game.wineTag) return program;
   const wineRef = game.wineRef;
   const wineTag = game.wineTag;
-  const namespace = game.namespace;
   return async function* () {
     wineRef.current = yield* ensureMultiGameGameWine({
       aria2,
       baseWine,
       gameId: game.id,
       wineTag: wineTag(),
-      downloadKey: namespace,
+      downloadKey: game.namespace,
     });
-    const iterator = await withStorageNamespace(namespace, async () =>
-      program()
-    );
+    const iterator = program();
     while (true) {
-      const result = await withStorageNamespace(namespace, async () =>
-        iterator.next()
-      );
+      const result = await iterator.next();
       if (result.done) return;
       yield result.value;
     }
@@ -43,12 +34,8 @@ export function gameProgram(
 }
 
 export async function clearGameInstallationState(game: HypGame) {
-  const clear = async () => {
-    await setKey("game_install_dir", null);
-    await game.client.changeInstallDir?.("");
-  };
-  if (game.namespace) await withStorageNamespace(game.namespace, clear);
-  else await clear();
+  await game.storage?.setKey("game_install_dir", null);
+  await game.client.changeInstallDir?.("");
 }
 
 /** Compose launch and optional game-log opening outside the view layer. */

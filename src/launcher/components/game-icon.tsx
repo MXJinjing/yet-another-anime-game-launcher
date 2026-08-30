@@ -25,6 +25,7 @@ export function GameIcon(props: {
   title: string;
   channel: string;
   alt?: string;
+  loading?: "eager" | "lazy";
 }) {
   const [failed, setFailed] = createSignal(false);
 
@@ -54,6 +55,8 @@ export function GameIcon(props: {
       <img
         src={props.src}
         alt={props.alt ?? ""}
+        loading={props.loading ?? "lazy"}
+        decoding="async"
         onError={() => setFailed(true)}
       />
     </Show>

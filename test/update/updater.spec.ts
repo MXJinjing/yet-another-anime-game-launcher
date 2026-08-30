@@ -3,9 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@runtime/storage", () => ({
   getKey: vi.fn(),
   setKey: vi.fn(),
+  globalStorage: {
+    namespace: undefined,
+    getKey: vi.fn(),
+    getKeyOrDefault: vi.fn(),
+    setKey: vi.fn(),
+  },
 }));
 
-import { getKey } from "@runtime/storage";
+import { globalStorage } from "@runtime/storage";
 import {
   createUpdater,
   downloadProgram,
@@ -13,15 +19,13 @@ import {
   getReleaseAppTopLevelDir,
 } from "@src/update/updater";
 
-const mockedGetKey = vi.mocked(getKey);
-
 describe("createUpdater", () => {
   beforeEach(() => {
-    mockedGetKey.mockReset();
+    vi.mocked(globalStorage.getKey).mockReset();
   });
 
   it("skips automatic release checks when the setting is disabled", async () => {
-    mockedGetKey.mockResolvedValue("false");
+    vi.mocked(globalStorage.getKey).mockResolvedValue("false");
     const github = { api: vi.fn() };
 
     await expect(
@@ -53,7 +57,7 @@ describe("createUpdater", () => {
 
   // CURRENT_YAAGL_VERSION is "development" in the vitest environment.
   it("does not report an automatic update in development", async () => {
-    mockedGetKey.mockResolvedValue("true");
+    vi.mocked(globalStorage.getKey).mockResolvedValue("true");
     const github = { api: vi.fn() };
 
     const result = await createUpdater({
@@ -67,7 +71,6 @@ describe("createUpdater", () => {
   });
 
   it("returns fixed update info for a manual check in development without hitting GitHub", async () => {
-    mockedGetKey.mockResolvedValue("true");
     const github = { api: vi.fn() };
 
     const result = await createUpdater({

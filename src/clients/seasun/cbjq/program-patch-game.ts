@@ -10,7 +10,7 @@ import {
 } from "@platform/neutralino";
 import { cp, forceMove, mkdirp } from "@runtime/macos-filesystem";
 import { xdelta3 } from "@runtime/patching";
-import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { Config } from "@config";
 import { Wine } from "@wine";
 import { DXMT_FILES, DXVK_FILES } from "@wine/runtime-resources";
@@ -22,9 +22,10 @@ export async function putLocal(url: string, dest: string) {
 export async function* patchProgram(
   gameDir: string,
   wine: Wine,
-  config: Config
+  config: Config,
+  storage: Storage = globalStorage
 ): TaskProgram {
-  if ((await getKeyOrDefault("patched", "NOTFOUND")) != "NOTFOUND") {
+  if ((await storage.getKeyOrDefault("patched", "NOTFOUND")) != "NOTFOUND") {
     return;
   }
   const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
@@ -41,16 +42,17 @@ export async function* patchProgram(
       join(gameDir, "d3dcompiler_47.dll")
     );
   }
-  setKey("patched", "1");
+  await storage.setKey("patched", "1");
 }
 
 export async function* patchRevertProgram(
   gameDir: string,
   wine: Wine,
-  config: Config
+  config: Config,
+  storage: Storage = globalStorage
 ): TaskProgram {
   try {
-    await getKey("patched");
+    await storage.getKey("patched");
   } catch {
     return;
   }
@@ -64,5 +66,5 @@ export async function* patchRevertProgram(
     await removeFileIfExists(join(gameDir, "dxgi.dll"));
     await removeFileIfExists(join(gameDir, "d3dcompiler_47.dll"));
   }
-  setKey("patched", null);
+  await storage.setKey("patched", null);
 }

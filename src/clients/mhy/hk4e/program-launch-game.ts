@@ -10,6 +10,7 @@ import {
 } from "@platform/neutralino";
 import { utf16le } from "@runtime/binary";
 import { mkdirp } from "@runtime/macos-filesystem";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { Wine } from "../../../wine";
 import { Config } from "@config";
 import { getCustomEnvironmentVariables } from "@config";
@@ -138,12 +139,14 @@ export async function* launchGameProgram({
   wine,
   config,
   server,
+  storage = globalStorage,
 }: {
   gameDir: string;
   gameExecutable: string;
   wine: Wine;
   config: Config;
   server: Server;
+  storage?: Storage;
 }): TaskProgram {
   const blockUrl = server.id == "hk4e_global" ? OS_BLOCK_URL : CN_BLOCK_URL;
   const blockHosts = config.blockNet
@@ -200,7 +203,14 @@ cd /d "${wine.toWinePath(gameDir)}"
   )}" -platform_type CLOUD_THIRD_PARTY_PC -is_cloud 1`;
   await writeFile(resolve("config.bat"), cmd);
   yield* launchProgress(6, LAUNCH_PROGRESS_STEPS, "启动阶段：正在应用补丁");
-  yield* patchProgram(gameDir, wine, server, config, { start: 60, end: 70 });
+  yield* patchProgram(
+    gameDir,
+    wine,
+    server,
+    config,
+    { start: 60, end: 70 },
+    storage
+  );
   // Workaround #4 is intentionally temporary: install the user-provided
   // mhypbase.dll only for this launch, then restore the original afterward.
   yield* launchProgress(
@@ -221,7 +231,7 @@ cd /d "${wine.toWinePath(gameDir)}"
       if (config.hk4eEnableHDR) await revertHDRRegistry({ wine, server });
       await revertResolutionRegistry(wine, server);
       await removeFile(resolve("config.bat"));
-      yield* patchRevertProgram(gameDir, wine, server, config);
+      yield* patchRevertProgram(gameDir, wine, server, config, storage);
     } catch (cleanupError) {
       await log(
         `Runtime replacement failure cleanup failed: ${String(cleanupError)}`
@@ -339,7 +349,7 @@ cd /d "${wine.toWinePath(gameDir)}"
   yield* revertProgress(4, REVERT_STEPS, "还原阶段：删除临时启动脚本");
   await removeFile(resolve("config.bat"));
   yield* revertProgress(5, REVERT_STEPS, "还原阶段：正在还原补丁");
-  yield* patchRevertProgram(gameDir, wine, server, config);
+  yield* patchRevertProgram(gameDir, wine, server, config, storage);
   yield ["setProgress", 100];
   yield* revertProgress(6, REVERT_STEPS, "还原阶段完成");
 }

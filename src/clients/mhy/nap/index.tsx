@@ -1,4 +1,5 @@
 import { batch, createSignal } from "solid-js";
+import { createStore } from "solid-js/store";
 import { Divider } from "@hope-ui/solid";
 import { TaskFailedError, type TaskProgram } from "@tasks/task-program";
 import {
@@ -10,11 +11,11 @@ import { Server } from "../../../constants";
 import { Locale } from "../../../locale";
 import { stats } from "@platform/neutralino";
 import { assertValueDefined } from "@runtime/assertions";
-import { waitImageReady } from "@runtime/async";
 import { exec } from "@runtime/command-runner";
 import { getFreeSpace } from "@runtime/macos-filesystem";
+import { log } from "@logging/logger";
 import { md5 } from "@runtime/patching";
-import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
 import { gt, lt } from "semver";
 import { Config } from "@config";
@@ -41,7 +42,7 @@ import { getDefaultBlockHostsText } from "../block-hosts";
 import { NAP_CN_BLOCK_URL, NAP_OS_BLOCK_URL } from "../../secret";
 import createSteamPatch from "./config/steam-patch";
 import createTimeoutFix from "./config/timeout-fix";
-import createMhypBaseReplacement from "../hk4e/config/mhypbase-replacement";
+import createMhypBaseReplacement from "../hk4e/config/runtime-replacement";
 import { getGameVersion as _getGameVersion } from "../unity";
 import {
   HoyoConnectGameBackgroundType,
@@ -72,12 +73,15 @@ export async function createNAPChannelClient({
   locale,
   aria2,
   wine,
+  storage = globalStorage,
 }: {
   server: Server;
   locale: Locale;
   aria2: Aria2;
   wine: Wine;
+  storage?: Storage;
 }): Promise<ChannelClient> {
+  const { getKey, getKeyOrDefault, setKey } = storage;
   let background: string;
   let icon: string;
   let icon_link: string;
@@ -93,9 +97,14 @@ export async function createNAPChannelClient({
   let social_media_list: NonNullable<
     ChannelClient["uiContent"]["social_media_list"]
   > = [];
+  let loadContent: Awaited<
+    ReturnType<typeof getLatestLauncherContent>
+  >["loadContent"];
   let isAdvFallback = false;
   try {
-    const launcherContent = await getLatestLauncherContent(locale, server);
+    const launcherContent = await getLatestLauncherContent(locale, server, {
+      deferContent: true,
+    });
     const advInfos = launcherContent.backgrounds;
     const advInfo = advInfos[0];
     background = advInfo.background.url;
@@ -106,9 +115,7 @@ export async function createNAPChannelClient({
     bg_type = advInfo.type;
     backgrounds = mapBackgroundsToUiContent(advInfos);
     launcherIconButtons = launcherContent.launcherIconButtons;
-    banners = launcherContent.content.banners;
-    posts = launcherContent.content.posts;
-    social_media_list = launcherContent.content.social_media_list;
+    loadContent = launcherContent.loadContent;
   } catch {
     isAdvFallback = true;
     background = "";
@@ -118,32 +125,33 @@ export async function createNAPChannelClient({
     theme_url = "";
     bg_type = HoyoConnectGameBackgroundType.BACKGROUND_TYPE_UNSPECIFIED;
   }
-  // Preload every background image so the switcher can fade between them
-  // without waiting on the network during a switch.
-  for (const bg of backgrounds) {
-    if (bg.background) {
-      waitImageReady(bg.background).catch(() => undefined);
-    }
-  }
   const IS_VIDEO_BG =
     !isAdvFallback &&
     bg_type === HoyoConnectGameBackgroundType.BACKGROUND_TYPE_VIDEO;
   const fallbackBg = "linear-gradient(135deg, #fa709a 0%, #fee140 100%)";
-  let GAME_LATEST_VERSION: string;
+  // Uninstalled games skip the online version request during startup. Keep a
+  // valid semver value so updateRequired() remains safe before installation.
+  let GAME_LATEST_VERSION: string = "0.0.0";
   let game_pkgs: { url: string; size: string }[];
   let decompressed_path: string;
   let patches: HoyoConnectGamePackages[];
   let pre_download: {
     major: HoyoConnectGamePackages | null;
     patches: HoyoConnectGamePackages[];
-  };
-  try {
+  } = { major: null, patches: [] };
+  let versionLoaded = false;
+  const loadVersionInfo = async () => {
     const versionInfo = await getLatestVersionInfo(server);
-    GAME_LATEST_VERSION = versionInfo.main.major.version;
+    GAME_LATEST_VERSION = versionInfo.main.major.version || "0.0.0";
     game_pkgs = versionInfo.main.major.game_pkgs;
     decompressed_path = versionInfo.main.major.res_list_url;
     patches = versionInfo.main.patches;
     pre_download = versionInfo.pre_download;
+    versionLoaded = true;
+  };
+  const localGameState = await checkGameState(locale, server, storage);
+  if (localGameState.gameInstalled) try {
+    await loadVersionInfo();
   } catch {
     await locale.alert(
       "CHECK_GAME_UPDATE_FAILED",
@@ -156,14 +164,7 @@ export async function createNAPChannelClient({
     pre_download = { major: null, patches: [] };
   }
 
-  if (background) {
-    await waitImageReady(background);
-  }
-
-  const { gameInstalled, gameInstallDir, gameVersion } = await checkGameState(
-    locale,
-    server
-  );
+  const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
 
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
@@ -175,7 +176,7 @@ export async function createNAPChannelClient({
         (await getKeyOrDefault("predownloaded_all", "NOTFOUND")) ==
           "NOTFOUND" && // not downloaded yet
         gameInstalled && // game installed
-        gt(pre_download.major.version, gameVersion) // predownload version is greater
+        gt(pre_download.major.version || "0.0.0", gameVersion || "0.0.0") // predownload version is greater
     );
   const [_gameInstallDir, setGameInstallDir] = createSignal(
     gameInstallDir ?? ""
@@ -184,6 +185,21 @@ export async function createNAPChannelClient({
     gameVersion ?? "0.0.0"
   );
   const updateRequired = () => lt(gameCurrentVersion(), GAME_LATEST_VERSION);
+  const [uiContent, setUiContent] = createStore<ChannelClient["uiContent"]>({
+    background,
+    background_video: IS_VIDEO_BG ? video_url : undefined,
+    background_theme: IS_VIDEO_BG ? theme_url : undefined,
+    backgrounds,
+    launcherIconButtons,
+    banners,
+    posts,
+    social_media_list,
+    launcherContentLoaded: !loadContent,
+    iconImage: icon,
+    url: icon_link,
+    channelName: isAdvFallback ? server.id : undefined,
+    fallbackBackground: isAdvFallback ? fallbackBg : undefined,
+  });
   return {
     installState: installed,
     showPredownloadPrompt,
@@ -192,19 +208,19 @@ export async function createNAPChannelClient({
     gameVersion: gameCurrentVersion,
     latestVersion: () => GAME_LATEST_VERSION,
     updateRequired,
-    uiContent: {
-      background: background, // Always show image
-      background_video: IS_VIDEO_BG ? video_url : undefined,
-      background_theme: IS_VIDEO_BG ? theme_url : undefined,
-      backgrounds,
-      launcherIconButtons,
-      banners,
-      posts,
-      social_media_list,
-      iconImage: icon,
-      url: icon_link,
-      channelName: isAdvFallback ? server.id : undefined,
-      fallbackBackground: isAdvFallback ? fallbackBg : undefined,
+    uiContent,
+    async hydrateUiContent() {
+      if (!loadContent) return;
+      try {
+        const content = await loadContent();
+        setUiContent({
+          banners: content.banners,
+          posts: content.posts,
+          social_media_list: content.social_media_list,
+        });
+      } finally {
+        setUiContent("launcherContentLoaded", true);
+      }
     },
     predownloadVersion: () => pre_download?.major?.version ?? "",
     dismissPredownload() {
@@ -216,11 +232,19 @@ export async function createNAPChannelClient({
     },
     async *continueInstall(): TaskProgram {
       if (wine.attributes.renderBackend == "dxmt") {
-        yield* checkAndDownloadDXMT(aria2);
+        yield* checkAndDownloadDXMT(aria2, storage.namespace);
       }
       setRuntimeReady(true);
     },
     async *install(selection: string): TaskProgram {
+      if (!versionLoaded) {
+        try {
+          await loadVersionInfo();
+        } catch {
+          await locale.alert("CHECK_GAME_UPDATE_FAILED", "CHECK_GAME_UPDATE_FAILED_DESC");
+          return;
+        }
+      }
       if (game_pkgs.length === 0) {
         await locale.alert(
           "CHECK_GAME_UPDATE_FAILED",
@@ -257,9 +281,11 @@ export async function createNAPChannelClient({
           gameVersion: GAME_LATEST_VERSION,
           server,
           totalBytes: BigInt(totalSize),
+          downloadKey: storage.namespace,
+          storage,
         });
         if (wine.attributes.renderBackend == "dxmt") {
-          yield* checkAndDownloadDXMT(aria2);
+          yield* checkAndDownloadDXMT(aria2, storage.namespace);
         }
         setRuntimeReady(true);
 
@@ -355,6 +381,8 @@ export async function createNAPChannelClient({
         updateFileZip: updateTarget.game_pkgs[0].url,
         gameDir: _gameInstallDir(),
         updateVoicePackZips: voicePacks.map(x => x.url),
+        downloadKey: storage.namespace,
+        storage,
       });
     },
     async *update() {
@@ -415,6 +443,8 @@ export async function createNAPChannelClient({
         updateFileZip: updateTarget.game_pkgs[0].url,
         gameDir: _gameInstallDir(),
         updateVoicePackZips: voicePacks.map(x => x.url),
+        downloadKey: storage.namespace,
+        storage,
       });
       batch(() => {
         setGameVersion(GAME_LATEST_VERSION);
@@ -436,7 +466,7 @@ export async function createNAPChannelClient({
         yield* checkAndDownloadReshade(aria2, wine, _gameInstallDir());
       }
       if (wine.attributes.renderBackend == "dxmt") {
-        yield* checkAndDownloadDXMT(aria2);
+        yield* checkAndDownloadDXMT(aria2, storage.namespace);
       }
       yield* launchGameProgram({
         gameDir: _gameInstallDir(),
@@ -444,6 +474,7 @@ export async function createNAPChannelClient({
         gameExecutable: server.executable,
         config,
         server,
+        storage,
       });
     },
     async *checkIntegrity() {
@@ -490,12 +521,20 @@ export async function createNAPChannelClient({
         return;
       }
       try {
-        yield* patchRevertProgram(_gameInstallDir(), wine, server, config);
+        yield* patchRevertProgram(
+          _gameInstallDir(),
+          wine,
+          server,
+          config,
+          storage
+        );
       } catch {
         yield* checkIntegrityProgram({
           aria2,
           gameDir: _gameInstallDir(),
           remoteDir: decompressed_path,
+          downloadKey: storage.namespace,
+          storage,
         });
       }
     },
@@ -504,9 +543,10 @@ export async function createNAPChannelClient({
         locale,
         config,
         gameInstallDir: _gameInstallDir,
+        storage,
       });
-      const [PO] = await createPatchOff({ locale, config });
-      const [RES] = await createResolution({ locale, config });
+      const [PO] = await createPatchOff({ locale, config, storage });
+      const [RES] = await createResolution({ locale, config, storage });
       const blockUrl =
         server.id == "nap_global" ? NAP_OS_BLOCK_URL : NAP_CN_BLOCK_URL;
       const defaultHosts = [{ domain: blockUrl, ip: "0.0.0.0" }];
@@ -514,9 +554,10 @@ export async function createNAPChannelClient({
         locale,
         config,
         defaultHostsText: getDefaultBlockHostsText(defaultHosts),
+        storage,
       });
-      const [SP] = await createSteamPatch({ locale, config });
-      const [TF] = await createTimeoutFix({ locale, config });
+      const [SP] = await createSteamPatch({ locale, config, storage });
+      const [TF] = await createTimeoutFix({ locale, config, storage });
 
       return function () {
         return [
@@ -534,10 +575,10 @@ export async function createNAPChannelClient({
   };
 }
 
-async function checkGameState(locale: Locale, server: Server) {
+async function checkGameState(locale: Locale, server: Server, storage: Storage) {
   let gameDir = "";
   try {
-    gameDir = await getKey("game_install_dir");
+    gameDir = await storage.getKey("game_install_dir");
   } catch {
     return {
       gameInstalled: false,
@@ -547,7 +588,8 @@ async function checkGameState(locale: Locale, server: Server) {
     return {
       gameInstalled: true,
       gameInstallDir: gameDir,
-      gameVersion: await getGameVersion(join(gameDir, server.dataDir), 0xc4),
+      gameVersion:
+        (await getGameVersion(join(gameDir, server.dataDir), 0xc4)) || "0.0.0",
     } as const;
   } catch {
     return {

@@ -7,8 +7,6 @@ import {
 import { env } from "../platform/neutralino/system";
 import { exec } from "./command-runner";
 
-let storageNamespace: string | undefined;
-
 function storageKeyHash(value: string) {
   let hash = 0;
   for (let i = 0; i < value.length; i++) {
@@ -71,21 +69,24 @@ function oldYaaglmStorageAppsForNamespace(namespace: string | undefined) {
   }
 }
 
-function getNeutralinoStorageKey(key: string) {
+function getNeutralinoStorageKey(key: string, namespace?: string) {
   const namespacedKey =
-    storageNamespace && shouldNamespaceStorageKey(key)
-      ? `${storageNamespace}_${key}`
+    namespace && shouldNamespaceStorageKey(key)
+      ? `${namespace}_${key}`
       : key;
   const validKey = namespacedKey.replace(/[^a-zA-Z0-9_-]/g, "_");
   if (validKey.length <= 50) return validKey;
-  const namespace = storageNamespace
-    ? storageNamespace.replace(/[^a-zA-Z0-9_-]/g, "_")
+  const validNamespace = namespace
+    ? namespace.replace(/[^a-zA-Z0-9_-]/g, "_")
     : "k";
-  return `${namespace}_${storageKeyHash(validKey)}`.slice(0, 50);
+  return `${validNamespace}_${storageKeyHash(validKey)}`.slice(0, 50);
 }
 
-function getCurrentStorageFile(key: string) {
-  return join(".storage", `${getNeutralinoStorageKey(key)}.neustorage`);
+function getCurrentStorageFile(key: string, namespace?: string) {
+  return join(
+    ".storage",
+    `${getNeutralinoStorageKey(key, namespace)}.neustorage`
+  );
 }
 
 function assertStorageKeyFormat(key: string) {
@@ -144,80 +145,63 @@ async function setOldYaaglStorageValue(
   await writeFile(path, value);
 }
 
-function getOldYaaglStorageRoute(key: string) {
-  return storageNamespace && shouldNamespaceStorageKey(key)
-    ? oldYaaglmStorageAppsForNamespace(storageNamespace)
+function getOldYaaglStorageRoute(key: string, namespace?: string) {
+  return namespace && shouldNamespaceStorageKey(key)
+    ? oldYaaglmStorageAppsForNamespace(namespace)
     : undefined;
 }
 
-export function getActiveStorageNamespace() {
-  return storageNamespace;
+export type Storage = {
+  readonly namespace?: string;
+  getKey(key: string): Promise<string>;
+  getKeyOrDefault(key: string, defaultValue: string): Promise<string>;
+  setKey(key: string, value: string | null): Promise<void>;
+};
+
+/** Creates an immutable storage view for one launcher scope. */
+export function createStorage(namespace?: string): Storage {
+  return {
+    namespace,
+    async getKey(key: string) {
+      const oldApps = getOldYaaglStorageRoute(key, namespace);
+      if (oldApps) return getOldYaaglStorageValue(oldApps, key);
+      return readFile(getCurrentStorageFile(key, namespace));
+    },
+    async getKeyOrDefault(key: string, defaultValue: string) {
+      try {
+        return await this.getKey(key);
+      } catch {
+        return defaultValue;
+      }
+    },
+    async setKey(key: string, value: string | null) {
+      const oldApps = getOldYaaglStorageRoute(key, namespace);
+      if (oldApps) return setOldYaaglStorageValue(oldApps[0], key, value);
+      const path = getCurrentStorageFile(key, namespace);
+      if (value === null) {
+        try {
+          await removeFile(path);
+        } catch {
+          // Already unset.
+        }
+        return;
+      }
+      await exec(["mkdir", "-p", ".storage"]);
+      await writeFile(path, value);
+    },
+  };
 }
 
-let namespaceQueue: Promise<void> = Promise.resolve();
-
-function enqueueNamespaceBlock<T>(run: () => Promise<T>): Promise<T> {
-  const result = namespaceQueue.then(run);
-  namespaceQueue = result.then(
-    () => undefined,
-    () => undefined
-  );
-  return result;
-}
-
-export function withStorageNamespace<T>(
-  namespace: string,
-  fn: () => Promise<T>
-): Promise<T> {
-  return enqueueNamespaceBlock(async () => {
-    const previous = storageNamespace;
-    storageNamespace = namespace;
-    try {
-      return await fn();
-    } finally {
-      storageNamespace = previous;
-    }
-  });
-}
-
-export function activateStorageNamespace(
-  namespace: string
-): Promise<() => void> {
-  return enqueueNamespaceBlock(async () => {
-    const previous = storageNamespace;
-    storageNamespace = namespace;
-    return () => {
-      storageNamespace = previous;
-    };
-  });
-}
+export const globalStorage = createStorage();
 
 export async function getKey(key: string): Promise<string> {
-  const oldApps = getOldYaaglStorageRoute(key);
-  if (oldApps) return getOldYaaglStorageValue(oldApps, key);
-  return readFile(getCurrentStorageFile(key));
+  return globalStorage.getKey(key);
 }
 
 export async function getKeyOrDefault(key: string, defaultValue: string) {
-  try {
-    return await getKey(key);
-  } catch {
-    return defaultValue;
-  }
+  return globalStorage.getKeyOrDefault(key, defaultValue);
 }
 
 export async function setKey(key: string, value: string | null) {
-  const oldApps = getOldYaaglStorageRoute(key);
-  if (oldApps) return setOldYaaglStorageValue(oldApps[0], key, value);
-  const path = getCurrentStorageFile(key);
-  if (value === null) {
-    try {
-      await removeFile(path);
-    } catch {
-      // Already unset.
-    }
-    return;
-  }
-  await exec(["mkdir", "-p", ".storage"]);
-  return writeFile(path, value);
+  return globalStorage.setKey(key, value);
 }

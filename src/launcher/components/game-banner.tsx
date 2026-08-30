@@ -6,6 +6,7 @@ export function GameBanner(props: {
   src: string;
   label: string;
   alt?: string;
+  loading?: "eager" | "lazy";
 }) {
   const [failed, setFailed] = createSignal(false);
 
@@ -33,6 +34,8 @@ export function GameBanner(props: {
       <img
         src={props.src}
         alt={props.alt ?? ""}
+        loading={props.loading ?? "lazy"}
+        decoding="async"
         onError={() => setFailed(true)}
       />
     </Show>

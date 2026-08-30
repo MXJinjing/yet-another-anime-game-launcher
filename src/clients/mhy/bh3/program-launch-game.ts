@@ -4,6 +4,7 @@ import { Server } from "@constants";
 import { log } from "@logging/logger";
 import { removeFile, resolve, writeFile } from "@platform/neutralino";
 import { mkdirp } from "@runtime/macos-filesystem";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { Wine } from "@wine";
 import { Config } from "@config";
 import { getCustomEnvironmentVariables } from "@config";
@@ -16,12 +17,14 @@ export async function* launchGameProgram({
   wine,
   config,
   server,
+  storage = globalStorage,
 }: {
   gameDir: string;
   gameExecutable: string;
   wine: Wine;
   config: Config;
   server: Server;
+  storage?: Storage;
 }): TaskProgram {
   const processMonitor = wine.createGameProcessMonitor(gameExecutable);
   if (await processMonitor.isRunning()) {
@@ -41,7 +44,7 @@ cd /d "${wine.toWinePath(gameDir)}"
     join(gameDir, gameExecutable)
   )}"`;
   await writeFile(resolve("config.bat"), cmd);
-  yield* patchProgram(gameDir, wine, server, config);
+  yield* patchProgram(gameDir, wine, server, config, undefined, storage);
   await mkdirp(resolve("./logs"));
   let startupTimedOut = false;
   try {
@@ -118,5 +121,5 @@ cd /d "${wine.toWinePath(gameDir)}"
 
   await removeFile(resolve("config.bat"));
   yield ["setStateText", "REVERT_PATCHING"];
-  yield* patchRevertProgram(gameDir, wine, server, config);
+  yield* patchRevertProgram(gameDir, wine, server, config, storage);
 }

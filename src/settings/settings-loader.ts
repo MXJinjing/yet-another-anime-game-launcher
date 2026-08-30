@@ -29,6 +29,7 @@ import {
   GlobalLoadedSettings,
   SettingsUI,
 } from "./settings-types";
+import type { Storage } from "@runtime/storage";
 
 export type GlobalSettingsOptions = {
   locale: Locale;
@@ -61,6 +62,7 @@ export type GameSettingsOptions = {
     config: Partial<Config>
   ) => Promise<ChannelClientConfigUI>;
   configStore?: ConfigStore;
+  storage?: Storage;
   wineTag?: () => string;
   wineOptions?: { tag: string; displayName: string }[];
   onWineTagChange?: (tag: string) => void;
@@ -155,7 +157,7 @@ async function loadGameSettings(
 ): Promise<GameLoadedSettings> {
   const { locale, configForChannelClient, gameInstallDir } = options;
   const config: Partial<Config> = {};
-  const configStore = options.configStore ?? createConfigStore();
+  const configStore = options.configStore ?? createConfigStore(options.storage);
   const [metalHUD] = await createMetalHUDConfig({
     locale,
     config,
@@ -210,6 +212,7 @@ async function loadGameSettings(
   const [customEnvironmentVariables] = await createCustomEnvironmentVariables({
     locale,
     config,
+    storage: options.storage,
   });
 
   const { channelClientGame, channelClientVideo } = resolveChannelClientConfig(

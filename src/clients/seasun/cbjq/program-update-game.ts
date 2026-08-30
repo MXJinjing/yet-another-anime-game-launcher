@@ -2,7 +2,7 @@ import { join } from "path-browserify";
 import { Aria2, Aria2OverallProgress } from "@aria2";
 import type { TaskProgram } from "@tasks/task-program";
 import { readFile, removeFileIfExists, writeFile } from "@platform/neutralino";
-import { setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { LauncherResourceData } from "./launcher-info";
 import { Server } from "../server";
 
@@ -11,11 +11,16 @@ export async function* updateGameProgram({
   gameDir,
   server,
   aria2,
+  downloadKey,
+  storage = globalStorage,
 }: {
   resourceData: LauncherResourceData;
   gameDir: string;
   server: Server;
   aria2: Aria2;
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
+  storage?: Storage;
 }): TaskProgram {
   yield ["setUndeterminedProgress"];
   const local_manifest = join(gameDir, "manifest.json");
@@ -58,7 +63,7 @@ export async function* updateGameProgram({
   }
   let count = 0;
   // Track overall progress so the button's percentage covers every added pak.
-  const overall = new Aria2OverallProgress();
+  const overall = new Aria2OverallProgress(undefined, downloadKey);
   for (const { remoteName, hash } of toAdd) {
     const localPath = join(gameDir, remoteName);
     const remotePath = join(server.dlc, resourceData.pathOffset, hash).replace(
@@ -70,13 +75,14 @@ export async function* updateGameProgram({
     for await (const progress of aria2.doStreamingDownload({
       uri: remotePath,
       absDst: localPath,
+      downloadKey,
     })) {
       yield ["setProgress", overall.step(progress)];
     }
     overall.finishFile();
     count++;
   }
-  setKey("patched", null);
+  await storage.setKey("patched", null);
 
   await writeFile(join(gameDir, "manifest.json"), JSON.stringify(resourceData));
 }

@@ -127,11 +127,13 @@ async function getGameDisplayIcon(
 
 export async function getLatestLauncherContent(
   locale: Locale,
-  server: Server
+  server: Server,
+  options: { deferContent?: boolean } = {}
 ): Promise<{
   backgrounds: HoyoConnectGameBackground[];
   launcherIconButtons: HoyoConnectLauncherIcon[];
   content: HoyoConnectGetGameContentResponse["data"]["content"];
+  loadContent?: () => Promise<HoyoConnectGetGameContentResponse["data"]["content"]>;
 }> {
   const region = getHoyoPlayRegion(server);
   const language = region === "CN" ? "zh-cn" : locale.get("CONTENT_LANG_ID");
@@ -153,14 +155,9 @@ export async function getLatestLauncherContent(
     throw new Error(`failed to fetch game information: ${server.id}`);
   }
 
-  let content: HoyoConnectGetGameContentResponse["data"]["content"] = {
-    game: game.game,
-    language,
-    banners: [],
-    posts: [],
-    social_media_list: [],
-  };
-  try {
+  const loadContent = async (): Promise<
+    HoyoConnectGetGameContentResponse["data"]["content"]
+  > => {
     const contentResponse = await fetch(
       `${GET_GAME_CONTENT_URL[region]}&game_id=${encodeURIComponent(
         game.game.id
@@ -170,18 +167,30 @@ export async function getLatestLauncherContent(
     const contentData: HoyoConnectGetGameContentResponse =
       await contentResponse.json();
     const remoteContent = contentData.data.content;
-    content = {
+    return {
       ...remoteContent,
       banners: remoteContent.banners ?? [],
       posts: remoteContent.posts ?? [],
       social_media_list: remoteContent.social_media_list ?? [],
     };
-  } catch (error) {
-    log(
-      `[hyp-connect] getGameContent failed for ${
-        server.id
-      }; continuing without announcements/social media: ${String(error)}`
-    );
+  };
+  let content: HoyoConnectGetGameContentResponse["data"]["content"] = {
+    game: game.game,
+    language,
+    banners: [],
+    posts: [],
+    social_media_list: [],
+  };
+  if (!options.deferContent) {
+    try {
+      content = await loadContent();
+    } catch (error) {
+      log(
+        `[hyp-connect] getGameContent failed for ${
+          server.id
+        }; continuing without announcements/social media: ${String(error)}`
+      );
+    }
   }
 
   const sortedBackgrounds = [...game.backgrounds].sort((a, b) => {
@@ -212,6 +221,7 @@ export async function getLatestLauncherContent(
     backgrounds: resolvedBackgrounds,
     launcherIconButtons,
     content,
+    loadContent: options.deferContent ? loadContent : undefined,
   };
 }
 

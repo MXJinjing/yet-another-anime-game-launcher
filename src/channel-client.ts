@@ -72,6 +72,8 @@ export interface ChannelClient {
     posts?: HoyoConnectGamePost[];
     /** Launcher home social-media entries and their links/QR codes. */
     social_media_list?: HoyoConnectSocialMedia[];
+    /** Whether deferred launcher announcements and social media have loaded. */
+    launcherContentLoaded?: boolean;
     url: string;
     iconImage?: string;
     launchButtonLocation?: "left" | "right";
@@ -81,6 +83,8 @@ export interface ChannelClient {
     /** CSS gradient string for offline background fallback */
     fallbackBackground?: string;
   };
+  /** Hydrates non-critical launcher announcements and social media content. */
+  hydrateUiContent?: () => Promise<void>;
 
   dismissPredownload(): void;
 

@@ -2,13 +2,10 @@ import { createGlobalSettings } from "@settings";
 import { Locale } from "@locale";
 import { hopeTaskNotifier } from "@tasks/task-notifications";
 import {
-  activateStorageNamespace,
   exec2,
   fatal,
-  getActiveStorageNamespace,
   getKeyOrDefault,
   setKey,
-  withStorageNamespace,
 } from "@runtime";
 import { log } from "@logging/logger";
 import { openDir } from "@platform/neutralino";
@@ -28,6 +25,7 @@ import {
   createMemo,
   createSignal,
   onCleanup,
+  onMount,
 } from "solid-js";
 import type { JSX } from "solid-js";
 import { createGameInstallationDirectorySanitizer } from "@services/game-installation";
@@ -314,6 +312,7 @@ export async function createHypLauncher({
         if (!game) return;
         await clearGameInstallationState(game);
       },
+      storage: () => games[selectedGameIndex()]?.storage,
       actionDisabled: () => _actionDisabled(),
     });
 
@@ -331,10 +330,8 @@ export async function createHypLauncher({
     const currentIds = (game.client.uiContent.backgrounds ?? [])
       .map(bg => bg.id)
       .filter((id): id is string => typeof id === "string" && id.length > 0);
-    const readStored = () => getKeyOrDefault(BG_STORAGE_KEY, "");
-    const raw = game.namespace
-      ? await withStorageNamespace(game.namespace, readStored)
-      : await readStored();
+    const raw = await (game.storage?.getKeyOrDefault(BG_STORAGE_KEY, "") ??
+      getKeyOrDefault(BG_STORAGE_KEY, ""));
     const stored = parseBackgroundPersistedState(raw);
     const index = resolveInitialIndex(stored, currentIds);
     initialBgIndex[game.id] = index;
@@ -347,15 +344,34 @@ export async function createHypLauncher({
       (!stored || stored.index !== index || !storedIdsMatch)
     ) {
       const value = JSON.stringify({ ids: currentIds, index });
-      const writeStored = () => setKey(BG_STORAGE_KEY, value);
-      if (game.namespace)
-        await withStorageNamespace(game.namespace, writeStored);
-      else await writeStored();
+      await (game.storage?.setKey(BG_STORAGE_KEY, value) ??
+        setKey(BG_STORAGE_KEY, value));
     }
   }
 
   return function HypLauncher() {
     const selectedGame = () => games[selectedGameIndex()];
+    onMount(() => {
+      const hydrate = (game: HypGame) => {
+        void game.client.hydrateUiContent?.().catch(error =>
+          log(`[hyp-connect] deferred UI hydration failed for ${game.id}: ${String(error)}`)
+        );
+      };
+      const usesIdleCallback = "requestIdleCallback" in window;
+      const scheduled = usesIdleCallback
+        ? window.requestIdleCallback(() => {
+            hydrate(selectedGame());
+            games.filter(game => game !== selectedGame()).forEach(hydrate);
+          })
+        : window.setTimeout(() => {
+            hydrate(selectedGame());
+            games.filter(game => game !== selectedGame()).forEach(hydrate);
+          }, 150);
+      onCleanup(() => {
+        if (usesIdleCallback) window.cancelIdleCallback(scheduled as number);
+        else window.clearTimeout(scheduled as number);
+      });
+    });
     onCleanup(() => {
       stopGameLogOpen?.();
       stopGameLogOpen = undefined;
@@ -494,9 +510,8 @@ export async function createHypLauncher({
         .filter((id): id is string => typeof id === "string" && id.length > 0);
       if (ids.length === 0) return;
       const value = JSON.stringify({ ids, index });
-      const write = () => setKey(BG_STORAGE_KEY, value);
-      if (game.namespace) await withStorageNamespace(game.namespace, write);
-      else await write();
+      await (game.storage?.setKey(BG_STORAGE_KEY, value) ??
+        setKey(BG_STORAGE_KEY, value));
     }
     function switchBackground(game: HypGame, to: number) {
       const list = game.client.uiContent.backgrounds ?? [];
@@ -1137,32 +1152,13 @@ export async function createHypLauncher({
     }
 
     async function openNativeSettings(game: HypGame) {
-      restoreNativeSettingsNamespace?.();
-      let restore: (() => void) | undefined;
-      if (game.namespace) {
-        if (getActiveStorageNamespace() === game.namespace) {
-          // The namespace is already active — e.g. the game itself is running
-          // and its launch task holds the namespace, which blocks the
-          // serialized namespace queue. Nothing to switch; settings stay usable
-          // while the game is running.
-          restore = () => undefined;
-        } else {
-          // Don't let a running game's held namespace block opening settings:
-          // apply the switch in the background and restore it when the modal
-          // closes.
-          const activation = activateStorageNamespace(game.namespace);
-          restore = () => {
-            void activation.then(fn => fn());
-          };
-        }
-      }
       if (nativeSettingsCloseTimer) {
         clearTimeout(nativeSettingsCloseTimer);
         nativeSettingsCloseTimer = undefined;
         setNativeSettingsGame(undefined);
       }
       batch(() => {
-        restoreNativeSettingsNamespace = restore;
+        restoreNativeSettingsNamespace = undefined;
         setNativeSettingsOpen(true);
         setNativeSettingsGame(game);
       });
@@ -1217,6 +1213,7 @@ export async function createHypLauncher({
                 loop
                 muted
                 playsinline
+                preload="metadata"
                 onLoadedData={() => setVideoLoaded(true)}
                 style={{ opacity: videoLoaded() ? 1 : 0 }}
               />
@@ -1254,6 +1251,7 @@ export async function createHypLauncher({
                 loop
                 muted
                 playsinline
+                preload="metadata"
               />
             </Show>
             <Show when={transitionTarget()?.background_theme}>

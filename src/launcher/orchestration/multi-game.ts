@@ -2,7 +2,7 @@ import { Aria2 } from "@aria2";
 import type { TaskProgram } from "@tasks/task-program";
 import { createGameSettings } from "@settings";
 import { Locale } from "@locale";
-import { withStorageNamespace } from "@runtime/storage";
+import { createStorage, getKeyOrDefault } from "@runtime/storage";
 import { Wine, WineDistribution } from "@wine";
 import { createSignal } from "solid-js";
 import { reportBootProgress } from "../../boot-progress";
@@ -25,6 +25,7 @@ import {
 } from "@wine/multi-game";
 
 import type { MultiGameGameSpec } from "../data/multi-game-spec";
+import type { BootPerformance } from "../../boot-performance";
 export async function createMultiGameLauncher({
   wine,
   wineDistroId,
@@ -40,6 +41,7 @@ export async function createMultiGameLauncher({
   onResetWineEnv,
   region,
   specs = MULTI_GAME_OS_GAME_SPECS,
+  bootPerformance,
 }: {
   wine: Wine;
   wineDistroId: string;
@@ -55,6 +57,7 @@ export async function createMultiGameLauncher({
   onResetWineEnv: () => Promise<void>;
   region: HoyoPlayRegion;
   specs?: MultiGameGameSpec[];
+  bootPerformance?: BootPerformance;
 }) {
   const baseWine = wine;
   const actionDisabledRef = { current: () => false };
@@ -62,7 +65,9 @@ export async function createMultiGameLauncher({
 
   let gameDisplays = new Map<string, HoyoConnectGameDisplay["display"]>();
   try {
-    gameDisplays = await getLatestGameDisplays(region);
+    gameDisplays = await (bootPerformance?.measure("multi-game-displays", () =>
+      getLatestGameDisplays(region)
+    ) ?? getLatestGameDisplays(region));
   } catch {
     // The per-game clients still have their existing fallback assets.
     log("[hyp-connect] Failed to fetch HoYoPlay game display assets");
@@ -75,7 +80,24 @@ export async function createMultiGameLauncher({
     bh3: { CN: "bh3_cn", OS: "bh3_global" },
   };
 
-  for (const [index, spec] of specs.entries()) {
+  // Initialize the channel the user last viewed first. This keeps its
+  // background and install state on the critical startup path while the
+  // remaining channels can be hydrated afterward by the client layer.
+  const lastView = await getKeyOrDefault("hyp_last_view", "");
+  const prioritizedSpecs = [...specs].sort((a, b) => {
+    if (a.id === lastView) return -1;
+    if (b.id === lastView) return 1;
+    return 0;
+  });
+
+  const gamesById = new Map<string, HypGame>();
+  let completed = 0;
+  let nextIndex = 0;
+  let failure: unknown;
+
+  async function initializeGame(spec: MultiGameGameSpec) {
+    const storage = createStorage(spec.namespace);
+    const index = completed;
     reportBootProgress(
       "BOOT_INITIALIZING_GAME_CLIENT",
       66 + Math.round((index / Math.max(1, specs.length)) * 30),
@@ -83,12 +105,26 @@ export async function createMultiGameLauncher({
     );
     const wineRef: MultiGameWineRef = { current: baseWine };
     const gameWine = createMultiGameWineProxy(wineRef);
-    const client = await withStorageNamespace(spec.namespace, async () =>
-      spec.createClient({ wine: gameWine, aria2, locale })
-    );
-    const initialWineTag = await getMultiGameGameWineTag(spec.id);
+    const client = await (bootPerformance?.measure(
+      `game-client:${spec.id}`,
+      () =>
+        spec.createClient({
+          wine: gameWine,
+          aria2,
+          locale,
+          storage,
+          bootPerformance,
+        })
+    ) ?? spec.createClient({ wine: gameWine, aria2, locale, storage, bootPerformance }));
+    const initialWineTag = await (bootPerformance?.measure(
+      `game-wine-config:${spec.id}`,
+      () => getMultiGameGameWineTag(spec.id)
+    ) ?? getMultiGameGameWineTag(spec.id));
     const [wineTag, setWineTag] = createSignal(initialWineTag);
-    const wineOptions = await getMultiGameWineOptions(initialWineTag);
+    const wineOptions = await (bootPerformance?.measure(
+      `game-wine-options:${spec.id}`,
+      () => getMultiGameWineOptions(initialWineTag)
+    ) ?? getMultiGameWineOptions(initialWineTag));
     const display = gameDisplays.get(gameBizByRegion[spec.id]?.[region]);
     const resolvedSpec = {
       ...spec,
@@ -97,25 +133,32 @@ export async function createMultiGameLauncher({
       bannerImage: display?.thumbnail.url ?? spec.bannerImage,
       logoImage: display?.logo.url ?? spec.logoImage,
     };
-    const { UI: ConfigurationUI, config } = await withStorageNamespace(
-      spec.namespace,
-      async () =>
-        createGameSettings({
-          locale,
-          gameInstallDir: client.installDir,
-          onGameInstallDirChange: client.changeInstallDir,
-          configForChannelClient: client.createConfig,
-          wineTag,
-          wineOptions,
-          onWineTagChange: tag => {
-            setWineTag(tag);
-            void setMultiGameGameWineTag(spec.id, tag);
-          },
-        })
-    );
+    const createSettings = () =>
+      createGameSettings({
+        locale,
+        storage,
+        gameInstallDir: client.installDir,
+        onGameInstallDirChange: client.changeInstallDir,
+        configForChannelClient: (locale, config) =>
+          bootPerformance?.measure(
+            `game-channel-config:${spec.id}`,
+            () => client.createConfig(locale, config)
+          ) ?? client.createConfig(locale, config),
+        wineTag,
+        wineOptions,
+        onWineTagChange: tag => {
+          setWineTag(tag);
+          void setMultiGameGameWineTag(spec.id, tag);
+        },
+      });
+    const { UI: ConfigurationUI, config } = await (bootPerformance?.measure(
+      `game-settings:${spec.id}`,
+      createSettings
+    ) ?? createSettings());
 
-    games.push({
+    gamesById.set(spec.id, {
       ...resolvedSpec,
+      storage,
       client,
       config: config as Config,
       ConfigurationUI,
@@ -124,7 +167,36 @@ export async function createMultiGameLauncher({
       setWineTag,
       wineOptions,
     });
+    completed++;
   }
+
+  async function worker() {
+    while (failure === undefined) {
+      const spec = prioritizedSpecs[nextIndex++];
+      if (!spec) return;
+      try {
+        await initializeGame(spec);
+      } catch (error) {
+        const detail =
+          error instanceof Error
+            ? `${error.name}: ${error.message}\n${error.stack ?? ""}`
+            : String(error);
+        await log(`[multi-game] Initialization failed for ${spec.id}: ${detail}`);
+        failure = error;
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(4, prioritizedSpecs.length) }, () => worker())
+  );
+  if (failure !== undefined) throw failure;
+  // Keep the library order stable; only the initialization order is changed.
+  games.push(
+    ...specs
+      .map(spec => gamesById.get(spec.id))
+      .filter((game): game is HypGame => !!game)
+  );
 
   reportBootProgress("BOOT_INITIALIZING_GAME_CLIENT", 96);
   return createHypLauncher({

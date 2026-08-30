@@ -20,7 +20,7 @@ import {
 } from "@runtime/format";
 import { forceMove, mkdirp } from "@runtime/macos-filesystem";
 import { hpatchz } from "@runtime/patching";
-import { getKey, getKeyOrDefault, setKey } from "@runtime/storage";
+import { globalStorage, type Storage } from "@runtime/storage";
 import { gte } from "semver";
 
 //https://stackoverflow.com/a/69399958
@@ -28,14 +28,16 @@ import { gte } from "semver";
 async function* downloadAndPatch(
   updateFileZip: string,
   gameDir: string,
-  aria2: Aria2
+  aria2: Aria2,
+  downloadKey?: string,
+  storage: Storage = globalStorage
 ): TaskProgram {
   const downloadTmp = join(gameDir, ".ariatmp");
   await mkdirp(downloadTmp);
   const updateFileTmp = join(downloadTmp, basename(updateFileZip));
 
   try {
-    await getKey(
+    await storage.getKey(
       `predownloaded_${(await sha1sum(basename(updateFileZip))).slice(0, 32)}`
     );
     await stats(updateFileTmp);
@@ -46,6 +48,7 @@ async function* downloadAndPatch(
     for await (const progress of aria2.doStreamingDownload({
       uri: updateFileZip,
       absDst: updateFileTmp,
+      downloadKey,
     })) {
       if (!gameFileStart && progress.downloadSpeed == BigInt(0)) {
         continue;
@@ -68,7 +71,7 @@ async function* downloadAndPatch(
       ];
     }
   } finally {
-    await setKey(
+    await storage.setKey(
       `predownloaded_${(await sha1sum(basename(updateFileZip))).slice(0, 32)}`,
       null
     );
@@ -126,6 +129,8 @@ export async function* updateGameProgram({
   updatedGameVersion,
   server,
   updateVoicePackZips,
+  downloadKey,
+  storage = globalStorage,
 }: {
   updateFileZip: string;
   gameDir: string;
@@ -134,16 +139,25 @@ export async function* updateGameProgram({
   aria2: Aria2;
   server: Server;
   updateVoicePackZips: string[];
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
+  storage?: Storage;
 }): TaskProgram {
   yield ["setStateText", "UPDATING"];
 
-  yield* downloadAndPatch(updateFileZip, gameDir, aria2);
+  yield* downloadAndPatch(updateFileZip, gameDir, aria2, downloadKey, storage);
 
   for (const updateVoicePackZip of updateVoicePackZips) {
-    yield* downloadAndPatch(updateVoicePackZip, gameDir, aria2);
+    yield* downloadAndPatch(
+      updateVoicePackZip,
+      gameDir,
+      aria2,
+      downloadKey,
+      storage
+    );
   }
 
-  await setKey(`predownloaded_all`, null);
+  await storage.setKey(`predownloaded_all`, null);
   await writeFile(
     join(gameDir, "config.ini"),
     `[General]
@@ -157,14 +171,16 @@ cps=${server.cps}`
 async function* predownload(
   updateFileZip: string,
   gameDir: string,
-  aria2: Aria2
+  aria2: Aria2,
+  downloadKey?: string,
+  storage: Storage = globalStorage
 ): TaskProgram {
   const downloadTmp = join(gameDir, ".ariatmp");
   await mkdirp(downloadTmp);
   const updateFileTmp = join(downloadTmp, basename(updateFileZip));
 
   if (
-    (await getKeyOrDefault(
+    (await storage.getKeyOrDefault(
       `predownloaded_${(await sha1sum(basename(updateFileZip))).slice(0, 32)}`,
       `NOTFOUND`
     )) !== "NOTFOUND"
@@ -178,6 +194,7 @@ async function* predownload(
   for await (const progress of aria2.doStreamingDownload({
     uri: updateFileZip,
     absDst: updateFileTmp,
+    downloadKey,
   })) {
     if (!gameFileStart && progress.downloadSpeed == BigInt(0)) {
       continue;
@@ -199,7 +216,7 @@ async function* predownload(
       ) / 100,
     ];
   }
-  await setKey(
+  await storage.setKey(
     `predownloaded_${(await sha1sum(basename(updateFileZip))).slice(0, 32)}`,
     "true"
   );
@@ -210,16 +227,27 @@ export async function* predownloadGameProgram({
   updateFileZip,
   aria2,
   updateVoicePackZips,
+  downloadKey,
+  storage = globalStorage,
 }: {
   updateFileZip: string;
   gameDir: string;
   aria2: Aria2;
   updateVoicePackZips: string[];
+  /** Per-game download control key so the primary button can offer pause. */
+  downloadKey?: string;
+  storage?: Storage;
 }) {
-  yield* predownload(updateFileZip, gameDir, aria2);
+  yield* predownload(updateFileZip, gameDir, aria2, downloadKey, storage);
 
   for (const updateVoicePackZip of updateVoicePackZips) {
-    yield* predownload(updateVoicePackZip, gameDir, aria2);
+    yield* predownload(
+      updateVoicePackZip,
+      gameDir,
+      aria2,
+      downloadKey,
+      storage
+    );
   }
-  await setKey(`predownloaded_all`, "true");
+  await storage.setKey(`predownloaded_all`, "true");
 }
