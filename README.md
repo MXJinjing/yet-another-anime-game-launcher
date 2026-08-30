@@ -237,7 +237,7 @@ YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
 
 1. If Hosts-Helper is enabled, open the in-app settings to uninstall it.
 2. Drag app to the bin
-3. Delete folder `~/Library/Application Support/Yaaglm` or `~/Library/Application Support/Yaaglm OS` if you are using oversea version. (For HSR and ZZZ the name of folder is slightly different)
+3. Delete folder `~/Library/Application Support/Yaaglm GI CN` or `~/Library/Application Support/Yaaglm OS` if you are using oversea version. (For HSR and ZZZ the name of folder is slightly different)
 4. If you used another channel, also check `~/Library/Application Support/` for the corresponding application-support directory.
 
 ## Related projects

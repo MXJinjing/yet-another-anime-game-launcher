@@ -243,9 +243,9 @@ YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
 1. 如果启用了Hosts-Helper，打开应用内设置将其卸载。
 2. 将应用移到废纸篓。
 3. 删除对应的应用支持目录：
-   - `~/Library/Application Support/Yaaglm`
+   - `~/Library/Application Support/Yaaglm GI CN`
    - `~/Library/Application Support/Yaaglm OS`
-4. 如果使用了其他 channel，请同时检查 `~/Library/Application Support/` 下以 Yaaglm 或对应应用名称开头的目录。
+4. 如果使用了其他 channel，请同时检查 `~/Library/Application Support/` 下以 Yaaglm GI CN、Yaaglm 或对应应用名称开头的目录。
 5. 如需保留下载缓存、Wine 前缀或日志，请在删除前先备份相关目录。
 
 ## Related projects

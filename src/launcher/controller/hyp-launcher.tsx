@@ -1291,7 +1291,12 @@ export async function createHypLauncher({
           </div>
         </Show>
 
-        <aside class="hyp-game-rail">
+        <aside
+          classList={{
+            "hyp-game-rail": true,
+            "single-game": games.length === 1,
+          }}
+        >
           <button class="hyp-orbit-button" aria-label="Yaaglm">
             <span />
           </button>
@@ -1423,11 +1428,23 @@ export async function createHypLauncher({
               <button
                 classList={{
                   "hyp-primary-button": true,
+                  "hyp-primary-button-label-long":
+                    primaryButtonLabel().length > 12,
+                  "hyp-primary-button-label-extra-long":
+                    primaryButtonLabel().length > 22,
                   "hyp-primary-button-downloading":
                     !selectedGameRunning() &&
                     (selectedDownloadControl().active ||
                       activeTaskState().progress() > 0),
                 }}
+                data-label-length={
+                  primaryButtonLabel().length > 22
+                    ? "extra-long"
+                    : primaryButtonLabel().length > 12
+                    ? "long"
+                    : "normal"
+                }
+                title={primaryButtonLabel()}
                 disabled={actionDisabled()}
                 onClick={() => onPrimaryAction().catch(fatal)}
                 style={

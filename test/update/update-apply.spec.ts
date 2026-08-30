@@ -54,9 +54,9 @@ describe("update apply", () => {
   });
 
   it("mirrors the release bundle into the running app with rsync --delete", async () => {
-    mockedEnv.mockResolvedValue("/Applications/Yaaglm.app");
+    mockedEnv.mockResolvedValue("/Applications/Yaaglm GI CN.app");
 
-    await applyReleaseApp("./sidecar.tar.gz", "Yaaglm.app");
+    await applyReleaseApp("./sidecar.tar.gz", "Yaaglm GI CN.app");
 
     expect(mockedTarExtract).toHaveBeenCalledWith(
       "./sidecar.tar.gz",
@@ -66,37 +66,23 @@ describe("update apply", () => {
     expect(commands).toContainEqual([
       "test",
       "-f",
-      "./.update-app/Yaaglm.app/Contents/Resources/build-manifest.json",
+      "./.update-app/Yaaglm GI CN.app/Contents/Resources/build-manifest.json",
     ]);
     expect(commands).toContainEqual([
       "rsync",
       "-a",
       "--checksum",
       "--delete",
-      "./.update-app/Yaaglm.app/",
-      "/Applications/Yaaglm.app/",
+      "./.update-app/Yaaglm GI CN.app/",
+      "/Applications/Yaaglm GI CN.app/",
     ]);
-    expect(commands).toContainEqual([
-      "rsync",
-      "-a",
-      "./.update-app/Yaaglm.app/Contents/Resources/sidecar/",
-      "./sidecar/",
-    ]);
-    expect(mockedRmrf).toHaveBeenCalledWith("./sidecar");
-    expect(mockedCp).toHaveBeenCalledWith(
-      "./.update-app/Yaaglm.app/Contents/Resources/build-manifest.json",
-      "./build-manifest.json"
-    );
-    expect(mockedCp).toHaveBeenCalledWith(
-      "./.update-app/Yaaglm.app/Contents/Resources/icon.icns",
-      "./icon.icns"
-    );
+    expect(mockedRmrf).not.toHaveBeenCalledWith("./sidecar");
+    expect(mockedCp).not.toHaveBeenCalled();
   });
 
   it("falls back to an administrator rsync when the bundle is not writable", async () => {
     mockedEnv.mockResolvedValue("/Applications/Yaaglm.app");
     mockedExec.mockImplementation(async (segments, _env, sudo) => {
-      // Only the bundle mirror uses --delete; the sidecar copy must not throw.
       if (segments.includes("--delete") && !sudo) {
         throw new Error("permission denied");
       }
@@ -113,7 +99,7 @@ describe("update apply", () => {
     expect(bundleSyncCalls[1][2]).toBe(true);
   });
 
-  it("skips bundle replacement when YAAGL_BUNDLE_PATH is unset but still refreshes the working dir", async () => {
+  it("skips bundle replacement when YAAGL_BUNDLE_PATH is unset", async () => {
     mockedEnv.mockResolvedValue("");
 
     await applyReleaseApp("./sidecar.tar.gz", "Yaaglm.app");
@@ -127,8 +113,8 @@ describe("update apply", () => {
       "./.update-app/Yaaglm.app/",
       "/",
     ]);
-    expect(mockedRmrf).toHaveBeenCalledWith("./sidecar");
-    expect(mockedCp).toHaveBeenCalled();
+    expect(mockedRmrf).not.toHaveBeenCalledWith("./sidecar");
+    expect(mockedCp).not.toHaveBeenCalled();
   });
 
   it("aborts without touching the old sidecar when the archive layout is invalid", async () => {

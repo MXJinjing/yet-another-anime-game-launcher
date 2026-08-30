@@ -413,6 +413,34 @@ export async function createBH3ChannelClient({
         remoteDir: decompressed_path,
       });
     },
+    async changeInstallDir(selection: string) {
+      if (!selection) {
+        batch(() => {
+          setInstalled("NOT_INSTALLED");
+          setGameInstallDir("");
+          setGameVersion("0.0.0");
+        });
+        await setKey("game_install_dir", null);
+        return;
+      }
+      try {
+        const gameVersion = await getGameVersion(
+          join(selection, server.dataDir)
+        );
+        batch(() => {
+          setInstalled("INSTALLED");
+          setGameInstallDir(selection);
+          setGameVersion(gameVersion);
+        });
+      } catch {
+        batch(() => {
+          setInstalled("NOT_INSTALLED");
+          setGameInstallDir(selection);
+          setGameVersion("0.0.0");
+        });
+      }
+      await setKey("game_install_dir", selection);
+    },
     async *init(config: Config) {
       setRuntimeReady(await isDXMTInstalled());
       try {

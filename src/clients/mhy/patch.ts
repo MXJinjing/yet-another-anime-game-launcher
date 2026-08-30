@@ -19,6 +19,7 @@ import {
   removeFile,
   removeFileIfExists,
   resolve,
+  resolveResource,
   writeBinary,
   writeFile,
 } from "@platform/neutralino";
@@ -192,22 +193,22 @@ export async function* patchProgram(
   if (!server.id.startsWith("hkrpg")) {
     yield* report(++step, totalSteps, "补丁阶段：安装 steam64.exe");
     await cp(
-      resolve("./sidecar/protonextras/steam64.exe"),
+      resolveResource("./sidecar/protonextras/steam64.exe"),
       join(system32Dir, "steam.exe")
     );
     yield* report(++step, totalSteps, "补丁阶段：安装 steam32.exe");
     await cp(
-      resolve("./sidecar/protonextras/steam32.exe"),
+      resolveResource("./sidecar/protonextras/steam32.exe"),
       join(syswow64Dir, "steam.exe")
     );
     yield* report(++step, totalSteps, "补丁阶段：安装 lsteamclient64.dll");
     await cp(
-      resolve("./sidecar/protonextras/lsteamclient64.dll"),
+      resolveResource("./sidecar/protonextras/lsteamclient64.dll"),
       join(system32Dir, "lsteamclient.dll")
     );
     yield* report(++step, totalSteps, "补丁阶段：安装 lsteamclient32.dll");
     await cp(
-      resolve("./sidecar/protonextras/lsteamclient32.dll"),
+      resolveResource("./sidecar/protonextras/lsteamclient32.dll"),
       join(syswow64Dir, "lsteamclient.dll")
     );
   }

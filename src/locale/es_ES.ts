@@ -376,6 +376,8 @@ export const es_ES: typeof zh_CN = {
   NOTIFICATION_TASK_FAILED:
     "No se pudo completar la tarea. Consulta el registro para más detalles.",
   NOTIFICATION_TASK_FAILED_TITLE: "Error en la tarea",
+  NOTIFICATION_AUTHORIZATION_CANCELLED:
+    "La tarea falló porque se canceló la autorización.",
   CHECK_UPDATE_FAILED: "Error al comprobar actualizaciones",
   CHECK_UPDATE_FAILED_DESC: "No se puede conectar al servidor de GitHub ({0})",
   CHECK_GAME_UPDATE_FAILED: "No se pudo comprobar la actualización del juego",

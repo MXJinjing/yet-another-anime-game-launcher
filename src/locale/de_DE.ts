@@ -377,6 +377,8 @@ export const de_DE: typeof zh_CN = {
   NOTIFICATION_TASK_FAILED:
     "Die Aufgabe ist fehlgeschlagen. Details finden Sie im Live-Log.",
   NOTIFICATION_TASK_FAILED_TITLE: "Aufgabe fehlgeschlagen",
+  NOTIFICATION_AUTHORIZATION_CANCELLED:
+    "Die Aufgabe ist fehlgeschlagen, weil die Autorisierung abgebrochen wurde.",
   CHECK_UPDATE_FAILED: "Updateprüfung fehlgeschlagen",
   CHECK_UPDATE_FAILED_DESC: "Keine Verbindung zum GitHub-Server möglich ({0})",
   CHECK_GAME_UPDATE_FAILED: "Spielupdate-Prüfung fehlgeschlagen",

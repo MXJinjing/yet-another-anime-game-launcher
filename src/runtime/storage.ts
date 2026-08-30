@@ -84,6 +84,10 @@ function getNeutralinoStorageKey(key: string) {
   return `${namespace}_${storageKeyHash(validKey)}`.slice(0, 50);
 }
 
+function getCurrentStorageFile(key: string) {
+  return join(".storage", `${getNeutralinoStorageKey(key)}.neustorage`);
+}
+
 function assertStorageKeyFormat(key: string) {
   if (!/^[a-zA-Z-_0-9]{1,50}$/.test(key)) {
     throw new Error(
@@ -191,7 +195,7 @@ export function activateStorageNamespace(
 export async function getKey(key: string): Promise<string> {
   const oldApps = getOldYaaglStorageRoute(key);
   if (oldApps) return getOldYaaglStorageValue(oldApps, key);
-  return Neutralino.storage.getData(getNeutralinoStorageKey(key));
+  return readFile(getCurrentStorageFile(key));
 }
 
 export async function getKeyOrDefault(key: string, defaultValue: string) {
@@ -205,5 +209,15 @@ export async function getKeyOrDefault(key: string, defaultValue: string) {
 export async function setKey(key: string, value: string | null) {
   const oldApps = getOldYaaglStorageRoute(key);
   if (oldApps) return setOldYaaglStorageValue(oldApps[0], key, value);
-  return Neutralino.storage.setData(getNeutralinoStorageKey(key), value);
+  const path = getCurrentStorageFile(key);
+  if (value === null) {
+    try {
+      await removeFile(path);
+    } catch {
+      // Already unset.
+    }
+    return;
+  }
+  await exec(["mkdir", "-p", ".storage"]);
+  return writeFile(path, value);
 }

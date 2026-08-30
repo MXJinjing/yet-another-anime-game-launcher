@@ -59,7 +59,7 @@ file sidecar/yaaglm-hosts-helper/yaaglm-hosts-helper
 
 | Channel         | 典型应用名称        | Bundle ID 后缀 |
 | --------------- | ------------------- | -------------- |
-| `hk4ecn`        | `Yaaglm.app`        | 无后缀         |
+| `hk4ecn`        | `Yaaglm GI CN.app`  | 无后缀         |
 | `hk4eos`        | `Yaaglm GI OS.app`  | `.hk4e.os`     |
 | `hk4euniversal` | `Yaaglm Uni.app`    | `.uni`         |
 | `mhycn`         | `Yaaglm CN.app`     | `.cn`          |
@@ -120,7 +120,7 @@ node build-app.js
 输出位置：
 
 ```text
-release/arm64/Yaaglm.app
+release/arm64/Yaaglm GI CN.app
 ```
 
 如果要构建 hk4e OS 或 Universal channel，只需修改变量：
@@ -195,11 +195,13 @@ napcn
 9. 计算 launcher/helper SHA-256。
 10. 写入 `Contents/Resources/build-manifest.json`。
 
-`parameterized` 启动脚本会把资源复制到：
+`parameterized` 启动脚本会从 `.app/Contents/Resources` 加载发布资源，并将当前工作目录设置为：
 
 ```text
 ~/Library/Application Support/<appName>/
 ```
+
+该目录只保存用户数据、配置、日志和更新临时文件；`resources.neu`、`sidecar`、`build-manifest.json` 和图标保留在 `.app/Contents/Resources` 中。
 
 同时设置：
 
@@ -214,7 +216,7 @@ Hosts Helper 的可信 bundle 检测依赖这个环境变量。测试时应从 `
 假设产物位于：
 
 ```sh
-APP="$(pwd)/release/arm64/Yaaglm.app"
+APP="$(pwd)/release/arm64/Yaaglm GI CN.app"
 ```
 
 检查应用和版本：
@@ -238,7 +240,7 @@ manifest 至少应包含：
 {
   "bundleId": "com.3shain.yaaglm",
   "version": "0.0.1",
-  "appName": "Yaaglm",
+  "appName": "Yaaglm GI CN",
   "launcherPath": "MacOS/Yaaglm",
   "launcherSha256": "<64 hex characters>",
   "clientSha256": "<64 hex characters>",

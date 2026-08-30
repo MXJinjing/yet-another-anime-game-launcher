@@ -382,6 +382,8 @@ export const fr_FR: typeof zh_CN = {
   NOTIFICATION_TASK_FAILED:
     "Échec de la tâche. Consultez les journaux pour plus de détails.",
   NOTIFICATION_TASK_FAILED_TITLE: "Échec de la tâche",
+  NOTIFICATION_AUTHORIZATION_CANCELLED:
+    "La tâche a échoué, car l’autorisation a été annulée.",
   CHECK_UPDATE_FAILED: "Échec de la vérification des mises à jour",
   CHECK_UPDATE_FAILED_DESC:
     "Impossible de se connecter au serveur GitHub ({0})",

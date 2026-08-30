@@ -17,7 +17,7 @@ esac
 
 CHANNELS=(hk4ecn hk4eos mhyos mhycn hkrpgcn hkrpgos bh3glb cbjq cbjqcn napos napcn)
 APP_NAMES=(
-  "Yaaglm"
+  "Yaaglm GI CN"
   "Yaaglm GI OS"
   "Yaaglm OS"
   "Yaaglm CN"

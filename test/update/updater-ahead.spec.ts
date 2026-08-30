@@ -29,8 +29,8 @@ function releaseWithTag(tagName: string) {
     body: "body",
     assets: [
       {
-        name: "Yaaglm.app.tar.gz",
-        browser_download_url: `https://github.com/example/download/${tagName}/Yaaglm.app.tar.gz`,
+        name: "Yaaglm.GI.CN.app.tar.gz",
+        browser_download_url: `https://github.com/example/download/${tagName}/Yaaglm.GI.CN.app.tar.gz`,
       },
     ],
   };

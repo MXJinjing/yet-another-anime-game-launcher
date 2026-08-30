@@ -13,6 +13,7 @@ import { type Locale, type LocaleTextKey } from "@locale";
 import { log, logerror } from "../logging/logger";
 import { fatal } from "../runtime/fatal";
 import { isConnectionError } from "../services/connection-error";
+import { isAuthorizationCancelledError } from "../runtime/authorization";
 import { type Accessor, createSignal, type Setter } from "solid-js";
 import { isTaskFailedError, type TaskProgram } from "./task-program";
 import type { TaskNotifier } from "./task-notifications";
@@ -228,7 +229,13 @@ export function createTaskRunner({
       state.setStatusArgs(null);
       if (taskName) notifier.taskCompleted(locale, taskName);
     } catch (error) {
-      if (isDownloadCancelledError(error)) {
+      if (isAuthorizationCancelledError(error)) {
+        const authorizationError = new Error(
+          locale.get("NOTIFICATION_AUTHORIZATION_CANCELLED")
+        );
+        await logerror(error instanceof Error ? error.message : String(error));
+        notifier.taskFailed(locale, taskName, authorizationError, key);
+      } else if (isDownloadCancelledError(error)) {
         await log("Task cancelled");
         if (taskName) notifier.taskCancelled(locale, taskName);
       } else if (isDownloadFailedError(error)) {

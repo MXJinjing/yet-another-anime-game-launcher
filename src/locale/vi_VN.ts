@@ -372,6 +372,8 @@ export const vi_VN: typeof zh_CN = {
   NOTIFICATION_TASK_FAILED:
     "Không thể hoàn thành tác vụ. Vui lòng xem nhật ký để biết chi tiết.",
   NOTIFICATION_TASK_FAILED_TITLE: "Tác vụ thất bại",
+  NOTIFICATION_AUTHORIZATION_CANCELLED:
+    "Tác vụ thất bại vì quyền ủy quyền đã bị hủy.",
   CHECK_UPDATE_FAILED: "Update check failed",
   CHECK_UPDATE_FAILED_DESC: "Unable to connect to the GitHub server ({0})",
   CHECK_GAME_UPDATE_FAILED: "Kiểm tra cập nhật trò chơi thất bại",

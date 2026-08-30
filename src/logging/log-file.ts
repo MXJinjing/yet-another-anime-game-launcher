@@ -1,12 +1,9 @@
-import { join } from "path-browserify";
+import { resolve } from "../platform/neutralino/path";
 
 const LOG_FILE_NAME = "yaaglm.log";
 
 export function getRuntimeLogFilePath() {
-  return join(
-    import.meta.env.PROD ? window.NL_PATH : join(window.NL_CWD, window.NL_PATH),
-    LOG_FILE_NAME
-  );
+  return resolve(LOG_FILE_NAME);
 }
 
 export async function appendRuntimeLogFile(level: string, message: string) {

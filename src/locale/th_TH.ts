@@ -365,6 +365,8 @@ export const th_TH: typeof zh_CN = {
   NOTIFICATION_TASK_CANCELLED: "ยกเลิกงานแล้ว",
   NOTIFICATION_TASK_FAILED: "ทำงานไม่สำเร็จ กรุณาดูรายละเอียดในบันทึก",
   NOTIFICATION_TASK_FAILED_TITLE: "งานล้มเหลว",
+  NOTIFICATION_AUTHORIZATION_CANCELLED:
+    "งานล้มเหลวเนื่องจากยกเลิกการอนุญาต",
   CHECK_UPDATE_FAILED: "ตรวจสอบการอัปเดตไม่สำเร็จ",
   CHECK_UPDATE_FAILED_DESC: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ GitHub ได้ ({0})",
   CHECK_GAME_UPDATE_FAILED: "ตรวจสอบอัปเดตเกมไม่สำเร็จ",

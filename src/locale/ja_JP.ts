@@ -370,6 +370,8 @@ export const ja_JP: typeof zh_CN = {
   NOTIFICATION_TASK_FAILED:
     "タスクの実行に失敗しました。ライブログで詳細を確認してください。",
   NOTIFICATION_TASK_FAILED_TITLE: "タスク失敗",
+  NOTIFICATION_AUTHORIZATION_CANCELLED:
+    "認証がキャンセルされたため、タスクに失敗しました。",
   CHECK_UPDATE_FAILED: "更新の確認に失敗しました",
   CHECK_UPDATE_FAILED_DESC: "GitHub サーバーに接続できません ({0})",
   CHECK_GAME_UPDATE_FAILED: "ゲームの更新確認に失敗しました",

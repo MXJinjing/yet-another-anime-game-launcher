@@ -21,7 +21,8 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   switch (channel) {
     case "hk4ecn":
       bundleId = config.applicationId;
-      appDistributionName = config.cli.binaryName;
+      appDistributionName = "Yaaglm GI CN";
+      config.modes.window.title = "Yaaglm GI CN";
       includeSophon = true;
       break;
     case "hk4eos":
@@ -234,10 +235,11 @@ APST_DIR="$HOME/Library/Application Support/${appDistributionName}"
 echo $APST_DIR
 mkdir -p "$APST_DIR"
 CONTENTS_DIR="$(dirname "$SCRIPT_DIR")"
-rsync -rlptu "$CONTENTS_DIR/Resources/." "$APST_DIR"
+# Keep the working directory for user data and temporary files only. Published
+# resources are loaded directly from the app bundle below.
 cd "$APST_DIR"
 export YAAGL_BUNDLE_PATH="$(dirname "$CONTENTS_DIR")"
-PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$APST_DIR"`
+PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$CONTENTS_DIR/Resources"`
   );
 
   await fs.chmod(

@@ -371,6 +371,8 @@ export const en: typeof zh_CN = {
   NOTIFICATION_TASK_CANCELLED: "Task cancelled",
   NOTIFICATION_TASK_FAILED: "The task failed. Check the live logs for details.",
   NOTIFICATION_TASK_FAILED_TITLE: "Task failed",
+  NOTIFICATION_AUTHORIZATION_CANCELLED:
+    "The task failed because authorization was cancelled.",
   CHECK_UPDATE_FAILED: "Update check failed",
   CHECK_UPDATE_FAILED_DESC: "Unable to connect to the GitHub server ({0})",
   CHECK_GAME_UPDATE_FAILED: "Check game update failed",

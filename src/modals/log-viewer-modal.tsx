@@ -92,7 +92,11 @@ export function createLogViewer(locale: Locale) {
           }
         >
           <div class="log-viewer-shell">
-            <div class="log-viewer-console" ref={logContainer}>
+            <div
+              class="log-viewer-console"
+              ref={logContainer}
+              on:contextmenu={event => event.stopPropagation()}
+            >
               <For
                 each={formattedEntries()}
                 fallback={

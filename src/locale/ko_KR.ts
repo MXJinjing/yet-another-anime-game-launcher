@@ -368,6 +368,8 @@ export const ko_KR: typeof zh_CN = {
   NOTIFICATION_TASK_FAILED:
     "작업 실행에 실패했습니다. 실시간 로그에서 자세한 내용을 확인하세요.",
   NOTIFICATION_TASK_FAILED_TITLE: "작업 실패",
+  NOTIFICATION_AUTHORIZATION_CANCELLED:
+    "인증이 취소되어 작업에 실패했습니다.",
   CHECK_UPDATE_FAILED: "업데이트 확인 실패",
   CHECK_UPDATE_FAILED_DESC: "GitHub 서버에 연결할 수 없습니다 ({0})",
   CHECK_GAME_UPDATE_FAILED: "게임 업데이트 확인 실패",

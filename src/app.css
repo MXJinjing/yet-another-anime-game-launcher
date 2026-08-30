@@ -79,6 +79,16 @@ textarea,
   text-align: center;
 }
 
+.app-boot-version {
+  position: absolute;
+  left: 24px;
+  bottom: 20px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
 @keyframes app-boot-spin {
   to {
     transform: rotate(360deg);
@@ -268,6 +278,7 @@ textarea,
 .hyp-secondary-button {
   border: 0;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .hyp-orbit-button {
@@ -293,6 +304,10 @@ textarea,
   flex-direction: column;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.hyp-game-rail.single-game .hyp-game-icons {
+  margin-bottom: 10px;
 }
 
 .hyp-game-icon {
@@ -414,14 +429,15 @@ textarea,
 }
 
 .hyp-primary-button {
-  width: fit-content;
-  min-width: 0;
+  width: max-content;
+  min-width: 140px;
+  max-width: 200px;
   height: 56px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 18px;
-  padding: 0 10px;
+  padding: 0;
   border-radius: 999px;
   background: var(--hyp-accent, #ffd834);
   background: linear-gradient(
@@ -434,8 +450,7 @@ textarea,
   color: var(--hyp-accent-text, #333333);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   backdrop-filter: blur(18px) saturate(160%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28),
-    inset 0 1px 1px rgba(255, 255, 255, 0.32),
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.32),
     inset 0 -2px 6px rgba(0, 0, 0, 0.12), 0 18px 34px rgba(0, 0, 0, 0.34);
   transition: filter 160ms ease, box-shadow 160ms ease;
 }
@@ -443,8 +458,7 @@ textarea,
 .hyp-primary-button:hover {
   transform: none;
   filter: brightness(1.08);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4),
-    inset 0 1px 1px rgba(255, 255, 255, 0.42),
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.42),
     inset 0 -2px 6px rgba(0, 0, 0, 0.1), 0 22px 44px rgba(0, 0, 0, 0.44),
     0 0 0 1px rgba(255, 255, 255, 0.16);
 }
@@ -814,7 +828,14 @@ textarea,
 }
 
 .hyp-action-copy {
+  width: max-content;
   min-width: 0;
+  max-width: 200px;
+  height: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  flex-shrink: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -823,13 +844,65 @@ textarea,
 }
 
 .hyp-action-copy span {
+  display: -webkit-box;
+  width: 100%;
+  box-sizing: border-box;
   padding: 0 20px;
   font-size: 22px;
   font-weight: 700;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  text-align: center;
 }
 
 .hyp-primary-button-downloading .hyp-action-copy span {
-  padding-left: 0;
+  padding: 0 20px 0 10px;
+}
+
+.hyp-primary-button-downloading {
+  position: relative;
+  width: fit-content;
+  min-width: 120px;
+  max-width: 200px;
+  justify-content: flex-start;
+  padding-left: 57px;
+  padding-right: 0;
+}
+
+.hyp-primary-button-downloading .hyp-action-copy {
+  position: static;
+  transform: none;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
+}
+
+.hyp-primary-button-downloading .hyp-ring {
+  position: absolute;
+  left: 12px;
+}
+
+.hyp-primary-button-label-long .hyp-action-copy span {
+  font-size: 18px;
+}
+
+.hyp-primary-button-label-extra-long .hyp-action-copy span {
+  font-size: 15px;
+  line-height: 1;
+  -webkit-line-clamp: 3;
+}
+
+.hyp-primary-button-label-extra-long .hyp-action-copy {
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+.hyp-primary-button-label-extra-long .hyp-action-copy span {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
 }
 
 .hyp-secondary-button {
@@ -905,8 +978,33 @@ textarea,
   }
 
   .hyp-primary-button {
+    width: max-content;
+    min-width: 140px;
+    max-width: 200px;
     height: 52px;
-    padding: 0 10px;
+    padding: 0;
+  }
+
+  .hyp-action-copy {
+    width: max-content;
+    min-width: 0;
+    max-width: 200px;
+  }
+
+  .hyp-primary-button-downloading {
+    width: fit-content;
+    min-width: 140px;
+    max-width: 200px;
+    padding-left: 53px;
+    padding-right: 0;
+  }
+
+  .hyp-primary-button-downloading .hyp-action-copy {
+    position: static;
+  }
+
+  .hyp-primary-button-downloading .hyp-ring {
+    left: 8px;
   }
 
   .hyp-action-copy span {

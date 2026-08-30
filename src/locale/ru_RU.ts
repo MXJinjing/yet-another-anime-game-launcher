@@ -373,6 +373,8 @@ export const ru_RU: typeof zh_CN = {
   NOTIFICATION_TASK_FAILED:
     "Не удалось выполнить задачу. Подробности — в журнале.",
   NOTIFICATION_TASK_FAILED_TITLE: "Сбой задачи",
+  NOTIFICATION_AUTHORIZATION_CANCELLED:
+    "Задача не выполнена: авторизация отменена пользователем.",
   CHECK_UPDATE_FAILED: "Не удалось проверить обновления",
   CHECK_UPDATE_FAILED_DESC: "Не удалось подключиться к серверу GitHub ({0})",
   CHECK_GAME_UPDATE_FAILED: "Не удалось проверить обновления игры",

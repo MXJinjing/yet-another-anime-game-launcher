@@ -5,6 +5,7 @@ import {
   getRuntimeArch,
   readFile,
   resolve,
+  resolveResource,
   writeFile,
 } from "../platform/neutralino";
 import { resolveSidecarPath } from "../platform/neutralino/sidecar";
@@ -18,10 +19,10 @@ export type { HostEntry } from "./hosts-validation";
 const helperPath = () =>
   resolveSidecarPath("yaaglm-hosts-helper/yaaglm-hosts-helper");
 const installScriptPath = () =>
-  resolve("./sidecar/yaaglm-hosts-helper/install.sh");
+  resolveResource("./sidecar/yaaglm-hosts-helper/install.sh");
 const uninstallScriptPath = () =>
-  resolve("./sidecar/yaaglm-hosts-helper/uninstall.sh");
-const manifestPath = () => resolve("./build-manifest.json");
+  resolveResource("./sidecar/yaaglm-hosts-helper/uninstall.sh");
+const manifestPath = () => resolveResource("./build-manifest.json");
 const tokenPath = (bundleId: string) => resolve(`./tokens/${bundleId}.token`);
 const installedHelperPath =
   "/Library/PrivilegedHelperTools/yaaglm-hosts-helper";

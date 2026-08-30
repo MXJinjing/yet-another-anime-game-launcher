@@ -353,6 +353,7 @@ export const zh_CN = {
   NOTIFICATION_TASK_CANCELLED: "任务已取消",
   NOTIFICATION_TASK_FAILED: "任务执行失败，请查看实时日志了解详情。",
   NOTIFICATION_TASK_FAILED_TITLE: "任务失败",
+  NOTIFICATION_AUTHORIZATION_CANCELLED: "任务失败，用户取消授权。",
   CHECK_UPDATE_FAILED: "检测更新失败",
   CHECK_UPDATE_FAILED_DESC: "无法连接到 GitHub 服务器 ({0})",
   CHECK_GAME_UPDATE_FAILED: "检查游戏更新失败",

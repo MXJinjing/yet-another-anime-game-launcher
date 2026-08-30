@@ -11,6 +11,10 @@ import {
 } from "./boot-progress";
 import { getChannelBootIcon } from "./boot-icon";
 import { installInputEditingShortcuts } from "./input-editing-shortcuts";
+import {
+  CURRENT_YAAGL_CHANNEL,
+  CURRENT_YAAGL_VERSION,
+} from "./constants/version";
 
 function createPlates(
   tag: string,
@@ -48,6 +52,9 @@ if (typeof Neutralino == "undefined") {
             {getBootText()}
             {getBootDetail()}
           </div>
+        </div>
+        <div class="app-boot-version">
+          Version: {CURRENT_YAAGL_VERSION}({CURRENT_YAAGL_CHANNEL})
         </div>
       </div>
     ),

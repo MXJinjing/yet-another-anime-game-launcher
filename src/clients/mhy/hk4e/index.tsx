@@ -453,7 +453,13 @@ export async function createHK4EChannelClient({
         });
         await setKey("game_install_dir", selection);
       } catch {
-        await locale.alert("CANT_OPEN_GAME_FILE", "CANT_OPEN_GAME_FILE_DESC");
+        // A selected directory is also a valid target for a new install.
+        batch(() => {
+          setInstalled("NOT_INSTALLED");
+          setGameInstallDir(selection);
+          setGameVersion("0.0.0");
+        });
+        await setKey("game_install_dir", selection);
       }
     },
     async *init(config: Config) {

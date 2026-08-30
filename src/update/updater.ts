@@ -10,24 +10,25 @@ import { CURRENT_YAAGL_VERSION } from "../constants";
 import { log } from "../logging/logger";
 import { formatDownloadSpeed, humanFileSize } from "@runtime/format";
 import { DownloadCancelledError } from "../download/control";
-import { env, readFile, removeFile, resolve } from "../platform/neutralino";
+import {
+  env,
+  readFile,
+  removeFile,
+  resolve,
+  resolveResource,
+} from "../platform/neutralino";
 import { tar_extract } from "../runtime/archive";
 import { exec } from "../runtime/command-runner";
 import { wait } from "../runtime/async";
 import { DEV_UPDATE_INFO } from "./dev-mock";
-import {
-  cp,
-  forceMove,
-  mkdirp,
-  rmrf_dangerously,
-} from "../runtime/macos-filesystem";
+import { mkdirp, rmrf_dangerously } from "../runtime/macos-filesystem";
 import type { TaskProgram } from "../tasks/task-program";
 
 const owner = "MXJinjing";
 const repo = "yet-another-anime-game-launcher";
 
 const RELEASE_APP_ARCHIVES: Record<string, string> = {
-  hk4ecn: "Yaaglm.app.tar.gz",
+  hk4ecn: "Yaaglm.GI.CN.app.tar.gz",
   hk4eos: "Yaaglm.GI.OS.app.tar.gz",
   bh3glb: "Yaaglm.Honkai.Global.app.tar.gz",
   hkrpgcn: "Yaaglm.HSR.app.tar.gz",
@@ -41,7 +42,7 @@ const RELEASE_APP_ARCHIVES: Record<string, string> = {
 };
 
 const RELEASE_APP_TOP_LEVEL_DIRS: Record<string, string> = {
-  "Yaaglm.app": "Yaaglm.app",
+  "Yaaglm.GI.CN.app": "Yaaglm GI CN.app",
   "Yaaglm.GI.OS.app": "Yaaglm GI OS.app",
   "Yaaglm.Honkai.Global.app": "Yaaglm Honkai Global.app",
   "Yaaglm.HSR.app": "Yaaglm HSR.app",
@@ -88,50 +89,24 @@ export async function resolveUpdateChannel(): Promise<string> {
 
 /**
  * Detects whether a previous (older, buggy) hot update left this install
- * half-applied: the running frontend (resources.neu) is already the current
- * version, but the applied-release manifest (and/or the installed .app bundle)
- * still reports the previous version. The fixed update flow replaces the
- * bundle, sidecar and manifest together, so a version mismatch here means the
- * update was applied by the old flow and needs to be re-applied once.
+ * half-applied: the running frontend is already the current version, but the
+ * installed app bundle still reports the previous version.
  */
 export async function isUpdateHalfApplied(): Promise<boolean> {
   if (CURRENT_YAAGL_VERSION === "development") return false;
   const expected = CURRENT_YAAGL_VERSION;
 
   try {
-    const raw = await readFile("./build-manifest.json");
+    const raw = await readFile(resolveResource("./build-manifest.json"));
     const parsed = JSON.parse(raw) as { version?: unknown };
-    // Only a manifest that is OLDER than the running frontend means the
-    // bundle/sidecar did not catch up with the (already swapped) resources.neu.
-    // A manifest that is newer belongs to a partial apply of a *newer* release,
-    // which is handled by the normal update flow, not by a downgrading repair.
     if (typeof parsed.version == "string" && lt(parsed.version, expected)) {
       await log(
-        `Half-applied update detected: working-dir manifest is ${parsed.version}, running version ${expected}`
+        `Half-applied update detected: bundle manifest is ${parsed.version}, running version ${expected}`
       );
       return true;
     }
   } catch {
-    // Unreadable/missing manifest is handled by the trusted-bundle check.
-  }
-
-  try {
-    const bundlePath = await env("YAAGL_BUNDLE_PATH");
-    if (bundlePath) {
-      const raw = await readFile(
-        `${bundlePath}/Contents/Resources/build-manifest.json`
-      );
-      const parsed = JSON.parse(raw) as { version?: unknown };
-      if (typeof parsed.version == "string" && lt(parsed.version, expected)) {
-        await log(
-          `Half-applied update detected: bundle manifest is ${parsed.version}, running version ${expected}`
-        );
-        return true;
-      }
-    }
-  } catch {
-    // The bundle may live somewhere unreadable; the working-dir check above
-    // already covers the common half-applied state.
+    // Missing or unreadable bundle manifest is handled by the trusted-bundle check.
   }
   return false;
 }
@@ -167,17 +142,12 @@ const UPDATE_EXTRACT_DIR = "./.update-app";
 /**
  * Applies the release app shipped in the downloaded archive:
  *  1. extracts the full .app bundle once;
- *  2. mirrors it into the running .app path with rsync --delete, so after the
- *     update the app folder is byte-for-byte identical to the released app and
- *     the next launch's parameterized rsync has no old files left to re-merge;
- *  3. deletes the old sidecar in the launcher working directory and copies the
- *     new sidecar in its place (the old sidecar is never mixed with the new);
- *  4. refreshes build-manifest.json and icon.icns, and stages resources.neu
- *     for an atomic replacement in the working directory.
+ *  2. mirrors it into the running .app path with rsync --delete, so the
+ *     installed bundle contains the complete released app;
+ *  3. leaves Application Support user data untouched; resources.neu, sidecar,
+ *     manifest, and the icon are loaded directly from the app bundle.
  *
- * The bundle is replaced first: if a later working-dir step fails, the next
- * launch re-syncs the (now current) bundle Resources over the working dir and
- * still ends up consistent. Falls back to an administrator prompt when the
+ * The bundle is replaced first. Falls back to an administrator prompt when the
  * bundle is not writable by the current user (e.g. /Applications is
  * root-owned).
  */
@@ -226,18 +196,6 @@ export async function applyReleaseApp(
     } else {
       await log("YAAGL_BUNDLE_PATH is unset; skipping app bundle replacement");
     }
-
-    // Replace the working-dir sidecar wholesale: the old sidecar is deleted
-    // first so it can never be mixed with the new sidecar.
-    await rmrf_dangerously("./sidecar");
-    await mkdirp("./sidecar");
-    await exec(["rsync", "-a", `${newResources}/sidecar/`, "./sidecar/"]);
-
-    // Refresh the other app-managed resources the launcher reads at startup
-    // (hosts-helper registration/version checks use the manifest).
-    await cp(`${newResources}/build-manifest.json`, "./build-manifest.json");
-    await cp(`${newResources}/icon.icns`, "./icon.icns");
-    await cp(`${newResources}/resources.neu`, "./resources.neu.update");
   } finally {
     await rmrf_dangerously(UPDATE_EXTRACT_DIR);
   }
@@ -376,6 +334,5 @@ export async function* downloadProgram(
   const topLevelDir = getReleaseAppTopLevelDir(appUrl);
   await applyReleaseApp("./update-app.tar.gz", topLevelDir);
   assertNotAborted(signal);
-  await forceMove("./resources.neu.update", "./resources.neu");
   await removeFile("./update-app.tar.gz");
 }

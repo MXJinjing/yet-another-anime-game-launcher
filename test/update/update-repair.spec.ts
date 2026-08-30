@@ -12,6 +12,7 @@ vi.mock("@platform/neutralino", () => ({
   readFile: vi.fn(async () => ""),
   removeFile: vi.fn(),
   resolve: (path: string) => path,
+  resolveResource: (path: string) => path,
 }));
 vi.mock("@runtime/command-runner", () => ({
   exec: vi.fn(),
@@ -40,14 +41,11 @@ import {
 const mockedEnv = vi.mocked(env);
 const mockedReadFile = vi.mocked(readFile);
 
-const BUNDLE_MANIFEST =
-  "/Applications/Yaaglm.app/Contents/Resources/build-manifest.json";
-
 function manifest(version: string) {
   return JSON.stringify({
     bundleId: "com.3shain.yaaglm",
     version,
-    appName: "Yaaglm",
+    appName: "Yaaglm GI CN",
   });
 }
 
@@ -59,8 +57,8 @@ function releaseWithAssets(tagName: string, withArchive = true) {
       ...(withArchive
         ? [
             {
-              name: "Yaaglm.app.tar.gz",
-              browser_download_url: `https://github.com/example/download/${tagName}/Yaaglm.app.tar.gz`,
+              name: "Yaaglm.GI.CN.app.tar.gz",
+              browser_download_url: `https://github.com/example/download/${tagName}/Yaaglm.GI.CN.app.tar.gz`,
             },
           ]
         : []),
@@ -75,22 +73,22 @@ describe("half-applied update detection", () => {
     mockedReadFile.mockResolvedValue(manifest("1.1.0"));
   });
 
-  it("detects a stale working-dir manifest (old broken hot update)", async () => {
+  it("detects a stale app-bundle manifest", async () => {
     mockedReadFile.mockResolvedValueOnce(manifest("1.0.0"));
     await expect(isUpdateHalfApplied()).resolves.toBe(true);
   });
 
-  it("detects a stale bundle manifest even when the working dir is current", async () => {
-    mockedEnv.mockResolvedValue("/Applications/Yaaglm.app");
-    mockedReadFile
-      .mockResolvedValueOnce(manifest("1.1.0")) // working dir
-      .mockResolvedValueOnce(manifest("1.0.0")); // bundle
-    await expect(isUpdateHalfApplied()).resolves.toBe(true);
-    expect(mockedReadFile).toHaveBeenCalledWith(BUNDLE_MANIFEST);
+  it("reads only the app-bundle manifest", async () => {
+    mockedEnv.mockResolvedValue("/Applications/Yaaglm GI CN.app");
+    await expect(isUpdateHalfApplied()).resolves.toBe(false);
+    expect(mockedReadFile).toHaveBeenCalledWith("./build-manifest.json");
+    expect(mockedReadFile).not.toHaveBeenCalledWith(
+      "/Applications/Yaaglm GI CN.app/Contents/Resources/build-manifest.json"
+    );
   });
 
   it("is a no-op when both manifests match the running version", async () => {
-    mockedEnv.mockResolvedValue("/Applications/Yaaglm.app");
+    mockedEnv.mockResolvedValue("/Applications/Yaaglm GI CN.app");
     await expect(isUpdateHalfApplied()).resolves.toBe(false);
   });
 
@@ -118,7 +116,7 @@ describe("release assets for a pinned version", () => {
       getReleaseAssetsForVersion(github as never, "1.1.0")
     ).resolves.toEqual({
       appDownloadUrl:
-        "https://github.com/example/download/1.1.0/Yaaglm.app.tar.gz",
+        "https://github.com/example/download/1.1.0/Yaaglm.GI.CN.app.tar.gz",
     });
     expect(github.api).toHaveBeenCalledWith(
       "/repos/MXJinjing/yet-another-anime-game-launcher/releases/tags/1.1.0"

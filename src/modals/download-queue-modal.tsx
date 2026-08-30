@@ -93,7 +93,7 @@ export function DownloadQueueModal(props: {
       onClose={props.onClose}
       title={props.locale.get("DOWNLOAD_MANAGER")}
       maxWidth={720}
-      height={520}
+      height={600}
       bodyClass="download-queue-body"
     >
       <Show when={globalTaskActive()}>

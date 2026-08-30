@@ -14,6 +14,7 @@ import {
   humanFileSize,
 } from "@runtime/format";
 import { isConnectionError } from "../services/connection-error";
+import { isAuthorizationCancelledError } from "../runtime/authorization";
 import {
   isTaskFailedError,
   type TaskDownloadStats,
@@ -101,6 +102,20 @@ export function createTaskProgressScreen({
           await onCompleted?.();
           await onRestart?.();
         } catch (error) {
+          if (isAuthorizationCancelledError(error)) {
+            await logerror(
+              error instanceof Error ? error.message : String(error)
+            );
+            await locale.alert(
+              "NOTIFICATION_TASK_FAILED_TITLE",
+              "NOTIFICATION_AUTHORIZATION_CANCELLED",
+              [],
+              "danger"
+            );
+            await onSettled?.();
+            await onFailed?.(error);
+            return;
+          }
           if (isDownloadCancelledError(error)) {
             await log("Task cancelled");
             setDone(true);

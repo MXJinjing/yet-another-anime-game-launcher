@@ -40,6 +40,7 @@ vi.mock("@platform/neutralino/sidecar", () => ({
 
 vi.mock("@platform/neutralino", () => ({
   resolve: (value: string) => value,
+  resolveResource: (value: string) => value,
   writeFile,
   env,
   readFile,
