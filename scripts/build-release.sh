@@ -5,7 +5,7 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." &>/dev/null && pwd)"
 cd "$ROOT"
 
 ARCH="${YAAGL_BUILD_ARCH:-arm64}"
-VERSION="${YAAGL_VERSION:-1.0.0}"
+VERSION="${YAAGL_VERSION:-1.1.0}"
 export YAAGL_VERSION="$VERSION"
 case "$ARCH" in
   arm64|x64|universal) ;;

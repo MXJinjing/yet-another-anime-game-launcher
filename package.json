@@ -1,6 +1,6 @@
 {
   "name": "yaaglm",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "",
   "scripts": {
     "start": "YAAGL_CHANNEL_CLIENT=hk4ecn vite build --mode=\"development\" && cp './neutralino.js' './dist/neutralino.js' && mkdir -p dev/yaaglmwd && cp neutralino.config.json dev/yaaglmwd/neutralino.config.json && rsync -rlptu dist dev/yaaglmwd && rsync -rlptu sophon_server/build/server.dist/ sidecar/arm64/sophon_server/ && rsync -rlptu sidecar dev/yaaglmwd && rsync -rlptu src/assets dev/yaaglmwd/src && neu run -- --path=./dev/yaaglmwd",
