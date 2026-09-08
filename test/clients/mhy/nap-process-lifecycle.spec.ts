@@ -33,6 +33,9 @@ vi.mock("@src/clients/mhy/patch", () => ({
   patchRevertProgram: vi.fn(async function* () {
     yield ["setRawStateText", "mock revert"];
   }),
+  applyMhypBaseReplacement: vi.fn(async () => false),
+  isRuntimeReplacementFileMissingError: vi.fn(() => false),
+  revertMhypBaseReplacement: vi.fn(async () => undefined),
 }));
 
 import type { Config } from "@config";

@@ -1,4 +1,4 @@
-import { Box, Button, Text } from "@hope-ui/solid";
+import { Box, Button, Input, Text } from "@hope-ui/solid";
 import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined } from "@runtime/assertions";
@@ -18,11 +18,13 @@ import type { BlockHostRule } from "@settings/controls/launch/block-hosts";
 declare module "@config/config-def" {
   interface Config {
     blockNet: boolean;
+    blockNetDuration: number;
     blockNetHostsText: string;
   }
 }
 
 const CONFIG_KEY = "config_block_net";
+const DURATION_KEY = "config_block_net_duration";
 const HOSTS_KEY = "config_block_net_hosts";
 const RULES_KEY = "config_block_net_rules";
 
@@ -40,11 +42,20 @@ export default async function ({
   const { getKey, setKey } = storage;
   const defaultEntries = parseBlockHostRulesText(defaultHostsText);
   let storedHostsText = defaultHostsText;
+  let storedDuration = 15;
   let storedRulesText = "";
   try {
     config.blockNet = (await getKey(CONFIG_KEY)) == "true";
   } catch {
     config.blockNet = false; // default value
+  }
+  try {
+    storedDuration = Number(await getKey(DURATION_KEY));
+    if (isNaN(storedDuration) || storedDuration < 5 || storedDuration > 60) {
+      storedDuration = 15;
+    }
+  } catch {
+    storedDuration = 15;
   }
   try {
     storedHostsText = await getKey(HOSTS_KEY);
@@ -66,8 +77,10 @@ export default async function ({
   storedHostsText = serializeEnabledBlockHostsText(storedEntries);
 
   config.blockNetHostsText = storedHostsText;
+  config.blockNetDuration = storedDuration;
 
   const [value, setValue] = createSignal(config.blockNet);
+  const [duration, setDuration] = createSignal(storedDuration);
   const [entries, setEntries] = createSignal(storedEntries);
   const [hostsHelperStatus, setHostsHelperStatus] =
     createSignal<PrivilegedHostsHelperStatus>();
@@ -90,15 +103,21 @@ export default async function ({
 
   async function onSave(apply: boolean) {
     assertValueDefined(config.blockNet);
+    assertValueDefined(config.blockNetDuration);
     assertValueDefined(config.blockNetHostsText);
     if (!apply) {
       setValue(config.blockNet);
+      setDuration(config.blockNetDuration);
       setEntries(restoreEntries(storedRulesText));
       return NOOP;
     }
     if (config.blockNet != value()) {
       config.blockNet = value();
       await setKey(CONFIG_KEY, config.blockNet ? "true" : "false");
+    }
+    if (config.blockNetDuration != duration()) {
+      config.blockNetDuration = duration();
+      await setKey(DURATION_KEY, String(duration()));
     }
     const nextRulesText = serializeBlockHostRules(entries());
     const nextHostsText = serializeEnabledBlockHostsText(entries());
@@ -115,6 +134,7 @@ export default async function ({
 
   createEffect(() => {
     value();
+    duration();
     entries();
     void onSave(true);
   });
@@ -179,6 +199,28 @@ export default async function ({
                   setEntries(defaultEntries.map(entry => ({ ...entry })))
                 }
               />
+            </Box>
+            <Box mt="$2">
+              <Box mb="$1">
+                <span style="font-size:12px;color:#aaa">
+                  {locale.get("SETTING_BLOCK_NET_DURATION")}
+                </span>
+              </Box>
+              <Box display="flex" alignItems="center" gap="$2">
+                <Input
+                  type="number"
+                  value={String(duration())}
+                  min={5}
+                  max={60}
+                  width="60px"
+                  size="sm"
+                  onChange={e => {
+                    const v = Number(e.currentTarget.value);
+                    if (!isNaN(v)) setDuration(Math.max(5, Math.min(60, v)));
+                  }}
+                />
+                <span style="font-size:12px;color:#aaa">s</span>
+              </Box>
             </Box>
           </Show>
         </SettingSwitch>

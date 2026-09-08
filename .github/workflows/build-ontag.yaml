@@ -78,36 +78,52 @@ jobs:
           name: Yaaglm ${{ github.ref_name }} Release
           draft: true
           body: |
-            Yaaglm 1.0.0 Release
+            # Yaaglm ${{ github.ref_name }}
 
-            ## 产物列表
+            ## 主要更新 / Major Changes
 
-            每个 channel 均提供 arm64、x64、universal 三种架构：
+            请参阅本次版本的提交记录。\
+            See the commits included in this release.
 
-            | Channel | 产物 |
-            | --- | --- |
-            | hk4ecn | Yaaglm GI CN.app |
-            | hk4eos | Yaaglm GI OS.app |
-            | mhyos | Yaaglm OS.app |
-            | mhycn | Yaaglm CN.app |
-            | hkrpgcn | Yaaglm HSR.app |
-            | hkrpgos | Yaaglm HSR OS.app |
-            | bh3glb | Yaaglm Honkai Global.app |
-            | cbjq | Yaaglm SCZ OS.app |
-            | cbjqcn | Yaaglm SCZ.app |
-            | napos | Yaaglm ZZZ OS.app |
-            | napcn | Yaaglm ZZZ.app |
+            ## 下载 / Download
 
-            ## 发布公告
+            ### 国际版多版本 / International Multi-Game
 
-            1.0.0 是 Yaaglm 的首个正式版本。本 fork 可与上游同时存在。
+            | **Channel架构下载 / Architecture Downloads** | |
+            | ---------------------------------------- | --- |
+            | `mhyos` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.OS.app.tar.gz) |
 
-            ### 与上游版本的主要区别
+            ### 国服多版本 / CN Multi-Game
 
-            1. 启动器 UI 与界面重构：全局设置与游戏设置分离，游戏库改为卡片式布局，支持首页活动与公告栏、Banner 轮播、红点提醒和快捷入口。
-            2. 合并游戏入口：OS 入口覆盖 4 个游戏，CN 入口覆盖 3 个游戏。
-            3. 下载与任务：新增任务调度、下载队列、并发/限速控制、GitHub 加速；下载引擎支持多文件进度、断点续传、暂停/取消。
-            4. 构建与工程化：正式命名 Yaaglm、版本 1.0.0，支持 arm64/x64/universal，自动签名并生成 build manifest；TypeScript 升级至 5.9，测试覆盖大幅增加。
+            | **Channel架构下载 / Architecture Downloads** | |
+            | ---------------------------------------- | --- |
+            | `mhycn` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app.tar.gz) |
+
+            ### 国际版单版本 / International Single-Game
+
+            | **Channel架构下载 / Architecture Downloads** | |
+            | ---------------------------------------- | --- |
+            | `hk4eos` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.OS.app.tar.gz) |
+            | `hkrpgos` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.OS.app.tar.gz) |
+            | `napos` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.OS.app.tar.gz) |
+            | `bh3glb` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.Honkai.Global.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.Honkai.Global.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.Honkai.Global.app.tar.gz) |
+            | `cbjq` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.OS.app.tar.gz) |
+
+            ### 国服单版本 / CN Single-Game
+
+            | **Channel架构下载 / Architecture Downloads** | |
+            | ---------------------------------------- | --- |
+            | `hk4ecn` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.CN.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.CN.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.CN.app.tar.gz) |
+            | `hkrpgcn` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.app.tar.gz) |
+            | `napcn` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.app.tar.gz) |
+            | `cbjqcn` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.app.tar.gz) |
+
+            ## 说明 / Notes
+
+            - Apple Silicon Mac 推荐 `arm64`，Intel Mac 推荐 `x64`，不确定时可使用 `universal`。\
+              `arm64` is recommended for Apple Silicon Macs; `x64` for Intel Macs; use `universal` if you are unsure.
+            - 多版本入口优先推荐。\
+              The multi-game entry is recommended.
           files: |
             release-assets/arm64/*.tar.gz
             release-assets/x64/*.tar.gz

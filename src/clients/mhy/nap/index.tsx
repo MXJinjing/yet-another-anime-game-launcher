@@ -553,7 +553,13 @@ export async function createNAPChannelClient({
       const [RES] = await createResolution({ locale, config, storage });
       const blockUrl =
         server.id == "nap_global" ? NAP_OS_BLOCK_URL : NAP_CN_BLOCK_URL;
-      const defaultHosts = [{ domain: blockUrl, ip: "0.0.0.0" }];
+      const defaultHosts =
+        server.id == "nap_global"
+          ? [{ domain: blockUrl, ip: "0.0.0.0" }]
+          : [
+              { domain: "globaldp-prod-cn01.juequling.com", ip: "0.0.0.0" },
+              { domain: "globaldp-prod-cn02.juequling.com", ip: "0.0.0.0" },
+            ];
       const [BN] = await createBlockNet({
         locale,
         config,

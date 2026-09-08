@@ -29,6 +29,7 @@ vi.mock("@src/clients/mhy/patch", () => ({
     yield ["setRawStateText", "mock revert"];
   }),
   applyMhypBaseReplacement: vi.fn(async () => false),
+  isRuntimeReplacementFileMissingError: vi.fn(() => false),
   revertMhypBaseReplacement: vi.fn(async () => undefined),
 }));
 
@@ -38,10 +39,22 @@ import type { TaskProgressCommand } from "@tasks/task-program";
 import type { Wine } from "@wine";
 import { launchGameProgram as launchHk4e } from "@src/clients/mhy/hk4e/program-launch-game";
 import { launchGameProgram as launchHkrpg } from "@src/clients/mhy/hkrpg/program-launch-game";
+import { launchGameProgram as launchNap } from "@src/clients/mhy/nap/program-launch-game";
+import {
+  applyMhypBaseReplacement,
+  isRuntimeReplacementFileMissingError,
+  revertMhypBaseReplacement,
+} from "@src/clients/mhy/patch";
+import {
+  blockPrivilegedHosts,
+  legacyBlockHosts,
+} from "@src/system/privileged-hosts";
+import { patchRevertProgram } from "@src/clients/mhy/patch";
 
 const config = {
   blockNet: false,
   blockNetDuration: 15,
+  blockNetHostsText: "",
   hk4eEnableHDR: false,
   resolutionCustom: false,
   resolutionWidth: 1920,
@@ -189,6 +202,162 @@ describe("game launch process-monitor integration", () => {
       "REVERT_PATCHING",
     ]);
   });
+
+  it.each([
+    ["hkrpg", launchHkrpg, 15],
+    ["nap", launchNap, 15],
+  ] as const)(
+    "applies and restores runtime replacements for %s",
+    async (_name, launch, duration) => {
+      vi.mocked(applyMhypBaseReplacement).mockResolvedValueOnce(true);
+      const { wine } = createWine();
+      await collect(
+        launch({
+          gameDir: "/game",
+          gameExecutable: "TargetGame.exe",
+          wine,
+          config: { ...config, blockNet: true, blockNetDuration: duration },
+          server: server(
+            _name == "nap" ? "nap_cn" : "hkrpg_cn",
+            "TargetGame.exe"
+          ),
+        })
+      );
+
+      expect(applyMhypBaseReplacement).toHaveBeenCalledWith(
+        "/game",
+        expect.objectContaining({ blockNetDuration: duration })
+      );
+      expect(revertMhypBaseReplacement).toHaveBeenCalledWith("/game");
+      expect(blockPrivilegedHosts).toHaveBeenCalledWith(
+        expect.any(Array),
+        duration,
+        expect.any(Function)
+      );
+      expect(legacyBlockHosts).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ["hkrpg", launchHkrpg, 37],
+    ["nap", launchNap, 42],
+  ] as const)(
+    "passes the configured hosts duration to the legacy fallback for %s",
+    async (_name, launch, duration) => {
+      vi.mocked(blockPrivilegedHosts).mockImplementationOnce(
+        async (_hosts, _ttl, fallback) => {
+          await fallback();
+        }
+      );
+
+      await collect(
+        launch({
+          gameDir: "/game",
+          gameExecutable: "TargetGame.exe",
+          wine: createWine().wine,
+          config: { ...config, blockNet: true, blockNetDuration: duration },
+          server: server(
+            _name == "nap" ? "nap_cn" : "hkrpg_cn",
+            "TargetGame.exe"
+          ),
+        })
+      );
+
+      expect(legacyBlockHosts).toHaveBeenCalledWith(
+        expect.any(Array),
+        duration
+      );
+    }
+  );
+
+  it.each([
+    ["hkrpg", launchHkrpg],
+    ["nap", launchNap],
+  ] as const)(
+    "cleans regular patches when runtime replacement validation fails for %s",
+    async (_name, launch) => {
+      const replacementError = new Error("missing replacement");
+      vi.mocked(applyMhypBaseReplacement).mockRejectedValueOnce(
+        replacementError
+      );
+      vi.mocked(isRuntimeReplacementFileMissingError).mockReturnValueOnce(true);
+
+      await expect(
+        collect(
+          launch({
+            gameDir: "/game",
+            gameExecutable: "TargetGame.exe",
+            wine: createWine().wine,
+            config,
+            server: server(
+              _name == "nap" ? "nap_cn" : "hkrpg_cn",
+              "TargetGame.exe"
+            ),
+          })
+        )
+      ).rejects.toBe(replacementError);
+      expect(patchRevertProgram).toHaveBeenCalled();
+      expect(revertMhypBaseReplacement).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ["hkrpg", launchHkrpg],
+    ["nap", launchNap],
+  ] as const)(
+    "restores runtime replacements after crash and startup timeout for %s",
+    async (_name, launch) => {
+      for (const state of ["crashed", "timed-out"] as const) {
+        vi.clearAllMocks();
+        vi.mocked(applyMhypBaseReplacement).mockResolvedValueOnce(true);
+        const { wine } = createWine(
+          state == "timed-out"
+            ? { startState: "timed-out" }
+            : { exitState: "crashed" }
+        );
+
+        await collect(
+          launch({
+            gameDir: "/game",
+            gameExecutable: "TargetGame.exe",
+            wine,
+            config,
+            server: server(
+              _name == "nap" ? "nap_cn" : "hkrpg_cn",
+              "TargetGame.exe"
+            ),
+          })
+        );
+
+        expect(revertMhypBaseReplacement).toHaveBeenCalledWith("/game");
+      }
+    }
+  );
+
+  it.each([
+    ["hkrpg", launchHkrpg],
+    ["nap", launchNap],
+  ] as const)(
+    "does not restore when runtime replacement is not applied for %s",
+    async (_name, launch) => {
+      const { wine } = createWine();
+      await collect(
+        launch({
+          gameDir: "/game",
+          gameExecutable: "TargetGame.exe",
+          wine,
+          config,
+          server: server(
+            _name == "nap" ? "nap_cn" : "hkrpg_cn",
+            "TargetGame.exe"
+          ),
+        })
+      );
+
+      expect(applyMhypBaseReplacement).toHaveBeenCalledWith("/game", config);
+      expect(revertMhypBaseReplacement).not.toHaveBeenCalled();
+    }
+  );
 
   it("emits the crash event before restoring a short-lived hk4e session", async () => {
     const { wine } = createWine({ exitState: "crashed" });

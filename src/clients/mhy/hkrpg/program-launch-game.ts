@@ -16,7 +16,14 @@ import { Wine } from "@wine";
 import { Config } from "@config";
 import { getCustomEnvironmentVariables } from "@config";
 import { normalizeHttpProxy } from "@config/proxy";
-import { putLocal, patchProgram, patchRevertProgram } from "../patch";
+import {
+  putLocal,
+  patchProgram,
+  patchRevertProgram,
+  applyMhypBaseReplacement,
+  isRuntimeReplacementFileMissingError,
+  revertMhypBaseReplacement,
+} from "../patch";
 import { HKRPG_CN_BLOCK_URL, HKRPG_OS_BLOCK_URL } from "../../secret";
 import { buildBlockHosts } from "../block-hosts";
 import {
@@ -66,19 +73,35 @@ cd /d "${wine.toWinePath(gameDir)}"
   )}" -- -disable-gpu-skinning`;
   await writeFile(resolve("config.bat"), cmd);
   yield* patchProgram(gameDir, wine, server, config, undefined, storage);
+  let mhypBaseReplaced = false;
+  try {
+    mhypBaseReplaced = await applyMhypBaseReplacement(gameDir, config);
+  } catch (error) {
+    if (!isRuntimeReplacementFileMissingError(error)) throw error;
+    await log(`Runtime replacement validation failed: ${String(error)}`);
+    try {
+      await removeFile(resolve("config.bat"));
+      yield* patchRevertProgram(gameDir, wine, server, config, storage);
+    } catch (cleanupError) {
+      await log(
+        `Runtime replacement failure cleanup failed: ${String(cleanupError)}`
+      );
+    }
+    throw error;
+  }
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
   let startupTimedOut = false;
   try {
-    yield ["setStateText", "GAME_STARTING"];
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
 
     if (config.blockNet) {
-      await blockPrivilegedHosts(blockHosts, 15, () =>
-        legacyBlockHosts(blockHosts, 15)
+      await blockPrivilegedHosts(blockHosts, config.blockNetDuration, () =>
+        legacyBlockHosts(blockHosts, config.blockNetDuration)
       );
     }
 
+    yield ["setStateText", "GAME_STARTING"];
     let launchError: unknown;
     void wine
       .exec2(
@@ -148,6 +171,7 @@ cd /d "${wine.toWinePath(gameDir)}"
     if (startupTimedOut) await wine.killAll();
   }
 
+  if (mhypBaseReplaced) await revertMhypBaseReplacement(gameDir);
   await removeFile(resolve("config.bat"));
   yield ["setStateText", "REVERT_PATCHING"];
   yield* patchRevertProgram(gameDir, wine, server, config, storage);

@@ -16,7 +16,14 @@ import { Wine } from "../../../wine";
 import { Config } from "@config";
 import { getCustomEnvironmentVariables } from "@config";
 import { normalizeHttpProxy } from "@config/proxy";
-import { putLocal, patchProgram, patchRevertProgram } from "../patch";
+import {
+  putLocal,
+  patchProgram,
+  patchRevertProgram,
+  applyMhypBaseReplacement,
+  isRuntimeReplacementFileMissingError,
+  revertMhypBaseReplacement,
+} from "../patch";
 import { NAP_CN_BLOCK_URL, NAP_OS_BLOCK_URL } from "../../secret";
 import { buildBlockHosts } from "../block-hosts";
 import {
@@ -72,6 +79,22 @@ cd /d "${wine.toWinePath(gameDir)}"
 "${wine.toWinePath(join(gameDir, gameExecutable))}" ${args.join(" ")}`;
   await writeFile(resolve("config.bat"), cmd);
   yield* patchProgram(gameDir, wine, server, config, undefined, storage);
+  let mhypBaseReplaced = false;
+  try {
+    mhypBaseReplaced = await applyMhypBaseReplacement(gameDir, config);
+  } catch (error) {
+    if (!isRuntimeReplacementFileMissingError(error)) throw error;
+    await log(`Runtime replacement validation failed: ${String(error)}`);
+    try {
+      await removeFile(resolve("config.bat"));
+      yield* patchRevertProgram(gameDir, wine, server, config, storage);
+    } catch (cleanupError) {
+      await log(
+        `Runtime replacement failure cleanup failed: ${String(cleanupError)}`
+      );
+    }
+    throw error;
+  }
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
   let startupTimedOut = false;
@@ -79,8 +102,8 @@ cd /d "${wine.toWinePath(gameDir)}"
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
 
     if (config.blockNet) {
-      await blockPrivilegedHosts(blockHosts, 20, () =>
-        legacyBlockHosts(blockHosts, 20)
+      await blockPrivilegedHosts(blockHosts, config.blockNetDuration, () =>
+        legacyBlockHosts(blockHosts, config.blockNetDuration)
       );
     }
 
@@ -152,6 +175,7 @@ cd /d "${wine.toWinePath(gameDir)}"
     if (startupTimedOut) await wine.killAll();
   }
 
+  if (mhypBaseReplaced) await revertMhypBaseReplacement(gameDir);
   if (config.resolutionCustom) {
     await revertResolutionRegistry(wine, server);
   }
