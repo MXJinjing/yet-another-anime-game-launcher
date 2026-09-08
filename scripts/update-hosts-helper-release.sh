@@ -8,16 +8,15 @@ HELPER_REPO="${HELPER_REPO:-MXJinjing/yaaglm-hosts-helper}"
 HELPER_RELEASE="${HELPER_RELEASE:-latest}"
 
 if [ "$HELPER_RELEASE" = "latest" ]; then
-  BASE_URL="https://github.com/${HELPER_REPO}/releases/latest/download"
-  RELEASE_URL="$(curl -fL --retry 3 -sS -o /dev/null -w '%{url_effective}' "${BASE_URL}/install.sh")"
-  HELPER_RELEASE="$(printf '%s' "$RELEASE_URL" | sed -n 's#^.*/releases/download/\([^/]*\)/.*$#\1#p')"
+  RELEASE_API="https://api.github.com/repos/${HELPER_REPO}/releases/latest"
+  RELEASE_JSON="$(curl -fL --retry 3 -sS "$RELEASE_API")"
+  HELPER_RELEASE="$(printf '%s' "$RELEASE_JSON" | sed -n 's/^[[:space:]]*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
   [ -n "$HELPER_RELEASE" ] || {
-    echo "Unable to determine helper release from $RELEASE_URL" >&2
+    echo "Unable to determine helper release from $RELEASE_API" >&2
     exit 1
   }
-else
-  BASE_URL="https://github.com/${HELPER_REPO}/releases/download/${HELPER_RELEASE}"
 fi
+BASE_URL="https://github.com/${HELPER_REPO}/releases/download/${HELPER_RELEASE}"
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/yaaglm-helper-release.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
