@@ -64,7 +64,28 @@ interface SophonTaskStatus {
 export interface SophonProgressEvent {
   type: string;
   task_id: string;
+  error?: string;
+  active_files?: unknown[];
+  // Sophon emits several event-specific JSON shapes.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
+}
+
+interface SophonActiveFile {
+  id?: string | number;
+  filename: string;
+  progress_percent?: number;
+  download_speed?: number;
+  downloaded_size?: number;
+  total_size?: number;
+}
+
+function isSophonActiveFile(value: unknown): value is SophonActiveFile {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { filename?: unknown }).filename === "string"
+  );
 }
 
 export interface SophonOnlineGameInfo {
@@ -370,10 +391,8 @@ export class SophonClient {
             if (Array.isArray(message.active_files)) {
               progressPatch.files = message.active_files
                 .slice(0, 8)
-                .filter(
-                  (file: any) => file && typeof file.filename === "string"
-                )
-                .map((file: any) => ({
+                .filter(isSophonActiveFile)
+                .map(file => ({
                   id: String(file.id ?? file.filename),
                   name: file.filename,
                   progress: Number(file.progress_percent) || 0,
@@ -392,14 +411,17 @@ export class SophonClient {
             }
           } else if (Array.isArray(message.active_files)) {
             updateStream(`sophon:${taskId}`, {
-              files: message.active_files.slice(0, 8).map((file: any) => ({
-                id: String(file.id ?? file.filename),
-                name: String(file.filename ?? ""),
-                progress: Number(file.progress_percent) || 0,
-                speed: Number(file.download_speed) || 0,
-                downloaded: Number(file.downloaded_size) || 0,
-                total: Number(file.total_size) || 0,
-              })),
+              files: message.active_files
+                .slice(0, 8)
+                .filter(isSophonActiveFile)
+                .map(file => ({
+                  id: String(file.id ?? file.filename),
+                  name: String(file.filename ?? ""),
+                  progress: Number(file.progress_percent) || 0,
+                  speed: Number(file.download_speed) || 0,
+                  downloaded: Number(file.downloaded_size) || 0,
+                  total: Number(file.total_size) || 0,
+                })),
             });
           }
 

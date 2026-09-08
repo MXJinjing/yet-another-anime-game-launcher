@@ -495,7 +495,7 @@ export async function createApp(bootPerformance?: BootPerformance) {
 
     return (
       <>
-        <Show when={updaterComponent()}>{updaterComponent()!()}</Show>
+        <Show when={updaterComponent()}>{component => component()()}</Show>
         <Show when={!updaterComponent()}>
           <MainApp />
           <LauncherUpdateModal
@@ -505,9 +505,10 @@ export async function createApp(bootPerformance?: BootPerformance) {
             locale={locale}
             onIgnore={version => setKey("ignore_launcher_update", version)}
             onUpdate={info => {
+              if (!info.appDownloadUrl) return;
               startUpdateFlow(
                 {
-                  appDownloadUrl: info.appDownloadUrl!,
+                  appDownloadUrl: info.appDownloadUrl,
                 },
                 info.version
               );

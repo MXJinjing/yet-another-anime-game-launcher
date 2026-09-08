@@ -95,10 +95,16 @@ async function* downloadAndPatch(
     await readAllLinesIfExists(join(gameDir, "deletefiles.txt"))
   ).filter(x => x.trim() != "");
 
-  async function readJsonIfExists(filePath: string): Promise<any> {
+  type DiffMapEntry = {
+    source_file_name: string;
+    target_file_name: string;
+    patch_file_name: string;
+  };
+  type DiffMapDocument = { diff_map: DiffMapEntry[] };
+  async function readJsonIfExists(filePath: string): Promise<DiffMapDocument> {
     try {
       const content = await readAllLinesIfExists(filePath);
-      return JSON.parse(content.join("\n"));
+      return JSON.parse(content.join("\n")) as DiffMapDocument;
     } catch (error) {
       return { diff_map: [] };
     }
@@ -108,7 +114,7 @@ async function* downloadAndPatch(
     targetFile: string;
     patchFile: string;
   }[] = (await readJsonIfExists(join(gameDir, "hdiffmap.json"))).diff_map.map(
-    (entry: any) => ({
+    entry => ({
       sourceFile: entry.source_file_name,
       targetFile: entry.target_file_name,
       patchFile: entry.patch_file_name,

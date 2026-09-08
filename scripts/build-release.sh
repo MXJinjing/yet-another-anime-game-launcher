@@ -15,12 +15,13 @@ case "$ARCH" in
     ;;
 esac
 
-CHANNELS=(hk4ecn hk4eos mhyos mhycn hkrpgcn hkrpgos bh3glb cbjq cbjqcn napos napcn)
+CHANNELS=(hk4ecn hk4eos mhyos mhycn all hkrpgcn hkrpgos bh3glb cbjq cbjqcn napos napcn)
 APP_NAMES=(
   "Yaaglm GI CN"
   "Yaaglm GI OS"
   "Yaaglm OS"
   "Yaaglm CN"
+  "Yaagl"
   "Yaaglm HSR"
   "Yaaglm HSR OS"
   "Yaaglm Honkai Global"

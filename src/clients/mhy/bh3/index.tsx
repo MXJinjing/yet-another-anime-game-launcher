@@ -149,6 +149,11 @@ export async function createBH3ChannelClient({
       hasPreDownload = false;
     }
   const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
+  type PreDownloadGame = Exclude<
+    LauncherResourceData["data"]["pre_download_game"],
+    null
+  >;
+  const predownloadGame = pre_download_game as PreDownloadGame | null;
 
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
@@ -160,7 +165,10 @@ export async function createBH3ChannelClient({
         (await getKeyOrDefault("predownloaded_all", "NOTFOUND")) ==
           "NOTFOUND" && // not downloaded yet
         gameInstalled && // game installed
-        gt(pre_download_game!.latest.version || "0.0.0", gameVersion || "0.0.0") // predownload version is greater
+        gt(
+          predownloadGame ? predownloadGame.latest.version || "0.0.0" : "0.0.0",
+          gameVersion || "0.0.0"
+        ) // predownload version is greater
     );
   const [_gameInstallDir, setGameInstallDir] = createSignal(
     gameInstallDir ?? ""

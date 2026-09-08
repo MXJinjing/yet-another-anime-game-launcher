@@ -68,9 +68,9 @@ jobs:
 
       - name: Verify release assets
         run: |
-          test "$(find release-assets/arm64 -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 11
-          test "$(find release-assets/x64 -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 11
-          test "$(find release-assets/universal -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 22
+          test "$(find release-assets/arm64 -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 12
+          test "$(find release-assets/x64 -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 12
+          test "$(find release-assets/universal -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 24
 
       - name: Publish draft release
         uses: softprops/action-gh-release@v2
@@ -98,6 +98,7 @@ jobs:
             | **Channel架构下载 / Architecture Downloads** | |
             | ---------------------------------------- | --- |
             | `mhycn` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app.tar.gz) |
+            | `all` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl.app.tar.gz) |
 
             ### 国际版单版本 / International Single-Game
 

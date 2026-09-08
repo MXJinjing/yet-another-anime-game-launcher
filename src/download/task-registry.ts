@@ -199,7 +199,10 @@ export function attachDownloadStream(stream: DownloadStream): string {
   let record = ownerTaskId ? tasks.get(ownerTaskId) : undefined;
   if (!record) {
     ownerTaskId = beginDownloadTask({ title: stream.title, key: stream.key });
-    record = tasks.get(ownerTaskId)!;
+    const createdRecord = tasks.get(ownerTaskId);
+    if (!createdRecord)
+      throw new Error(`Download task disappeared: ${ownerTaskId}`);
+    record = createdRecord;
     record.orphan = true;
   }
   const attachedTaskId = record.id;
