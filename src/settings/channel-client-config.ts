@@ -9,8 +9,13 @@ type SettingsComponent = (props?: {
 export function resolveChannelClientConfig(config: ChannelClientConfigUI): {
   channelClientGame: SettingsComponent;
   channelClientVideo?: SettingsComponent;
+  enableMetalFxUpscale: boolean;
 } {
   return typeof config === "function"
-    ? { channelClientGame: config }
-    : { channelClientGame: config.launch, channelClientVideo: config.video };
+    ? { channelClientGame: config, enableMetalFxUpscale: true }
+    : {
+        channelClientGame: config.launch,
+        channelClientVideo: config.video,
+        enableMetalFxUpscale: config.enableMetalFxUpscale ?? true,
+      };
 }

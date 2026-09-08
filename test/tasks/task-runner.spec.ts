@@ -97,6 +97,23 @@ describe("createTaskRunner", () => {
     expect(endDownloadTask).not.toHaveBeenCalled();
   });
 
+  it("passes task name arguments to completion notifications", async () => {
+    const runner = createTaskRunner({ locale, notifier });
+    runner.enqueue({
+      name: "PREDOWNLOAD_READY" as never,
+      nameArgs: ["2.0.0"],
+      fn: async function* (): TaskProgram {
+        yield ["setRawStateText", "Pre-download"];
+      },
+    });
+
+    await flushTasks();
+
+    expect(completed).toHaveBeenCalledWith(locale, "PREDOWNLOAD_READY", [
+      "2.0.0",
+    ]);
+  });
+
   it("waits for a running task and its queued follow-up to become idle", async () => {
     let releaseFirst!: () => void;
     const firstReleased = new Promise<void>(resolve => {

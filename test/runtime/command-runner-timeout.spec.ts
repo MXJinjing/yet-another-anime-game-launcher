@@ -5,7 +5,7 @@ vi.mock("@logging/logger", () => ({
 }));
 
 vi.mock("@platform/macos", () => ({
-  runInSudo: (command: string) => command,
+  runInSudo: (command: string, _prompt: string) => command,
 }));
 
 vi.mock("@platform/neutralino", () => ({

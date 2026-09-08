@@ -63,11 +63,23 @@ export async function createMultiGameLauncher({
   const actionDisabledRef = { current: () => false };
   const games: HypGame[] = [];
 
-  let gameDisplays = new Map<string, HoyoConnectGameDisplay["display"]>();
+  const gameDisplays = new Map<
+    HoyoPlayRegion,
+    Map<string, HoyoConnectGameDisplay["display"]>
+  >();
   try {
-    gameDisplays = await (bootPerformance?.measure("multi-game-displays", () =>
-      getLatestGameDisplays(region)
-    ) ?? getLatestGameDisplays(region));
+    const displayRegions = new Set(
+      specs.map(spec => spec.displayRegion ?? region)
+    );
+    await Promise.all(
+      [...displayRegions].map(async displayRegion => {
+        const displays = await (bootPerformance?.measure(
+          `multi-game-displays:${displayRegion}`,
+          () => getLatestGameDisplays(displayRegion)
+        ) ?? getLatestGameDisplays(displayRegion));
+        gameDisplays.set(displayRegion, displays);
+      })
+    );
   } catch {
     // The per-game clients still have their existing fallback assets.
     log("[hyp-connect] Failed to fetch HoYoPlay game display assets");
@@ -100,8 +112,7 @@ export async function createMultiGameLauncher({
     const index = completed;
     reportBootProgress(
       "BOOT_INITIALIZING_GAME_CLIENT",
-      66 + Math.round((index / Math.max(1, specs.length)) * 30),
-      `（${index + 1}/${specs.length}）`
+      66 + Math.round((index / Math.max(1, specs.length)) * 30)
     );
     const wineRef: MultiGameWineRef = { current: baseWine };
     const gameWine = createMultiGameWineProxy(wineRef);
@@ -132,7 +143,10 @@ export async function createMultiGameLauncher({
       `game-wine-options:${spec.id}`,
       () => getMultiGameWineOptions(initialWineTag)
     ) ?? getMultiGameWineOptions(initialWineTag));
-    const display = gameDisplays.get(gameBizByRegion[spec.id]?.[region]);
+    const displayRegion = spec.displayRegion ?? region;
+    const display = gameDisplays
+      .get(displayRegion)
+      ?.get(spec.displayBiz ?? gameBizByRegion[spec.id]?.[displayRegion]);
     const resolvedSpec = {
       ...spec,
       serverLabel: locale.get(spec.serverLabel),
@@ -145,6 +159,7 @@ export async function createMultiGameLauncher({
         locale,
         storage,
         gameInstallDir: client.installDir,
+        gameVersion: client.gameVersion,
         onGameInstallDirChange: client.changeInstallDir,
         configForChannelClient: (locale, config) =>
           bootPerformance?.measure(`game-channel-config:${spec.id}`, () =>

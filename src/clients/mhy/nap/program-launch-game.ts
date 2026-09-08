@@ -31,6 +31,14 @@ import {
   legacyBlockHosts,
 } from "../../../system/privileged-hosts";
 import { gt } from "semver";
+import { removeMetalFxGpuInfo, writeMetalFxGpuInfo } from "./config/metalfx";
+
+async function logInternalProgress(program: TaskProgram) {
+  for await (const command of program) {
+    if (command[0] == "setRawStateText") await log(command[1]);
+    if (command[0] == "setStateText") await log(command[1]);
+  }
+}
 
 export async function* launchGameProgram({
   gameDir,
@@ -59,7 +67,7 @@ export async function* launchGameProgram({
     );
   }
   yield ["setUndeterminedProgress"];
-  yield ["setStateText", "PATCHING"];
+  yield ["setStateText", "GAME_STARTING"];
 
   await fixWebview(wine, server);
   await wine.setProps(config);
@@ -70,6 +78,7 @@ export async function* launchGameProgram({
     args.push("-screen-height", config.resolutionHeight);
     args.push("-screen-fullscreen", "0");
   }
+  if (config.useD3D12) args.push("-use-d3d12");
   const cmd = `@echo off
 cd "%~dp0"
 copy "${wine.toWinePath(
@@ -78,7 +87,9 @@ copy "${wine.toWinePath(
 cd /d "${wine.toWinePath(gameDir)}"
 "${wine.toWinePath(join(gameDir, gameExecutable))}" ${args.join(" ")}`;
   await writeFile(resolve("config.bat"), cmd);
-  yield* patchProgram(gameDir, wine, server, config, undefined, storage);
+  await logInternalProgress(
+    patchProgram(gameDir, wine, server, config, undefined, storage)
+  );
   let mhypBaseReplaced = false;
   try {
     mhypBaseReplaced = await applyMhypBaseReplacement(gameDir, config);
@@ -98,6 +109,7 @@ cd /d "${wine.toWinePath(gameDir)}"
   await mkdirp(resolve("./logs"));
   const yaaglDir = resolve("./");
   let startupTimedOut = false;
+  await writeMetalFxGpuInfo(wine.prefix, config.napMetalFxEnable === true);
   try {
     const logfile = resolve(`./logs/game_${Date.now()}.log`);
 
@@ -107,13 +119,15 @@ cd /d "${wine.toWinePath(gameDir)}"
       );
     }
 
-    yield ["setStateText", "GAME_STARTING"];
     let launchError: unknown;
     void wine
       .exec2(
         config.steamPatch ? "C:\\windows\\system32\\steam.exe" : "cmd",
         config.steamPatch
-          ? [wine.toWinePath(join(gameDir, gameExecutable))]
+          ? [
+              wine.toWinePath(join(gameDir, gameExecutable)),
+              ...(config.useD3D12 ? ["--use-d3d12"] : []),
+            ]
           : ["/c", `${wine.toWinePath(resolve("./config.bat"))} `],
         {
           MTL_HUD_ENABLED: config.metalHud ? "1" : "",
@@ -127,12 +141,7 @@ cd /d "${wine.toWinePath(gameDir)}"
                 GST_PLUGIN_FEATURE_RANK: "atdec:MAX,avdec_h264:MAX",
                 DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${
                   config.preferredMaxFps
-                };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${
-                  config.metalFxEnable
-                    ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};`
-                    : ""
-                }`,
-                DXMT_METALFX_SPATIAL_SWAPCHAIN: config.metalFxEnable ? "1" : "",
+                };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}`,
               }
             : {
                 WINEESYNC: "1",
@@ -175,6 +184,8 @@ cd /d "${wine.toWinePath(gameDir)}"
     if (startupTimedOut) await wine.killAll();
   }
 
+  await removeMetalFxGpuInfo(wine.prefix);
+
   if (mhypBaseReplaced) await revertMhypBaseReplacement(gameDir);
   if (config.resolutionCustom) {
     await revertResolutionRegistry(wine, server);
@@ -183,7 +194,9 @@ cd /d "${wine.toWinePath(gameDir)}"
   // await removeFile(resolve("bWh5cHJvdDJfcnVubmluZy5yZWcK.reg"));
   await removeFile(resolve("config.bat"));
   yield ["setStateText", "REVERT_PATCHING"];
-  yield* patchRevertProgram(gameDir, wine, server, config, storage);
+  await logInternalProgress(
+    patchRevertProgram(gameDir, wine, server, config, storage)
+  );
 }
 
 async function fixWebview(wine: Wine, server: Server) {

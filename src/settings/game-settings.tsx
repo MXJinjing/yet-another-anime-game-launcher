@@ -83,6 +83,7 @@ export class GameSettings extends SettingsController<GameLoadedSettings> {
           ChannelClientVideoConfig={settings.channelClientVideo}
           VsyncDisableConfig={settings.vsync}
           MetalFxUpscaleConfig={settings.metalFxUpscale}
+          EnableMetalFxUpscale={settings.enableMetalFxUpscale}
           ReShadeConfig={settings.reShade}
           config={settings.config}
           configStore={settings.configStore}

@@ -28,6 +28,7 @@ export type ChannelClientConfigUI =
   | {
       launch: (props?: { onOpenGlobalSettings?: () => void }) => JSXElement;
       video?: (props?: { onOpenGlobalSettings?: () => void }) => JSXElement;
+      enableMetalFxUpscale?: boolean;
     };
 
 export type ChannelClientBackground = {

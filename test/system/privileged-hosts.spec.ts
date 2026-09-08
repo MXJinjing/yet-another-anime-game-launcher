@@ -133,6 +133,18 @@ describe("legacy privileged hosts fallback", () => {
     expect(exec).toHaveBeenCalledOnce();
   });
 
+  it("does not request authorization when managed hosts rules are current", async () => {
+    readFile.mockResolvedValue(
+      "# Added by Yaaglm\n# Warning: any content in this section will be overwritten\n0.0.0.0 current.example\n# End of section\n"
+    );
+    const { legacyEnsureHosts } = await loadModule();
+
+    await expect(
+      legacyEnsureHosts([["current.example", "0.0.0.0"]])
+    ).resolves.toBe(false);
+    expect(exec).not.toHaveBeenCalled();
+  });
+
   it("rejects shell syntax before writing or requesting privileges", async () => {
     const { legacyBlockHosts } = await loadModule();
     await expect(
@@ -152,6 +164,45 @@ describe("legacy privileged hosts fallback", () => {
       expect(writeFile).not.toHaveBeenCalled();
     }
   );
+});
+
+describe("startup hosts reconciliation", () => {
+  beforeEach(resetMocks);
+
+  it("removes a legacy Yaagl section", async () => {
+    readFile.mockResolvedValue(
+      "127.0.0.1 localhost\n# Added by Yaagl\n# Warning: any content in this section will be overwritten\n0.0.0.0 old.example\n# End of section\n"
+    );
+    const { reconcileStartupHosts } = await import("@system/hosts");
+    expect(await reconcileStartupHosts([["current.example", "0.0.0.0"]])).toBe(
+      true
+    );
+    expect(exec).toHaveBeenCalledOnce();
+    expect(exec.mock.calls[0][0].join(" ")).not.toContain("old.example");
+  });
+
+  it("does not rewrite an already current Yaaglm section", async () => {
+    readFile.mockResolvedValue(
+      "# Added by Yaaglm\n# Warning: any content in this section will be overwritten\n0.0.0.0 current.example\n# End of section\n"
+    );
+    const { reconcileStartupHosts } = await import("@system/hosts");
+    expect(await reconcileStartupHosts([["current.example", "0.0.0.0"]])).toBe(
+      false
+    );
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it("replaces stale Yaaglm entries", async () => {
+    readFile.mockResolvedValue(
+      "# Added by Yaaglm\n# Warning: any content in this section will be overwritten\n0.0.0.0 stale.example\n# End of section\n"
+    );
+    const { reconcileStartupHosts } = await import("@system/hosts");
+    expect(await reconcileStartupHosts([["current.example", "0.0.0.0"]])).toBe(
+      true
+    );
+    expect(exec.mock.calls[0][0].join(" ")).toContain("current.example");
+    expect(exec.mock.calls[0][0].join(" ")).not.toContain("stale.example");
+  });
 });
 
 describe("untrusted runtime identity", () => {
@@ -331,7 +382,7 @@ describe("trusted helper arguments", () => {
       "--helper",
       HELPER_BINARY,
     ]);
-    expect(installCalls[0][2]).toBe(true);
+    expect(installCalls[0][2]).toContain("install or update Hosts Helper");
   });
 
   it("uninstalls with the bundle id through sudo", async () => {
@@ -344,7 +395,7 @@ describe("trusted helper arguments", () => {
       UNINSTALL_SCRIPT,
       BUNDLE_ID,
     ]);
-    expect(uninstallCalls[0][2]).toBe(true);
+    expect(uninstallCalls[0][2]).toContain("remove Hosts Helper");
   });
 });
 
@@ -428,7 +479,7 @@ describe("registration conflict status and re-registration", () => {
       HELPER_BINARY,
       "--re-register",
     ]);
-    expect(installCall[2]).toBe(true);
+    expect(installCall[2]).toContain("re-register Hosts Helper");
     expect(callsFor("status")).toHaveLength(1);
   });
 });
@@ -459,7 +510,7 @@ describe("token recovery", () => {
     await uninstallPrivilegedHostsHelper();
     const uninstallCall = callsFor("uninstall.sh")[0];
     expect(uninstallCall[0]).toEqual(["/bin/sh", UNINSTALL_SCRIPT, BUNDLE_ID]);
-    expect(uninstallCall[2]).toBe(true);
+    expect(uninstallCall[2]).toContain("remove Hosts Helper");
     expect(callsFor("--token-file")).toHaveLength(0);
   });
 });
@@ -489,7 +540,7 @@ describe("ensureHelperReady dispatch", () => {
       "--helper",
       HELPER_BINARY,
     ]);
-    expect(installCalls[0][2]).toBe(true);
+    expect(installCalls[0][2]).toContain("install or update Hosts Helper");
 
     // STATUS was retried once after the install.
     expect(callsFor("status")).toHaveLength(2);

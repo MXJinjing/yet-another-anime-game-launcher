@@ -120,6 +120,10 @@ export const zh_CN = {
   SETTING_DISPLAY_MODE_FULLSCREEN: "全屏",
   SETTING_DISPLAY_MODE_WINDOWED: "窗口化",
   SETTING_WINDOW_RESOLUTION: "窗口分辨率",
+  SETTING_USE_D3D12: "启用 DirectX 12",
+  SETTING_USE_D3D12_DESC: "启动游戏时使用 DirectX 12。",
+  SETTING_NAP_METALFX: "启用 MetalFX",
+  SETTING_NAP_METALFX_DESC: "使用 MetalFX 代替 DLSS。",
   SETTING_SAVE: "保存",
   SETTING_CANCEL: "取消",
 
@@ -186,7 +190,12 @@ export const zh_CN = {
   GAME_VERSION_TOO_OLD_DESC:
     "当前游戏版本({0})太过久远，无法增量更新。请重新安装游戏。",
 
-  PREDOWNLOAD_READY: "预载{0}版本",
+  PREDOWNLOAD_READY: "{0}预载{1}版本",
+  PREDOWNLOAD_DONE: "已预载",
+  SETTING_PREDOWNLOAD: "预下载",
+  SETTING_PREDOWNLOAD_VERSION: "当前预载版本：{0}",
+  SETTING_PREDOWNLOAD_SIZE: "已占用：{0}",
+  SETTING_DELETE_PREDOWNLOAD: "删除预载资源",
 
   COMMUNITY_WARNING: "社区版警告",
   COMMUNITY_WINE_ALERT:
@@ -354,6 +363,22 @@ export const zh_CN = {
   NOTIFICATION_TASK_FAILED: "任务执行失败，请查看实时日志了解详情。",
   NOTIFICATION_TASK_FAILED_TITLE: "任务失败",
   NOTIFICATION_AUTHORIZATION_CANCELLED: "任务失败，用户取消授权。",
+  AUTHORIZATION_PROMPT_HOSTS_HELPER_INSTALL:
+    "Yaaglm 需要管理员权限来安装或更新 hosts 权限助手。它会在 macOS 系统目录中安装助手和启动守护进程，以管理 Yaaglm 的 hosts 规则。",
+  AUTHORIZATION_PROMPT_HOSTS_HELPER_REREGISTER:
+    "Yaaglm 需要管理员权限来仅重新注册当前启动器 bundle 的 hosts 权限助手并轮换认证令牌，不会更改其他启动器的注册项。",
+  AUTHORIZATION_PROMPT_HOSTS_HELPER_UNINSTALL:
+    "Yaaglm 需要管理员权限来移除当前启动器 bundle 的 hosts 权限助手注册、系统助手和启动守护进程。",
+  AUTHORIZATION_PROMPT_TEMPORARY_HOSTS:
+    "Yaaglm 需要管理员权限来向 /etc/hosts 临时添加 {0} 条网络规则，持续 {1} 秒；这些规则会自动移除。",
+  AUTHORIZATION_PROMPT_MANAGED_HOSTS:
+    "Yaaglm 需要管理员权限来更新 /etc/hosts 中由 Yaaglm 管理的网络规则；它只会替换带 Yaaglm 标记的区段。",
+  AUTHORIZATION_PROMPT_RECONCILE_HOSTS:
+    "Yaaglm 需要管理员权限来移除旧版 Yaagl 的 hosts 规则，并更新 /etc/hosts 中由 Yaaglm 管理的区段。",
+  AUTHORIZATION_PROMPT_REPLACE_LAUNCHER:
+    "Yaaglm 需要管理员权限来替换已安装位置的启动器应用程序包；不会更改游戏文件或个人数据。",
+  AUTHORIZATION_PROMPT_REMOVE_QUARANTINE:
+    "Yaaglm 需要管理员权限来移除已下载 Wine 运行环境的 macOS 隔离属性，以便该运行环境可以正常运行；不会修改游戏文件。",
   CHECK_UPDATE_FAILED: "检测更新失败",
   CHECK_UPDATE_FAILED_DESC: "无法连接到 GitHub 服务器 ({0})",
   CHECK_GAME_UPDATE_FAILED: "检查游戏更新失败",

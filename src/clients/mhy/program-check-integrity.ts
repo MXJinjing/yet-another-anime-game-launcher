@@ -5,6 +5,11 @@ import { log } from "@logging/logger";
 import { readAllLines, stats } from "@platform/neutralino";
 import { md5 } from "@runtime/patching";
 import { globalStorage, type Storage } from "@runtime/storage";
+import { DownloadCancelledError } from "../../download/control";
+import {
+  registerStream,
+  unregisterStream,
+} from "../../download/stream-scheduler";
 
 export async function* checkIntegrityProgram({
   gameDir,
@@ -20,67 +25,104 @@ export async function* checkIntegrityProgram({
   downloadKey?: string;
   storage?: Storage;
 }): TaskProgram {
-  const entries: {
-    remoteName: string;
-    md5: string;
-    fileSize: number;
-  }[] = (await readAllLines(join(gameDir, "pkg_version")))
-    .filter(x => x.trim() != "")
-    .map(x => JSON.parse(x));
-  const toFix: {
-    remoteName: string;
-  }[] = [];
-  let count = 0;
-  yield [
-    "setStateText",
-    "SCANNING_FILES",
-    String(count),
-    String(entries.length),
-  ];
-  for (const entry of entries) {
-    const localPath = join(gameDir, entry.remoteName);
-    try {
-      const fileStats = await stats(localPath);
-      if (fileStats.size !== entry.fileSize) {
-        throw new Error("Size not match");
-      }
-      const md5sum = await md5(localPath);
-      if (md5sum.toLowerCase() !== entry.md5.toLowerCase()) {
-        await log(`${md5sum} ${entry.md5} not match`);
-        throw new Error("Md5 not match");
-      }
-    } catch {
-      toFix.push(entry);
-    }
-    count++;
+  let cancelled = false;
+  const streamId = `integrity:${Date.now()}:${Math.random()}`;
+  // Materialize integrity scans in the shared download queue even before a
+  // damaged file requires an actual aria2 transfer.
+  registerStream({
+    id: streamId,
+    kind: "aria2",
+    taskId: streamId,
+    key: downloadKey,
+    title: "Integrity check",
+    phaseKind: "verifying",
+    status: "active",
+    progress: 0,
+    speed: 0,
+    downloaded: 0,
+    total: 0,
+    canPause: false,
+    canResume: false,
+    canCancel: true,
+    pause: async () => undefined,
+    resume: async () => undefined,
+    cancel: async () => {
+      cancelled = true;
+    },
+    setSpeedLimit: async () => undefined,
+  });
+  try {
+    const entries: {
+      remoteName: string;
+      md5: string;
+      fileSize: number;
+    }[] = (await readAllLines(join(gameDir, "pkg_version")))
+      .filter(x => x.trim() != "")
+      .map(x => JSON.parse(x));
+    const toFix: {
+      remoteName: string;
+    }[] = [];
+    let count = 0;
     yield [
       "setStateText",
       "SCANNING_FILES",
       String(count),
       String(entries.length),
     ];
-    yield ["setProgress", (count / entries.length) * 100];
-  }
-  await storage.setKey("patched", null);
-  if (toFix.length == 0) {
-    return;
-  }
-  count = 0;
-  // Track overall progress so the button's percentage covers every fixed file.
-  const overall = new Aria2OverallProgress(undefined, downloadKey);
-  for (const { remoteName } of toFix) {
-    const localPath = join(gameDir, remoteName);
-    const remotePath = join(remoteDir, remoteName).replace(":/", "://"); //....join: wtf?
-    yield ["setUndeterminedProgress"];
-    yield ["setStateText", "FIXING_FILES", String(count), String(toFix.length)];
-    for await (const progress of aria2.doStreamingDownload({
-      uri: remotePath,
-      absDst: localPath,
-      downloadKey,
-    })) {
-      yield ["setProgress", overall.step(progress)];
+    for (const entry of entries) {
+      if (cancelled) throw new DownloadCancelledError();
+      const localPath = join(gameDir, entry.remoteName);
+      try {
+        const fileStats = await stats(localPath);
+        if (fileStats.size !== entry.fileSize) {
+          throw new Error("Size not match");
+        }
+        const md5sum = await md5(localPath);
+        if (md5sum.toLowerCase() !== entry.md5.toLowerCase()) {
+          await log(`${md5sum} ${entry.md5} not match`);
+          throw new Error("Md5 not match");
+        }
+      } catch {
+        toFix.push(entry);
+      }
+      count++;
+      yield [
+        "setStateText",
+        "SCANNING_FILES",
+        String(count),
+        String(entries.length),
+      ];
+      yield ["setProgress", (count / entries.length) * 100];
     }
-    overall.finishFile();
-    count++;
+    await storage.setKey("patched", null);
+    if (toFix.length == 0) {
+      return;
+    }
+    count = 0;
+    // Track overall progress so the button's percentage covers every fixed file.
+    const overall = new Aria2OverallProgress(undefined, downloadKey);
+    for (const { remoteName } of toFix) {
+      if (cancelled) throw new DownloadCancelledError();
+      const localPath = join(gameDir, remoteName);
+      const remotePath = join(remoteDir, remoteName).replace(":/", "://"); //....join: wtf?
+      yield ["setUndeterminedProgress"];
+      yield [
+        "setStateText",
+        "FIXING_FILES",
+        String(count),
+        String(toFix.length),
+      ];
+      for await (const progress of aria2.doStreamingDownload({
+        uri: remotePath,
+        absDst: localPath,
+        downloadKey,
+      })) {
+        yield ["setProgress", overall.step(progress)];
+      }
+      overall.finishFile();
+      count++;
+    }
+  } finally {
+    unregisterStream(streamId);
   }
 }

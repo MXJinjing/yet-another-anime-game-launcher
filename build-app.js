@@ -16,6 +16,7 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   );
   let bundleId;
   let appDistributionName;
+  let appSupportDirectory;
   let includeSophon = false;
   const channel = process.env["YAAGL_CHANNEL_CLIENT"] ?? "mhycn";
   switch (channel) {
@@ -41,6 +42,13 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
       bundleId = config.applicationId + ".cn";
       appDistributionName = "Yaaglm CN";
       config.modes.window.title = "Yaaglm CN";
+      includeSophon = true;
+      break;
+    case "all":
+      bundleId = config.applicationId + ".all";
+      appDistributionName = "Yaagl";
+      appSupportDirectory = "com.3shain.yaaglm";
+      config.modes.window.title = "Yet Another Anime Game Launcher Modified";
       includeSophon = true;
       break;
     case "hk4euniversal":
@@ -84,6 +92,7 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
     default:
       throw new Error(`Unknown YAAGL_CHANNEL_CLIENT: ${channel}`);
   }
+  if (!appSupportDirectory) appSupportDirectory = appDistributionName;
   if (process.env["YAAGL_TEST"]) {
     bundleId += ".test";
     appDistributionName += " Test";
@@ -231,7 +240,7 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
     ),
     `#!/usr/bin/env bash
 SCRIPT_DIR="$( cd -- "$( dirname -- "\${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-APST_DIR="$HOME/Library/Application Support/${appDistributionName}"
+APST_DIR="$HOME/Library/Application Support/${appSupportDirectory}"
 echo $APST_DIR
 mkdir -p "$APST_DIR"
 CONTENTS_DIR="$(dirname "$SCRIPT_DIR")"
@@ -432,6 +441,15 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
   }
   const helperSha256 =
     helperSha256ByArch[buildArch == "universal" ? "arm64" : buildArch];
+  const helperVersionPath = path.resolve(
+    sidecarSrc,
+    "yaaglm-hosts-helper",
+    "VERSION"
+  );
+  const helperVersion = (await fs.readFile(helperVersionPath, "utf8")).trim();
+  if (!helperVersion) {
+    throw new Error(`Missing Hosts Helper release version: ${helperVersionPath}`);
+  }
 
   await fs.writeJSON(
     path.resolve(
@@ -449,6 +467,7 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
       clientSha256: helperSha256,
       helperSha256,
       helperSha256ByArch,
+      helperVersion,
     },
     { spaces: 2 }
   );

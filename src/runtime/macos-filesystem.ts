@@ -2,11 +2,15 @@ import { resolve } from "../platform/neutralino";
 import { rawString } from "../platform/shell";
 import { exec } from "./command-runner";
 
-export function xattrRemove(attr: string, path: string) {
+export async function xattrRemove(
+  attr: string,
+  path: string,
+  authorizationPrompt: string
+) {
   return exec(
     ["/usr/bin/xattr", "-s", "-r", "-d", attr, resolve(path)],
     {},
-    true
+    authorizationPrompt
   );
 }
 

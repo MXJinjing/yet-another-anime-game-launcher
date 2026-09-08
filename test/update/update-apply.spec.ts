@@ -96,7 +96,9 @@ describe("update apply", () => {
     );
     expect(bundleSyncCalls).toHaveLength(2);
     expect(bundleSyncCalls[0][2]).toBeUndefined();
-    expect(bundleSyncCalls[1][2]).toBe(true);
+    expect(bundleSyncCalls[1][2]).toContain(
+      "replace the launcher application bundle"
+    );
   });
 
   it("skips bundle replacement when YAAGL_BUNDLE_PATH is unset", async () => {

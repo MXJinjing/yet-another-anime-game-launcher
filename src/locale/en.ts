@@ -125,6 +125,10 @@ export const en: typeof zh_CN = {
   SETTING_DISPLAY_MODE_FULLSCREEN: "Fullscreen",
   SETTING_DISPLAY_MODE_WINDOWED: "Windowed",
   SETTING_WINDOW_RESOLUTION: "Window resolution",
+  SETTING_USE_D3D12: "Enable DirectX 12",
+  SETTING_USE_D3D12_DESC: "Launch the game with DirectX 12 enabled.",
+  SETTING_NAP_METALFX: "Enable MetalFX",
+  SETTING_NAP_METALFX_DESC: "Use MetalFX instead of DLSS.",
   SETTING_SAVE: "Save",
   SETTING_CANCEL: "Cancel",
 
@@ -194,7 +198,12 @@ export const en: typeof zh_CN = {
   GAME_VERSION_TOO_OLD_DESC:
     "Your current game version ({0}) is too old to update incrementally. Please re-install the game.",
 
-  PREDOWNLOAD_READY: "Pre-download {0}",
+  PREDOWNLOAD_READY: "{0} pre-download {1}",
+  PREDOWNLOAD_DONE: "Preloaded",
+  SETTING_PREDOWNLOAD: "Pre-download",
+  SETTING_PREDOWNLOAD_VERSION: "Current pre-download version: {0}",
+  SETTING_PREDOWNLOAD_SIZE: "Space used: {0}",
+  SETTING_DELETE_PREDOWNLOAD: "Delete pre-download resources",
 
   COMMUNITY_WARNING: "Community Warning",
   COMMUNITY_WINE_ALERT:
@@ -373,6 +382,22 @@ export const en: typeof zh_CN = {
   NOTIFICATION_TASK_FAILED_TITLE: "Task failed",
   NOTIFICATION_AUTHORIZATION_CANCELLED:
     "The task failed because authorization was cancelled.",
+  AUTHORIZATION_PROMPT_HOSTS_HELPER_INSTALL:
+    "Yaaglm needs permission to install or update Hosts Helper. It places a helper and launch daemon in macOS system directories to manage Yaaglm hosts rules.",
+  AUTHORIZATION_PROMPT_HOSTS_HELPER_REREGISTER:
+    "Yaaglm needs permission to re-register Hosts Helper for this launcher bundle and rotate its authentication token. Other launcher registrations will not be changed.",
+  AUTHORIZATION_PROMPT_HOSTS_HELPER_UNINSTALL:
+    "Yaaglm needs permission to remove Hosts Helper's registration, system helper, and launch daemon for this launcher bundle.",
+  AUTHORIZATION_PROMPT_TEMPORARY_HOSTS:
+    "Yaaglm needs permission to temporarily add {0} network rule(s) to /etc/hosts for {1} seconds. The rules will be removed automatically.",
+  AUTHORIZATION_PROMPT_MANAGED_HOSTS:
+    "Yaaglm needs permission to update Yaaglm-managed network rules in /etc/hosts. It only replaces the Yaaglm-marked section.",
+  AUTHORIZATION_PROMPT_RECONCILE_HOSTS:
+    "Yaaglm needs permission to remove legacy Yaagl hosts rules and update the Yaaglm-managed section in /etc/hosts.",
+  AUTHORIZATION_PROMPT_REPLACE_LAUNCHER:
+    "Yaaglm needs permission to replace the launcher application bundle at its installed location. No game files or personal data will be changed.",
+  AUTHORIZATION_PROMPT_REMOVE_QUARANTINE:
+    "Yaaglm needs permission to remove the macOS quarantine attribute from the downloaded Wine runtime so it can run. No game files will be changed.",
   CHECK_UPDATE_FAILED: "Update check failed",
   CHECK_UPDATE_FAILED_DESC: "Unable to connect to the GitHub server ({0})",
   CHECK_GAME_UPDATE_FAILED: "Check game update failed",

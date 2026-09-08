@@ -33,6 +33,7 @@ const DOWNLOAD_TRANSFER_STATE_KEYS = new Set<LocaleTextKey>([
 export type TaskEntry = {
   fn: () => TaskProgram;
   name?: LocaleTextKey;
+  nameArgs?: string[];
   downloadTask?: DownloadTaskMetadata;
 };
 
@@ -164,7 +165,7 @@ export function createTaskRunner({
 
     runningKeys.add(key);
     const state = getState(key);
-    const { fn: task, name: taskName } = entry;
+    const { fn: task, name: taskName, nameArgs: taskNameArgs } = entry;
     // Only tasks that explicitly provide download metadata belong in the
     // download queue. Regular tasks such as launching the game may still
     // start an incidental runtime download; those streams are materialized
@@ -227,7 +228,7 @@ export function createTaskRunner({
       }
       await log("Task completed");
       state.setStatusArgs(null);
-      if (taskName) notifier.taskCompleted(locale, taskName);
+      if (taskName) notifier.taskCompleted(locale, taskName, taskNameArgs);
     } catch (error) {
       if (isAuthorizationCancelledError(error)) {
         const authorizationError = new Error(

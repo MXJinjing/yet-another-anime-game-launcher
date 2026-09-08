@@ -58,6 +58,7 @@ export async function createLauncher({
         locale,
         storage: globalStorage,
         gameInstallDir: channelClient.installDir,
+        gameVersion: channelClient.gameVersion,
         onGameInstallDirChange: channelClient.changeInstallDir,
         configForChannelClient: (locale, config) =>
           bootPerformance?.measure("single-game-channel-config", () =>
@@ -69,6 +70,7 @@ export async function createLauncher({
       locale,
       storage: globalStorage,
       gameInstallDir: channelClient.installDir,
+      gameVersion: channelClient.gameVersion,
       onGameInstallDirChange: channelClient.changeInstallDir,
       configForChannelClient: (locale, config) =>
         channelClient.createConfig(locale, config),

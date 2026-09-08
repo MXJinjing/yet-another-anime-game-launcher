@@ -9,6 +9,12 @@ HELPER_RELEASE="${HELPER_RELEASE:-latest}"
 
 if [ "$HELPER_RELEASE" = "latest" ]; then
   BASE_URL="https://github.com/${HELPER_REPO}/releases/latest/download"
+  RELEASE_URL="$(curl -fL --retry 3 -sS -o /dev/null -w '%{url_effective}' "${BASE_URL}/install.sh")"
+  HELPER_RELEASE="$(printf '%s' "$RELEASE_URL" | sed -n 's#^.*/releases/download/\([^/]*\)/.*$#\1#p')"
+  [ -n "$HELPER_RELEASE" ] || {
+    echo "Unable to determine helper release from $RELEASE_URL" >&2
+    exit 1
+  }
 else
   BASE_URL="https://github.com/${HELPER_REPO}/releases/download/${HELPER_RELEASE}"
 fi
@@ -38,5 +44,6 @@ install -m 0755 "$TMP/yaaglm-hosts-helper-arm64" sidecar/arm64/yaaglm-hosts-help
 install -m 0755 "$TMP/yaaglm-hosts-helper-x86_64" sidecar/x64/yaaglm-hosts-helper/yaaglm-hosts-helper
 install -m 0755 "$TMP/install.sh" sidecar/yaaglm-hosts-helper/install.sh
 install -m 0755 "$TMP/uninstall.sh" sidecar/yaaglm-hosts-helper/uninstall.sh
+printf '%s\n' "${HELPER_RELEASE#v}" > sidecar/yaaglm-hosts-helper/VERSION
 
 echo "Updated hosts helper from ${HELPER_REPO} release ${HELPER_RELEASE}"

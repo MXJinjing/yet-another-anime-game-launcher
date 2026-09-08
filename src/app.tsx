@@ -8,6 +8,7 @@ import {
 import { createGithubEndpoint } from "./integrations/github";
 import {
   createLauncher,
+  MULTI_GAME_ALL_GAME_SPECS,
   createMultiGameLauncher,
   MULTI_GAME_CN_GAME_SPECS,
 } from "./launcher";
@@ -60,6 +61,8 @@ import {
 } from "./wine";
 import { reportBootProgress, setBootProgressLocale } from "./boot-progress";
 import type { BootPerformance } from "./boot-performance";
+import { ENSURE_HOSTS } from "./clients/secret";
+import { ensureHosts } from "./system/hosts";
 
 type LauncherWineActions = {
   initializeWine: (distro: WineDistribution) => TaskProgram;
@@ -87,6 +90,13 @@ export async function createApp(bootPerformance?: BootPerformance) {
   }
   reportBootProgress("BOOT_INITIALIZING", 0);
   await measure("local-storage-singleton", () => setKey("singleton", null));
+  await measure("hosts-startup-reconcile", async () => {
+    try {
+      await ensureHosts(ENSURE_HOSTS);
+    } catch (error) {
+      await log(`Hosts startup reconciliation failed: ${String(error)}`);
+    }
+  });
 
   const locale = await measure("locale-load", createLocale);
   setBootProgressLocale(locale);
@@ -204,7 +214,8 @@ export async function createApp(bootPerformance?: BootPerformance) {
 
   reportBootProgress("BOOT_INITIALIZING_RUNTIME", 66);
   const channel = import.meta.env.YAAGL_CHANNEL_CLIENT || "hk4ecn";
-  const isMergedChannel = channel == "mhyos" || channel == "mhycn";
+  const isMergedChannel =
+    channel == "mhyos" || channel == "mhycn" || channel == "all";
   const sharedLauncherProps: {
     wine: Wine;
     wineDistroId: string;
@@ -238,7 +249,12 @@ export async function createApp(bootPerformance?: BootPerformance) {
         ...sharedLauncherProps,
         aria2,
         region: channel == "mhycn" ? "CN" : "OS",
-        specs: channel == "mhycn" ? MULTI_GAME_CN_GAME_SPECS : undefined,
+        specs:
+          channel == "all"
+            ? MULTI_GAME_ALL_GAME_SPECS
+            : channel == "mhycn"
+            ? MULTI_GAME_CN_GAME_SPECS
+            : undefined,
         bootPerformance,
       })
     );

@@ -41,6 +41,7 @@ describe("createUpdater", () => {
   it.each([
     ["mhycn", "Yaaglm.CN.app.tar.gz", "Yaaglm CN.app"],
     ["mhyos", "Yaaglm.OS.app.tar.gz", "Yaaglm OS.app"],
+    ["all", "Yaagl.app.tar.gz", "Yaagl.app"],
     ["cbjq", "Yaaglm.SCZ.OS.app.tar.gz", "Yaaglm SCZ OS.app"],
     ["cbjqcn", "Yaaglm.SCZ.app.tar.gz", "Yaaglm SCZ.app"],
   ])(

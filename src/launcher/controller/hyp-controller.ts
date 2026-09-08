@@ -82,7 +82,7 @@ export function createGameLaunchProgram({
 export function gameDownloadTaskMetadata(
   game: HypGame,
   locale: Locale,
-  mode: "release" | "current" | "predownload"
+  mode: "release" | "current" | "predownload" | "integrity"
 ) {
   const rawVersion =
     mode === "predownload"
@@ -94,7 +94,9 @@ export function gameDownloadTaskMetadata(
   const baseTitle = [game.title, version].filter(Boolean).join(" ");
   return {
     title:
-      mode === "predownload"
+      mode === "integrity"
+        ? `${game.title} ${locale.get("SETTING_CHECK_INTEGRITY")}`
+        : mode === "predownload"
         ? `${baseTitle} ${locale.get("DOWNLOAD_TASK_PREDOWNLOAD_SUFFIX")}`
         : baseTitle,
     key: game.namespace,

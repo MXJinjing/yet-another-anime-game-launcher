@@ -19,6 +19,7 @@ import { resolve } from "@platform/neutralino/path";
 import { downloadPercent } from "@runtime/format";
 import { dirname, join } from "path-browserify";
 import { log } from "../logging/logger";
+import { getAuthorizationPrompt } from "../locale/authorization";
 import { isDownloadCancelledError } from "../download/control";
 import { addCertsToWine } from "./cert";
 import { getWineDistributions } from "./distro";
@@ -400,7 +401,11 @@ export async function* ensureMultiGameGameWine({
   await rmrf_dangerously(wineTarPath);
   yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
   await addCertsToWine(wineRoot);
-  await xattrRemove("com.apple.quarantine", wineRoot);
+  await xattrRemove(
+    "com.apple.quarantine",
+    wineRoot,
+    await getAuthorizationPrompt("AUTHORIZATION_PROMPT_REMOVE_QUARANTINE")
+  );
   return await createMultiGameWineFromRoot({
     prefix: baseWine.prefix,
     distro,

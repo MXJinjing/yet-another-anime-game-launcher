@@ -1,14 +1,16 @@
 import type { Locale } from "@locale";
 import { log } from "../logging/logger";
 import { env, openDir } from "../platform/neutralino";
-import { exec } from "../runtime/command-runner";
-
-type ExecResult = { stdOut: string };
+import {
+  getDirectorySize,
+  type DirectorySizeDependencies,
+  type DirectorySizeExecResult,
+} from "./directory-size";
 
 export interface GameInstallationDependencies {
   openFolderDialog?: (title: string) => Promise<string>;
   getHome?: () => Promise<string>;
-  exec?: (command: string[]) => Promise<ExecResult>;
+  exec?: (command: string[]) => Promise<DirectorySizeExecResult>;
   log?: (message: string) => Promise<unknown>;
 }
 
@@ -78,20 +80,9 @@ export async function selectGameInstallationDirectory(
  */
 export async function getGameInstallationDirectorySize(
   path: string,
-  dependencies: GameInstallationDependencies = {}
+  dependencies: DirectorySizeDependencies = {}
 ): Promise<number | null> {
-  const run =
-    dependencies.exec ??
-    (async command => (await exec(command, {}, false)) as ExecResult);
-  try {
-    const result = await run(["du", "-sk", path]);
-    const sizeInKiB = Number(result.stdOut.trim().split(/\s+/)[0]);
-    return Number.isFinite(sizeInKiB) && sizeInKiB >= 0
-      ? sizeInKiB * 1024
-      : null;
-  } catch {
-    return null;
-  }
+  return getDirectorySize(path, dependencies);
 }
 
 /**

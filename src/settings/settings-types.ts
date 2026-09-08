@@ -57,6 +57,7 @@ export type GameLoadedSettings = BaseLoadedSettings & {
   gameProxyEnabled: Accessor<boolean>;
   channelClientGame: SettingsComponent;
   channelClientVideo?: SettingsComponent;
+  enableMetalFxUpscale: boolean;
 };
 
 /** @deprecated Use GlobalLoadedSettings or GameLoadedSettings. */

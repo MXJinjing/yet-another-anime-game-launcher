@@ -56,6 +56,7 @@ export type GlobalSettingsOptions = {
 export type GameSettingsOptions = {
   locale: Locale;
   gameInstallDir: () => string;
+  gameVersion?: () => string;
   onGameInstallDirChange?: (path: string) => Promise<void>;
   configForChannelClient: (
     locale: Locale,
@@ -167,6 +168,7 @@ async function loadGameSettings(
     locale,
     config,
     gameInstallDir,
+    gameVersion: options.gameVersion ?? (() => ""),
     onGameInstallDirChange: options.onGameInstallDirChange,
     store: configStore,
   });
@@ -215,9 +217,8 @@ async function loadGameSettings(
     storage: options.storage,
   });
 
-  const { channelClientGame, channelClientVideo } = resolveChannelClientConfig(
-    await configForChannelClient(locale, config)
-  );
+  const { channelClientGame, channelClientVideo, enableMetalFxUpscale } =
+    resolveChannelClientConfig(await configForChannelClient(locale, config));
 
   return {
     config,
@@ -236,6 +237,7 @@ async function loadGameSettings(
     gameProxyEnabled,
     channelClientGame,
     channelClientVideo,
+    enableMetalFxUpscale,
   };
 }
 

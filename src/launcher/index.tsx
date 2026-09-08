@@ -6,3 +6,4 @@ export {
 } from "./data/multi-game-os";
 export type { MultiGameGameSpec } from "./data/multi-game-spec";
 export { MULTI_GAME_CN_GAME_SPECS } from "./data/multi-game-cn";
+export { MULTI_GAME_ALL_GAME_SPECS } from "./data/multi-game-all";

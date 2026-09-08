@@ -1,17 +1,24 @@
 import { build } from "../shell";
 
-export function runInSudo(cmd: string) {
-  return build([
-    "osascript",
-    "-e",
-    [
-      "do",
-      "shell",
-      "script",
-      `"${cmd.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`,
-      "with",
-      "administrator",
-      "privileges",
-    ].join(" "),
-  ]);
+function quoteAppleScript(value: string) {
+  return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+}
+
+export function privilegedShellScript(cmd: string, prompt: string) {
+  return [
+    "do",
+    "shell",
+    "script",
+    quoteAppleScript(cmd),
+    "with",
+    "administrator",
+    "privileges",
+    "with",
+    "prompt",
+    quoteAppleScript(prompt),
+  ].join(" ");
+}
+
+export function runInSudo(cmd: string, prompt: string) {
+  return build(["osascript", "-e", privilegedShellScript(cmd, prompt)]);
 }

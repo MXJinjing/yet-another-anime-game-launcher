@@ -16,6 +16,7 @@ describe("getChannelBootIcon", () => {
       "cbjqcn",
       "mhyos",
       "mhycn",
+      "all",
     ]) {
       expect(getChannelBootIcon(channel), channel).toBeTruthy();
     }

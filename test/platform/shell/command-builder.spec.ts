@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { build, rawString } from "@platform/shell/command-builder";
-import { exec as exec_callback } from "child_process";
+import { exec as exec_callback, execFile, execFileSync } from "child_process";
+
+const supportsAppleScript = (() => {
+  try {
+    execFileSync("osascript", ["-e", 'do shell script "true"'], {
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 function exec(cmd: string): Promise<string[]> {
   return new Promise((res, rej) => {
@@ -23,21 +34,18 @@ function exec_sh(cmd: string): Promise<string[]> {
 }
 
 function exec_osa(cmd: string): Promise<string[]> {
-  //     const embeded = build(["echo", "Hello ' World"]);
-  //     console.log(embeded);
-  //     console.log(embeded.replaceAll("\\", "\\\\").replaceAll('"', '\\\\"'));
-  return exec(
-    build([
-      "osascript",
-      "-e", //.replace('"','\\"')
-      [
-        "do",
-        "shell",
-        "script",
-        `"${cmd.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`,
-      ].join(" "),
-    ])
-  );
+  const script = `do shell script "${cmd
+    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"')}"`;
+  return new Promise((res, rej) => {
+    execFile("osascript", ["-e", script], (err, stdout, stderr) => {
+      if (err) {
+        rej(stderr);
+      } else {
+        res(stdout.split("\n"));
+      }
+    });
+  });
 }
 
 function buildTest(name: string, exec: (cmd: string) => Promise<string[]>) {
@@ -126,6 +134,7 @@ function buildTest(name: string, exec: (cmd: string) => Promise<string[]>) {
     });
 
     it("eval a command string, but osascript -e", async () => {
+      if (!supportsAppleScript) return;
       const cmd = build([
         "osascript",
         "-e",
@@ -133,7 +142,7 @@ function buildTest(name: string, exec: (cmd: string) => Promise<string[]>) {
           "do",
           "shell",
           "script",
-          `"${build(["echo", "Hello World"]).replace("\\", "\\\\")}"`,
+          `"${build(["echo", "Hello World"]).replaceAll("\\", "\\\\")}"`,
         ].join(" "),
       ]);
       expect((await exec(cmd))[0]).toBe("Hello World");
@@ -143,5 +152,5 @@ function buildTest(name: string, exec: (cmd: string) => Promise<string[]>) {
 
 buildTest("normal shell", exec);
 buildTest("`eval`", exec_eval);
-buildTest("`osascript -e`", exec_osa);
+if (supportsAppleScript) buildTest("`osascript -e`", exec_osa);
 buildTest("`sh -c`", exec_sh);

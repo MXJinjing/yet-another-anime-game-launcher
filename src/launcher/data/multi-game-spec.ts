@@ -4,6 +4,7 @@ import type { ChannelClient } from "../../channel-client";
 import type { Wine } from "../../wine";
 import type { BootPerformance } from "../../boot-performance";
 import type { Storage } from "../../runtime/storage";
+import type { HoyoPlayRegion } from "../../clients/mhy/hyp-connect";
 
 export type MultiGameGameSpec = {
   id: string;
@@ -13,6 +14,9 @@ export type MultiGameGameSpec = {
   iconImage?: string;
   bannerImage?: string;
   logoImage?: string;
+  /** Optional official catalog lookup for a client in a combined channel. */
+  displayRegion?: HoyoPlayRegion;
+  displayBiz?: string;
   serverLabel: LocaleTextKey;
   createClient: (options: {
     wine: Wine;

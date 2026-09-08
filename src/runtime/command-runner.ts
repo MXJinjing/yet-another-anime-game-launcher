@@ -9,17 +9,26 @@ import {
 } from "../platform/neutralino";
 import { build, CommandSegments, rawString } from "../platform/shell";
 
+function authorizationPrompt(sudoPrompt: string | boolean) {
+  if (typeof sudoPrompt == "string") return sudoPrompt;
+  if (sudoPrompt) {
+    return "Yaaglm needs administrator privileges to complete a requested launcher operation.";
+  }
+  return undefined;
+}
+
 export async function exec(
   segments: CommandSegments,
   env?: { [key: string]: string },
-  sudo = false,
+  sudoPrompt: string | boolean = false,
   log_redirect: string | undefined = undefined
 ): Promise<Neutralino.os.ExecCommandResult> {
   const cmd = build(
     [...segments, ...(log_redirect ? [rawString("&>"), log_redirect] : [])],
     env
   );
-  const command = sudo ? runInSudo(cmd) : cmd;
+  const prompt = authorizationPrompt(sudoPrompt);
+  const command = prompt ? runInSudo(cmd, prompt) : cmd;
   await log(command);
   const ret = await execCommand(command, {});
   if (ret.exitCode != 0) {
@@ -33,7 +42,7 @@ export async function exec(
 export async function exec2(
   segments: CommandSegments,
   env?: { [key: string]: string },
-  sudo = false,
+  sudoPrompt: string | boolean = false,
   log_redirect: string | undefined = undefined,
   options: { timeoutMs?: number } = {}
 ): Promise<Neutralino.os.ExecCommandResult> {
@@ -41,7 +50,8 @@ export async function exec2(
     [...segments, ...(log_redirect ? [rawString("&>"), log_redirect] : [])],
     env
   );
-  const command = sudo ? runInSudo(cmd) : cmd;
+  const prompt = authorizationPrompt(sudoPrompt);
+  const command = prompt ? runInSudo(cmd, prompt) : cmd;
   await log(command);
 
   let id: number | undefined;

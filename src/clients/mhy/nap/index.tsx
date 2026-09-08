@@ -42,6 +42,8 @@ import { getDefaultBlockHostsText } from "../block-hosts";
 import { NAP_CN_BLOCK_URL, NAP_OS_BLOCK_URL } from "../../secret";
 import createSteamPatch from "./config/steam-patch";
 import createTimeoutFix from "./config/timeout-fix";
+import createMetalFx from "./config/metalfx";
+import createDirectX12 from "./config/directx12";
 import createMhypBaseReplacement from "../hk4e/config/runtime-replacement";
 import { getGameVersion as _getGameVersion } from "../unity";
 import {
@@ -482,11 +484,13 @@ export async function createNAPChannelClient({
       });
     },
     async *checkIntegrity() {
-      // yield* checkIntegrityProgram({
-      //   aria2,
-      //   gameDir: _gameInstallDir(),
-      //   remoteDir: decompressed_path,
-      // });
+      yield* checkIntegrityProgram({
+        aria2,
+        gameDir: _gameInstallDir(),
+        remoteDir: decompressed_path,
+        downloadKey: storage.namespace,
+        storage,
+      });
     },
     async changeInstallDir(selection: string) {
       if (!selection) {
@@ -568,18 +572,37 @@ export async function createNAPChannelClient({
       });
       const [SP] = await createSteamPatch({ locale, config, storage });
       const [TF] = await createTimeoutFix({ locale, config, storage });
+      const [DX12] = await createDirectX12({ locale, config, storage });
+      const [MFX] = await createMetalFx({
+        locale,
+        config,
+        storage,
+      });
 
-      return function () {
-        return [
-          <PO />,
-          <RES />,
-          <SP />,
-          <TF />,
-          <Divider />,
-          <BN />,
-          <Divider />,
-          <W4 />,
-        ];
+      return {
+        launch() {
+          return [
+            <PO />,
+            <SP />,
+            <TF />,
+            <Divider />,
+            <BN />,
+            <Divider />,
+            <W4 />,
+          ];
+        },
+        video() {
+          return (
+            <>
+              <RES />
+              <Divider />
+              <DX12 />
+              <Divider />
+              <MFX />
+            </>
+          );
+        },
+        enableMetalFxUpscale: false,
       };
     },
   };

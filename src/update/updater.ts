@@ -19,6 +19,7 @@ import {
 } from "../platform/neutralino";
 import { tar_extract } from "../runtime/archive";
 import { exec } from "../runtime/command-runner";
+import { getAuthorizationPrompt } from "../locale/authorization";
 import { wait } from "../runtime/async";
 import { DEV_UPDATE_INFO } from "./dev-mock";
 import { mkdirp, rmrf_dangerously } from "../runtime/macos-filesystem";
@@ -37,6 +38,7 @@ const RELEASE_APP_ARCHIVES: Record<string, string> = {
   napos: "Yaaglm.ZZZ.OS.app.tar.gz",
   mhycn: "Yaaglm.CN.app.tar.gz",
   mhyos: "Yaaglm.OS.app.tar.gz",
+  all: "Yaagl.app.tar.gz",
   cbjq: "Yaaglm.SCZ.OS.app.tar.gz",
   cbjqcn: "Yaaglm.SCZ.app.tar.gz",
 };
@@ -51,6 +53,7 @@ const RELEASE_APP_TOP_LEVEL_DIRS: Record<string, string> = {
   "Yaaglm.ZZZ.OS.app": "Yaaglm ZZZ OS.app",
   "Yaaglm.CN.app": "Yaaglm CN.app",
   "Yaaglm.OS.app": "Yaaglm OS.app",
+  "Yaagl.app": "Yaagl.app",
   "Yaaglm.SCZ.OS.app": "Yaaglm SCZ OS.app",
   "Yaaglm.SCZ.app": "Yaaglm SCZ.app",
 };
@@ -190,7 +193,11 @@ export async function applyReleaseApp(
             error
           )}); retrying with administrator privileges`
         );
-        await exec(sync, {}, true);
+        await exec(
+          sync,
+          {},
+          await getAuthorizationPrompt("AUTHORIZATION_PROMPT_REPLACE_LAUNCHER")
+        );
       }
       await log(`Replaced app bundle at ${bundlePath} with ${topLevelDir}`);
     } else {

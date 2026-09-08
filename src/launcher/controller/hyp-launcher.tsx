@@ -3,9 +3,16 @@ import { Locale } from "@locale";
 import { hopeTaskNotifier } from "@tasks/task-notifications";
 import { exec2, fatal, getKeyOrDefault, setKey } from "@runtime";
 import { log } from "@logging/logger";
-import { openDir } from "@platform/neutralino";
+import {
+  fileOrDirExists,
+  openDir,
+  readDirectory,
+  removeDirectory,
+  removeFile,
+} from "@platform/neutralino";
 import { getWineDistributions, type Wine, type WineDistribution } from "@wine";
 import { SHARED_WINE_TAG } from "@wine/multi-game";
+import { join } from "path-browserify";
 import {
   Popover,
   PopoverBody,
@@ -24,6 +31,7 @@ import {
 } from "solid-js";
 import type { JSX } from "solid-js";
 import { createGameInstallationDirectorySanitizer } from "@services/game-installation";
+import { getDirectorySize } from "@services/directory-size";
 import { createGameUninstallDialog } from "../../modals/game-uninstall-modal";
 import { GAME_BANNER_URLS } from "../data/game-assets";
 import {
@@ -56,6 +64,9 @@ import { GameUpdatePromptModal } from "../../modals/game-update-prompt-modal";
 import { GameCrashModal } from "../../modals/game-crash-modal";
 import { RuntimeReplacementErrorModal } from "../../modals/runtime-replacement-error-modal";
 import { isRuntimeReplacementFileMissingError } from "../../clients/mhy/patch";
+import cloudDownloadIcon from "../../assets/icons/cloud-download.svg";
+import cloudCheckIcon from "../../assets/icons/cloud-check.svg";
+import { humanFileSize } from "../../runtime/format";
 import { getProgressPanelVisibility } from "../model/progress-panel-visibility";
 import {
   clearGameInstallationState,
@@ -78,6 +89,16 @@ export type {
 const BG_STORAGE_KEY = "hyp_bg";
 const BG_TRANSITION_MS = 600;
 const LIBRARY_TRANSITION_MS = 360;
+const PREDOWNLOAD_STAGING_DIRECTORIES = [".ariatmp", ".tmp"];
+
+async function removeDirectoryRecursively(path: string): Promise<void> {
+  for (const entry of await readDirectory(path)) {
+    const child = join(path, entry.entry);
+    if (entry.type === "DIRECTORY") await removeDirectoryRecursively(child);
+    else await removeFile(child);
+  }
+  await removeDirectory(path);
+}
 
 type ProgressPanelData = {
   title: string;
@@ -344,6 +365,41 @@ export async function createHypLauncher({
     }
   }
 
+  async function detectCompletedPredownload(game: HypGame) {
+    if (game.client.installState() !== "INSTALLED") return false;
+    const targetVersion = game.client.predownloadVersion();
+    if (!targetVersion || !game.client.installDir()) return false;
+
+    const storage = game.storage;
+    const marker = await (storage?.getKeyOrDefault(
+      "predownloaded_all",
+      "NOTFOUND"
+    ) ?? getKeyOrDefault("predownloaded_all", "NOTFOUND"));
+    if (marker === "NOTFOUND") return false;
+    if (marker !== "true" && marker !== targetVersion) return false;
+
+    // Aria2 and Sophon keep completed pre-download payloads in these
+    // installation-directory staging folders until the game update runs.
+    const installDir = game.client.installDir();
+    for (const stagingDir of PREDOWNLOAD_STAGING_DIRECTORIES) {
+      const path = join(installDir, stagingDir);
+      if (!(await fileOrDirExists(path))) continue;
+      try {
+        if ((await readDirectory(path)).length > 0) return true;
+      } catch {
+        // Ignore inaccessible staging directories and try the next one.
+      }
+    }
+    return false;
+  }
+
+  const persistedPredownloads: Record<string, boolean> = {};
+  for (const game of games) {
+    if (await detectCompletedPredownload(game)) {
+      persistedPredownloads[game.id] = true;
+    }
+  }
+
   return function HypLauncher() {
     const selectedGame = () => games[selectedGameIndex()];
     onMount(() => {
@@ -539,6 +595,11 @@ export async function createHypLauncher({
     >({});
     const [gameLifecycleActiveByKey, setGameLifecycleActiveByKey] =
       createSignal<Record<string, boolean>>({});
+    const [predownloadCompletedByGame, setPredownloadCompletedByGame] =
+      createSignal<Record<string, boolean>>(persistedPredownloads);
+    const [predownloadSizeByGame, setPredownloadSizeByGame] = createSignal<
+      Record<string, number | undefined>
+    >({});
     const [crashedGame, setCrashedGame] = createSignal<HypGame>();
     const [runtimeReplacementError, setRuntimeReplacementError] = createSignal<{
       game: HypGame;
@@ -1077,11 +1138,15 @@ export async function createHypLauncher({
             game.client.checkIntegrity()
           ),
           name: "SETTING_CHECK_INTEGRITY",
-          // Integrity verification itself is not a download task. Keeping it
-          // out of the explicit download-task registry also prevents any
-          // incidental Wine/runtime stream from being mislabeled as a game
-          // download. Actual repair streams are still materialized by the
-          // download registry when they start.
+          ...(game.id !== "hk4e"
+            ? {
+                downloadTask: gameDownloadTaskMetadata(
+                  game,
+                  locale,
+                  "integrity"
+                ),
+              }
+            : {}),
         });
       }
     }
@@ -1146,10 +1211,54 @@ export async function createHypLauncher({
       const game = selectedGame();
       taskQueue.enqueue({
         key: game.id,
-        fn: gameProgram(aria2, baseWine, game, () => game.client.predownload()),
+        fn: async function* () {
+          yield* gameProgram(aria2, baseWine, game, () =>
+            game.client.predownload()
+          )();
+          await refreshPredownloadSize(game);
+          setPredownloadCompletedByGame(previous => ({
+            ...previous,
+            [game.id]: true,
+          }));
+        },
         name: "PREDOWNLOAD_READY",
+        nameArgs: [game.title, game.client.predownloadVersion()],
         downloadTask: gameDownloadTaskMetadata(game, locale, "predownload"),
       });
+    }
+
+    async function refreshPredownloadSize(game: HypGame) {
+      setPredownloadSizeByGame(previous => ({
+        ...previous,
+        [game.id]: undefined,
+      }));
+      let size = 0;
+      const installDir = game.client.installDir();
+      for (const directory of PREDOWNLOAD_STAGING_DIRECTORIES) {
+        const directorySize = await getDirectorySize(
+          join(installDir, directory)
+        );
+        if (directorySize != null) size += directorySize;
+      }
+      setPredownloadSizeByGame(previous => ({ ...previous, [game.id]: size }));
+    }
+
+    async function deletePredownload(game: HypGame) {
+      const installDir = game.client.installDir();
+      for (const directory of PREDOWNLOAD_STAGING_DIRECTORIES) {
+        try {
+          await removeDirectoryRecursively(join(installDir, directory));
+        } catch {
+          // The directory may be absent or already removed.
+        }
+      }
+      await (game.storage?.setKey("predownloaded_all", null) ??
+        setKey("predownloaded_all", null));
+      setPredownloadCompletedByGame(previous => ({
+        ...previous,
+        [game.id]: false,
+      }));
+      setPredownloadSizeByGame(previous => ({ ...previous, [game.id]: 0 }));
     }
 
     async function openNativeSettings(game: HypGame) {
@@ -1412,16 +1521,81 @@ export async function createHypLauncher({
             </Show>
             <Show
               when={
-                selectedGame().client.showPredownloadPrompt() &&
+                (selectedGame().client.showPredownloadPrompt() ||
+                  predownloadCompletedByGame()[selectedGame().id]) &&
                 !selectedGameTaskState().busy() &&
                 wineInstalled()
               }
             >
-              <button class="hyp-secondary-button" onClick={onPredownload}>
-                {locale.format("PREDOWNLOAD_READY", [
-                  selectedGame().client.predownloadVersion(),
-                ])}
-              </button>
+              <Show
+                when={predownloadCompletedByGame()[selectedGame().id]}
+                fallback={
+                  <button class="hyp-secondary-button" onClick={onPredownload}>
+                    <img src={cloudDownloadIcon} alt="" aria-hidden="true" />
+                    {locale.format("PREDOWNLOAD_READY", [
+                      selectedGame().title,
+                      selectedGame().client.predownloadVersion(),
+                    ])}
+                  </button>
+                }
+              >
+                <Popover
+                  placement="top-start"
+                  onOpen={() => {
+                    void refreshPredownloadSize(selectedGame());
+                  }}
+                >
+                  {({ onClose }) => (
+                    <>
+                      <PopoverTrigger class="hyp-secondary-button done">
+                        <img src={cloudCheckIcon} alt="" aria-hidden="true" />
+                        {locale.get("PREDOWNLOAD_DONE")}
+                      </PopoverTrigger>
+                      <PopoverContent class="hyp-menu-popover-content">
+                        <PopoverBody class="hyp-menu-popover-body">
+                          <div class="hyp-menu-popover">
+                            <div class="hyp-menu-version">
+                              <span>
+                                {locale.get("SETTING_PREDOWNLOAD")}{" "}
+                                {selectedGame().client.predownloadVersion()}
+                              </span>
+                              <strong>
+                                <Show
+                                  when={
+                                    predownloadSizeByGame()[
+                                      selectedGame().id
+                                    ] != undefined
+                                  }
+                                  fallback="..."
+                                >
+                                  {locale.format("SETTING_PREDOWNLOAD_SIZE", [
+                                    humanFileSize(
+                                      predownloadSizeByGame()[
+                                        selectedGame().id
+                                      ] ?? 0,
+                                      false,
+                                      2
+                                    ),
+                                  ])}
+                                </Show>
+                              </strong>
+                            </div>
+                            <button
+                              class="hyp-menu-item hyp-menu-item-danger"
+                              onClick={() => {
+                                void deletePredownload(selectedGame());
+                                onClose();
+                              }}
+                            >
+                              {locale.get("SETTING_DELETE_PREDOWNLOAD")}
+                            </button>
+                          </div>
+                        </PopoverBody>
+                      </PopoverContent>
+                    </>
+                  )}
+                </Popover>
+              </Show>
             </Show>
             <div class="hyp-primary-row">
               <button

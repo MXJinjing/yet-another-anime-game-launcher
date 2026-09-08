@@ -13,6 +13,7 @@ export function VideoTab(props: {
   ChannelClientVideoConfig?: () => JSXElement;
   VsyncDisableConfig?: () => JSXElement;
   MetalFxUpscaleConfig?: (opts?: { disabled?: boolean }) => JSXElement;
+  EnableMetalFxUpscale?: boolean;
   ReShadeConfig?: (opts?: { disabled?: boolean }) => JSXElement;
   config?: Partial<Config>;
   configStore: ConfigStore;
@@ -53,7 +54,7 @@ export function VideoTab(props: {
             * {props.locale.get("SETTING_ADVANCED_ALERT")}
           </Text>
         </Box>
-        {props.MetalFxUpscaleConfig
+        {props.EnableMetalFxUpscale !== false && props.MetalFxUpscaleConfig
           ? props.MetalFxUpscaleConfig({ disabled: !advancedEnabled() })
           : null}
         {props.ReShadeConfig

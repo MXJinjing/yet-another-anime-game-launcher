@@ -6,7 +6,11 @@ import type { Locale, LocaleTextKey } from "@locale";
  * backed by another UI without coupling the runner to Hope UI.
  */
 export interface TaskNotifier {
-  taskCompleted(locale: Locale, taskName: LocaleTextKey): void;
+  taskCompleted(
+    locale: Locale,
+    taskName: LocaleTextKey,
+    taskNameArgs?: string[]
+  ): void;
   taskCancelled(locale: Locale, taskName: LocaleTextKey): void;
   taskFailed(
     locale: Locale,
@@ -18,10 +22,12 @@ export interface TaskNotifier {
 }
 
 export const hopeTaskNotifier: TaskNotifier = {
-  taskCompleted(locale, taskName) {
+  taskCompleted(locale, taskName, taskNameArgs) {
     notificationService.show({
       status: "success",
-      title: locale.get(taskName),
+      title: taskNameArgs
+        ? locale.format(taskName, taskNameArgs)
+        : locale.get(taskName),
       description: locale.get("NOTIFICATION_TASK_COMPLETED"),
     });
   },
@@ -55,8 +61,12 @@ export const hopeTaskNotifier: TaskNotifier = {
   },
 };
 
-export function notifyTaskCompleted(locale: Locale, taskName: LocaleTextKey) {
-  hopeTaskNotifier.taskCompleted(locale, taskName);
+export function notifyTaskCompleted(
+  locale: Locale,
+  taskName: LocaleTextKey,
+  taskNameArgs?: string[]
+) {
+  hopeTaskNotifier.taskCompleted(locale, taskName, taskNameArgs);
 }
 
 export function notifyTaskCancelled(locale: Locale, taskName: LocaleTextKey) {

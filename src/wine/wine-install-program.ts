@@ -14,6 +14,7 @@ import { setKey } from "@runtime/storage";
 import { isDownloadCancelledError } from "../download/control";
 import { ENSURE_HOSTS } from "../clients/secret";
 import { ensureHosts } from "../system/hosts";
+import { getAuthorizationPrompt } from "../locale/authorization";
 import {
   createWine,
   ensureActiveWineCompatLink,
@@ -119,7 +120,11 @@ export async function* installWineEnvironmentProgram({
     yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
     yield ["setUndeterminedProgress"];
     await addCertsToWine(wineBinaryDir);
-    await xattrRemove("com.apple.quarantine", wineBinaryDir);
+    await xattrRemove(
+      "com.apple.quarantine",
+      wineBinaryDir,
+      await getAuthorizationPrompt("AUTHORIZATION_PROMPT_REMOVE_QUARANTINE")
+    );
   }
 
   if (!activate) {

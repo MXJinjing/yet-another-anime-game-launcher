@@ -160,8 +160,11 @@ describe("nap game process lifecycle", () => {
     expect(raw.waitForWineServerExit).toHaveBeenCalledWith({
       timeoutMs: 5_000,
     });
+    expect(commands).toContainEqual(["setUndeterminedProgress"]);
+    expect(commands.some(command => command[0] == "setRawStateText")).toBe(
+      false
+    );
     expect(lifecycleStates(commands)).toEqual([
-      "PATCHING",
       "GAME_STARTING",
       "GAME_RUNNING",
       "REVERT_PATCHING",
@@ -177,12 +180,16 @@ describe("nap game process lifecycle", () => {
     expect(raw.waitForWineServerExit.mock.invocationCallOrder[0]).toBeLessThan(
       raw.exec.mock.invocationCallOrder[resolutionQuery]
     );
+    const configCleanup = vi
+      .mocked(removeFile)
+      .mock.calls.findIndex(([path]) => path.endsWith("config.bat"));
+    expect(configCleanup).toBeGreaterThan(-1);
     expect(raw.exec.mock.invocationCallOrder[resolutionQuery]).toBeLessThan(
-      vi.mocked(removeFile).mock.invocationCallOrder[0]
+      vi.mocked(removeFile).mock.invocationCallOrder[configCleanup]
     );
-    expect(vi.mocked(removeFile).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(patchRevertProgram).mock.invocationCallOrder[0]
-    );
+    expect(
+      vi.mocked(removeFile).mock.invocationCallOrder[configCleanup]
+    ).toBeLessThan(vi.mocked(patchRevertProgram).mock.invocationCallOrder[0]);
   });
 
   it("preserves the normal launch command and environment", async () => {
@@ -282,7 +289,6 @@ describe("nap game process lifecycle", () => {
       vi.mocked(patchRevertProgram).mock.invocationCallOrder[0]
     );
     expect(lifecycleStates(commands)).toEqual([
-      "PATCHING",
       "GAME_STARTING",
       "REVERT_PATCHING",
     ]);

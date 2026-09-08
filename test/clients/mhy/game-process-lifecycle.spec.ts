@@ -155,6 +155,10 @@ describe("game launch process-monitor integration", () => {
     expect(raw.waitForWineServerExit).toHaveBeenCalledWith({
       timeoutMs: 5_000,
     });
+    expect(commands).toContainEqual(["setUndeterminedProgress"]);
+    expect(commands.some(command => command[0] == "setRawStateText")).toBe(
+      false
+    );
     expect(lifecycleStates(commands)).toEqual([
       "GAME_STARTING",
       "GAME_RUNNING",

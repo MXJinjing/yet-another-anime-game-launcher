@@ -12,20 +12,20 @@ import { Locale } from "@locale";
 import { humanFileSize } from "../../../runtime/format";
 import { configEntries, type ConfigStore } from "@config";
 import { Config, NOOP } from "../../../config/config-def";
-import {
-  getGameInstallationDirectorySize,
-  selectGameInstallationDirectory,
-} from "../../../services/game-installation";
+import { selectGameInstallationDirectory } from "../../../services/game-installation";
+import { getDirectorySize } from "../../../services/directory-size";
 
 export async function createGameInstallDirConfig({
   locale,
   gameInstallDir,
+  gameVersion,
   onGameInstallDirChange,
   store,
 }: {
   config: Partial<Config>;
   locale: Locale;
   gameInstallDir: () => string;
+  gameVersion: () => string;
   onGameInstallDirChange?: (path: string) => Promise<void>;
   store: ConfigStore;
 }) {
@@ -40,7 +40,7 @@ export async function createGameInstallDirConfig({
       setDiskUsage(locale.get("SETTING_GAME_DIR_SIZE_NOT_SET"));
       return;
     }
-    const size = await getGameInstallationDirectorySize(path);
+    const size = await getDirectorySize(path);
     setDiskUsage(size == null ? "-" : humanFileSize(size, false, 2));
   }
 
@@ -74,9 +74,14 @@ export async function createGameInstallDirConfig({
                 {locale.get("SETTING_CHANGE_GAME_INSTALL_DIR")}
               </Button>
             </HStack>
-            <Text size="sm" userSelect="none" color="$neutral11">
-              {locale.format("SETTING_GAME_DIR_SIZE", [diskUsage()])}
-            </Text>
+            <HStack spacing="$4">
+              <Text size="sm" userSelect="none" color="$neutral11">
+                {locale.get("GAME_VERSION")}: {gameVersion()}
+              </Text>
+              <Text size="sm" userSelect="none" color="$neutral11">
+                {locale.format("SETTING_GAME_DIR_SIZE", [diskUsage()])}
+              </Text>
+            </HStack>
           </VStack>
         </FormControl>
       );

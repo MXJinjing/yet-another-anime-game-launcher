@@ -10,7 +10,9 @@ import {
 } from "../platform/neutralino";
 import { resolveSidecarPath } from "../platform/neutralino/sidecar";
 import { rawString } from "../platform/shell";
+import { privilegedShellScript } from "../platform/macos";
 import { exec } from "../runtime/command-runner";
+import { getAuthorizationPrompt } from "../locale/authorization";
 import { validateHostEntries } from "./hosts-validation";
 import type { HostEntry } from "./hosts-validation";
 
@@ -54,6 +56,7 @@ interface BuildManifest {
   bundleId: string;
   version: string;
   appName: string;
+  helperVersion?: string;
   helperSha256?: string;
   helperSha256ByArch?: Partial<Record<"arm64" | "x64", string>>;
 }
@@ -105,6 +108,11 @@ async function loadManifest(): Promise<BuildManifest | undefined> {
         bundleId: parsed.bundleId,
         version: parsed.version,
         appName: parsed.appName,
+        helperVersion:
+          typeof parsed.helperVersion == "string" &&
+          parsed.helperVersion.length > 0
+            ? parsed.helperVersion
+            : undefined,
         helperSha256:
           typeof parsed.helperSha256 == "string" &&
           parsed.helperSha256.length > 0
@@ -206,7 +214,15 @@ async function installHelper(ctx: HostsHelperContext, reRegister = false) {
     helper,
   ];
   if (reRegister) installArgs.push("--re-register");
-  await exec(installArgs, {}, true);
+  await exec(
+    installArgs,
+    {},
+    await getAuthorizationPrompt(
+      reRegister
+        ? "AUTHORIZATION_PROMPT_HOSTS_HELPER_REREGISTER"
+        : "AUTHORIZATION_PROMPT_HOSTS_HELPER_INSTALL"
+    )
+  );
 }
 
 async function ensureHelperReady(ctx: HostsHelperContext) {
@@ -427,6 +443,7 @@ export async function getPrivilegedHostsHelperVersion(): Promise<
   if (isPrivilegedHostsHelperDisabledForDevelopment()) return undefined;
   const ctx = await getHostsHelperContext();
   if (!ctx.trusted) return undefined;
+  if (ctx.manifest?.helperVersion) return ctx.manifest.helperVersion;
   try {
     await ensureLocalHelperBinary();
     return await requestStatus(ctx);
@@ -492,7 +509,7 @@ export async function uninstallPrivilegedHostsHelper() {
   await exec(
     ["/bin/sh", uninstallScriptPath(), ctx.manifest!.bundleId],
     {},
-    true
+    await getAuthorizationPrompt("AUTHORIZATION_PROMPT_HOSTS_HELPER_UNINSTALL")
   );
 }
 
@@ -635,7 +652,13 @@ export async function legacyBlockHosts(hosts: HostEntry[], ttl: number) {
     [
       "osascript",
       "-e",
-      `do shell script "source ${tmpScriptPath} > /dev/null 2>&1 &" with administrator privileges`,
+      privilegedShellScript(
+        `source ${tmpScriptPath} > /dev/null 2>&1 &`,
+        await getAuthorizationPrompt("AUTHORIZATION_PROMPT_TEMPORARY_HOSTS", [
+          String(hosts.length),
+          String(ttl),
+        ])
+      ),
     ],
     {},
     false
@@ -644,19 +667,37 @@ export async function legacyBlockHosts(hosts: HostEntry[], ttl: number) {
 
 export async function legacyEnsureHosts(hosts: HostEntry[]) {
   validateHostEntries(hosts);
-  const content = await Neutralino.filesystem.readFile("/etc/hosts");
+  const content = await readFile("/etc/hosts");
   const lines =
     content.indexOf("\r\n") >= 0 ? content.split("\r\n") : content.split("\n");
-  let start = 0;
-  while (start < lines.length && lines[start] != "# Added by Yaaglm") {
-    start++;
+  const removeSections = (input: string[], marker: string) => {
+    const output: string[] = [];
+    for (let index = 0; index < input.length; index++) {
+      if (input[index] != marker) {
+        output.push(input[index]);
+        continue;
+      }
+      while (index + 1 < input.length && input[index] != "# End of section") {
+        index++;
+      }
+    }
+    return output;
+  };
+  const withoutYaagl = removeSections(lines, "# Added by Yaagl");
+  const yaaglmStart = withoutYaagl.indexOf("# Added by Yaaglm");
+  let newContentPre = withoutYaagl;
+  let newContentPost: string[] = [];
+  if (yaaglmStart >= 0) {
+    let end = yaaglmStart;
+    while (
+      end < withoutYaagl.length &&
+      withoutYaagl[end] != "# End of section"
+    ) {
+      end++;
+    }
+    newContentPre = withoutYaagl.slice(0, yaaglmStart);
+    newContentPost = withoutYaagl.slice(Math.min(end + 1, withoutYaagl.length));
   }
-  let end = start;
-  while (end < lines.length && lines[end] != "# End of section") {
-    end++;
-  }
-  const newContentPre = lines.filter((_, index) => index < start);
-  const newContentPost = lines.filter((_, index) => index > end);
   const newContent = [
     ...newContentPre,
     "# Added by Yaaglm",
@@ -665,9 +706,11 @@ export async function legacyEnsureHosts(hosts: HostEntry[]) {
     "# End of section",
     ...(newContentPost.length ? newContentPost : [""]),
   ];
+  if (newContent.join("\n") == lines.join("\n")) return false;
   await exec(
     ["printf", newContent.join("\n"), rawString(">"), "/etc/hosts"],
     {},
-    true
+    await getAuthorizationPrompt("AUTHORIZATION_PROMPT_MANAGED_HOSTS")
   );
+  return true;
 }
