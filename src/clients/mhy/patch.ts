@@ -72,6 +72,8 @@ export async function* patchProgram(
   const removedFileSteps = server.removed.length;
   const addedFileSteps = server.added.length;
   const dxmtSteps = DXMT_FILES.length * 2;
+  const needsNvngx =
+    server.id.startsWith("hkrpg") || server.id.startsWith("nap");
   const totalSteps = Math.max(
     1,
     patchFileSteps +
@@ -79,7 +81,8 @@ export async function* patchProgram(
       addedFileSteps +
       dxmtSteps +
       9 +
-      (server.id.startsWith("hkrpg") ? 2 : 4) +
+      (needsNvngx ? 2 : 0) +
+      (server.id.startsWith("hkrpg") ? 0 : 4) +
       (config.reshade ? 2 : 0)
   );
   let step = 0;
@@ -163,7 +166,7 @@ export async function* patchProgram(
   yield* report(++step, totalSteps, "补丁阶段：安装 winemetal.dll 到 system32");
   await cp(`./dxmt/winemetal.dll`, join(system32Dir, "winemetal.dll"));
 
-  if (server.id.startsWith("hkrpg")) {
+  if (needsNvngx) {
     yield* report(
       ++step,
       totalSteps,

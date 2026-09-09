@@ -105,9 +105,10 @@ function createWine({
   };
   const wine = {
     prefix: "/prefix",
-    attributes: {},
+    attributes: {} as Wine["attributes"],
     createGameProcessMonitor: vi.fn(() => monitor),
     setProps: vi.fn(async () => undefined),
+    setNVExtension: vi.fn(async () => undefined),
     exec: vi.fn(async (..._args: WineExecArgs) => ({
       exitCode: 0,
       stdOut: "",
@@ -215,6 +216,21 @@ describe("nap game process lifecycle", () => {
       }),
       expect.stringContaining("game_")
     );
+  });
+
+  it("enables the NVIDIA vendor extension for DXMT", async () => {
+    const { wine, raw } = createWine();
+    raw.attributes.renderBackend = "dxmt";
+    await collect(
+      launchGameProgram({
+        gameDir: "/game",
+        gameExecutable: "TargetGame.exe",
+        wine,
+        config: { ...config, resolutionCustom: false },
+        server: server("nap_cn"),
+      })
+    );
+    expect(raw.setNVExtension).toHaveBeenCalledOnce();
   });
 
   it("preserves the Steam patch launch branch", async () => {

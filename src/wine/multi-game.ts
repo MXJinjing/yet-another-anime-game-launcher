@@ -24,7 +24,7 @@ import { isDownloadCancelledError } from "../download/control";
 import { addCertsToWine } from "./cert";
 import { getWineDistributions } from "./distro";
 import type { WineDistribution } from "./distro";
-import { isWineDistroInstalled, type Wine } from "./wine";
+import { getWineDistroRoot, isWineDistroInstalled, type Wine } from "./wine";
 import {
   createGameProcessMonitor,
   parseTasklistCsv,
@@ -35,6 +35,7 @@ import { createNativeGameWindowState } from "./native-window-state";
 
 export const SHARED_WINE_TAG = "__shared__";
 const MULTI_GAME_WINES_DIR = "./yaaglm-wines";
+const PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS = 3_000;
 
 export type MultiGameWineRef = { current: Wine };
 
@@ -165,7 +166,8 @@ export async function createMultiGameWineFromRoot({
     program: string,
     args: string[],
     extra?: Record<string, string>,
-    logFile?: string
+    logFile?: string,
+    options?: { timeoutMs?: number }
   ) =>
     exec2(
       program === "copy"
@@ -173,7 +175,8 @@ export async function createMultiGameWineFromRoot({
         : [loaderBin, program, ...args],
       { ...env(), ...(extra ?? {}) },
       false,
-      logFile
+      logFile,
+      options
     );
   const waitUntilServerOff = (_timeoutMs = 0) =>
     exec2([join(dirname(loaderBin), "wineserver"), "-w"], env());
@@ -217,14 +220,26 @@ export async function createMultiGameWineFromRoot({
   };
   const listWineProcesses = async (): Promise<WineProcess[]> => {
     try {
-      const result = await wineExec("tasklist", ["/fo", "csv", "/nh"]);
+      const result = await wineExec2(
+        "tasklist",
+        ["/fo", "csv", "/nh"],
+        undefined,
+        undefined,
+        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
+      );
       const processes = parseTasklistCsv(result.stdOut);
       if (processes.length > 0) return processes;
       throw new Error("tasklist returned no parseable process rows");
     } catch (tasklistError) {
       // Wine builds differ in whether tasklist is available; winedbg is the
       // supported fallback and is still scoped by this Wine prefix.
-      const result = await wineExec("winedbg", ["--command", "info proc"]);
+      const result = await wineExec2(
+        "winedbg",
+        ["--command", "info proc"],
+        undefined,
+        undefined,
+        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
+      );
       const processes = parseWinedbgProcesses(result.stdOut);
       if (processes.length > 0) return processes;
       throw new Error(
@@ -339,6 +354,13 @@ export async function* ensureMultiGameGameWine({
     candidate => candidate.id === wineTag
   );
   if (!distro) throw new Error(`Unknown Wine distribution: ${wineTag}`);
+  if (distro.systemWineRoot) {
+    return await createMultiGameWineFromRoot({
+      prefix: baseWine.prefix,
+      distro,
+      wineRoot: getWineDistroRoot(distro.id),
+    });
+  }
   const wineRoot = getMultiGameWineRoot(gameId, distro);
   try {
     await stats(join(wineRoot, "bin", "wine"));

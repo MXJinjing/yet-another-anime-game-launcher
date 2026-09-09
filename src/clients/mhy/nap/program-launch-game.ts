@@ -71,6 +71,10 @@ export async function* launchGameProgram({
 
   await fixWebview(wine, server);
   await wine.setProps(config);
+  // DXMT's NGX bridge requires the NVIDIA vendor extension registry markers.
+  // ZZZ exposes DLSS only on its DX12/NVIDIA path, so prepare the same bridge
+  // used by the other DXMT client before applying the runtime patch.
+  if (wine.attributes.renderBackend == "dxmt") await wine.setNVExtension();
 
   const args = [];
   if (config.resolutionCustom) {

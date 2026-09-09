@@ -77,14 +77,14 @@ export function createWineEnvironmentService({
 
   async function* enable(wineDistro: WineDistribution): TaskProgram {
     if (!(await dependencies.isWineDistroInstalled(wineDistro.id))) {
-      yield* dependencies.installWineEnvironmentProgram({
-        aria2,
-        wineAbsPrefix,
-        wineDistro,
-        activate: false,
-        finishMessage: false,
-      });
+      throw new Error(
+        `Wine distribution has not been downloaded: ${wineDistro.id}`
+      );
     }
+    // A Wine prefix cannot safely move between distributions while a server
+    // from the previous one remains attached. The UI blocks this action while
+    // a game is running, so this only removes stale prefix processes.
+    await wine.killAll();
     yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
     yield ["setUndeterminedProgress"];
     yield* dependencies.configureWineEnvironmentProgram({
@@ -96,6 +96,19 @@ export function createWineEnvironmentService({
     setWineInstalled(true);
   }
 
+  async function* download(
+    wineDistro: WineDistribution,
+    downloadKey?: string
+  ): TaskProgram {
+    yield* dependencies.installWineEnvironmentProgram({
+      aria2,
+      wineAbsPrefix,
+      wineDistro,
+      activate: false,
+      downloadKey,
+    });
+  }
+
   async function* uninstall(wineDistro: WineDistribution): TaskProgram {
     yield ["setStateText", "UNINSTALLING_ENVIRONMENT"];
     yield ["setUndeterminedProgress"];
@@ -103,5 +116,5 @@ export function createWineEnvironmentService({
     yield ["setStateText", "INSTALL_DONE"];
   }
 
-  return { reset, initialize, enable, uninstall };
+  return { reset, initialize, download, enable, uninstall };
 }

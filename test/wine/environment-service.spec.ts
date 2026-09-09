@@ -67,26 +67,27 @@ describe("wine environment service", () => {
     expect(setWineInstalled).toHaveBeenCalledWith(false);
   });
 
-  it("installs before configuring an unavailable distribution", async () => {
+  it("rejects an unavailable distribution without changing the prefix", async () => {
     const { service, dependencies, wine, setWineInstalled } =
       createHarness(false);
-    await expect(collect(service.enable(distro))).resolves.toEqual([
-      ["setProgress", 12],
-      ["setStateText", "CONFIGURING_ENVIRONMENT"],
-      ["setUndeterminedProgress"],
-      ["setProgress", 99],
-    ]);
-    expect(dependencies.installWineEnvironmentProgram).toHaveBeenCalledWith(
-      expect.objectContaining({ activate: false, finishMessage: false })
+    await expect(collect(service.enable(distro))).rejects.toThrow(
+      "Wine distribution has not been downloaded"
     );
-    expect(wine.setDistribution).toHaveBeenCalledWith(distro);
-    expect(setWineInstalled).toHaveBeenCalledWith(true);
+    expect(dependencies.installWineEnvironmentProgram).not.toHaveBeenCalled();
+    expect(dependencies.configureWineEnvironmentProgram).not.toHaveBeenCalled();
+    expect(wine.killAll).not.toHaveBeenCalled();
+    expect(wine.setDistribution).not.toHaveBeenCalled();
+    expect(setWineInstalled).not.toHaveBeenCalled();
   });
 
-  it("does not install an already available distribution", async () => {
-    const { service, dependencies } = createHarness(true);
+  it("stops the old Wine server before configuring an available distribution", async () => {
+    const { service, dependencies, wine } = createHarness(true);
     await collect(service.enable(distro));
     expect(dependencies.installWineEnvironmentProgram).not.toHaveBeenCalled();
     expect(dependencies.configureWineEnvironmentProgram).toHaveBeenCalledOnce();
+    expect(wine.killAll).toHaveBeenCalledOnce();
+    expect(wine.killAll.mock.invocationCallOrder[0]).toBeLessThan(
+      dependencies.configureWineEnvironmentProgram.mock.invocationCallOrder[0]
+    );
   });
 });

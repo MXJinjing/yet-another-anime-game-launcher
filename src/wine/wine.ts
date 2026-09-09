@@ -15,6 +15,7 @@ import { rmrf_dangerously } from "@runtime/macos-filesystem";
 import { getKey, setKey } from "@runtime/storage";
 import { dirname, join } from "path-browserify";
 import type { WineDistribution, WineDistributionAttributes } from "./distro";
+import { getRegisteredSystemWineRoot, GPTK3_WINE_ID } from "./system-wine";
 import {
   createGameProcessMonitor,
   parseTasklistCsv,
@@ -24,22 +25,37 @@ import {
 } from "./game-process-monitor";
 import { createNativeGameWindowState } from "./native-window-state";
 
+// Keep both process sources within the monitor's 10 second query budget.
+// Some Wine builds block tasklist while their server is starting or belongs
+// to a previously selected distribution.
+const PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS = 3_000;
+
 export function getWineInstallDir(distroId: string) {
   return resolve(`./wines/${distroId}`);
 }
 
+export function getWineDistroRoot(distroId: string) {
+  return getRegisteredSystemWineRoot(distroId) ?? getWineInstallDir(distroId);
+}
+
 export function getActiveWineDir(distroId: string) {
-  return getWineInstallDir(distroId);
+  return getWineDistroRoot(distroId);
 }
 
 export async function isWineDistroInstalled(distroId: string) {
+  const wineRoot = getWineDistroRoot(distroId);
   return (
-    (await fileOrDirExists(join(getWineInstallDir(distroId), "bin", "wine"))) ||
-    (await fileOrDirExists(join(getWineInstallDir(distroId), "bin", "wine64")))
+    (await fileOrDirExists(join(wineRoot, "bin", "wine"))) ||
+    (await fileOrDirExists(join(wineRoot, "bin", "wine64")))
   );
 }
 
 export async function uninstallWineDistro(distroId: string) {
+  if (getRegisteredSystemWineRoot(distroId) || distroId == GPTK3_WINE_ID) {
+    throw new Error(
+      "System Wine is managed outside the launcher and cannot be uninstalled here"
+    );
+  }
   let activeDistroId: string | undefined;
   try {
     activeDistroId = await getKey("wine_tag");
@@ -335,7 +351,7 @@ export async function createWine(options: {
         ["/fo", "csv", "/nh"],
         undefined,
         undefined,
-        { timeoutMs: 10_000 }
+        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
       );
       const processes = parseTasklistCsv(result.stdOut);
       if (processes.length > 0) return processes;
@@ -349,7 +365,7 @@ export async function createWine(options: {
         ["--command", "info proc"],
         undefined,
         undefined,
-        { timeoutMs: 10_000 }
+        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
       );
       const processes = parseWinedbgProcesses(result.stdOut);
       if (processes.length > 0) return processes;
@@ -473,7 +489,7 @@ reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v F
 }
 
 export async function getCorrectWineBinary(distroId?: string) {
-  const wineDir = distroId ? getWineInstallDir(distroId) : resolve("./wine");
+  const wineDir = distroId ? getWineDistroRoot(distroId) : resolve("./wine");
   try {
     // use wine64 if it is presented
     // in newer version of wine (esp. WoW64 mode), only one binary `bin/wine` exists
