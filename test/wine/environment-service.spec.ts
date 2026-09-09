@@ -36,6 +36,7 @@ function createHarness(installed = false) {
   const setWineInstalled = vi.fn();
   const wine = {
     killAll: vi.fn(async () => undefined),
+    waitForWineServerExit: vi.fn(async () => true),
     setDistribution: vi.fn(async () => undefined),
   };
   const dependencies = {
@@ -86,7 +87,13 @@ describe("wine environment service", () => {
     expect(dependencies.installWineEnvironmentProgram).not.toHaveBeenCalled();
     expect(dependencies.configureWineEnvironmentProgram).toHaveBeenCalledOnce();
     expect(wine.killAll).toHaveBeenCalledOnce();
+    expect(wine.waitForWineServerExit).toHaveBeenCalledWith({
+      timeoutMs: 5_000,
+    });
     expect(wine.killAll.mock.invocationCallOrder[0]).toBeLessThan(
+      dependencies.configureWineEnvironmentProgram.mock.invocationCallOrder[0]
+    );
+    expect(wine.waitForWineServerExit.mock.invocationCallOrder[0]).toBeLessThan(
       dependencies.configureWineEnvironmentProgram.mock.invocationCallOrder[0]
     );
   });

@@ -52,6 +52,7 @@ export function createWineEnvironmentService({
 }) {
   async function reset() {
     await wine.killAll();
+    await wine.waitForWineServerExit({ timeoutMs: 5_000 });
     await dependencies.removePrefix(wineAbsPrefix);
     setWineInstalled(false);
   }
@@ -85,6 +86,7 @@ export function createWineEnvironmentService({
     // from the previous one remains attached. The UI blocks this action while
     // a game is running, so this only removes stale prefix processes.
     await wine.killAll();
+    await wine.waitForWineServerExit({ timeoutMs: 5_000 });
     yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
     yield ["setUndeterminedProgress"];
     yield* dependencies.configureWineEnvironmentProgram({
