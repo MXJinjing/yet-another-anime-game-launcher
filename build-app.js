@@ -14,6 +14,9 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   const config = await fs.readJSON(
     path.resolve(process.cwd(), "neutralino.config.json")
   );
+  if (process.env["YAAGL_VERSION"]) {
+    config.version = process.env["YAAGL_VERSION"];
+  }
   let bundleId;
   let appDistributionName;
   let appSupportDirectory;
