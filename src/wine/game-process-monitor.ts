@@ -93,6 +93,28 @@ export function parseWinedbgProcesses(output: string): WineProcess[] {
   return processes;
 }
 
+/** Parse macOS `ps -axo pid=,command=` output for processes in one Wine prefix. */
+export function parseMacWineProcesses(output: string, scope: string) {
+  const normalizedScope = scope.trim();
+  if (!normalizedScope) return [];
+  return output
+    .split(/\r?\n/)
+    .map(line => line.match(/^\s*(\d+)\s+(.+)$/))
+    .filter(
+      (match): match is RegExpMatchArray =>
+        match != undefined && match[2].includes(normalizedScope)
+    )
+    .map(match => {
+      const command = match[2];
+      const executable = command.match(/[^\s"']+\.exe\b/i)?.[0];
+      return {
+        pid: match[1],
+        name: executable ?? basename(command.split(/\s+/)[0] ?? command),
+        command,
+      };
+    });
+}
+
 export function createGameProcessMonitor(
   options: GameProcessMonitorOptions
 ): GameProcessMonitor {

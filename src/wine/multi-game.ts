@@ -27,9 +27,7 @@ import type { WineDistribution } from "./distro";
 import { getWineDistroRoot, isWineDistroInstalled, type Wine } from "./wine";
 import {
   createGameProcessMonitor,
-  parseTasklistCsv,
-  parseWinedbgProcesses,
-  type WineProcess,
+  parseMacWineProcesses,
 } from "./game-process-monitor";
 import { createNativeGameWindowState } from "./native-window-state";
 
@@ -218,34 +216,15 @@ export async function createMultiGameWineFromRoot({
       if (timeout != undefined) clearTimeout(timeout);
     }
   };
-  const listWineProcesses = async (): Promise<WineProcess[]> => {
-    try {
-      const result = await wineExec2(
-        "tasklist",
-        ["/fo", "csv", "/nh"],
-        undefined,
-        undefined,
-        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
-      );
-      const processes = parseTasklistCsv(result.stdOut);
-      if (processes.length > 0) return processes;
-      throw new Error("tasklist returned no parseable process rows");
-    } catch (tasklistError) {
-      // Wine builds differ in whether tasklist is available; winedbg is the
-      // supported fallback and is still scoped by this Wine prefix.
-      const result = await wineExec2(
-        "winedbg",
-        ["--command", "info proc"],
-        undefined,
-        undefined,
-        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
-      );
-      const processes = parseWinedbgProcesses(result.stdOut);
-      if (processes.length > 0) return processes;
-      throw new Error(
-        `Wine process enumeration failed: ${String(tasklistError)}`
-      );
-    }
+  const listWineProcesses = async () => {
+    const result = await exec2(
+      ["ps", "-axo", "pid=,command="],
+      undefined,
+      false,
+      undefined,
+      { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
+    );
+    return parseMacWineProcesses(result.stdOut, prefix);
   };
   const killAll = async () => {
     try {

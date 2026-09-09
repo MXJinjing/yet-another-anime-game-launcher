@@ -1,11 +1,28 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createGameProcessMonitor,
+  parseMacWineProcesses,
   parseTasklistCsv,
   parseWinedbgProcesses,
 } from "@wine/game-process-monitor";
 
 describe("Wine game process monitor", () => {
+  it("parses host Wine processes scoped to a prefix", () => {
+    expect(
+      parseMacWineProcesses(
+        " 123 /usr/bin/WINEPREFIX=/prefix /wine/bin/wine64 cmd /c TargetGame.exe\n" +
+          " 456 /other/wine/bin/wine64 cmd /c TargetGame.exe",
+        "/prefix"
+      )
+    ).toEqual([
+      {
+        pid: "123",
+        name: "TargetGame.exe",
+        command:
+          "/usr/bin/WINEPREFIX=/prefix /wine/bin/wine64 cmd /c TargetGame.exe",
+      },
+    ]);
+  });
   it("parses tasklist output without depending on localized headers", () => {
     expect(
       parseTasklistCsv(

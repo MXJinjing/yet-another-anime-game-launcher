@@ -18,10 +18,8 @@ import type { WineDistribution, WineDistributionAttributes } from "./distro";
 import { getRegisteredSystemWineRoot, GPTK3_WINE_ID } from "./system-wine";
 import {
   createGameProcessMonitor,
-  parseTasklistCsv,
-  parseWinedbgProcesses,
+  parseMacWineProcesses,
   type GameProcessMonitor,
-  type WineProcess,
 } from "./game-process-monitor";
 import { createNativeGameWindowState } from "./native-window-state";
 
@@ -344,33 +342,15 @@ export async function createWine(options: {
     };
   }
 
-  async function listWineProcesses(): Promise<WineProcess[]> {
-    try {
-      const result = await exec2(
-        "tasklist",
-        ["/fo", "csv", "/nh"],
-        undefined,
-        undefined,
-        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
-      );
-      const processes = parseTasklistCsv(result.stdOut);
-      if (processes.length > 0) return processes;
-      throw new Error("tasklist returned no parseable process rows");
-    } catch (tasklistError) {
-      await log(
-        `tasklist process enumeration failed: ${String(tasklistError)}`
-      );
-      const result = await exec2(
-        "winedbg",
-        ["--command", "info proc"],
-        undefined,
-        undefined,
-        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
-      );
-      const processes = parseWinedbgProcesses(result.stdOut);
-      if (processes.length > 0) return processes;
-      throw new Error("winedbg returned no parseable process rows");
-    }
+  async function listWineProcesses() {
+    const result = await unixExec2(
+      ["ps", "-axo", "pid=,command="],
+      undefined,
+      false,
+      undefined,
+      { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
+    );
+    return parseMacWineProcesses(result.stdOut, options.prefix);
   }
 
   function createGameProcessMonitorFor(executable: string): GameProcessMonitor {
