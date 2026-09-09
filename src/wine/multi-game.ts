@@ -224,7 +224,7 @@ export async function createMultiGameWineFromRoot({
       undefined,
       { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
     );
-    return parseMacWineProcesses(result.stdOut, [prefix, loaderBin]);
+    return parseMacWineProcesses(result.stdOut, prefix);
   };
   const killAll = async () => {
     try {
