@@ -12,7 +12,7 @@ describe("Wine game process monitor", () => {
       parseMacWineProcesses(
         " 123 /usr/bin/WINEPREFIX=/prefix /wine/bin/wine64 cmd /c TargetGame.exe\n" +
           " 456 /other/wine/bin/wine64 cmd /c TargetGame.exe",
-        "/prefix"
+        ["/prefix", "/wine/bin/wine64"]
       )
     ).toEqual([
       {

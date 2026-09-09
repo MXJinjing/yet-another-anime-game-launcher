@@ -350,7 +350,7 @@ export async function createWine(options: {
       undefined,
       { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
     );
-    return parseMacWineProcesses(result.stdOut, options.prefix);
+    return parseMacWineProcesses(result.stdOut, [options.prefix, loaderBin]);
   }
 
   function createGameProcessMonitorFor(executable: string): GameProcessMonitor {
