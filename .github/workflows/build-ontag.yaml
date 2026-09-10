@@ -98,6 +98,11 @@ jobs:
             | **Channel架构下载 / Architecture Downloads** | |
             | ---------------------------------------- | --- |
             | `mhycn` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app.tar.gz) |
+
+            ### 全版本 / All Game-Clients
+
+            | **Channel架构下载 / Architecture Downloads** | |
+            | ---------------------------------------- | --- |
             | `all` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl.app.tar.gz) |
 
             ### 国际版单版本 / International Single-Game
