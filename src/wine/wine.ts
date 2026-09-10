@@ -182,10 +182,11 @@ export async function createWine(options: {
   async function waitForWineServerExit({
     timeoutMs = 5_000,
   }: { timeoutMs?: number } = {}) {
-    const waitPromise = unixExec2(
-      [join(dirname(loaderBin), "wineserver"), "-w"],
-      { ...getEnvironmentVariables() }
-    );
+    const wineserverBin = join(dirname(loaderBin), "wineserver");
+    if (!(await fileOrDirExists(wineserverBin))) return true;
+    const waitPromise = unixExec2([wineserverBin, "-w"], {
+      ...getEnvironmentVariables(),
+    });
     if (timeoutMs <= 0) {
       await waitPromise;
       return true;

@@ -343,10 +343,9 @@ export async function createMultiGameWineFromRoot({
   const waitForWineServerExit = async ({
     timeoutMs = 5_000,
   }: { timeoutMs?: number } = {}) => {
-    const waitPromise = exec2(
-      [join(dirname(loaderBin), "wineserver"), "-w"],
-      env()
-    );
+    const wineserverBin = join(dirname(loaderBin), "wineserver");
+    if (!(await fileOrDirExists(wineserverBin))) return true;
+    const waitPromise = exec2([wineserverBin, "-w"], env());
     if (timeoutMs <= 0) {
       await waitPromise;
       return true;
