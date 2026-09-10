@@ -118,31 +118,111 @@ export function createMultiGameWineProxy(ref: MultiGameWineRef): Wine {
   };
 }
 
-function gameWineKey(gameId: string) {
+function legacyGameWineKey(gameId: string) {
   return `yaaglm_${gameId}_wine_tag`;
 }
 
-function gameWineEnabledKey(gameId: string) {
+function legacyGameWineEnabledKey(gameId: string) {
   return `yaaglm_${gameId}_wine_enabled`;
+}
+
+/**
+ * Keep the multi-game Wine selection in versioned keys. Older launchers only
+ * know the legacy keys above, so they fall back to the shared Wine instead of
+ * reading an unsupported tag (for example a system or custom Wine).
+ */
+function gameWineKey(gameId: string) {
+  return `yaaglm_v2_${gameId}_wine_tag`;
+}
+
+function gameWineEnabledKey(gameId: string) {
+  return `yaaglm_v2_${gameId}_wine_enabled`;
+}
+
+async function readOptionalKey(key: string) {
+  try {
+    return await getKey(key);
+  } catch {
+    return undefined;
+  }
+}
+
+async function migrateMultiGameGameWineState(gameId: string) {
+  const [versionedEnabled, versionedTag, legacyEnabled, legacyTag] =
+    await Promise.all([
+      readOptionalKey(gameWineEnabledKey(gameId)),
+      readOptionalKey(gameWineKey(gameId)),
+      readOptionalKey(legacyGameWineEnabledKey(gameId)),
+      readOptionalKey(legacyGameWineKey(gameId)),
+    ]);
+
+  if (
+    versionedEnabled == undefined &&
+    versionedTag == undefined &&
+    legacyEnabled == undefined &&
+    legacyTag == undefined
+  ) {
+    return;
+  }
+  if (
+    (versionedEnabled != undefined || versionedTag != undefined) &&
+    legacyEnabled == undefined &&
+    legacyTag == undefined
+  ) {
+    return;
+  }
+
+  const enabled =
+    versionedEnabled != undefined
+      ? versionedEnabled == "true"
+      : legacyEnabled != undefined
+      ? legacyEnabled == "true"
+      : (legacyTag ?? versionedTag) != undefined &&
+        (legacyTag ?? versionedTag) != SHARED_WINE_TAG;
+  const tag = enabled
+    ? legacyTag ?? versionedTag ?? AUTO_WINE_TAG
+    : SHARED_WINE_TAG;
+
+  try {
+    if (versionedEnabled == undefined) {
+      await setKey(gameWineEnabledKey(gameId), enabled ? "true" : "false");
+    }
+    if (versionedTag == undefined) {
+      await setKey(
+        gameWineKey(gameId),
+        tag == SHARED_WINE_TAG || tag == AUTO_WINE_TAG ? null : tag
+      );
+    }
+    // Once the legacy tag has been copied, remove it so downgrading to a
+    // launcher that predates local Wine support cannot encounter this value.
+    await setKey(legacyGameWineKey(gameId), null);
+    await setKey(legacyGameWineEnabledKey(gameId), null);
+  } catch (error) {
+    await log(
+      `[multi-game] Failed to migrate Wine state for ${gameId}: ${String(
+        error
+      )}`
+    );
+  }
 }
 
 /** Whether the game runs in its own Wine environment instead of the global one. */
 export async function getMultiGameGameWineEnabled(gameId: string) {
+  await migrateMultiGameGameWineState(gameId);
   try {
     return (await getKey(gameWineEnabledKey(gameId))) == "true";
   } catch {
-    // Older builds only stored a per-game Wine tag; treat that as enabled.
-    try {
-      const tag = await getKey(gameWineKey(gameId));
-      return tag != null && tag != SHARED_WINE_TAG;
-    } catch {
-      return false;
-    }
+    return false;
   }
 }
 
-export function setMultiGameGameWineEnabled(gameId: string, enabled: boolean) {
-  return setKey(gameWineEnabledKey(gameId), enabled ? "true" : null);
+export async function setMultiGameGameWineEnabled(
+  gameId: string,
+  enabled: boolean
+) {
+  await setKey(gameWineEnabledKey(gameId), enabled ? "true" : null);
+  await setKey(legacyGameWineEnabledKey(gameId), null);
+  if (!enabled) await setKey(legacyGameWineKey(gameId), null);
 }
 export function getMultiGameWineRoot(gameId: string, distro: WineDistribution) {
   return resolve(join(MULTI_GAME_WINES_DIR, gameId, distro.id, "wine"));
@@ -173,10 +253,13 @@ export async function getMultiGameGameWineTag(gameId: string) {
 }
 
 export function setMultiGameGameWineTag(gameId: string, wineTag: string) {
-  return setKey(
-    gameWineKey(gameId),
-    wineTag === SHARED_WINE_TAG || wineTag === AUTO_WINE_TAG ? null : wineTag
-  );
+  return Promise.all([
+    setKey(
+      gameWineKey(gameId),
+      wineTag === SHARED_WINE_TAG || wineTag === AUTO_WINE_TAG ? null : wineTag
+    ),
+    setKey(legacyGameWineKey(gameId), null),
+  ]);
 }
 
 export async function getMultiGameWineOptions(_currentTag: string) {
@@ -461,7 +544,13 @@ export async function* ensureMultiGameGameWine({
   const distro = (await getWineDistributions()).find(
     candidate => candidate.id === wineTag
   );
-  if (!distro) throw new Error(`Unknown Wine distribution: ${wineTag}`);
+  if (!distro) {
+    await setMultiGameGameWineTag(gameId, SHARED_WINE_TAG);
+    await log(
+      `[multi-game] Unknown Wine distribution for ${gameId}: ${wineTag}; falling back to shared Wine`
+    );
+    return baseWine;
+  }
   const prefix = getMultiGamePrefix(baseWine.prefix, prefixId);
   if (distro.systemWineRoot) {
     return await createMultiGameWineFromRoot({

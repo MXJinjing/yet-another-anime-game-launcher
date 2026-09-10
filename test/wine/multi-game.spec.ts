@@ -1,4 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@runtime/storage", () => {
+  const values = new Map<string, string>();
+  return {
+    __storage: values,
+    getKey: vi.fn(async (key: string) => {
+      const value = values.get(key);
+      if (value == undefined) throw new Error(`Missing key: ${key}`);
+      return value;
+    }),
+    setKey: vi.fn(async (key: string, value: string | null) => {
+      if (value == null) values.delete(key);
+      else values.set(key, value);
+    }),
+  };
+});
 
 vi.mock("@logging/logger", () => ({
   log: vi.fn(async () => undefined),
@@ -11,16 +27,48 @@ vi.mock("@platform/neutralino", () => ({
   writeFile: vi.fn(async () => undefined),
 }));
 import type { TaskProgressCommand } from "@tasks/task-program";
+import * as runtimeStorage from "@runtime/storage";
 import {
   cleanupCancelledMultiGameWineDownload,
   copyMultiGamePrefix,
   createMultiGameWineProxy,
+  getMultiGameGameWineEnabled,
+  getMultiGameGameWineTag,
   getMultiGamePrefix,
   prepareMultiGameGameWine,
+  setMultiGameGameWineTag,
   SHARED_WINE_TAG,
 } from "@wine/multi-game";
 
+const storage = (
+  runtimeStorage as typeof runtimeStorage & {
+    __storage: Map<string, string>;
+  }
+).__storage;
+
 describe("multi-game Wine", () => {
+  beforeEach(() => storage.clear());
+
+  it("migrates legacy Wine keys without leaving a downgrade-unsafe tag", async () => {
+    storage.set("yaaglm_zzz_wine_tag", "gptk3-system");
+    storage.set("yaaglm_zzz_wine_enabled", "true");
+
+    await expect(getMultiGameGameWineEnabled("zzz")).resolves.toBe(true);
+    await expect(getMultiGameGameWineTag("zzz")).resolves.toBe("gptk3-system");
+
+    expect(storage.get("yaaglm_v2_zzz_wine_enabled")).toBe("true");
+    expect(storage.get("yaaglm_v2_zzz_wine_tag")).toBe("gptk3-system");
+    expect(storage.has("yaaglm_zzz_wine_enabled")).toBe(false);
+    expect(storage.has("yaaglm_zzz_wine_tag")).toBe(false);
+  });
+
+  it("stores new selections only in versioned Wine keys", async () => {
+    await setMultiGameGameWineTag("zzz", "custom-wine-test");
+
+    expect(storage.get("yaaglm_v2_zzz_wine_tag")).toBe("custom-wine-test");
+    expect(storage.has("yaaglm_zzz_wine_tag")).toBe(false);
+  });
+
   it("cleans both partial archive and Wine root after cancellation", async () => {
     const removeFile = vi.fn(async () => undefined);
     const removeDirectory = vi.fn(async () => undefined);
