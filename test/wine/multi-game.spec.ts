@@ -29,7 +29,6 @@ vi.mock("@platform/neutralino", () => ({
 import type { TaskProgressCommand } from "@tasks/task-program";
 import * as runtimeStorage from "@runtime/storage";
 import {
-  cleanupCancelledMultiGameWineDownload,
   copyMultiGamePrefix,
   createMultiGameWineProxy,
   getMultiGameGameWineEnabled,
@@ -67,19 +66,6 @@ describe("multi-game Wine", () => {
 
     expect(storage.get("yaaglm_v2_zzz_wine_tag")).toBe("custom-wine-test");
     expect(storage.has("yaaglm_zzz_wine_tag")).toBe(false);
-  });
-
-  it("cleans both partial archive and Wine root after cancellation", async () => {
-    const removeFile = vi.fn(async () => undefined);
-    const removeDirectory = vi.fn(async () => undefined);
-    await cleanupCancelledMultiGameWineDownload({
-      wineTarPath: "/tmp/wine.tar.xz",
-      wineRoot: "/tmp/wine",
-      removeFile,
-      removeDirectory,
-    });
-    expect(removeFile).toHaveBeenCalledWith("/tmp/wine.tar.xz");
-    expect(removeDirectory).toHaveBeenCalledWith("/tmp/wine");
   });
 
   it("proxies calls to the Wine selected for the current game", async () => {

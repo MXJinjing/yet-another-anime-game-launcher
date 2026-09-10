@@ -160,7 +160,7 @@ export function beginDownloadTask(metadata: DownloadTaskMetadata): string {
     phaseKind: undefined,
     phase: "",
     phaseTransferring: true,
-    materialized: false,
+    materialized: metadata.showImmediately ?? false,
     orphan: false,
     streams: new Map(),
     engines: new Set(),
@@ -172,6 +172,7 @@ export function beginDownloadTask(metadata: DownloadTaskMetadata): string {
     completedAria2Downloaded: 0,
     completedAria2Total: 0,
   });
+  if (metadata.showImmediately) emit();
   return id;
 }
 

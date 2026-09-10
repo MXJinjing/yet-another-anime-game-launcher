@@ -63,6 +63,7 @@ export const th_TH: typeof zh_CN = {
   DOWNLOADING_ENVIRONMENT: "กำลังดาวน์โหลดไฟล์ระบบ",
   DOWNLOADING_ENVIRONMENT_SPEED: "กำลังดาวน์โหลดไฟล์ระบบ ({1}/{2}, {3}, {0})",
   EXTRACT_ENVIRONMENT: "กำลังแตกไฟล์ระบบ",
+  EXTRACTING: "กำลังแตกไฟล์",
   CONFIGURING_ENVIRONMENT: "กำลังตั้งค่าไฟล์ระบบ",
   ENVIRONMENT_CONFIGURING: "กำลังกำหนดค่าสภาพแวดล้อม",
   UNINSTALLING_ENVIRONMENT: en.UNINSTALLING_ENVIRONMENT,

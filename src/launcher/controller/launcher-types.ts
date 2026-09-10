@@ -14,6 +14,13 @@ export type HypGameWineOption = {
   url: string;
 };
 
+export type HypGameWineTaskRequest = {
+  gameId: string;
+  downloadKey?: string;
+  title: string;
+  fn: () => TaskProgram;
+};
+
 export type HypGame = {
   id: string;
   namespace?: string;
@@ -59,4 +66,7 @@ export type HypLauncherOptions = {
   enableWineDistro: (distro: WineDistribution) => TaskProgram;
   uninstallWineDistro: (distro: WineDistribution) => TaskProgram;
   actionDisabledRef?: { current: () => boolean };
+  gameWineTaskDispatcher?: {
+    current?: (request: HypGameWineTaskRequest) => void;
+  };
 };

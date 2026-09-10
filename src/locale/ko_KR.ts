@@ -62,6 +62,7 @@ export const ko_KR: typeof zh_CN = {
   DOWNLOADING_ENVIRONMENT: "실행 환경 다운로드 중",
   DOWNLOADING_ENVIRONMENT_SPEED: "실행 환경 다운로드 중 ({1}/{2}, {3}, {0})",
   EXTRACT_ENVIRONMENT: "실행 환경 압축 해제 중",
+  EXTRACTING: "압축 해제 중",
   CONFIGURING_ENVIRONMENT: "실행 환경 구성 중",
   ENVIRONMENT_CONFIGURING: "환경 구성 중",
   UNINSTALLING_ENVIRONMENT: en.UNINSTALLING_ENVIRONMENT,

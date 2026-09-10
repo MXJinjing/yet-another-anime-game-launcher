@@ -15,7 +15,10 @@ import type { HoyoConnectGameDisplay } from "../../clients/mhy/launcher-info";
 import { log } from "@logging/logger";
 import { createHypLauncher } from "../controller/hyp-launcher";
 import { MULTI_GAME_OS_GAME_SPECS } from "../data/multi-game-os";
-import type { HypGame } from "../controller/launcher-types";
+import type {
+  HypGame,
+  HypGameWineTaskRequest,
+} from "../controller/launcher-types";
 import {
   AUTO_WINE_TAG,
   createMultiGameWineProxy,
@@ -85,6 +88,9 @@ export async function createMultiGameLauncher({
     /* keep the id as a fallback label */
   }
   const actionDisabledRef = { current: () => false };
+  const gameWineTaskDispatcher: {
+    current?: (request: HypGameWineTaskRequest) => void;
+  } = {};
   const games: HypGame[] = [];
 
   const gameDisplays = new Map<
@@ -166,17 +172,6 @@ export async function createMultiGameLauncher({
     const [wineEnabled, setWineEnabled] = createSignal(
       await getMultiGameGameWineEnabled(spec.id)
     );
-    const drainWineProgram = async (program: TaskProgram<Wine>) => {
-      const iterator = program[Symbol.asyncIterator]();
-      let step = await iterator.next();
-      while (!step.done) {
-        if (step.value[0] == "setStateText") {
-          await log(`[wine] ${spec.id}: ${step.value[1]}`);
-        }
-        step = await iterator.next();
-      }
-      return step.value;
-    };
     const gamePrefixPath = () =>
       getMultiGamePrefix(baseWine.prefix, spec.clientId);
     const [gameWineReady, setGameWineReady] = createSignal(false);
@@ -227,6 +222,16 @@ export async function createMultiGameLauncher({
       bannerImage: display?.thumbnail.url ?? spec.bannerImage,
       logoImage: display?.logo.url ?? spec.logoImage,
     };
+    const enqueueWineTask = (fn: () => TaskProgram) => {
+      const dispatch = gameWineTaskDispatcher.current;
+      if (!dispatch) throw new Error("Game Wine task queue is unavailable");
+      dispatch({
+        gameId: spec.id,
+        downloadKey: spec.namespace,
+        title: `${resolvedSpec.title} · ${locale.get("INIT_ENVIRONMENT")}`,
+        fn,
+      });
+    };
     const createSettings = () =>
       createGameSettings({
         locale,
@@ -240,32 +245,24 @@ export async function createMultiGameLauncher({
           ) ?? client.createConfig(locale, config),
         wineTag,
         wineOptions,
-        onWineTagChange: async (tag, options) => {
-          // Prepare (and, when requested, migrate) the prefix with the newly
-          // selected Wine while the user saves the setting, instead of paying
-          // for it on the next launch.
-          const program = prepareMultiGameGameWine({
-            aria2,
-            baseWine,
-            previousWine: wineRef.current,
-            gameId: spec.id,
-            prefixId: spec.clientId,
-            wineTag: tag,
-            migrate: options?.migrate ?? true,
-            descriptor: spec.wineUserData,
+        onWineTagChange: (tag, options) => {
+          enqueueWineTask(async function* () {
+            const prepared = yield* prepareMultiGameGameWine({
+              aria2,
+              baseWine,
+              previousWine: wineRef.current,
+              gameId: spec.id,
+              prefixId: spec.clientId,
+              wineTag: tag,
+              migrate: options?.migrate ?? true,
+              descriptor: spec.wineUserData,
+              downloadKey: spec.namespace,
+            });
+            wineRef.current = prepared;
+            setWineTag(tag);
+            await setMultiGameGameWineTag(spec.id, tag);
+            await refreshGameWineState();
           });
-          const iterator = program[Symbol.asyncIterator]();
-          let step = await iterator.next();
-          while (!step.done) {
-            if (step.value[0] == "setStateText") {
-              await log(`[wine] ${spec.id}: ${step.value[1]}`);
-            }
-            step = await iterator.next();
-          }
-          wineRef.current = step.value;
-          setWineTag(tag);
-          await setMultiGameGameWineTag(spec.id, tag);
-          await refreshGameWineState();
         },
         wineEnabled: () => wineEnabled(),
         autoWineLabel: globalWineName,
@@ -273,15 +270,15 @@ export async function createMultiGameLauncher({
         // ZZZ uses the game's DLSS path (Game Porting Toolkit); all other
         // clients use DXMT's own swapchain MetalFX upscale.
         metalFxDxmtOnly: !spec.clientId.startsWith("nap"),
-        onWineEnabledChange: async (enabled, options) => {
-          if (enabled) {
-            if (options?.overwrite) {
-              await rmrf_dangerously(gamePrefixPath());
-            }
-            const tag =
-              wineTag() === SHARED_WINE_TAG ? AUTO_WINE_TAG : wineTag();
-            const prepared = await drainWineProgram(
-              prepareMultiGameGameWine({
+        onWineEnabledChange: (enabled, options) => {
+          enqueueWineTask(async function* () {
+            if (enabled) {
+              if (options?.overwrite) {
+                await rmrf_dangerously(gamePrefixPath());
+              }
+              const tag =
+                wineTag() === SHARED_WINE_TAG ? AUTO_WINE_TAG : wineTag();
+              const prepared = yield* prepareMultiGameGameWine({
                 aria2,
                 baseWine,
                 previousWine: wineRef.current,
@@ -290,16 +287,15 @@ export async function createMultiGameLauncher({
                 wineTag: tag,
                 migrate: options?.migrate ?? true,
                 descriptor: spec.wineUserData,
-              })
-            );
-            await setMultiGameGameWineEnabled(spec.id, true);
-            await setMultiGameGameWineTag(spec.id, tag);
-            wineRef.current = prepared;
-            setWineTag(tag);
-            setWineEnabled(true);
-          } else {
-            const prepared = await drainWineProgram(
-              prepareMultiGameGameWine({
+                downloadKey: spec.namespace,
+              });
+              await setMultiGameGameWineEnabled(spec.id, true);
+              await setMultiGameGameWineTag(spec.id, tag);
+              wineRef.current = prepared;
+              setWineTag(tag);
+              setWineEnabled(true);
+            } else {
+              const prepared = yield* prepareMultiGameGameWine({
                 aria2,
                 baseWine,
                 previousWine: wineRef.current,
@@ -308,14 +304,15 @@ export async function createMultiGameLauncher({
                 wineTag: SHARED_WINE_TAG,
                 migrate: options?.migrate ?? true,
                 descriptor: spec.wineUserData,
-              })
-            );
-            await setMultiGameGameWineEnabled(spec.id, false);
-            wineRef.current = prepared;
-            setWineTag(SHARED_WINE_TAG);
-            setWineEnabled(false);
-          }
-          await refreshGameWineState();
+                downloadKey: spec.namespace,
+              });
+              await setMultiGameGameWineEnabled(spec.id, false);
+              wineRef.current = prepared;
+              setWineTag(SHARED_WINE_TAG);
+              setWineEnabled(false);
+            }
+            await refreshGameWineState();
+          });
         },
         onOpenWineCmd: async () => {
           const wine = await ensureGameWineObject();
@@ -340,6 +337,11 @@ export async function createMultiGameLauncher({
         },
         gameWinePrefixExists: () => gamePrefixExists(),
         onRemoveGameWinePrefix: async () => {
+          if (await getMultiGameGameWineEnabled(spec.id)) {
+            throw new Error(
+              "Cannot remove a Wine prefix while the separate Wine environment is enabled"
+            );
+          }
           await rmrf_dangerously(gamePrefixPath());
           setGameWineReady(false);
           setGamePrefixExists(false);
@@ -412,6 +414,7 @@ export async function createMultiGameLauncher({
     enableWineDistro,
     uninstallWineDistro,
     actionDisabledRef,
+    gameWineTaskDispatcher,
   });
 }
 

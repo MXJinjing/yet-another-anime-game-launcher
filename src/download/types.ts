@@ -69,7 +69,12 @@ export type DownloadTaskSnapshot = {
   canCancel: boolean;
 };
 
-export type DownloadTaskMetadata = { title: string; key?: string };
+export type DownloadTaskMetadata = {
+  title: string;
+  key?: string;
+  /** Show configuration-only work before it owns a download stream. */
+  showImmediately?: boolean;
+};
 
 export type DownloadStreamUpdate = Partial<
   Pick<

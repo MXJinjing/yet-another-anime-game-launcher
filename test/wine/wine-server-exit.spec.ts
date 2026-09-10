@@ -39,7 +39,12 @@ describe("Wine server shutdown", () => {
     vi.mocked(fileOrDirExists).mockResolvedValue(false);
   });
 
-  it("treats a missing wineserver binary as already stopped", async () => {
+  it("treats an unavailable wineserver binary as already stopped", async () => {
+    vi.mocked(exec2).mockRejectedValueOnce(
+      new Error(
+        "Command return non-zero code (127) \n/path/to/wineserver -w\nStdErr:\nNo such file or directory"
+      )
+    );
     const wine = await createWine({
       prefix: "/tmp/yaaglm-test-prefix",
       distro: {
@@ -51,6 +56,23 @@ describe("Wine server shutdown", () => {
     });
 
     await expect(wine.waitForWineServerExit()).resolves.toBe(true);
-    expect(exec2).not.toHaveBeenCalled();
+    expect(exec2).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the server active when wineserver fails for another reason", async () => {
+    vi.mocked(exec2).mockRejectedValueOnce(
+      new Error("Command return non-zero code (1) \nwineserver failed")
+    );
+    const wine = await createWine({
+      prefix: "/tmp/yaaglm-test-prefix",
+      distro: {
+        id: "test-wine",
+        displayName: "Test Wine",
+        remoteUrl: "https://example.invalid/wine.tar.xz",
+        attributes: { renderBackend: "dxmt", winePath: "wine" },
+      },
+    });
+
+    await expect(wine.waitForWineServerExit()).resolves.toBe(false);
   });
 });

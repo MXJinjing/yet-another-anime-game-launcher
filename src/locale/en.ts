@@ -63,6 +63,7 @@ export const en: typeof zh_CN = {
   DOWNLOADING_ENVIRONMENT_SPEED:
     "Downloading environment files ({1}/{2}, {3}, {0})",
   EXTRACT_ENVIRONMENT: "Extracting environment",
+  EXTRACTING: "Extracting",
   CONFIGURING_ENVIRONMENT: "Configuring environment",
   ENVIRONMENT_CONFIGURING: "Configuring Environment",
   UNINSTALLING_ENVIRONMENT: "Uninstalling Wine",

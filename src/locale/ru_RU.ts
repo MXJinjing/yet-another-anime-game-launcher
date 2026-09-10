@@ -64,6 +64,7 @@ export const ru_RU: typeof zh_CN = {
   DOWNLOADING_ENVIRONMENT_SPEED:
     "Загрузка файлов окружения ({1}/{2}, {3}, {0})",
   EXTRACT_ENVIRONMENT: "Распаковка окружения",
+  EXTRACTING: "Распаковка",
   CONFIGURING_ENVIRONMENT: "Настройка окружения",
   ENVIRONMENT_CONFIGURING: "Настройка окружения",
   UNINSTALLING_ENVIRONMENT: en.UNINSTALLING_ENVIRONMENT,

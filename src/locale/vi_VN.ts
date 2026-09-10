@@ -65,6 +65,7 @@ export const vi_VN: typeof zh_CN = {
   DOWNLOADING_ENVIRONMENT_SPEED:
     "Đang tải xuống tệp môi trường ({1}/{2}, {3}, {0})",
   EXTRACT_ENVIRONMENT: "Đang giải nén môi trường",
+  EXTRACTING: "Đang giải nén",
   CONFIGURING_ENVIRONMENT: "Đang tuỳ chỉnh môi trường",
   ENVIRONMENT_CONFIGURING: "Đang cấu hình môi trường",
   UNINSTALLING_ENVIRONMENT: en.UNINSTALLING_ENVIRONMENT,

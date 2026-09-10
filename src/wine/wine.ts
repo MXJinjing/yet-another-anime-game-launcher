@@ -38,6 +38,16 @@ export function getActiveWineDir(distroId: string) {
   return getWineDistroRoot(distroId);
 }
 
+export function isWineserverUnavailableError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("Command return non-zero code (127)") ||
+    message.includes("Command return non-zero code (126)") ||
+    message.includes("No such file or directory") ||
+    message.toLowerCase().includes("enoent")
+  );
+}
+
 export async function isWineDistroInstalled(distroId: string) {
   const wineRoot = getWineDistroRoot(distroId);
   return (
@@ -183,7 +193,6 @@ export async function createWine(options: {
     timeoutMs = 5_000,
   }: { timeoutMs?: number } = {}) {
     const wineserverBin = join(dirname(loaderBin), "wineserver");
-    if (!(await fileOrDirExists(wineserverBin))) return true;
     const waitPromise = unixExec2([wineserverBin, "-w"], {
       ...getEnvironmentVariables(),
     });
@@ -207,6 +216,15 @@ export async function createWine(options: {
       ]);
       return true;
     } catch (error) {
+      if (isWineserverUnavailableError(error)) {
+        await log(
+          `Wine server binary is unavailable; treating the server as stopped: ${String(
+            error
+          )}`
+        );
+        waitPromise.catch(() => undefined);
+        return true;
+      }
       await log(
         `Wine server cleanup did not finish within the grace period: ${String(
           error

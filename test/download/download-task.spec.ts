@@ -52,6 +52,23 @@ afterEach(() => {
 });
 
 describe("download task snapshots", () => {
+  it("can show a configuration task before a download stream starts", () => {
+    const taskId = beginDownloadTask({
+      title: "Initialize environment",
+      key: "game",
+      showImmediately: true,
+    });
+    createdTasks.push(taskId);
+
+    expect(getDownloadTasks()).toHaveLength(1);
+    expect(getDownloadTasks()[0]).toMatchObject({
+      id: taskId,
+      title: "Initialize environment",
+      status: "active",
+      indeterminate: true,
+    });
+  });
+
   it("keeps task-wide totals separate from the current aria2 file", () => {
     const taskId = createTask();
     const stream = makeStream(taskId);

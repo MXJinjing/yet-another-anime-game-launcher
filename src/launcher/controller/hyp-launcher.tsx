@@ -87,7 +87,11 @@ import {
   resolveIntegrityAction,
   resolvePrimaryLauncherAction,
 } from "./action-policy";
-import type { HypGame, HypLauncherOptions } from "./launcher-types";
+import type {
+  HypGame,
+  HypGameWineTaskRequest,
+  HypLauncherOptions,
+} from "./launcher-types";
 
 export type {
   HypGame,
@@ -251,6 +255,7 @@ export async function createHypLauncher({
   enableWineDistro,
   uninstallWineDistro,
   actionDisabledRef,
+  gameWineTaskDispatcher,
 }: HypLauncherOptions) {
   const baseWine = wine;
   const wineDistros = await getWineDistributions();
@@ -687,6 +692,26 @@ export async function createHypLauncher({
       },
     });
 
+    if (gameWineTaskDispatcher) {
+      gameWineTaskDispatcher.current = (request: HypGameWineTaskRequest) => {
+        taskQueue.enqueue({
+          // Prefix changes must not race this game's own launch/update tasks,
+          // but other games and their downloads keep running on other keys.
+          key: request.gameId,
+          fn: async function* () {
+            yield ["setStateText", "INIT_ENVIRONMENT"];
+            yield* request.fn();
+          },
+          name: "INIT_ENVIRONMENT",
+          downloadTask: {
+            title: request.title,
+            key: request.downloadKey,
+            showImmediately: true,
+          },
+        });
+      };
+    }
+
     if (gameCloseHandler) {
       gameCloseHandler.current = async () => {
         const lifecycleKeys = Object.entries(gameLifecycleActiveByKey())
@@ -1050,7 +1075,7 @@ export async function createHypLauncher({
                 onProgress(undefined);
               else if (
                 command[0] == "setStateText" &&
-                command[1] == "EXTRACT_ENVIRONMENT"
+                command[1] == "EXTRACTING"
               )
                 onProgress(undefined, "extracting");
               yield command;
@@ -1284,6 +1309,16 @@ export async function createHypLauncher({
       const gameStatusArgs = gameTaskState.statusArgs();
       if (gameStatusArgs?.key === "GAME_STARTING") {
         return locale.get("GAME_STARTING");
+      }
+      if (
+        gameTaskState.busy() &&
+        (gameStatusArgs?.key === "INIT_ENVIRONMENT" ||
+          gameStatusArgs?.key === "DOWNLOADING_ENVIRONMENT" ||
+          gameStatusArgs?.key === "DOWNLOADING_ENVIRONMENT_SPEED" ||
+          gameStatusArgs?.key === "EXTRACT_ENVIRONMENT" ||
+          gameStatusArgs?.key === "CONFIGURING_ENVIRONMENT")
+      ) {
+        return locale.get("INIT_ENVIRONMENT");
       }
       const isRecovering =
         gameStatusArgs?.key === "REVERT_PATCHING" ||

@@ -3,33 +3,25 @@ import type { TaskProgram } from "@tasks/task-program";
 import {
   exec,
   exec2,
-  formatDownloadSpeed,
   generateRandomString,
-  humanFileSize,
   mkdirp,
   rmrf_dangerously,
-  tar_extract,
-  tar_extract_directory,
-  xattrRemove,
 } from "@runtime";
 import { build } from "@platform/shell";
 import { getKey, setKey } from "@runtime/storage";
-import {
-  fileOrDirExists,
-  removeFileIfExists,
-  stats,
-  writeFile,
-} from "@platform/neutralino";
+import { fileOrDirExists, stats, writeFile } from "@platform/neutralino";
 import { resolve } from "@platform/neutralino/path";
-import { downloadPercent } from "@runtime/format";
 import { dirname, join } from "path-browserify";
 import { log } from "../logging/logger";
-import { getAuthorizationPrompt } from "../locale/authorization";
-import { isDownloadCancelledError } from "../download/control";
-import { addCertsToWine } from "./cert";
 import { getWineDistributions } from "./distro";
 import type { WineDistribution } from "./distro";
-import { getWineDistroRoot, isWineDistroInstalled, type Wine } from "./wine";
+import { installWineEnvironmentProgram } from "./wine-install-program";
+import {
+  getWineDistroRoot,
+  isWineDistroInstalled,
+  isWineserverUnavailableError,
+  type Wine,
+} from "./wine";
 import {
   createGameProcessMonitor,
   parseMacWineProcesses,
@@ -42,7 +34,6 @@ import { migrateWineUserData, type WineUserDataDescriptor } from "./user-data";
 
 export const SHARED_WINE_TAG = "__shared__";
 export const AUTO_WINE_TAG = "__auto__";
-const MULTI_GAME_WINES_DIR = "./yaaglm-wines";
 
 /**
  * Wine prefixes are coupled to the Wine build that created them (Wine runs a
@@ -224,25 +215,6 @@ export async function setMultiGameGameWineEnabled(
   await setKey(legacyGameWineEnabledKey(gameId), null);
   if (!enabled) await setKey(legacyGameWineKey(gameId), null);
 }
-export function getMultiGameWineRoot(gameId: string, distro: WineDistribution) {
-  return resolve(join(MULTI_GAME_WINES_DIR, gameId, distro.id, "wine"));
-}
-
-export async function cleanupCancelledMultiGameWineDownload({
-  wineTarPath,
-  wineRoot,
-  removeFile = removeFileIfExists,
-  removeDirectory = rmrf_dangerously,
-}: {
-  wineTarPath: string;
-  wineRoot: string;
-  removeFile?: (path: string) => Promise<unknown>;
-  removeDirectory?: (path: string) => Promise<unknown>;
-}) {
-  await removeFile(wineTarPath);
-  await removeDirectory(wineRoot);
-}
-
 export async function getMultiGameGameWineTag(gameId: string) {
   if (!(await getMultiGameGameWineEnabled(gameId))) return SHARED_WINE_TAG;
   try {
@@ -344,7 +316,6 @@ export async function createMultiGameWineFromRoot({
     timeoutMs = 5_000,
   }: { timeoutMs?: number } = {}) => {
     const wineserverBin = join(dirname(loaderBin), "wineserver");
-    if (!(await fileOrDirExists(wineserverBin))) return true;
     const waitPromise = exec2([wineserverBin, "-w"], env());
     if (timeoutMs <= 0) {
       await waitPromise;
@@ -366,6 +337,15 @@ export async function createMultiGameWineFromRoot({
       ]);
       return true;
     } catch (error) {
+      if (isWineserverUnavailableError(error)) {
+        await log(
+          `Wine server binary is unavailable; treating the server as stopped: ${String(
+            error
+          )}`
+        );
+        waitPromise.catch(() => undefined);
+        return true;
+      }
       await log(
         `Wine server cleanup did not finish within the grace period: ${String(
           error
@@ -558,77 +538,23 @@ export async function* ensureMultiGameGameWine({
       wineRoot: getWineDistroRoot(distro.id),
     });
   }
-  const wineRoot = getMultiGameWineRoot(gameId, distro);
-  try {
-    await stats(join(wineRoot, "bin", "wine"));
-    return await createMultiGameWineFromRoot({
-      prefix,
-      distro,
-      wineRoot,
-    });
-  } catch {
-    /* download below */
-  }
-  yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
-  await mkdirp(wineRoot);
-  const isXZ = distro.remoteUrl.endsWith(".xz");
-  const wineTarPath = resolve(
-    join(
-      MULTI_GAME_WINES_DIR,
-      gameId,
-      distro.id,
-      `wine.tar.${isXZ ? "xz" : "gz"}`
-    )
-  );
-  try {
-    for await (const progress of aria2.doStreamingDownload({
-      uri: distro.remoteUrl,
-      absDst: wineTarPath,
+  if (!(await isWineDistroInstalled(distro.id))) {
+    // Wine binaries are shared across all games. If a persisted selection is
+    // missing, install it once in ./wines instead of creating a game-local
+    // copy under yaaglm-wines.
+    yield* installWineEnvironmentProgram({
+      aria2,
+      wineAbsPrefix: prefix,
+      wineDistro: distro,
+      activate: false,
+      finishMessage: false,
       downloadKey,
-    })) {
-      yield [
-        "setProgress",
-        Number((progress.completedLength * BigInt(100)) / progress.totalLength),
-      ];
-      yield [
-        "setStateText",
-        "DOWNLOADING_ENVIRONMENT_SPEED",
-        formatDownloadSpeed(Number(progress.downloadSpeed)),
-        `${humanFileSize(Number(progress.completedLength))}`,
-        `${humanFileSize(Number(progress.totalLength))}`,
-        downloadPercent(progress.completedLength, progress.totalLength),
-      ];
-    }
-  } catch (error) {
-    if (isDownloadCancelledError(error)) {
-      await cleanupCancelledMultiGameWineDownload({ wineTarPath, wineRoot });
-    }
-    throw error;
+    });
   }
-  yield ["setStateText", "EXTRACT_ENVIRONMENT"];
-  yield ["setUndeterminedProgress"];
-  await rmrf_dangerously(wineRoot);
-  await mkdirp(wineRoot);
-  if (distro.attributes.winePath)
-    await tar_extract_directory(
-      wineTarPath,
-      wineRoot,
-      distro.attributes.winePath,
-      isXZ
-    );
-  else await tar_extract(wineTarPath, wineRoot);
-  await rmrf_dangerously(wineTarPath);
-  yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
-  await addCertsToWine(wineRoot);
-  await xattrRemove(
-    "com.apple.quarantine",
-    wineRoot,
-    await getAuthorizationPrompt("AUTHORIZATION_PROMPT_REMOVE_QUARANTINE")
-  );
   return await createMultiGameWineFromRoot({
     prefix,
     distro,
-    wineRoot,
+    wineRoot: getWineDistroRoot(distro.id),
   });
 }
 
@@ -648,6 +574,7 @@ export async function* prepareMultiGameGameWine({
   migrate = false,
   descriptor,
   logFile = "/dev/null",
+  downloadKey,
 }: {
   aria2: Aria2;
   baseWine: Wine;
@@ -661,6 +588,8 @@ export async function* prepareMultiGameGameWine({
   /** Game data locations; without one a whole-prefix copy is used. */
   descriptor?: WineUserDataDescriptor;
   logFile?: string;
+  /** Download-control namespace used if the selected shared Wine is missing. */
+  downloadKey?: string;
 }): TaskProgram<Wine> {
   const staleWine = previousWine ?? baseWine;
   await staleWine.killAll();
@@ -687,6 +616,7 @@ export async function* prepareMultiGameGameWine({
       gameId,
       prefixId,
       wineTag,
+      downloadKey,
     });
     yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
     yield ["setUndeterminedProgress"];

@@ -62,6 +62,7 @@ export const zh_CN = {
   DOWNLOADING_ENVIRONMENT_SPEED:
     "正在下载配置环境所需文件（{1}/{2}，{3}，当前速度：{0}）",
   EXTRACT_ENVIRONMENT: "正在解压配置环境所需文件",
+  EXTRACTING: "解压中",
   CONFIGURING_ENVIRONMENT: "正在配置环境",
   ENVIRONMENT_CONFIGURING: "配置环境中",
   UNINSTALLING_ENVIRONMENT: "正在卸载 Wine",

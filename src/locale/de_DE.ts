@@ -65,6 +65,7 @@ export const de_DE: typeof zh_CN = {
   DOWNLOADING_ENVIRONMENT_SPEED:
     "Umgebungsdateien herunterladen ({1}/{2}, {3}, {0})",
   EXTRACT_ENVIRONMENT: "Umgebung entpacken",
+  EXTRACTING: "Entpacken",
   CONFIGURING_ENVIRONMENT: "Umgebung konfigurieren",
   ENVIRONMENT_CONFIGURING: "Umgebung wird konfiguriert",
   UNINSTALLING_ENVIRONMENT: en.UNINSTALLING_ENVIRONMENT,

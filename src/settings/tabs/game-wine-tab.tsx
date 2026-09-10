@@ -133,7 +133,11 @@ export function GameWineTab(props: {
                 : props.locale.get("SETTING_GAME_WINE_ENABLE_DESC")
             }
             checked={draftEnabled()}
-            disabled={busy() || props.wineDataSupported === false}
+            disabled={
+              busy() ||
+              (props.wineActionDisabled?.() ?? false) ||
+              props.wineDataSupported === false
+            }
             onChange={setDraftEnabled}
           />
         </Show>
@@ -145,6 +149,7 @@ export function GameWineTab(props: {
               <AppSelect
                 value={draftTag()}
                 onChange={setDraftTag}
+                disabled={busy() || (props.wineActionDisabled?.() ?? false)}
                 width={280}
                 options={[
                   {
@@ -195,7 +200,7 @@ export function GameWineTab(props: {
 
         <Show
           when={
-            !draftEnabled() &&
+            !currentEnabled() &&
             props.gameWinePrefixExists?.() &&
             props.onRemoveGameWinePrefix
           }
@@ -222,7 +227,7 @@ export function GameWineTab(props: {
         >
           <Checkbox
             checked={migrate()}
-            disabled={busy()}
+            disabled={busy() || (props.wineActionDisabled?.() ?? false)}
             title={props.locale.get("SETTING_GAME_WINE_MIGRATE_DESC")}
             onChange={event =>
               setMigrate((event.currentTarget as HTMLInputElement).checked)
@@ -239,12 +244,12 @@ export function GameWineTab(props: {
           </Show>
           <Button
             size="sm"
-            disabled={!dirty() || busy()}
+            disabled={
+              !dirty() || busy() || (props.wineActionDisabled?.() ?? false)
+            }
             onClick={() => save()}
           >
-            {busy()
-              ? props.locale.get("CONFIGURING_ENVIRONMENT")
-              : props.locale.get("SETTING_SAVE")}
+            {props.locale.get("SETTING_SAVE")}
           </Button>
         </HStack>
 
