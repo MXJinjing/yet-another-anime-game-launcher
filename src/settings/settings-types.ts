@@ -17,6 +17,7 @@ export type SettingsUIProps = {
   onOpenLicense?: () => void;
   onOpenGlobalSettings?: () => void;
   contentOnly?: boolean;
+  initialTab?: number;
 };
 
 export type SettingsUI = (props: SettingsUIProps) => JSXElement;
@@ -36,6 +37,7 @@ export type GlobalLoadedSettings = BaseLoadedSettings & {
   themeColor: SettingsComponent;
   disableVideoBackground: SettingsComponent;
   isVideoBackgroundDisabled: Accessor<boolean>;
+  globalWineDistro?: SettingsComponent;
   wineDistro?: SettingsComponent;
   wineDistroController?: {
     markEnabled: (distro: import("@wine").WineDistribution) => void;

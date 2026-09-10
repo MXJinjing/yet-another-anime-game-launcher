@@ -15,20 +15,16 @@ import { rmrf_dangerously } from "@runtime/macos-filesystem";
 import { getKey, setKey } from "@runtime/storage";
 import { dirname, join } from "path-browserify";
 import type { WineDistribution, WineDistributionAttributes } from "./distro";
-import { getRegisteredSystemWineRoot, GPTK3_WINE_ID } from "./system-wine";
+import { getRegisteredSystemWineRoot, GPTK_WINE_ID } from "./system-wine";
 import {
   createGameProcessMonitor,
+  parseMacWineProcesses,
   parseTasklistCsv,
   parseWinedbgProcesses,
   type GameProcessMonitor,
   type WineProcess,
 } from "./game-process-monitor";
 import { createNativeGameWindowState } from "./native-window-state";
-
-// Keep both process sources within the monitor's 10 second query budget.
-// Some Wine builds block tasklist while their server is starting or belongs
-// to a previously selected distribution.
-const PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS = 3_000;
 
 export function getWineInstallDir(distroId: string) {
   return resolve(`./wines/${distroId}`);
@@ -51,7 +47,7 @@ export async function isWineDistroInstalled(distroId: string) {
 }
 
 export async function uninstallWineDistro(distroId: string) {
-  if (getRegisteredSystemWineRoot(distroId) || distroId == GPTK3_WINE_ID) {
+  if (getRegisteredSystemWineRoot(distroId) || distroId == GPTK_WINE_ID) {
     throw new Error(
       "System Wine is managed outside the launcher and cannot be uninstalled here"
     );
@@ -87,6 +83,7 @@ export async function createWine(options: {
   distro: WineDistribution;
 }) {
   let loaderBin = await getCorrectWineBinary(options.distro.id);
+  let wineRoot = getWineDistroRoot(options.distro.id);
 
   async function cmd(command: string, args: string[]) {
     return await exec("cmd", [command, ...args]);
@@ -344,36 +341,63 @@ export async function createWine(options: {
     };
   }
 
-  async function listWineProcesses(): Promise<WineProcess[]> {
-    try {
-      const result = await exec2(
-        "tasklist",
-        ["/fo", "csv", "/nh"],
-        undefined,
-        undefined,
-        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
-      );
-      const processes = parseTasklistCsv(result.stdOut);
-      if (processes.length > 0) return processes;
-      throw new Error("tasklist returned no parseable process rows");
-    } catch (tasklistError) {
-      await log(
-        `tasklist process enumeration failed: ${String(tasklistError)}`
-      );
-      const result = await exec2(
-        "winedbg",
-        ["--command", "info proc"],
-        undefined,
-        undefined,
-        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
-      );
-      const processes = parseWinedbgProcesses(result.stdOut);
-      if (processes.length > 0) return processes;
-      throw new Error("winedbg returned no parseable process rows");
-    }
-  }
-
   function createGameProcessMonitorFor(executable: string): GameProcessMonitor {
+    // Pin the Wine loader that owns this game session. The active
+    // distribution may still be switched later (e.g. before the next
+    // launch), but process enumeration for this game must keep using the
+    // loader it was started with, otherwise the monitor can miss the game
+    // or query a Wine server that no longer belongs to this prefix.
+    const pinnedLoaderBin = loaderBin;
+    const pinnedEnv = () => ({
+      WINEDEBUG: "fixme-all,err-unwind,+timestamp",
+      WINEPREFIX: options.prefix,
+    });
+
+    // DXMT distributions answer in-Wine tasklist/winedbg reliably. Other
+    // runtimes (e.g. Apple Game Porting Toolkit) can block those tools for
+    // tens of seconds while they initialize or update the prefix, so they are
+    // enumerated from the host process table instead.
+    const useInWineEnumeration = attributes.renderBackend == "dxmt";
+
+    async function listWineProcesses(): Promise<WineProcess[]> {
+      if (!useInWineEnumeration) {
+        const result = await unixExec2(
+          ["ps", "-axo", "pid=,command="],
+          undefined,
+          false,
+          undefined,
+          { timeoutMs: 3_000 }
+        );
+        return parseMacWineProcesses(result.stdOut, pinnedLoaderBin);
+      }
+      try {
+        const result = await unixExec2(
+          [pinnedLoaderBin, "tasklist", "/fo", "csv", "/nh"],
+          pinnedEnv(),
+          false,
+          undefined,
+          { timeoutMs: 10_000 }
+        );
+        const processes = parseTasklistCsv(result.stdOut);
+        if (processes.length > 0) return processes;
+        throw new Error("tasklist returned no parseable process rows");
+      } catch (tasklistError) {
+        await log(
+          `tasklist process enumeration failed: ${String(tasklistError)}`
+        );
+        const result = await unixExec2(
+          [pinnedLoaderBin, "winedbg", "--command", "info proc"],
+          pinnedEnv(),
+          false,
+          undefined,
+          { timeoutMs: 10_000 }
+        );
+        const processes = parseWinedbgProcesses(result.stdOut);
+        if (processes.length > 0) return processes;
+        throw new Error("winedbg returned no parseable process rows");
+      }
+    }
+
     return createGameProcessMonitor({
       executable,
       listProcesses: listWineProcesses,
@@ -427,11 +451,12 @@ reg add "HKEY_CURRENT_USER\\Software\\Wine\\Mac Driver" /v RetinaMode /t REG_SZ 
 reg add "HKEY_CURRENT_USER\\Software\\Wine\\Mac Driver" /v LeftCommandIsCtrl /t REG_SZ /d ${
       props.leftCmd ? "y" : "n"
     } /f
+exit /b 0
 `;
     await writeFile(resolve("winedrv_config.bat"), cmd);
     await exec(
       "cmd",
-      ["/c", `${toWinePath(resolve("./winedrv_config.bat"))}`],
+      ["/c", toWinePath(resolve("./winedrv_config.bat"))],
       {},
       "/dev/null"
     );
@@ -444,11 +469,30 @@ cd "%~dp0"
 reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /t REG_BINARY /d 1 /f
 reg add "HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Services\\nvlddmkm" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /t REG_BINARY /d 1 /f
 reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v FullPath /t REG_SZ /d "C:\\Windows\\System32" /f
+exit /b 0
 `;
     await writeFile(resolve("winedrv_config.bat"), cmd);
     await exec(
       "cmd",
-      ["/c", `${toWinePath(resolve("./winedrv_config.bat"))}`],
+      ["/c", toWinePath(resolve("./winedrv_config.bat"))],
+      {},
+      "/dev/null"
+    );
+    await waitUntilServerOff();
+  }
+
+  async function clearNVExtension() {
+    const cmd = `@echo off
+cd "%~dp0"
+reg delete "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /f >nul 2>nul
+reg delete "HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Services\\nvlddmkm" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /f >nul 2>nul
+reg delete "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v FullPath /f >nul 2>nul
+exit /b 0
+`;
+    await writeFile(resolve("winedrv_config.bat"), cmd);
+    await exec(
+      "cmd",
+      ["/c", toWinePath(resolve("./winedrv_config.bat"))],
       {},
       "/dev/null"
     );
@@ -468,6 +512,7 @@ reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v F
     Object.assign(attributes, distro.attributes);
     await ensureActiveWineCompatLink(distro.id);
     loaderBin = await getCorrectWineBinary(distro.id);
+    wineRoot = getWineDistroRoot(distro.id);
   }
 
   return {
@@ -480,16 +525,20 @@ reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v F
     cmd,
     toWinePath,
     prefix: options.prefix,
+    get wineRoot() {
+      return wineRoot;
+    },
     openCmdWindow,
     setProps,
     setNVExtension,
+    clearNVExtension,
     setDistribution,
     attributes,
   };
 }
 
-export async function getCorrectWineBinary(distroId?: string) {
-  const wineDir = distroId ? getWineDistroRoot(distroId) : resolve("./wine");
+export async function getCorrectWineBinary(distroId: string) {
+  const wineDir = getWineDistroRoot(distroId);
   try {
     // use wine64 if it is presented
     // in newer version of wine (esp. WoW64 mode), only one binary `bin/wine` exists

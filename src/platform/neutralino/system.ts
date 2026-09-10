@@ -22,6 +22,15 @@ export function exit(exitCode: number) {
   return Neutralino.app.exit(exitCode);
 }
 
+/**
+ * Terminates the current app without asking WebView/AppKit to close its
+ * window. macOS 26 can throw from Neutralino's graceful WebView teardown
+ * (ViewBridge/NSRemoteView), which aborts the process before exit completes.
+ */
+export function closeApp() {
+  return Neutralino.app.killProcess();
+}
+
 export async function alert(title: string, message: string) {
   return Neutralino.os.showMessageBox(title, message, "OK");
 }

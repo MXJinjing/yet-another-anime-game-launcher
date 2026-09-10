@@ -76,6 +76,17 @@ function buildTest(name: string, exec: (cmd: string) => Promise<string[]>) {
       expect((await exec(cmd))[0]).toBe('"Hello World"');
     });
 
+    it("preserves Windows command quotes around a path with spaces", async () => {
+      const cmd = build([
+        "printf",
+        "%s",
+        '"Z:\\Users\\Example User\\config.bat"',
+      ]);
+      expect((await exec(cmd))[0]).toBe(
+        '"Z:\\Users\\Example User\\config.bat"'
+      );
+    });
+
     it("solo command with args with qouted string with qoute inside, left it as-is", async () => {
       const cmd = build(["echo", '"Hello " World"']);
       expect(cmd).toBe('echo \\"Hello\\ \\"\\ World\\"'); // wtf

@@ -1,4 +1,5 @@
 import { shutdown } from "./lifecycle";
+import { closeApp } from "../platform/neutralino/system";
 
 export async function fatal(error: unknown) {
   await Neutralino.os.showMessageBox(
@@ -7,5 +8,5 @@ export async function fatal(error: unknown) {
     "OK"
   );
   await shutdown();
-  Neutralino.app.exit(-1);
+  await closeApp();
 }

@@ -29,8 +29,13 @@ def remove_cached_files(tempdir: pathlib.Path):
         print(f"Temporary directory {tempdir} does not exist, skipping removal.")
 
 def is_predownload_enabled(reltype: str) -> bool:
-    """Pre-download manifests are currently complete only for overseas releases."""
-    return reltype == "os"
+    """Allow branches with supported Sophon manifest endpoints.
+
+    Bilibili's manifest endpoint is not implemented in ``sophon_api.py`` yet,
+    so it must remain unavailable even though it has a distinct launcher
+    branch.
+    """
+    return reltype in {"os", "cn"}
 
 def determine_repair_action(
     installed_version: str,

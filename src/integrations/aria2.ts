@@ -28,6 +28,7 @@ import { getKeyOrDefault } from "../runtime/storage";
 import { sha256_16 } from "../runtime/binary";
 import { timeout, wait } from "../runtime/async";
 import { basename } from "path-browserify";
+import { fileOrDirExists } from "@platform/neutralino";
 import { normalizeHttpProxy } from "../config/proxy";
 import { applyGithubPrefix } from "./github";
 
@@ -176,7 +177,14 @@ export async function createAria2({
         await rpc.changeOption(gid, downloadOptions);
         await rpc.unpause(gid);
       } else if (status.status == "complete") {
-        return;
+        if (await fileOrDirExists(options.absDst)) return;
+        await log(
+          `下载记录已完成但目标文件不存在，将重新下载：${basename(
+            options.absDst
+          )}`
+        );
+        await rpc.removeDownloadResult(gid);
+        shouldAddDownload = true;
       } else if (status.status == "removed" || status.status == "error") {
         await log(
           `清理上次未完成的下载状态：${basename(options.absDst)}（${

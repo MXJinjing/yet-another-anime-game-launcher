@@ -6,12 +6,14 @@ vi.mock("@logging/logger", () => ({
 
 vi.mock("@platform/neutralino", () => ({
   removeFile: vi.fn(async () => undefined),
+  removeFileIfExists: vi.fn(async () => undefined),
   resolve: (path: string) => `/launcher/${path.replace(/^\.\//, "")}`,
   writeBinary: vi.fn(async () => undefined),
   writeFile: vi.fn(async () => undefined),
 }));
 
 vi.mock("@runtime/macos-filesystem", () => ({
+  cp: vi.fn(async () => undefined),
   mkdirp: vi.fn(async () => undefined),
 }));
 
@@ -106,10 +108,12 @@ function createWine({
   };
   const wine = {
     prefix: "/prefix",
+    wineRoot: "/wine",
     attributes: {},
     createGameProcessMonitor: vi.fn(() => monitor),
     setProps: vi.fn(async () => undefined),
     setNVExtension: vi.fn(async () => undefined),
+    clearNVExtension: vi.fn(async () => undefined),
     exec: vi.fn(async () => ({ exitCode: 0, stdOut: "", stdErr: "" })),
     exec2: vi.fn(async () => ({ exitCode: 0, stdOut: "", stdErr: "" })),
     waitUntilServerOff: vi.fn(async () => undefined),

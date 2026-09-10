@@ -192,6 +192,7 @@ export async function createHKRPGChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameExecutable: () => server.executable,
     gameLogLocations: HKRPG_GAME_LOG_LOCATIONS,
     gameVersion: gameCurrentVersion,
     latestVersion: () => GAME_LATEST_VERSION,

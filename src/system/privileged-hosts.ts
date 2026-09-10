@@ -1,3 +1,4 @@
+import { hostsWriteCommand } from "./hosts-write";
 import { CURRENT_YAAGL_VERSION } from "@constants";
 import { log, warn } from "../logging/logger";
 import {
@@ -708,7 +709,7 @@ export async function legacyEnsureHosts(hosts: HostEntry[]) {
   ];
   if (newContent.join("\n") == lines.join("\n")) return false;
   await exec(
-    ["printf", newContent.join("\n"), rawString(">"), "/etc/hosts"],
+    hostsWriteCommand(newContent.join("\n")),
     {},
     await getAuthorizationPrompt("AUTHORIZATION_PROMPT_MANAGED_HOSTS")
   );

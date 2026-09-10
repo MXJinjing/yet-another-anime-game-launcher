@@ -129,6 +129,7 @@ export const en: typeof zh_CN = {
   SETTING_USE_D3D12_DESC: "Launch the game with DirectX 12 enabled.",
   SETTING_NAP_METALFX: "Enable MetalFX",
   SETTING_NAP_METALFX_DESC: "Use MetalFX instead of DLSS.",
+  SETTING_NAP_REQUIRES_GPTK3: "Requires Game Porting Toolkit 3 (GPTK3).",
   SETTING_SAVE: "Save",
   SETTING_CANCEL: "Cancel",
 
@@ -152,7 +153,21 @@ export const en: typeof zh_CN = {
   SETTING_GAME: "Game",
   SETTING_VIDEO: "Video",
   SETTING_GLOBAL: "Global Settings",
+  SETTING_GAME_WINE_UNSAVED:
+    "The Wine settings have unsaved changes that will be lost. Leave anyway?",
+  SETTING_GAME_WINE_ENABLE: "Enable a separate Wine environment",
+  SETTING_GAME_WINE_ENABLE_DESC:
+    "Create and pin a dedicated Wine prefix for this game; when off it follows the global Wine and prefix.",
+  SETTING_GAME_WINE_AUTO: "Automatic",
   SETTING_GAME_WINE: "Custom Game Wine",
+  SETTING_GAME_WINE_REMOVE_PREFIX: "Remove game Wine environment",
+  SETTING_GAME_WINE_REMOVE_PREFIX_DESC:
+    "The game is back on the global environment. Delete its own Wine prefix to free disk space (data was synced back when switching).",
+  SETTING_GAME_WINE_MIGRATE: "Migrate existing data",
+  SETTING_GAME_WINE_MIGRATE_DESC:
+    "When this game gets its own Wine prefix for the first time, copy the current prefix so in-game settings and device data are kept.",
+  SETTING_GAME_WINE_PREPARE_FAILED:
+    "Failed to prepare the Wine environment. The previous selection was kept.",
   SETTING_GAME_WINE_SHARED: "Follow Global",
   SETTING_GAME_WINE_DESC:
     "Choose a downloaded Wine version for this game only; 'Follow Global' uses the launcher-wide Wine.",
@@ -178,6 +193,7 @@ export const en: typeof zh_CN = {
     "Changing the frame rate target does not remove the in-game frame rate limit.",
   SETTING_PREFERRED_MAX_FPS_AUTO: "Auto",
   SETTING_PREFERRED_MAX_FPS_RESET: "Reset",
+  SETTING_METALFX_DXMT_ONLY: "Only works with a DXMT Wine",
   SETTING_METALFX_UPSCALE: "MetalFX Spatial Upscaling",
   SETTING_METALFX_FACTOR: "Factor",
 
@@ -329,6 +345,28 @@ export const en: typeof zh_CN = {
   SETTING_WINE_INSTALL_INITIALIZES_ENVIRONMENT:
     "The runtime environment has not been initialized yet. Installing this Wine version will also initialize the environment and enable this version.",
   SETTING_WINE_PREFIX_PATH: "Wine Prefix Path",
+  SETTING_WINE_SELECT_BINARY: "Select a Wine or wine64 executable",
+  SETTING_WINE_BINARY_FILE: "Wine executable",
+  SETTING_WINE_INVALID_BINARY:
+    "The selected file is not a valid Wine executable.",
+  SETTING_WINE_CUSTOM_NAME: "Custom Wine",
+  SETTING_WINE_TABLE_VERSION: "Version",
+  SETTING_WINE_TABLE_STATUS: "Status",
+  SETTING_WINE_TABLE_ACTION: "Actions",
+  SETTING_WINE_SOURCE_OFFICIAL: "Official",
+  SETTING_WINE_SOURCE_LOCAL: "Local",
+  SETTING_WINE_SOURCE_SYSTEM: "System",
+  SETTING_WINE_DOWNLOADING: "Downloading",
+  SETTING_WINE_EXTRACTING: "Extracting",
+  SETTING_WINE_EDIT: "Edit",
+  SETTING_WINE_REMOVE: "Remove",
+  SETTING_WINE_DOWNLOADED: "Downloaded Wine",
+  SETTING_WINE_AVAILABLE: "Available Wine",
+  SETTING_WINE_ADD_LOCAL: "+ Add",
+  SETTING_WINE_EDIT_LOCAL_TITLE: "Edit local Wine",
+  SETTING_WINE_LOCAL_NAME: "Name",
+  SETTING_WINE_BINARY_PATH: "Wine executable path",
+  SETTING_WINE_GLOBAL: "Global Wine",
   SETTING_OPEN: "Open",
   LOG_VIEWER_TITLE: "Live Logs",
   LOG_VIEWER_EMPTY: "No logs yet",

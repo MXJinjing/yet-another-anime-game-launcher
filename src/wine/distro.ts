@@ -1,4 +1,4 @@
-import { fileOrDirExists, resolve } from "@platform/neutralino";
+import { fileOrDirExists, resolve, stats } from "@platform/neutralino";
 import { exec } from "@runtime/command-runner";
 import { getKey, setKey } from "@runtime/storage";
 import {
@@ -6,6 +6,14 @@ import {
   getWineInstallDir,
   isWineDistroInstalled,
 } from "./wine";
+import {
+  type CustomWineEntry,
+  findConfiguredWine,
+  getCustomWineId,
+  GPTK_WINE_ID,
+  readCustomWineEntries,
+  registerSystemWineRoot,
+} from "./system-wine";
 
 export interface WineDistributionAttributes {
   renderBackend: "dxmt";
@@ -17,7 +25,14 @@ export interface WineDistribution {
   displayName: string;
   remoteUrl: string;
   attributes: Partial<WineDistributionAttributes>;
+  /** A Wine root supplied by a system application rather than downloaded. */
+  systemWineRoot?: string;
+  /** The persisted entry selected for a user-managed local Wine. */
+  customWine?: CustomWineEntry;
 }
+
+const GPTK_APP_PATH = "/Applications/Game Porting Toolkit.app";
+const GPTK_WINE_ROOT = `${GPTK_APP_PATH}/Contents/Resources/wine`;
 
 const YAAGL_BUILTIN_WINE: WineDistribution[] = [
   {
@@ -83,7 +98,69 @@ const YAAGL_BUILTIN_WINE: WineDistribution[] = [
 ];
 
 export async function getWineDistributions(): Promise<WineDistribution[]> {
-  return YAAGL_BUILTIN_WINE;
+  const gptk = await getSystemGPTKWineDistribution();
+  const customWines = await getCustomWineDistributions();
+  return [...(gptk ? [gptk] : []), ...customWines, ...YAAGL_BUILTIN_WINE];
+}
+
+/**
+ * GPTK is installed as an application bundle, so it must be detected rather
+ * than treated as an archive-managed Wine distribution. The application's
+ * Info.plist version is used so all GPTK releases are accepted and labelled
+ * with the version that is actually installed.
+ */
+async function getSystemGPTKWineDistribution(): Promise<WineDistribution | null> {
+  try {
+    await stats(`${GPTK_WINE_ROOT}/bin/wine64`);
+    const version = (
+      await exec([
+        "/usr/bin/plutil",
+        "-extract",
+        "CFBundleShortVersionString",
+        "raw",
+        `${GPTK_APP_PATH}/Contents/Info.plist`,
+      ])
+    ).stdOut.trim();
+    if (!version) return null;
+
+    return {
+      id: GPTK_WINE_ID,
+      displayName: `Game Porting Toolkit ${version}`,
+      remoteUrl: "",
+      attributes: {},
+      systemWineRoot: registerSystemWineRoot(GPTK_WINE_ID, GPTK_WINE_ROOT),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function getCustomWineDistributions(): Promise<WineDistribution[]> {
+  const entries = await readCustomWineEntries();
+  const wines = await Promise.all(
+    entries.map(async entry => ({
+      entry,
+      wine: await findConfiguredWine(entry.binary),
+    }))
+  );
+  const roots = new Set<string>();
+  return wines.flatMap(({ entry, wine }) => {
+    if (!wine || wine.root == GPTK_WINE_ROOT || roots.has(wine.root)) {
+      return [];
+    }
+    roots.add(wine.root);
+    const id = getCustomWineId(wine.root);
+    return [
+      {
+        id,
+        displayName: entry.name,
+        remoteUrl: "",
+        attributes: {},
+        systemWineRoot: registerSystemWineRoot(id, wine.root),
+        customWine: entry,
+      },
+    ];
+  });
 }
 
 export type WineStatus =

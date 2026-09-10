@@ -1,5 +1,5 @@
 import { TabList, Tabs } from "@hope-ui/solid";
-import { JSXElement } from "solid-js";
+import { createSignal, JSXElement } from "solid-js";
 import { AppModal } from "../components/app-modal";
 import { Locale } from "../locale";
 import { Config } from "@config";
@@ -24,13 +24,30 @@ export abstract class SettingsController<T extends BaseLoadedSettings> {
     return this.settings.isVideoBackgroundDisabled ?? (() => false);
   }
 
+  /** Optional guard invoked before leaving a tab or closing the modal. */
+  protected leaveGuard?: () => Promise<boolean>;
+
   protected abstract renderTabs(props: SettingsUIProps): JSXElement;
 
   protected abstract renderTabList(props: SettingsUIProps): JSXElement;
 
   readonly UI: SettingsUI = props => {
+    const [tabIndex, setTabIndex] = createSignal(props.initialTab ?? 0);
+    const guard = async (next: () => void) => {
+      if (this.leaveGuard && !(await this.leaveGuard())) return;
+      next();
+    };
     const content = (
-      <Tabs orientation="vertical" h="100%" variant="pills">
+      <Tabs
+        index={tabIndex()}
+        onChange={(index: number) => {
+          if (index === tabIndex()) return;
+          void guard(() => setTabIndex(index));
+        }}
+        orientation="vertical"
+        h="100%"
+        variant="pills"
+      >
         <div class="hyp-settings-nav">
           <TabList minW={120}>{this.renderTabList(props)}</TabList>
           {this.renderAuxiliaryLinks(props)}
@@ -44,7 +61,7 @@ export abstract class SettingsController<T extends BaseLoadedSettings> {
     return (
       <AppModal
         opened={props.opened}
-        onClose={() => props.onClose("close")}
+        onClose={() => void guard(() => props.onClose("close"))}
         title={this.modalTitle?.() ?? this.locale.get("SETTING")}
         maxWidth={800}
         height={600}

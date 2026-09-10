@@ -12,7 +12,7 @@ import {
 import { rmrf_dangerously, xattrRemove } from "@runtime/macos-filesystem";
 import { setKey } from "@runtime/storage";
 import { isDownloadCancelledError } from "../download/control";
-import { ENSURE_HOSTS } from "../clients/secret";
+import { ENSURE_HOSTS } from "../system/ensure-hosts";
 import { ensureHosts } from "../system/hosts";
 import { getAuthorizationPrompt } from "../locale/authorization";
 import {
@@ -51,16 +51,39 @@ export async function* installWineEnvironmentProgram({
   wineDistro,
   activate = true,
   finishMessage = true,
+  downloadKey,
 }: {
   aria2: Aria2;
   wineAbsPrefix: string;
   wineDistro: WineDistribution;
   activate?: boolean;
   finishMessage?: boolean;
+  downloadKey?: string;
 }): TaskProgram {
   const wineBinaryDir = getWineInstallDir(wineDistro.id);
   const wineBinaryTmpDir = `${wineBinaryDir}.installing`;
   const installedBefore = await isWineDistroInstalled(wineDistro.id);
+
+  // System-supplied Wine is never downloaded, extracted, patched, or
+  // quarantine-modified by the launcher. Configuration below only updates
+  // the launcher-owned Wine prefix.
+  if (wineDistro.systemWineRoot) {
+    if (!installedBefore) {
+      throw new Error(
+        `System Wine is no longer available: ${wineDistro.displayName}`
+      );
+    }
+    if (!activate) {
+      if (finishMessage) yield ["setStateText", "INSTALL_DONE"];
+      return;
+    }
+    yield* configureWineEnvironmentProgram({
+      aria2,
+      wineAbsPrefix,
+      wineDistro,
+    });
+    return;
+  }
 
   if (!installedBefore) {
     yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
@@ -72,6 +95,7 @@ export async function* installWineEnvironmentProgram({
       for await (const progress of aria2.doStreamingDownload({
         uri: wineDistro.remoteUrl,
         absDst: wineTarPath,
+        downloadKey,
       })) {
         yield [
           "setProgress",

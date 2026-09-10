@@ -41,6 +41,13 @@ export async function putLocal(url: string, dest: string) {
   return await writeBinary(dest, await (await fetch(url)).arrayBuffer());
 }
 
+function wineLibraryPath(wine: Wine, relativePath: string) {
+  if (!wine.wineRoot) {
+    throw new Error("Cannot patch Wine without a resolved Wine root");
+  }
+  return join(wine.wineRoot, relativePath);
+}
+
 export async function* patchProgram(
   gameDir: string,
   wine: Wine,
@@ -63,7 +70,13 @@ export async function* patchProgram(
     }
   };
 
-  if ((await storage.getKeyOrDefault("patched", "NOTFOUND")) != "NOTFOUND") {
+  // The patch installs files into both the game directory and the Wine
+  // prefix, so the marker is bound to the prefix it was applied to. A game
+  // that switches to its own prefix must be patched again.
+  if (
+    (await storage.getKeyOrDefault("patched", "NOTFOUND")) == wine.prefix &&
+    wine.prefix != ""
+  ) {
     yield* report(1, 1, "启动阶段：已检测到补丁状态，跳过重复应用");
     return;
   }
@@ -72,8 +85,10 @@ export async function* patchProgram(
   const removedFileSteps = server.removed.length;
   const addedFileSteps = server.added.length;
   const dxmtSteps = DXMT_FILES.length * 2;
-  const needsNvngx =
-    server.id.startsWith("hkrpg") || server.id.startsWith("nap");
+  // NGX is only required by the HSR DX12 path.  ZZZ with DX12/MetalFX
+  // disabled must stay on the plain DXMT D3D11 path; installing nvngx.dll
+  // changes device detection and can break scene/resource initialization.
+  const needsNvngx = server.id.startsWith("hkrpg");
   const totalSteps = Math.max(
     1,
     patchFileSteps +
@@ -133,38 +148,48 @@ export async function* patchProgram(
   const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
   const syswow64Dir = join(wine.prefix, "drive_c", "windows", "syswow64");
 
-  for (const f of DXMT_FILES) {
-    const wineLibPath = resolve(`./wine/lib/wine/x86_64-windows/${f}`);
-    yield* report(++step, totalSteps, `补丁阶段：备份 Wine 运行库 ${f}`);
-    await forceMove(wineLibPath, wineLibPath + ".bak");
-    yield* report(++step, totalSteps, `补丁阶段：安装 DXMT 运行库 ${f}`);
-    await cp(`./dxmt/${f}`, wineLibPath);
+  // Only DXMT-based distributions may receive the DXMT runtime files. Other
+  // backends (e.g. Apple's Game Porting Toolkit D3DMetal, which provides its
+  // own d3d11/d3d12/dxgi and reads the prefix gpuinfo override) must keep
+  // their shipped libraries, otherwise D3D12 and the NVIDIA spoof break.
+  if (wine.attributes.renderBackend == "dxmt") {
+    for (const f of DXMT_FILES) {
+      const wineLibPath = wineLibraryPath(wine, `lib/wine/x86_64-windows/${f}`);
+      yield* report(++step, totalSteps, `补丁阶段：备份 Wine 运行库 ${f}`);
+      await forceMove(wineLibPath, wineLibPath + ".bak");
+      yield* report(++step, totalSteps, `补丁阶段：安装 DXMT 运行库 ${f}`);
+      await cp(`./dxmt/${f}`, wineLibPath);
+    }
+
+    // winemetal files always go to Wine lib directories
+    yield* report(
+      ++step,
+      totalSteps,
+      "补丁阶段：安装 winemetal.dll 到 Wine 运行库"
+    );
+    await cp(
+      `./dxmt/winemetal.dll`,
+      wineLibraryPath(wine, "lib/wine/x86_64-windows/winemetal.dll")
+    );
+
+    yield* report(
+      ++step,
+      totalSteps,
+      "补丁阶段：安装 winemetal.so 到 Wine 运行库"
+    );
+    await cp(
+      `./dxmt/winemetal.so`,
+      wineLibraryPath(wine, "lib/wine/x86_64-unix/winemetal.so")
+    );
+
+    // winemetal.dll also to system32 for both native and builtin
+    yield* report(
+      ++step,
+      totalSteps,
+      "补丁阶段：安装 winemetal.dll 到 system32"
+    );
+    await cp(`./dxmt/winemetal.dll`, join(system32Dir, "winemetal.dll"));
   }
-
-  // winemetal files always go to Wine lib directories
-  yield* report(
-    ++step,
-    totalSteps,
-    "补丁阶段：安装 winemetal.dll 到 Wine 运行库"
-  );
-  await cp(
-    `./dxmt/winemetal.dll`,
-    resolve("./wine/lib/wine/x86_64-windows/winemetal.dll")
-  );
-
-  yield* report(
-    ++step,
-    totalSteps,
-    "补丁阶段：安装 winemetal.so 到 Wine 运行库"
-  );
-  await cp(
-    `./dxmt/winemetal.so`,
-    resolve("./wine/lib/wine/x86_64-unix/winemetal.so")
-  );
-
-  // winemetal.dll also to system32 for both native and builtin
-  yield* report(++step, totalSteps, "补丁阶段：安装 winemetal.dll 到 system32");
-  await cp(`./dxmt/winemetal.dll`, join(system32Dir, "winemetal.dll"));
 
   if (needsNvngx) {
     yield* report(
@@ -174,7 +199,7 @@ export async function* patchProgram(
     );
     await cp(
       `./dxmt/nvngx.dll`,
-      resolve("./wine/lib/wine/x86_64-windows/nvngx.dll")
+      wineLibraryPath(wine, "lib/wine/x86_64-windows/nvngx.dll")
     );
     yield* report(++step, totalSteps, "补丁阶段：安装 nvngx.dll 到 system32");
     await cp(`./dxmt/nvngx.dll`, join(system32Dir, "nvngx.dll"));
@@ -218,7 +243,7 @@ export async function* patchProgram(
   }
 
   yield* report(totalSteps, totalSteps, "补丁阶段：记录补丁状态");
-  await storage.setKey("patched", "1");
+  await storage.setKey("patched", wine.prefix);
 }
 
 export async function* patchRevertProgram(
@@ -289,7 +314,7 @@ export async function* patchRevertProgram(
     for (const f of DXMT_FILES) {
       ++step;
       yield* report(`还原阶段：还原 Wine 运行库 ${f}`);
-      const wineLibPath = resolve(`./wine/lib/wine/x86_64-windows/${f}`);
+      const wineLibPath = wineLibraryPath(wine, `lib/wine/x86_64-windows/${f}`);
       await forceMove(wineLibPath + ".bak", wineLibPath);
     }
   }

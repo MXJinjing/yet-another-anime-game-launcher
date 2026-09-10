@@ -83,6 +83,7 @@ export class GlobalSettings extends SettingsController<GlobalLoadedSettings> {
           wine={this.options.wine}
           wineInstalled={this.options.wineInstalled}
           winePrefix={this.options.wine.prefix}
+          GlobalWineDistroConfig={settings.globalWineDistro ?? (() => null)}
           WineDistroConfig={settings.wineDistro ?? (() => null)}
           onResetWineEnv={this.options.onResetWineEnv}
           wineActionDisabled={this.options.actionDisabled}

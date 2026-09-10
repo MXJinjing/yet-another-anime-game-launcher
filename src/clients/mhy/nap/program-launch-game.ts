@@ -3,14 +3,16 @@ import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "../../../constants";
 import { log } from "@logging/logger";
 import {
+  fileOrDirExists,
   readBinary,
   removeFile,
+  removeFileIfExists,
   resolve,
   writeBinary,
   writeFile,
 } from "@platform/neutralino";
 import { utf16le } from "@runtime/binary";
-import { mkdirp } from "@runtime/macos-filesystem";
+import { cp, mkdirp } from "@runtime/macos-filesystem";
 import { getKeyOrDefault, globalStorage, type Storage } from "@runtime/storage";
 import { Wine } from "../../../wine";
 import { Config } from "@config";
@@ -69,12 +71,23 @@ export async function* launchGameProgram({
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "GAME_STARTING"];
 
+  // ZZZ exposes DLSS only through its NVIDIA path. "MetalFX" in the launcher
+  // enables the DLSS-to-MetalFX replacement: the game is told it runs on an
+  // NVIDIA card (gpuinfo + registry markers + nvngx bridge) and its DLSS
+  // requests are translated to MetalFX by the patched DXMT runtime. When
+  // MetalFX is off we stay on the plain DXMT D3D11 path and clean any NVIDIA
+  // leftovers so a previous MetalFX run cannot influence device detection.
+  const metalFxEnabled = config.napMetalFxEnable === true;
+  // The NVIDIA vendor extension markers are needed by the DLSS runtime that
+  // loads the bridge, on DXMT as well as on D3DMetal (Game Porting Toolkit).
+  if (metalFxEnabled) {
+    await wine.setNVExtension();
+  } else {
+    await wine.clearNVExtension();
+  }
+
   await fixWebview(wine, server);
   await wine.setProps(config);
-  // DXMT's NGX bridge requires the NVIDIA vendor extension registry markers.
-  // ZZZ exposes DLSS only on its DX12/NVIDIA path, so prepare the same bridge
-  // used by the other DXMT client before applying the runtime patch.
-  if (wine.attributes.renderBackend == "dxmt") await wine.setNVExtension();
 
   const args = [];
   if (config.resolutionCustom) {
@@ -94,6 +107,56 @@ cd /d "${wine.toWinePath(gameDir)}"
   await logInternalProgress(
     patchProgram(gameDir, wine, server, config, undefined, storage)
   );
+  if (!wine.wineRoot) {
+    throw new Error(
+      "Cannot install the NVIDIA bridge without a resolved Wine root"
+    );
+  }
+  const wineLibNvngx = join(wine.wineRoot, "lib/wine/x86_64-windows/nvngx.dll");
+  const system32Nvngx = join(
+    wine.prefix,
+    "drive_c",
+    "windows",
+    "system32",
+    "nvngx.dll"
+  );
+  // The NVIDIA bridge only belongs to DXMT distributions. Other runtimes
+  // (e.g. Game Porting Toolkit D3DMetal) ship their own nvngx-on-metalfx and
+  // must never have it deleted here.
+  if (wine.attributes.renderBackend == "dxmt") {
+    if (metalFxEnabled) {
+      // Keep the bridge in sync with the MetalFX switch on every launch: the
+      // cached file patch is not re-applied once recorded, so toggling
+      // MetalFX must install/remove nvngx.dll here instead of patchProgram.
+      await cp(`./dxmt/nvngx.dll`, wineLibNvngx);
+      await cp(`./dxmt/nvngx.dll`, system32Nvngx);
+    } else {
+      await removeFileIfExists(wineLibNvngx);
+      await removeFileIfExists(system32Nvngx);
+    }
+  } else if (metalFxEnabled) {
+    // Apple's Game Porting Toolkit ships the DLSS-to-MetalFX bridge itself
+    // (nvngx-on-metalfx.dll + nvapi64.dll). The game loads nvngx.dll from
+    // System32, so install the toolkit's bridge there under both names and
+    // replace any DXMT bridge left over from an earlier DXMT run.
+    const gptkWindowsDir = join(wine.wineRoot, "lib/wine/x86_64-windows");
+    const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
+    const metalfxBridge = join(gptkWindowsDir, "nvngx-on-metalfx.dll");
+    try {
+      if (await fileOrDirExists(metalfxBridge)) {
+        await cp(metalfxBridge, join(system32Dir, "nvngx-on-metalfx.dll"));
+        await cp(metalfxBridge, join(system32Dir, "nvngx.dll"));
+      }
+      const nvapi = join(gptkWindowsDir, "nvapi64.dll");
+      if (await fileOrDirExists(nvapi)) {
+        await cp(nvapi, join(system32Dir, "nvapi64.dll"));
+      }
+    } catch (error) {
+      await log(
+        `Failed to install the Game Porting Toolkit NV bridge: ${String(error)}`
+      );
+    }
+  }
   let mhypBaseReplaced = false;
   try {
     mhypBaseReplaced = await applyMhypBaseReplacement(gameDir, config);
@@ -130,7 +193,7 @@ cd /d "${wine.toWinePath(gameDir)}"
         config.steamPatch
           ? [
               wine.toWinePath(join(gameDir, gameExecutable)),
-              ...(config.useD3D12 ? ["--use-d3d12"] : []),
+              ...(config.useD3D12 ? ["-use-d3d12"] : []),
             ]
           : ["/c", `${wine.toWinePath(resolve("./config.bat"))} `],
         {
@@ -145,7 +208,17 @@ cd /d "${wine.toWinePath(gameDir)}"
                 GST_PLUGIN_FEATURE_RANK: "atdec:MAX,avdec_h264:MAX",
                 DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${
                   config.preferredMaxFps
-                };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}`,
+                };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${
+                  metalFxEnabled
+                    ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};dxgi.customVendorId=10de;dxgi.customDeviceId=2684`
+                    : ""
+                }`,
+                ...(metalFxEnabled
+                  ? {
+                      DXMT_METALFX_SPATIAL_SWAPCHAIN: "1",
+                      DXMT_ENABLE_NVEXT: "1",
+                    }
+                  : {}),
               }
             : {
                 WINEESYNC: "1",
@@ -163,7 +236,13 @@ cd /d "${wine.toWinePath(gameDir)}"
       .catch(error => {
         launchError = error;
       });
-    const startState = await processMonitor.waitForStart();
+    // A non-DXMT runtime (Game Porting Toolkit) may spend a long time on the
+    // first launch while Wine updates the shared prefix, so allow more time.
+    const startState = await processMonitor.waitForStart(
+      wine.attributes.renderBackend == "dxmt"
+        ? undefined
+        : { timeoutMs: 180_000 }
+    );
     if (startState === "timed-out") {
       startupTimedOut = true;
       throw new Error(

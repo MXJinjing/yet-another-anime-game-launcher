@@ -11,12 +11,14 @@ vi.mock("@platform/neutralino", () => ({
     )
   ),
   removeFile: vi.fn(async () => undefined),
+  removeFileIfExists: vi.fn(async () => undefined),
   resolve: (path: string) => `/launcher/${path.replace(/^\.\//, "")}`,
   writeBinary: vi.fn(async () => undefined),
   writeFile: vi.fn(async () => undefined),
 }));
 
 vi.mock("@runtime/macos-filesystem", () => ({
+  cp: vi.fn(async () => undefined),
   mkdirp: vi.fn(async () => undefined),
 }));
 
@@ -43,6 +45,7 @@ import type { Server } from "@constants";
 import { removeFile } from "@platform/neutralino";
 import type { TaskProgressCommand } from "@tasks/task-program";
 import type { Wine } from "@wine";
+import { cp } from "@runtime/macos-filesystem";
 import { patchProgram, patchRevertProgram } from "@src/clients/mhy/patch";
 import { launchGameProgram } from "@src/clients/mhy/nap/program-launch-game";
 
@@ -105,10 +108,12 @@ function createWine({
   };
   const wine = {
     prefix: "/prefix",
+    wineRoot: "/wine",
     attributes: {} as Wine["attributes"],
     createGameProcessMonitor: vi.fn(() => monitor),
     setProps: vi.fn(async () => undefined),
     setNVExtension: vi.fn(async () => undefined),
+    clearNVExtension: vi.fn(async () => undefined),
     exec: vi.fn(async (..._args: WineExecArgs) => ({
       exitCode: 0,
       stdOut: "",
@@ -156,7 +161,9 @@ describe("nap game process lifecycle", () => {
     );
 
     expect(monitor.isRunning).toHaveBeenCalledOnce();
-    expect(monitor.waitForStart).toHaveBeenCalledWith();
+    expect(monitor.waitForStart).toHaveBeenCalledWith({
+      timeoutMs: 180_000,
+    });
     expect(monitor.waitForExit).toHaveBeenCalledOnce();
     expect(raw.waitForWineServerExit).toHaveBeenCalledWith({
       timeoutMs: 5_000,
@@ -218,7 +225,7 @@ describe("nap game process lifecycle", () => {
     );
   });
 
-  it("enables the NVIDIA vendor extension for DXMT", async () => {
+  it("keeps ZZZ on the plain DXMT path and cleans NVIDIA leftovers when MetalFX is off", async () => {
     const { wine, raw } = createWine();
     raw.attributes.renderBackend = "dxmt";
     await collect(
@@ -226,11 +233,77 @@ describe("nap game process lifecycle", () => {
         gameDir: "/game",
         gameExecutable: "TargetGame.exe",
         wine,
-        config: { ...config, resolutionCustom: false },
+        config: {
+          ...config,
+          resolutionCustom: false,
+          useD3D12: false,
+          napMetalFxEnable: false,
+        },
+        server: server("nap_cn"),
+      })
+    );
+    expect(raw.setNVExtension).not.toHaveBeenCalled();
+    expect(raw.clearNVExtension).toHaveBeenCalledOnce();
+    expect(cp).not.toHaveBeenCalled();
+    expect(raw.exec2).toHaveBeenCalledWith(
+      "cmd",
+      expect.any(Array),
+      expect.not.objectContaining({
+        DXMT_ENABLE_NVEXT: expect.anything(),
+        DXMT_METALFX_SPATIAL_SWAPCHAIN: expect.anything(),
+      }),
+      expect.stringContaining("game_")
+    );
+    const dxmtConfig = raw.exec2.mock.calls.find(
+      call => call[2] && call[2].DXMT_CONFIG
+    )?.[2]?.DXMT_CONFIG;
+    expect(dxmtConfig).not.toContain("customVendorId");
+    expect(dxmtConfig).not.toContain("metalSpatialUpscaleFactor");
+  });
+
+  it("enables the NVIDIA DLSS-to-MetalFX bridge when MetalFX is on", async () => {
+    const { wine, raw } = createWine();
+    raw.attributes.renderBackend = "dxmt";
+    await collect(
+      launchGameProgram({
+        gameDir: "/game",
+        gameExecutable: "TargetGame.exe",
+        wine,
+        config: {
+          ...config,
+          resolutionCustom: false,
+          useD3D12: false,
+          napMetalFxEnable: true,
+          metalFxFactor: 2,
+        },
         server: server("nap_cn"),
       })
     );
     expect(raw.setNVExtension).toHaveBeenCalledOnce();
+    expect(raw.clearNVExtension).not.toHaveBeenCalled();
+    expect(cp).toHaveBeenCalledWith(
+      "./dxmt/nvngx.dll",
+      "/wine/lib/wine/x86_64-windows/nvngx.dll"
+    );
+    expect(cp).toHaveBeenCalledWith(
+      "./dxmt/nvngx.dll",
+      "/prefix/drive_c/windows/system32/nvngx.dll"
+    );
+    expect(raw.exec2).toHaveBeenCalledWith(
+      "cmd",
+      expect.any(Array),
+      expect.objectContaining({
+        DXMT_ENABLE_NVEXT: "1",
+        DXMT_METALFX_SPATIAL_SWAPCHAIN: "1",
+      }),
+      expect.stringContaining("game_")
+    );
+    const dxmtConfig = raw.exec2.mock.calls.find(
+      call => call[2] && call[2].DXMT_CONFIG
+    )?.[2]?.DXMT_CONFIG;
+    expect(dxmtConfig).toContain(
+      "d3d11.metalSpatialUpscaleFactor=2;dxgi.customVendorId=10de;dxgi.customDeviceId=2684"
+    );
   });
 
   it("preserves the Steam patch launch branch", async () => {
@@ -240,14 +313,19 @@ describe("nap game process lifecycle", () => {
         gameDir: "/game",
         gameExecutable: "TargetGame.exe",
         wine,
-        config: { ...config, resolutionCustom: false, steamPatch: true },
+        config: {
+          ...config,
+          resolutionCustom: false,
+          steamPatch: true,
+          useD3D12: true,
+        },
         server: server("nap_cn"),
       })
     );
 
     expect(raw.exec2).toHaveBeenCalledWith(
       "C:\\windows\\system32\\steam.exe",
-      ["Z:\\game\\TargetGame.exe"],
+      ["Z:\\game\\TargetGame.exe", "-use-d3d12"],
       expect.objectContaining({ WINEDLLOVERRIDES: "" }),
       expect.stringContaining("game_")
     );

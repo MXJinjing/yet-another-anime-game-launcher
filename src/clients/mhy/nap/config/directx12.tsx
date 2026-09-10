@@ -57,7 +57,11 @@ export default async function ({
           description={locale.get("SETTING_USE_D3D12_DESC")}
           checked={value()}
           onChange={setValue}
-        />
+        >
+          <span class="setting-switch-requirement">
+            {locale.get("SETTING_NAP_REQUIRES_GPTK3")}
+          </span>
+        </SettingSwitch>
       );
     },
   ] as const;

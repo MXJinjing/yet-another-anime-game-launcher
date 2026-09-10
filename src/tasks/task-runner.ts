@@ -34,6 +34,8 @@ export type TaskEntry = {
   fn: () => TaskProgram;
   name?: LocaleTextKey;
   nameArgs?: string[];
+  /** Keep the task name for errors, but omit its success notification. */
+  suppressCompletionNotification?: boolean;
   downloadTask?: DownloadTaskMetadata;
 };
 
@@ -228,7 +230,8 @@ export function createTaskRunner({
       }
       await log("Task completed");
       state.setStatusArgs(null);
-      if (taskName) notifier.taskCompleted(locale, taskName, taskNameArgs);
+      if (taskName && !entry.suppressCompletionNotification)
+        notifier.taskCompleted(locale, taskName, taskNameArgs);
     } catch (error) {
       if (isAuthorizationCancelledError(error)) {
         const authorizationError = new Error(

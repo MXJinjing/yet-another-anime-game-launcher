@@ -1,6 +1,6 @@
+import { hostsWriteCommand } from "./hosts-write";
 import { readFile } from "../platform/neutralino";
 import { exec } from "../runtime/command-runner";
-import { rawString } from "../platform/shell";
 import { getAuthorizationPrompt } from "../locale/authorization";
 import { warn } from "../logging/logger";
 import { ensurePrivilegedHosts, legacyEnsureHosts } from "./privileged-hosts";
@@ -35,6 +35,17 @@ function expectedSection(hosts: [string, string][]) {
   ];
 }
 
+function hasExpectedSection(lines: string[], hosts: [string, string][]) {
+  const start = lines.indexOf(YAAGLM_START);
+  if (start < 0) return false;
+  let end = start;
+  while (end < lines.length && lines[end] !== SECTION_END) end++;
+  if (end >= lines.length) return false;
+  return (
+    lines.slice(start, end + 1).join("\n") === expectedSection(hosts).join("\n")
+  );
+}
+
 /** Repairs blocks left by older launchers when the app starts. */
 export async function reconcileStartupHosts(hosts: [string, string][]) {
   const content = await readFile("/etc/hosts");
@@ -59,7 +70,7 @@ export async function reconcileStartupHosts(hosts: [string, string][]) {
   }
   if (next.join("\n") === original.join("\n")) return false;
   await exec(
-    ["printf", next.join("\n"), rawString(">"), "/etc/hosts"],
+    hostsWriteCommand(next.join("\n")),
     {},
     await getAuthorizationPrompt("AUTHORIZATION_PROMPT_RECONCILE_HOSTS")
   );
@@ -70,7 +81,16 @@ export async function ensureHosts(hosts: [string, string][]) {
   // Migrate blocks written by older launchers before asking the helper to
   // reconcile the current persistent rules.
   try {
+    const content = await readFile("/etc/hosts");
+    const original = splitLines(content);
     await reconcileStartupHosts(hosts);
+    const reconciled = splitLines(await readFile("/etc/hosts"));
+    if (
+      hasExpectedSection(reconciled, hosts) &&
+      original.join("\n") === reconciled.join("\n")
+    ) {
+      return;
+    }
   } catch (error) {
     await warn(
       `Hosts startup migration failed; continuing with helper: ${String(error)}`

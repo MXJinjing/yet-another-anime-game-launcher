@@ -114,6 +114,21 @@ describe("createTaskRunner", () => {
     ]);
   });
 
+  it("can suppress a task's completion notification", async () => {
+    const runner = createTaskRunner({ locale, notifier });
+    runner.enqueue({
+      name: "LAUNCH" as never,
+      suppressCompletionNotification: true,
+      fn: async function* (): TaskProgram {
+        yield ["setRawStateText", "Launching"];
+      },
+    });
+
+    await flushTasks();
+
+    expect(completed).not.toHaveBeenCalled();
+  });
+
   it("waits for a running task and its queued follow-up to become idle", async () => {
     let releaseFirst!: () => void;
     const firstReleased = new Promise<void>(resolve => {

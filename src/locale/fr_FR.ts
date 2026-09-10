@@ -133,6 +133,7 @@ export const fr_FR: typeof zh_CN = {
   SETTING_USE_D3D12_DESC: "Lancer le jeu avec DirectX 12 activé.",
   SETTING_NAP_METALFX: "Activer MetalFX",
   SETTING_NAP_METALFX_DESC: "Utiliser MetalFX à la place de DLSS.",
+  SETTING_NAP_REQUIRES_GPTK3: "Nécessite Game Porting Toolkit 3 (GPTK3).",
   SETTING_SAVE: "Sauvegarder",
   SETTING_CANCEL: "Annuler",
 
@@ -156,7 +157,21 @@ export const fr_FR: typeof zh_CN = {
   SETTING_GAME: "Jeu",
   SETTING_VIDEO: "Vidéo",
   SETTING_GLOBAL: "Paramètres globaux",
+  SETTING_GAME_WINE_UNSAVED:
+    "Les réglages Wine comportent des modifications non enregistrées. Quitter ?",
+  SETTING_GAME_WINE_ENABLE: "Activer un environnement Wine dédié",
+  SETTING_GAME_WINE_ENABLE_DESC:
+    "Crée et fixe un préfixe Wine dédié à ce jeu ; désactivé, il suit le Wine et le préfixe globaux.",
+  SETTING_GAME_WINE_AUTO: "Automatique",
   SETTING_GAME_WINE: "Wine personnalisé",
+  SETTING_GAME_WINE_REMOVE_PREFIX: "Supprimer l'environnement Wine du jeu",
+  SETTING_GAME_WINE_REMOVE_PREFIX_DESC:
+    "Le jeu utilise à nouveau l'environnement global. Supprimez son préfixe Wine pour libérer de l'espace.",
+  SETTING_GAME_WINE_MIGRATE: "Migrer les données existantes",
+  SETTING_GAME_WINE_MIGRATE_DESC:
+    "Lors de la première création d'un préfixe Wine dédié à ce jeu, le préfixe actuel est copié pour conserver les réglages et les données de l'appareil.",
+  SETTING_GAME_WINE_PREPARE_FAILED:
+    "Échec de la préparation de l'environnement Wine. La sélection précédente est conservée.",
   SETTING_GAME_WINE_SHARED: "Suivre le global",
   SETTING_GAME_WINE_DESC:
     "Choisissez une version de Wine téléchargée uniquement pour ce jeu ; « Suivre le global » utilise le Wine du lanceur.",
@@ -182,6 +197,7 @@ export const fr_FR: typeof zh_CN = {
   SETTING_PREFERRED_MAX_FPS_DESC: en.SETTING_PREFERRED_MAX_FPS_DESC,
   SETTING_PREFERRED_MAX_FPS_AUTO: en.SETTING_PREFERRED_MAX_FPS_AUTO,
   SETTING_PREFERRED_MAX_FPS_RESET: en.SETTING_PREFERRED_MAX_FPS_RESET,
+  SETTING_METALFX_DXMT_ONLY: "Fonctionne uniquement avec un Wine DXMT",
   SETTING_METALFX_UPSCALE: en.SETTING_METALFX_UPSCALE,
   SETTING_METALFX_FACTOR: en.SETTING_METALFX_FACTOR,
 
@@ -338,6 +354,27 @@ export const fr_FR: typeof zh_CN = {
   SETTING_WINE_INSTALL_INITIALIZES_ENVIRONMENT:
     en.SETTING_WINE_INSTALL_INITIALIZES_ENVIRONMENT,
   SETTING_WINE_PREFIX_PATH: "Chemin du Wine Prefix",
+  SETTING_WINE_SELECT_BINARY: en.SETTING_WINE_SELECT_BINARY,
+  SETTING_WINE_BINARY_FILE: en.SETTING_WINE_BINARY_FILE,
+  SETTING_WINE_INVALID_BINARY: en.SETTING_WINE_INVALID_BINARY,
+  SETTING_WINE_CUSTOM_NAME: en.SETTING_WINE_CUSTOM_NAME,
+  SETTING_WINE_TABLE_VERSION: en.SETTING_WINE_TABLE_VERSION,
+  SETTING_WINE_TABLE_STATUS: en.SETTING_WINE_TABLE_STATUS,
+  SETTING_WINE_TABLE_ACTION: en.SETTING_WINE_TABLE_ACTION,
+  SETTING_WINE_SOURCE_OFFICIAL: en.SETTING_WINE_SOURCE_OFFICIAL,
+  SETTING_WINE_SOURCE_LOCAL: en.SETTING_WINE_SOURCE_LOCAL,
+  SETTING_WINE_SOURCE_SYSTEM: en.SETTING_WINE_SOURCE_SYSTEM,
+  SETTING_WINE_DOWNLOADING: en.SETTING_WINE_DOWNLOADING,
+  SETTING_WINE_EXTRACTING: en.SETTING_WINE_EXTRACTING,
+  SETTING_WINE_EDIT: en.SETTING_WINE_EDIT,
+  SETTING_WINE_REMOVE: en.SETTING_WINE_REMOVE,
+  SETTING_WINE_DOWNLOADED: en.SETTING_WINE_DOWNLOADED,
+  SETTING_WINE_AVAILABLE: en.SETTING_WINE_AVAILABLE,
+  SETTING_WINE_ADD_LOCAL: en.SETTING_WINE_ADD_LOCAL,
+  SETTING_WINE_EDIT_LOCAL_TITLE: en.SETTING_WINE_EDIT_LOCAL_TITLE,
+  SETTING_WINE_LOCAL_NAME: en.SETTING_WINE_LOCAL_NAME,
+  SETTING_WINE_BINARY_PATH: en.SETTING_WINE_BINARY_PATH,
+  SETTING_WINE_GLOBAL: en.SETTING_WINE_GLOBAL,
   SETTING_OPEN: "Ouvrir",
   LOG_VIEWER_TITLE: "Live Logs",
   LOG_VIEWER_EMPTY: "No logs yet",

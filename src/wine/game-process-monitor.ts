@@ -93,6 +93,38 @@ export function parseWinedbgProcesses(output: string): WineProcess[] {
   return processes;
 }
 
+/** Parse macOS `ps -axo pid=,command=` output for processes using a Wine loader. */
+export function parseMacWineProcesses(
+  output: string,
+  loaderPath: string
+): WineProcess[] {
+  const normalizedLoader = loaderPath.trim();
+  if (normalizedLoader.length === 0) return [];
+  const loaderPaths = [`${normalizedLoader}-preloader`, normalizedLoader];
+  const processes: WineProcess[] = [];
+  for (const line of output.split(/\r?\n/)) {
+    const match = line.match(/^\s*(\d+)\s+(.+?)\s*$/);
+    if (!match) continue;
+    const command = match[2];
+    const loaderMatch = loaderPaths
+      .map(path => ({ path, index: command.indexOf(path) }))
+      .find(({ index }) => index >= 0);
+    if (!loaderMatch) continue;
+    const { path: matchedLoader, index: loaderIndex } = loaderMatch;
+    const before = command[loaderIndex - 1];
+    const after = command[loaderIndex + matchedLoader.length];
+    if (before != undefined && !/[\s'"]/.test(before)) continue;
+    if (after != undefined && !/[\s'"]/.test(after)) continue;
+    const executableMatch = command
+      .slice(loaderIndex + matchedLoader.length)
+      .match(/(?:^|\s)(?:"([^"]+\.exe)"|([^\s]+\.exe))(?:\s|$)/i);
+    const executable = executableMatch?.[1] ?? executableMatch?.[2];
+    if (!executable) continue;
+    processes.push({ pid: match[1], name: executable, command });
+  }
+  return processes;
+}
+
 export function createGameProcessMonitor(
   options: GameProcessMonitorOptions
 ): GameProcessMonitor {
@@ -135,7 +167,19 @@ export function createGameProcessMonitor(
   }
 
   async function isRunning() {
-    return (await matchingProcesses()).length > 0;
+    // A freshly selected Wine distribution may still be updating the prefix
+    // (wineboot) on its first query, which can exceed the enumeration budget.
+    // That must never abort a launch with a hard error.
+    try {
+      return (await matchingProcesses()).length > 0;
+    } catch (error) {
+      await writeLog(
+        `Wine process pre-check unavailable, continuing launch: ${String(
+          error
+        )}`
+      );
+      return false;
+    }
   }
 
   async function waitForStart({
@@ -198,7 +242,7 @@ export function createGameProcessMonitor(
 
   async function waitForExit({
     missingSamples = 3,
-    pollIntervalMs = 1_000,
+    pollIntervalMs = 3_000,
     crashThresholdMs = 5_000,
     queryTimeoutMs = 10_000,
     missingWindowSamples = 3,

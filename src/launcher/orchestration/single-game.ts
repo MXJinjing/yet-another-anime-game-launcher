@@ -17,6 +17,7 @@ export async function createLauncher({
   wineDistroId,
   wineInstalled,
   initializeWine,
+  downloadWineDistro,
   enableWineDistro,
   uninstallWineDistro,
   locale,
@@ -33,6 +34,10 @@ export async function createLauncher({
   wineDistroId: string;
   wineInstalled: () => boolean;
   initializeWine: (distro: WineDistribution) => TaskProgram;
+  downloadWineDistro: (
+    distro: WineDistribution,
+    downloadKey?: string
+  ) => TaskProgram;
   enableWineDistro: (distro: WineDistribution) => TaskProgram;
   uninstallWineDistro: (distro: WineDistribution) => TaskProgram;
   locale: Locale;
@@ -98,6 +103,7 @@ export async function createLauncher({
     gameCloseHandler,
     onResetWineEnv,
     initializeWine,
+    downloadWineDistro,
     enableWineDistro,
     uninstallWineDistro,
     actionDisabledRef,

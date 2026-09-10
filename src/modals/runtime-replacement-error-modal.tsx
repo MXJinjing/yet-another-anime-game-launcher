@@ -8,9 +8,11 @@ export function LaunchErrorModal(props: {
   message: JSXElement;
   cancelLabel: JSXElement;
   settingsLabel: JSXElement;
+  alternateSettingsLabel?: JSXElement;
   details?: string;
   onCancel: () => void;
   onOpenSettings: () => void;
+  onOpenAlternateSettings?: () => void;
 }) {
   return (
     <AppModal
@@ -22,6 +24,14 @@ export function LaunchErrorModal(props: {
           <AppModalButton variant="secondary" onClick={props.onCancel}>
             {props.cancelLabel}
           </AppModalButton>
+          {props.alternateSettingsLabel && props.onOpenAlternateSettings ? (
+            <AppModalButton
+              variant="secondary"
+              onClick={props.onOpenAlternateSettings}
+            >
+              {props.alternateSettingsLabel}
+            </AppModalButton>
+          ) : null}
           <AppModalButton variant="primary" onClick={props.onOpenSettings}>
             {props.settingsLabel}
           </AppModalButton>

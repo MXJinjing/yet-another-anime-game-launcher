@@ -21,7 +21,10 @@ export async function writeMetalFxGpuInfo(
   enabled: boolean
 ) {
   const path = join(winePrefix, "gpuinfo");
-  if (!enabled) return;
+  if (!enabled) {
+    await removeMetalFxGpuInfo(winePrefix);
+    return;
+  }
   await writeFile(path, GPUINFO);
 }
 
@@ -65,7 +68,11 @@ export default async function ({
           description={locale.get("SETTING_NAP_METALFX_DESC")}
           checked={enabled()}
           onChange={value => void onChange(value)}
-        />
+        >
+          <span class="setting-switch-requirement">
+            {locale.get("SETTING_NAP_REQUIRES_GPTK3")}
+          </span>
+        </SettingSwitch>
       );
     },
   ] as const;

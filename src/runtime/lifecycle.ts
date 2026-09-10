@@ -1,5 +1,5 @@
 import { execCommand } from "../platform/neutralino/process";
-import { env, exit, restart } from "../platform/neutralino/system";
+import { closeApp, env, restart } from "../platform/neutralino/system";
 import { wait } from "./async";
 
 const hooks: Array<(forced: boolean) => Promise<boolean>> = [];
@@ -36,7 +36,7 @@ export async function _safeRelaunch() {
     // holding port 6868) exits, so the relaunch does not fail on startup.
     await execCommand(`open -n "${app}"`, { background: true });
     await wait(1000);
-    exit(0);
+    await closeApp();
   } else {
     // Mirror the production relaunch hand-off: give the current aria2 a
     // moment to release port 6868 before the restarted instance tries to

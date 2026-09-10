@@ -34,9 +34,11 @@ export function GlobalModals(props: {
     onOpenLicense?: () => void;
     onOpenGlobalSettings?: () => void;
     contentOnly?: boolean;
+    initialTab?: number;
   }) => JSXElement;
   onOpenLogs: () => void;
   actionDisabled: () => boolean;
+  settingsInitialTab?: () => number;
   locale: Locale;
   channelCode: string;
   onCheckUpdate: () => void;
@@ -152,6 +154,7 @@ export function GlobalModals(props: {
           return (
             <SettingsUI
               contentOnly
+              initialTab={props.settingsInitialTab?.()}
               opened
               onClose={() => undefined}
               onOpenLogs={props.onOpenLogs}

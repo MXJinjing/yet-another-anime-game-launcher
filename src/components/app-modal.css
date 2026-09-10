@@ -3,6 +3,14 @@
   backdrop-filter: blur(10px) !important;
 }
 
+.app-modal-overlay--nested {
+  z-index: 2000 !important;
+}
+
+.hope-modal__content-container:has(.app-modal-content--nested) {
+  z-index: 2001 !important;
+}
+
 .app-modal-content {
   width: min(var(--app-modal-max-width, 460px), calc(100vw - 40px)) !important;
   max-width: min(
@@ -188,6 +196,21 @@
 
 .app-modal-content .hyp-settings-muted {
   color: rgba(255, 255, 255, 0.55) !important;
+}
+
+.app-modal-content .game-wine-save-button {
+  min-width: 72px;
+  border: 1px solid var(--hyp-accent, #ffd834) !important;
+  border-radius: 6px !important;
+  background: var(--hyp-accent, #ffd834) !important;
+  color: var(--hyp-accent-text, #111418) !important;
+  font-weight: 700 !important;
+}
+
+.app-modal-content .game-wine-save-button:hover:not(:disabled) {
+  background: var(--hyp-accent, #ffd834) !important;
+  color: var(--hyp-accent-text, #111418) !important;
+  filter: brightness(1.08);
 }
 
 .app-modal-content .hosts-helper-control .hope-text {

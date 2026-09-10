@@ -196,6 +196,7 @@ export async function createBH3ChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameExecutable: () => server.executable,
     gameLogLocations: BH3_GAME_LOG_LOCATIONS,
     gameVersion: gameCurrentVersion,
     latestVersion: () => GAME_LATEST_VERSION,

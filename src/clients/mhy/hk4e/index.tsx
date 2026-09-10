@@ -209,11 +209,11 @@ export async function createHK4EChannelClient({
   let LATEST_GAME_VERSION: string = gameInfo.version || "0.0.0";
   let UPDATABLE_VERSIONS: string[] = gameInfo.updatable_versions;
   let PRE_DOWNLOAD_VERSION: string = gameInfo.pre_download_version || "0.0.0";
-  // The CN/BB Sophon pre-download currently omits part of the resources.
-  // Keep the feature unreachable for domestic releases until the upstream
-  // pre-download manifests can be handled completely.
+  // CN pre-download is enabled again so the feature becomes available once
+  // the upstream service publishes a pre-download branch. BB remains
+  // unsupported by the Sophon manifest endpoint.
   let PRE_DOWNLOAD_AVAILABLE: boolean =
-    releaseType === "os" && gameInfo.pre_download;
+    releaseType !== "bb" && gameInfo.pre_download;
   let INSTALL_SIZE_BYTES: number = gameInfo.install_size;
 
   const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
@@ -302,6 +302,7 @@ export async function createHK4EChannelClient({
     installState: installed,
     showPredownloadPrompt,
     installDir: _gameInstallDir,
+    gameExecutable: () => server.executable,
     gameLogLocations: HK4E_GAME_LOG_LOCATIONS,
     gameVersion: gameCurrentVersion,
     latestVersion: () => LATEST_GAME_VERSION,
@@ -345,7 +346,7 @@ export async function createHK4EChannelClient({
           UPDATABLE_VERSIONS = gameInfo.updatable_versions;
           PRE_DOWNLOAD_VERSION = gameInfo.pre_download_version || "0.0.0";
           PRE_DOWNLOAD_AVAILABLE =
-            releaseType === "os" && gameInfo.pre_download;
+            releaseType !== "bb" && gameInfo.pre_download;
           INSTALL_SIZE_BYTES = gameInfo.install_size;
         } catch {
           await locale.alert(

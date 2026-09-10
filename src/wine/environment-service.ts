@@ -1,6 +1,7 @@
 import type { Aria2 } from "@aria2";
 import type { TaskProgram } from "@tasks/task-program";
 import { rmrf_dangerously } from "@runtime";
+import { dirname, join } from "path-browserify";
 import { checkWine } from "./distro";
 import type { WineDistribution, WineStatus } from "./distro";
 import {
@@ -50,10 +51,21 @@ export function createWineEnvironmentService({
   setWineInstalled: (installed: boolean) => void;
   dependencies?: WineEnvironmentServiceDependencies;
 }) {
-  async function reset() {
+  async function stopWine() {
     await wine.killAll();
-    await wine.waitForWineServerExit({ timeoutMs: 5_000 });
+    if (!(await wine.waitForWineServerExit({ timeoutMs: 5_000 }))) {
+      throw new Error("Wine server did not exit; environment was not changed");
+    }
+  }
+
+  async function reset() {
+    await stopWine();
     await dependencies.removePrefix(wineAbsPrefix);
+    // Per-game prefixes are rebuilt on demand, so resetting the environment
+    // removes them together with the global prefix.
+    await dependencies.removePrefix(
+      join(dirname(wineAbsPrefix), "wineprefixes")
+    );
     setWineInstalled(false);
   }
 
@@ -85,8 +97,7 @@ export function createWineEnvironmentService({
     // A Wine prefix cannot safely move between distributions while a server
     // from the previous one remains attached. The UI blocks this action while
     // a game is running, so this only removes stale prefix processes.
-    await wine.killAll();
-    await wine.waitForWineServerExit({ timeoutMs: 5_000 });
+    await stopWine();
     yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
     yield ["setUndeterminedProgress"];
     yield* dependencies.configureWineEnvironmentProgram({

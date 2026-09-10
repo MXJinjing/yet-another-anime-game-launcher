@@ -18,7 +18,10 @@ import createThemeColorConfig from "./controls/general/theme-color";
 import { createDisableVideoBackgroundConfig } from "./controls/general/disable-video-background";
 import { createDownloadServerConfig } from "./controls/download/download-server";
 import { createGithubAcceleratedPrefixConfig } from "./controls/download/github-accelerated-prefix";
-import { createWineDistroConfig } from "./controls/wine/wine-distribution";
+import {
+  createWineDistroConfig,
+  type WineDistroUsage,
+} from "./controls/wine/wine-distribution";
 import { createDebugModeConfig } from "./controls/launch/debug-mode";
 import createCustomEnvironmentVariables from "./controls/launch/custom-environment-variables";
 import { GlobalSettings } from "./global-settings";
@@ -42,6 +45,12 @@ export type GlobalSettingsOptions = {
     distro: WineDistribution,
     onDone: (distro: WineDistribution) => void
   ) => void;
+  onDownloadWineDistro?: (
+    distro: WineDistribution,
+    onDone: (distro: WineDistribution) => void,
+    onProgress: (progress: number | undefined, phase?: "extracting") => void,
+    onFinished: () => void
+  ) => void;
   onUninstallWineDistro?: (
     distro: WineDistribution,
     onDone: (distro: WineDistribution) => void
@@ -50,6 +59,7 @@ export type GlobalSettingsOptions = {
     onDone: (distro: WineDistribution) => void
   ) => void;
   onResetWineEnv?: () => Promise<void>;
+  wineDistroUsages?: () => WineDistroUsage[];
   modalTitle?: () => string;
 };
 
@@ -66,7 +76,29 @@ export type GameSettingsOptions = {
   storage?: Storage;
   wineTag?: () => string;
   wineOptions?: { tag: string; displayName: string }[];
-  onWineTagChange?: (tag: string) => void;
+  onWineTagChange?: (
+    tag: string,
+    options: { migrate: boolean }
+  ) => void | Promise<void>;
+  wineEnabled?: () => boolean;
+  /** Name of the global Wine that the "automatic" choice resolves to. */
+  autoWineLabel?: string;
+  /** False when this client has no Wine user-data migration mapping. */
+  wineDataSupported?: boolean;
+  /** True when this client's MetalFX only works on a DXMT Wine. */
+  metalFxDxmtOnly?: boolean;
+  onWineEnabledChange?: (
+    enabled: boolean,
+    options: { migrate: boolean; overwrite?: boolean }
+  ) => void | Promise<void>;
+  onOpenWineCmd?: () => void | Promise<void>;
+  onOpenWineCfg?: () => void | Promise<void>;
+  winePrefix?: () => string;
+  wineInstalled?: () => boolean;
+  wineActionDisabled?: () => boolean;
+  onResetWineEnv?: () => Promise<void>;
+  gameWinePrefixExists?: () => boolean;
+  onRemoveGameWinePrefix?: () => Promise<void>;
   modalTitle?: () => string;
 };
 
@@ -91,15 +123,18 @@ async function loadGlobalSettings(
   const config: Partial<Config> = {};
   const configStore = options.configStore ?? createConfigStore();
   const actionDisabled = options.actionDisabled ?? (() => false);
-  const [wineDistro, wineDistroController] = await createWineDistroConfig({
-    locale: options.locale,
-    config,
-    wineInstalled: options.wineInstalled,
-    wineDistroId: options.wineDistroId,
-    wineActionDisabled: actionDisabled,
-    onEnableWineDistro: options.onEnableWineDistro ?? (() => undefined),
-    onUninstallWineDistro: options.onUninstallWineDistro ?? (() => undefined),
-  });
+  const [wineDistro, globalWineDistro, wineDistroController] =
+    await createWineDistroConfig({
+      locale: options.locale,
+      config,
+      wineInstalled: options.wineInstalled,
+      wineDistroId: options.wineDistroId,
+      wineActionDisabled: actionDisabled,
+      onEnableWineDistro: options.onEnableWineDistro ?? (() => undefined),
+      onDownloadWineDistro: options.onDownloadWineDistro ?? (() => undefined),
+      onUninstallWineDistro: options.onUninstallWineDistro ?? (() => undefined),
+      wineDistroUsages: options.wineDistroUsages,
+    });
   const [leftCmd] = await createLeftCmdConfig({
     locale: options.locale,
     config,
@@ -140,6 +175,7 @@ async function loadGlobalSettings(
   return {
     config,
     configStore,
+    globalWineDistro,
     wineDistro,
     wineDistroController,
     leftCmd,
@@ -195,6 +231,7 @@ async function loadGameSettings(
     locale,
     config,
     store: configStore,
+    dxmtOnly: options.metalFxDxmtOnly,
   });
   const [reShade] = await createReShade({ locale, config, store: configStore });
   const [proxyEnabled, gameProxyEnabled] = await createProxyEnabledConfig({
@@ -274,6 +311,18 @@ export async function createGameSettings(
     wineTag: options.wineTag,
     wineOptions: options.wineOptions,
     onWineTagChange: options.onWineTagChange,
+    wineEnabled: options.wineEnabled,
+    autoWineLabel: options.autoWineLabel,
+    wineDataSupported: options.wineDataSupported,
+    onWineEnabledChange: options.onWineEnabledChange,
+    onOpenWineCmd: options.onOpenWineCmd,
+    onOpenWineCfg: options.onOpenWineCfg,
+    winePrefix: options.winePrefix,
+    wineInstalled: options.wineInstalled,
+    wineActionDisabled: options.wineActionDisabled,
+    onResetWineEnv: options.onResetWineEnv,
+    gameWinePrefixExists: options.gameWinePrefixExists,
+    onRemoveGameWinePrefix: options.onRemoveGameWinePrefix,
     modalTitle: options.modalTitle,
   });
   return {

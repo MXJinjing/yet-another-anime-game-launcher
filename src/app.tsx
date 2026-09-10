@@ -18,7 +18,7 @@ import { createLocale, type Locale } from "./locale";
 import { CloseConfirmationModal } from "./modals/close-confirmation-modal";
 import { LauncherUpdateModal } from "./modals/launcher-update-modal";
 import { HostsHelperTokenRecoveryModal } from "./modals/hosts-helper-token-recovery-modal";
-import { exit } from "./platform/neutralino/system";
+import { closeApp } from "./platform/neutralino/system";
 import { resolve } from "./platform/neutralino/path";
 import {
   _safeRelaunch,
@@ -61,11 +61,15 @@ import {
 } from "./wine";
 import { reportBootProgress, setBootProgressLocale } from "./boot-progress";
 import type { BootPerformance } from "./boot-performance";
-import { ENSURE_HOSTS } from "./clients/secret";
+import { ENSURE_HOSTS } from "./system/ensure-hosts";
 import { ensureHosts } from "./system/hosts";
 
 type LauncherWineActions = {
   initializeWine: (distro: WineDistribution) => TaskProgram;
+  downloadWineDistro: (
+    distro: WineDistribution,
+    downloadKey?: string
+  ) => TaskProgram;
   enableWineDistro: (distro: WineDistribution) => TaskProgram;
   uninstallWineDistro: (distro: WineDistribution) => TaskProgram;
 };
@@ -160,8 +164,8 @@ export async function createApp(bootPerformance?: BootPerformance) {
     cancelPendingUpdate,
     onPromptChange: setClosePrompt,
     onBeforeExit: () => GLOBAL_onClose(false),
-    hideWindow: () => Neutralino.window.hide(),
-    exit: async () => exit(0),
+    hideWindow: async () => undefined,
+    exit: async () => closeApp(),
   });
 
   await Neutralino.events.on("windowClose", async () => {
@@ -231,6 +235,7 @@ export async function createApp(bootPerformance?: BootPerformance) {
     wineInstalled,
     onResetWineEnv: wineEnvironment.reset,
     initializeWine: wineEnvironment.initialize,
+    downloadWineDistro: wineEnvironment.download,
     enableWineDistro: wineEnvironment.enable,
     uninstallWineDistro: wineEnvironment.uninstall,
     locale,

@@ -98,3 +98,23 @@ describe("wine environment service", () => {
     );
   });
 });
+
+describe("Wine shutdown failure", () => {
+  it.each(["enable", "reset"] as const)(
+    "does not mutate the environment after %s times out",
+    async action => {
+      const { service, wine, dependencies, setWineInstalled } =
+        createHarness(true);
+      wine.waitForWineServerExit.mockResolvedValue(false);
+      await expect(
+        action === "reset" ? service.reset() : collect(service.enable(distro))
+      ).rejects.toThrow("Wine server did not exit");
+      expect(dependencies.removePrefix).not.toHaveBeenCalled();
+      expect(
+        dependencies.configureWineEnvironmentProgram
+      ).not.toHaveBeenCalled();
+      expect(wine.setDistribution).not.toHaveBeenCalled();
+      expect(setWineInstalled).not.toHaveBeenCalled();
+    }
+  );
+});

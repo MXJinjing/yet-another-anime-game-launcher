@@ -48,3 +48,11 @@
 .setting-switch .hope-switch__control[data-checked]::before {
   background: var(--hyp-accent-text, #111418) !important;
 }
+
+.setting-switch-requirement {
+  display: block;
+  margin-top: 4px;
+  color: var(--hyp-accent, #ffd834);
+  font-size: 12.5px;
+  line-height: 1.5;
+}

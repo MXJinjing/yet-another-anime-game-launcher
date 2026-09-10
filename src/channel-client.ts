@@ -42,6 +42,8 @@ export type ChannelClientBackground = {
 export interface ChannelClient {
   installState: () => ChannelClientInstallState;
   installDir: () => string;
+  /** Relative path of the executable launched from the selected install root. */
+  gameExecutable?: () => string;
   gameVersion?: () => string;
   /** Game-specific error/runtime log files used by debug mode. */
   gameLogLocations?: readonly GameLogLocation[];

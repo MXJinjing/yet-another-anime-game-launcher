@@ -21,16 +21,16 @@ class GameVersionComparisonTests(unittest.TestCase):
 
 
 class PredownloadAvailabilityTests(unittest.TestCase):
-    def test_predownload_is_disabled_for_domestic_releases(self):
-        self.assertFalse(is_predownload_enabled("cn"))
-        self.assertFalse(is_predownload_enabled("bb"))
-
-    def test_predownload_remains_enabled_for_overseas_release(self):
+    def test_predownload_is_enabled_for_supported_releases(self):
+        self.assertTrue(is_predownload_enabled("cn"))
         self.assertTrue(is_predownload_enabled("os"))
 
-    def test_domestic_predownload_request_is_rejected_before_api_access(self):
+    def test_predownload_remains_disabled_for_bilibili(self):
+        self.assertFalse(is_predownload_enabled("bb"))
+
+    def test_bilibili_predownload_request_is_rejected_before_api_access(self):
         client = MagicMock()
-        client.rel_type = "cn"
+        client.rel_type = "bb"
 
         with tempfile.TemporaryDirectory() as game_dir:
             request = UpdateRequest(

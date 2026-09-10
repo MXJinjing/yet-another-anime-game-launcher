@@ -178,7 +178,7 @@ describe("startup hosts reconciliation", () => {
       true
     );
     expect(exec).toHaveBeenCalledOnce();
-    expect(exec.mock.calls[0][0].join(" ")).not.toContain("old.example");
+    expect(JSON.stringify(exec.mock.calls[0][0])).not.toContain("old.example");
   });
 
   it("does not rewrite an already current Yaaglm section", async () => {
@@ -200,8 +200,10 @@ describe("startup hosts reconciliation", () => {
     expect(await reconcileStartupHosts([["current.example", "0.0.0.0"]])).toBe(
       true
     );
-    expect(exec.mock.calls[0][0].join(" ")).toContain("current.example");
-    expect(exec.mock.calls[0][0].join(" ")).not.toContain("stale.example");
+    expect(JSON.stringify(exec.mock.calls[0][0])).toContain("current.example");
+    expect(JSON.stringify(exec.mock.calls[0][0])).not.toContain(
+      "stale.example"
+    );
   });
 });
 

@@ -1,5 +1,5 @@
 import { Box, HStack, IconButton, Text } from "@hope-ui/solid";
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined } from "../../../runtime/assertions";
 import { configEntries, type ConfigStore } from "@config";
@@ -39,10 +39,13 @@ export default async function ({
   locale,
   config,
   store,
+  dxmtOnly = false,
 }: {
   config: Partial<Config>;
   locale: Locale;
   store: ConfigStore;
+  /** True for clients whose MetalFX is DXMT's swapchain upscale. */
+  dxmtOnly?: boolean;
 }) {
   try {
     config.metalFxEnable =
@@ -112,6 +115,11 @@ export default async function ({
           onChange={setEnabled}
           disabled={disabled}
         >
+          <Show when={dxmtOnly}>
+            <span class="setting-switch-requirement">
+              {locale.get("SETTING_METALFX_DXMT_ONLY")}
+            </span>
+          </Show>
           {enabled() ? (
             <Box mt="$3">
               <HStack justifyContent="space-between" mb="$1">

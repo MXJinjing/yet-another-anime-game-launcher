@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createGameProcessMonitor,
+  parseMacWineProcesses,
   parseTasklistCsv,
   parseWinedbgProcesses,
 } from "@wine/game-process-monitor";
@@ -27,6 +28,50 @@ describe("Wine game process monitor", () => {
       { pid: "20", name: "services.exe" },
       { pid: "2a", name: "C:\\games\\StarRail.exe" },
     ]);
+  });
+
+  it("parses host Wine processes without matching similar loader paths", () => {
+    expect(
+      parseMacWineProcesses(
+        " 123 /Applications/GPTK.app/Contents/Resources/wine/bin/wine64 C:\\game\\Target.exe\n" +
+          " 456 /Applications/OtherGPTK.app/Contents/Resources/wine/bin/wine64 C:\\game\\Other.exe",
+        "/Applications/GPTK.app/Contents/Resources/wine/bin/wine64"
+      )
+    ).toEqual([
+      {
+        pid: "123",
+        name: "C:\\game\\Target.exe",
+        command:
+          "/Applications/GPTK.app/Contents/Resources/wine/bin/wine64 C:\\game\\Target.exe",
+      },
+    ]);
+  });
+
+  it("parses Wine processes launched through the macOS preloader", () => {
+    expect(
+      parseMacWineProcesses(
+        " 123 /Applications/GPTK.app/Contents/Resources/wine/bin/wine64-preloader C:\\game\\Target.exe",
+        "/Applications/GPTK.app/Contents/Resources/wine/bin/wine64"
+      )
+    ).toEqual([
+      {
+        pid: "123",
+        name: "C:\\game\\Target.exe",
+        command:
+          "/Applications/GPTK.app/Contents/Resources/wine/bin/wine64-preloader C:\\game\\Target.exe",
+      },
+    ]);
+  });
+
+  it("treats a failed pre-check as not running instead of aborting the launch", async () => {
+    const monitor = createGameProcessMonitor({
+      executable: "ZenlessZoneZero.exe",
+      listProcesses: async () => {
+        throw new Error("Wine process enumeration timed out after 10000ms");
+      },
+      log: async () => undefined,
+    });
+    await expect(monitor.isRunning()).resolves.toBe(false);
   });
 
   it("requires two consecutive observations before declaring startup", async () => {

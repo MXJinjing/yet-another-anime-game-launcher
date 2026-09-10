@@ -1,3 +1,4 @@
+import { showPredownloadAfterDeletion } from "../model/predownload-visibility";
 import { createGlobalSettings } from "@settings";
 import { Locale } from "@locale";
 import { hopeTaskNotifier } from "@tasks/task-notifications";
@@ -10,8 +11,13 @@ import {
   removeDirectory,
   removeFile,
 } from "@platform/neutralino";
-import { getWineDistributions, type Wine, type WineDistribution } from "@wine";
-import { SHARED_WINE_TAG } from "@wine/multi-game";
+import {
+  getWineDistributions,
+  isWineDistroInstalled,
+  type Wine,
+  type WineDistribution,
+} from "@wine";
+import { AUTO_WINE_TAG, SHARED_WINE_TAG } from "@wine/multi-game";
 import { join } from "path-browserify";
 import {
   Popover,
@@ -62,7 +68,10 @@ import {
 import { DownloadQueueModal } from "../../modals/download-queue-modal";
 import { GameUpdatePromptModal } from "../../modals/game-update-prompt-modal";
 import { GameCrashModal } from "../../modals/game-crash-modal";
-import { RuntimeReplacementErrorModal } from "../../modals/runtime-replacement-error-modal";
+import {
+  LaunchErrorModal,
+  RuntimeReplacementErrorModal,
+} from "../../modals/runtime-replacement-error-modal";
 import { isRuntimeReplacementFileMissingError } from "../../clients/mhy/patch";
 import cloudDownloadIcon from "../../assets/icons/cloud-download.svg";
 import cloudCheckIcon from "../../assets/icons/cloud-check.svg";
@@ -238,6 +247,7 @@ export async function createHypLauncher({
   gameCloseHandler,
   onResetWineEnv,
   initializeWine,
+  downloadWineDistro,
   enableWineDistro,
   uninstallWineDistro,
   actionDisabledRef,
@@ -250,6 +260,12 @@ export async function createHypLauncher({
   let requestWineDistroEnable = (
     _distro: WineDistribution,
     _onDone: (distro: WineDistribution) => void
+  ): void => undefined;
+  let requestWineDistroDownload = (
+    _distro: WineDistribution,
+    _onDone: (distro: WineDistribution) => void,
+    _onProgress: (progress: number | undefined, phase?: "extracting") => void,
+    _onFinished: () => void
   ): void => undefined;
   let requestWineDistroUninstall = (
     _distro: WineDistribution,
@@ -294,11 +310,18 @@ export async function createHypLauncher({
       actionDisabled: () => _actionDisabled(),
       onEnableWineDistro: (distro, onDone) =>
         requestWineDistroEnable(distro, onDone),
+      onDownloadWineDistro: (distro, onDone, onProgress, onFinished) =>
+        requestWineDistroDownload(distro, onDone, onProgress, onFinished),
       onUninstallWineDistro: (distro, onDone) =>
         requestWineDistroUninstall(distro, onDone),
       onWineDistroInitialized: onDone => {
         notifyWineDistroInitialized = onDone;
       },
+      wineDistroUsages: () =>
+        games.flatMap(game => {
+          const distroId = game.wineTag?.();
+          return distroId ? [{ distroId, label: game.title }] : [];
+        }),
       onResetWineEnv,
       modalTitle: () => locale.get("SETTING_GLOBAL"),
     });
@@ -514,6 +537,11 @@ export async function createHypLauncher({
     void reloadConfig();
     const [globalModalRoute, setGlobalModalRoute] =
       createSignal<GlobalModalRoute | null>(null);
+    const [globalSettingsInitialTab, setGlobalSettingsInitialTab] =
+      createSignal(0);
+    const [missingWineGame, setMissingWineGame] = createSignal<HypGame>();
+    const [missingGameExecutableGame, setMissingGameExecutableGame] =
+      createSignal<HypGame>();
     const aboutChannelCode = () => {
       const game = selectedGame();
       if (game.namespace?.startsWith("hpcn")) return "CN";
@@ -1002,6 +1030,43 @@ export async function createHypLauncher({
         name: "SETTING_WINE_ENABLED",
       });
     };
+    requestWineDistroDownload = (distro, onDone, onProgress, onFinished) => {
+      if (actionDisabled()) {
+        onFinished();
+        return;
+      }
+      const downloadKey = `wine-download:${distro.id}`;
+      log(`Wine distribution download requested: ${distro.id}`);
+      taskQueue.enqueue({
+        key: downloadKey,
+        fn: async function* () {
+          try {
+            for await (const command of downloadWineDistro(
+              distro,
+              downloadKey
+            )) {
+              if (command[0] == "setProgress") onProgress(command[1]);
+              else if (command[0] == "setUndeterminedProgress")
+                onProgress(undefined);
+              else if (
+                command[0] == "setStateText" &&
+                command[1] == "EXTRACT_ENVIRONMENT"
+              )
+                onProgress(undefined, "extracting");
+              yield command;
+            }
+            onDone(distro);
+          } finally {
+            onFinished();
+          }
+        },
+        name: "DOWNLOADING_ENVIRONMENT",
+        downloadTask: {
+          title: distro.displayName,
+          key: downloadKey,
+        },
+      });
+    };
     requestWineDistroUninstall = (distro, onDone) => {
       if (actionDisabled()) return;
       closeNativeSettings();
@@ -1153,6 +1218,14 @@ export async function createHypLauncher({
 
     async function startGameLaunch(game: HypGame) {
       await log(`Game launch requested: ${game.id}`);
+      if (!(await isGameExecutableAvailable(game))) {
+        setMissingGameExecutableGame(game);
+        return;
+      }
+      if (!(await isSelectedWineAvailable(game))) {
+        setMissingWineGame(game);
+        return;
+      }
       taskQueue.enqueue({
         key: game.id,
         fn: gameProgram(aria2, baseWine, game, () =>
@@ -1166,7 +1239,41 @@ export async function createHypLauncher({
           })
         ),
         name: "LAUNCH",
+        suppressCompletionNotification: true,
       });
+    }
+
+    async function isGameExecutableAvailable(game: HypGame) {
+      const executable = game.client.gameExecutable?.();
+      // Clients without an executable declaration retain their existing
+      // launch behavior until they opt in to this preflight check.
+      if (!executable) return true;
+      try {
+        return await fileOrDirExists(
+          join(game.client.installDir(), executable)
+        );
+      } catch {
+        return false;
+      }
+    }
+
+    async function isSelectedWineAvailable(game: HypGame) {
+      const selectedTag = game.wineTag?.();
+      const distroId =
+        !selectedTag ||
+        selectedTag === SHARED_WINE_TAG ||
+        selectedTag === AUTO_WINE_TAG
+          ? wineDistroId
+          : selectedTag;
+      try {
+        const distros = await getWineDistributions();
+        return (
+          distros.some(distro => distro.id === distroId) &&
+          (await isWineDistroInstalled(distroId))
+        );
+      } catch {
+        return false;
+      }
     }
 
     function primaryButtonLabel() {
@@ -1522,7 +1629,13 @@ export async function createHypLauncher({
             <Show
               when={
                 (selectedGame().client.showPredownloadPrompt() ||
-                  predownloadCompletedByGame()[selectedGame().id]) &&
+                  predownloadCompletedByGame()[selectedGame().id] ||
+                  showPredownloadAfterDeletion(
+                    predownloadCompletedByGame()[selectedGame().id],
+                    selectedGame().client.installState() === "INSTALLED",
+                    selectedGame().client.predownloadVersion(),
+                    selectedGame().client.gameVersion?.() ?? ""
+                  )) &&
                 !selectedGameTaskState().busy() &&
                 wineInstalled()
               }
@@ -1836,6 +1949,87 @@ export async function createHypLauncher({
           }}
         />
 
+        <LaunchErrorModal
+          opened={missingWineGame() != undefined}
+          title={
+            locale.currentLanguage.startsWith("zh")
+              ? "Wine 不可用"
+              : "Wine unavailable"
+          }
+          message={
+            locale.currentLanguage.startsWith("zh")
+              ? `“${
+                  missingWineGame()?.title ?? "该游戏"
+                }”选择的 Wine 已不存在或无法使用。请在 Wine 设置中下载、添加或重新选择 Wine 版本后再启动。`
+              : `The Wine selected for ${
+                  missingWineGame()?.title ?? "this game"
+                } is missing or unavailable. Download, add, or select a Wine version in Wine Settings before launching again.`
+          }
+          cancelLabel={locale.get("SETTING_CANCEL")}
+          settingsLabel={
+            locale.currentLanguage.startsWith("zh")
+              ? "打开全局 Wine 设置"
+              : "Open Global Wine Settings"
+          }
+          alternateSettingsLabel={
+            locale.currentLanguage.startsWith("zh")
+              ? "打开游戏 Wine 设置"
+              : "Open Game Wine Settings"
+          }
+          onCancel={() => setMissingWineGame()}
+          onOpenAlternateSettings={() => {
+            const game = missingWineGame();
+            setMissingWineGame();
+            if (game) void openNativeSettings(game);
+          }}
+          onOpenSettings={() => {
+            setMissingWineGame();
+            closeNativeSettings();
+            setGlobalSettingsInitialTab(2);
+            setGlobalModalRoute("settings");
+          }}
+        />
+
+        <LaunchErrorModal
+          opened={missingGameExecutableGame() != undefined}
+          title={
+            locale.currentLanguage.startsWith("zh")
+              ? "游戏文件缺失"
+              : "Game executable missing"
+          }
+          message={
+            locale.currentLanguage.startsWith("zh")
+              ? `“${
+                  missingGameExecutableGame()?.title ?? "该游戏"
+                }”的游戏可执行文件不存在或无法访问。请确认安装目录，或检查游戏文件完整性后再启动。`
+              : `The game executable for ${
+                  missingGameExecutableGame()?.title ?? "this game"
+                } is missing or inaccessible. Verify the installation directory or check game file integrity before launching again.`
+          }
+          cancelLabel={locale.get("SETTING_CANCEL")}
+          settingsLabel={
+            locale.currentLanguage.startsWith("zh")
+              ? "打开游戏设置"
+              : "Open Game Settings"
+          }
+          alternateSettingsLabel={
+            locale.currentLanguage.startsWith("zh")
+              ? "检查完整性"
+              : "Check Integrity"
+          }
+          onCancel={() => setMissingGameExecutableGame()}
+          onOpenAlternateSettings={() => {
+            const game = missingGameExecutableGame();
+            setMissingGameExecutableGame();
+            if (game) startCheckIntegrity(game);
+          }}
+          onOpenSettings={() => {
+            const game = missingGameExecutableGame();
+            setMissingGameExecutableGame();
+            if (game) void openNativeSettings(game);
+          }}
+        />
+
         <GameCrashModal
           opened={crashedGame() != undefined}
           locale={locale}
@@ -1851,9 +2045,11 @@ export async function createHypLauncher({
           route={globalModalRoute}
           onRouteChange={route => {
             setGlobalModalRoute(route);
+            if (route != "settings") setGlobalSettingsInitialTab(0);
             if (route == null) void refreshThemeColor();
           }}
           settingsUI={GlobalConfigurationUI}
+          settingsInitialTab={globalSettingsInitialTab}
           onOpenLogs={openLogs}
           actionDisabled={actionDisabled}
           locale={locale}

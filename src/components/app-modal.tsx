@@ -51,6 +51,7 @@ export function AppModal(props: {
   height?: number | string;
   bodyClass?: string;
   contentClass?: string;
+  overlayClass?: string;
 }) {
   // NOTE: keep all reads through `props.*`. Destructuring a reactive prop
   // evaluates it once when the component is created, freezing dynamic content
@@ -65,7 +66,11 @@ export function AppModal(props: {
       closeOnEsc={true}
       motionPreset="scale"
     >
-      <ModalOverlay class="app-modal-overlay" />
+      <ModalOverlay
+        class={`app-modal-overlay${
+          props.overlayClass ? ` ${props.overlayClass}` : ""
+        }`}
+      />
       <ModalContent
         class={`app-modal-content${
           props.contentClass ? ` ${props.contentClass}` : ""

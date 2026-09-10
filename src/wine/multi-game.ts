@@ -14,7 +14,12 @@ import {
 } from "@runtime";
 import { build } from "@platform/shell";
 import { getKey, setKey } from "@runtime/storage";
-import { removeFileIfExists, stats, writeFile } from "@platform/neutralino";
+import {
+  fileOrDirExists,
+  removeFileIfExists,
+  stats,
+  writeFile,
+} from "@platform/neutralino";
 import { resolve } from "@platform/neutralino/path";
 import { downloadPercent } from "@runtime/format";
 import { dirname, join } from "path-browserify";
@@ -27,15 +32,60 @@ import type { WineDistribution } from "./distro";
 import { getWineDistroRoot, isWineDistroInstalled, type Wine } from "./wine";
 import {
   createGameProcessMonitor,
+  parseMacWineProcesses,
   parseTasklistCsv,
   parseWinedbgProcesses,
   type WineProcess,
 } from "./game-process-monitor";
 import { createNativeGameWindowState } from "./native-window-state";
+import { migrateWineUserData, type WineUserDataDescriptor } from "./user-data";
 
 export const SHARED_WINE_TAG = "__shared__";
+export const AUTO_WINE_TAG = "__auto__";
 const MULTI_GAME_WINES_DIR = "./yaaglm-wines";
-const PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS = 3_000;
+
+/**
+ * Wine prefixes are coupled to the Wine build that created them (Wine runs a
+ * prefix update whenever another version opens them). Games that pin their own
+ * Wine therefore get their own prefix, kept next to the global one, instead of
+ * sharing the global prefix.
+ */
+export function getMultiGamePrefix(basePrefix: string, gameId: string) {
+  return join(dirname(basePrefix), "wineprefixes", gameId);
+}
+
+export async function isMultiGamePrefixReady(prefix: string) {
+  return await fileOrDirExists(join(prefix, "drive_c", "windows"));
+}
+
+/**
+ * Copy an existing prefix into the per-game prefix location so the user keeps
+ * their in-game settings, SDK device data and Wine registry entries instead of
+ * starting over. Never overwrites an existing per-game prefix.
+ */
+export async function copyMultiGamePrefix({
+  sourcePrefix,
+  targetPrefix,
+  exists = fileOrDirExists,
+  makeDir = mkdirp,
+  removeDirectory = rmrf_dangerously,
+  copy = (source: string, target: string) => exec(["cp", "-a", source, target]),
+}: {
+  sourcePrefix: string;
+  targetPrefix: string;
+  exists?: (path: string) => Promise<boolean>;
+  makeDir?: (path: string) => Promise<unknown>;
+  removeDirectory?: (path: string) => Promise<unknown>;
+  copy?: (source: string, target: string) => Promise<unknown>;
+}): Promise<boolean> {
+  if (sourcePrefix == targetPrefix) return false;
+  if (!(await exists(sourcePrefix))) return false;
+  if (await exists(targetPrefix)) return false;
+  await makeDir(dirname(targetPrefix));
+  await removeDirectory(targetPrefix);
+  await copy(sourcePrefix, targetPrefix);
+  return true;
+}
 
 export type MultiGameWineRef = { current: Wine };
 
@@ -53,9 +103,13 @@ export function createMultiGameWineProxy(ref: MultiGameWineRef): Wine {
     get prefix() {
       return ref.current.prefix;
     },
+    get wineRoot() {
+      return ref.current.wineRoot;
+    },
     openCmdWindow: (...args) => ref.current.openCmdWindow(...args),
     setProps: (...args) => ref.current.setProps(...args),
     setNVExtension: () => ref.current.setNVExtension(),
+    clearNVExtension: () => ref.current.clearNVExtension(),
     setDistribution: (...args) => ref.current.setDistribution(...args),
     killAll: (...args) => ref.current.killAll(...args),
     get attributes() {
@@ -66,6 +120,29 @@ export function createMultiGameWineProxy(ref: MultiGameWineRef): Wine {
 
 function gameWineKey(gameId: string) {
   return `yaaglm_${gameId}_wine_tag`;
+}
+
+function gameWineEnabledKey(gameId: string) {
+  return `yaaglm_${gameId}_wine_enabled`;
+}
+
+/** Whether the game runs in its own Wine environment instead of the global one. */
+export async function getMultiGameGameWineEnabled(gameId: string) {
+  try {
+    return (await getKey(gameWineEnabledKey(gameId))) == "true";
+  } catch {
+    // Older builds only stored a per-game Wine tag; treat that as enabled.
+    try {
+      const tag = await getKey(gameWineKey(gameId));
+      return tag != null && tag != SHARED_WINE_TAG;
+    } catch {
+      return false;
+    }
+  }
+}
+
+export function setMultiGameGameWineEnabled(gameId: string, enabled: boolean) {
+  return setKey(gameWineEnabledKey(gameId), enabled ? "true" : null);
 }
 export function getMultiGameWineRoot(gameId: string, distro: WineDistribution) {
   return resolve(join(MULTI_GAME_WINES_DIR, gameId, distro.id, "wine"));
@@ -87,21 +164,22 @@ export async function cleanupCancelledMultiGameWineDownload({
 }
 
 export async function getMultiGameGameWineTag(gameId: string) {
+  if (!(await getMultiGameGameWineEnabled(gameId))) return SHARED_WINE_TAG;
   try {
-    return await getKey(gameWineKey(gameId));
+    return (await getKey(gameWineKey(gameId))) ?? AUTO_WINE_TAG;
   } catch {
-    return SHARED_WINE_TAG;
+    return AUTO_WINE_TAG;
   }
 }
 
 export function setMultiGameGameWineTag(gameId: string, wineTag: string) {
   return setKey(
     gameWineKey(gameId),
-    wineTag === SHARED_WINE_TAG ? null : wineTag
+    wineTag === SHARED_WINE_TAG || wineTag === AUTO_WINE_TAG ? null : wineTag
   );
 }
 
-export async function getMultiGameWineOptions(currentTag: string) {
+export async function getMultiGameWineOptions(_currentTag: string) {
   const versions = await getWineDistributions();
   const installedVersions = (
     await Promise.all(
@@ -117,10 +195,6 @@ export async function getMultiGameWineOptions(currentTag: string) {
       displayName: distro.displayName,
       url: distro.remoteUrl,
     })),
-    ...(currentTag !== SHARED_WINE_TAG &&
-    !versions.some(distro => distro.id === currentTag)
-      ? [{ tag: currentTag, displayName: currentTag, url: "" }]
-      : []),
   ];
 }
 
@@ -143,6 +217,9 @@ export async function createMultiGameWineFromRoot({
   wineRoot: string;
 }): Promise<Wine> {
   const loaderBin = await getCorrectWineBinaryFromRoot(wineRoot);
+  // Wine creates the prefix with a single mkdir; make sure the parent chain
+  // (e.g. ./wineprefixes/napcn) exists before the first Wine command runs.
+  await mkdirp(prefix);
   const env = () => ({
     WINEDEBUG: "fixme-all,err-unwind,+timestamp",
     WINEPREFIX: prefix,
@@ -218,33 +295,43 @@ export async function createMultiGameWineFromRoot({
       if (timeout != undefined) clearTimeout(timeout);
     }
   };
+  const useInWineEnumeration = distro.attributes.renderBackend == "dxmt";
   const listWineProcesses = async (): Promise<WineProcess[]> => {
+    if (!useInWineEnumeration) {
+      const result = await exec2(
+        ["ps", "-axo", "pid=,command="],
+        undefined,
+        false,
+        undefined,
+        { timeoutMs: 3_000 }
+      );
+      return parseMacWineProcesses(result.stdOut, loaderBin);
+    }
     try {
-      const result = await wineExec2(
-        "tasklist",
-        ["/fo", "csv", "/nh"],
+      const result = await exec2(
+        [loaderBin, "tasklist", "/fo", "csv", "/nh"],
+        env(),
+        false,
         undefined,
-        undefined,
-        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
+        { timeoutMs: 10_000 }
       );
       const processes = parseTasklistCsv(result.stdOut);
       if (processes.length > 0) return processes;
       throw new Error("tasklist returned no parseable process rows");
     } catch (tasklistError) {
-      // Wine builds differ in whether tasklist is available; winedbg is the
-      // supported fallback and is still scoped by this Wine prefix.
-      const result = await wineExec2(
-        "winedbg",
-        ["--command", "info proc"],
+      await log(
+        `tasklist process enumeration failed: ${String(tasklistError)}`
+      );
+      const result = await exec2(
+        [loaderBin, "winedbg", "--command", "info proc"],
+        env(),
+        false,
         undefined,
-        undefined,
-        { timeoutMs: PROCESS_ENUMERATION_COMMAND_TIMEOUT_MS }
+        { timeoutMs: 10_000 }
       );
       const processes = parseWinedbgProcesses(result.stdOut);
       if (processes.length > 0) return processes;
-      throw new Error(
-        `Wine process enumeration failed: ${String(tasklistError)}`
-      );
+      throw new Error("winedbg returned no parseable process rows");
     }
   };
   const killAll = async () => {
@@ -293,6 +380,7 @@ export async function createMultiGameWineFromRoot({
     cmd: (command, args) => wineExec("cmd", [command, ...args]),
     toWinePath,
     prefix,
+    wineRoot,
     openCmdWindow: ({ gameDir }) =>
       exec2(
         [
@@ -325,11 +413,15 @@ export async function createMultiGameWineFromRoot({
           props.retina ? "y" : "n"
         } /f\nreg add "HKEY_CURRENT_USER\\Software\\Wine\\Mac Driver" /v LeftCommandIsCtrl /t REG_SZ /d ${
           props.leftCmd ? "y" : "n"
-        } /f\n`
+        } /f\nexit /b 0\n`
       ),
     setNVExtension: () =>
       runConfig(
-        `@echo off\ncd "%~dp0"\nreg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /t REG_BINARY /d 1 /f\nreg add "HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Services\\nvlddmkm" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /t REG_BINARY /d 1 /f\nreg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v FullPath /t REG_SZ /d "C:\\Windows\\System32" /f\n`
+        `@echo off\ncd "%~dp0"\nreg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /t REG_BINARY /d 1 /f\nreg add "HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Services\\nvlddmkm" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /t REG_BINARY /d 1 /f\nreg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v FullPath /t REG_SZ /d "C:\\Windows\\System32" /f\nexit /b 0\n`
+      ),
+    clearNVExtension: () =>
+      runConfig(
+        `@echo off\ncd "%~dp0"\nreg delete "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /f >nul 2>nul\nreg delete "HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Services\\nvlddmkm" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /f >nul 2>nul\nreg delete "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v FullPath /f >nul 2>nul\nexit /b 0\n`
       ),
     setDistribution: async () => undefined,
     attributes: { ...distro.attributes },
@@ -340,23 +432,40 @@ export async function* ensureMultiGameGameWine({
   aria2,
   baseWine,
   gameId,
+  prefixId = gameId,
   wineTag,
   downloadKey,
 }: {
   aria2: Aria2;
   baseWine: Wine;
   gameId: string;
+  /** Channel client code name; selects the per-game Wine prefix path. */
+  prefixId?: string;
   wineTag: string;
   downloadKey?: string;
 }): TaskProgram<Wine> {
   if (wineTag === SHARED_WINE_TAG) return baseWine;
+  if (wineTag === AUTO_WINE_TAG) {
+    // "Auto" keeps the global Wine build but gives the game its own prefix.
+    return await createMultiGameWineFromRoot({
+      prefix: getMultiGamePrefix(baseWine.prefix, prefixId),
+      distro: {
+        id: AUTO_WINE_TAG,
+        displayName: "Auto",
+        remoteUrl: "",
+        attributes: { ...baseWine.attributes },
+      },
+      wineRoot: baseWine.wineRoot,
+    });
+  }
   const distro = (await getWineDistributions()).find(
     candidate => candidate.id === wineTag
   );
   if (!distro) throw new Error(`Unknown Wine distribution: ${wineTag}`);
+  const prefix = getMultiGamePrefix(baseWine.prefix, prefixId);
   if (distro.systemWineRoot) {
     return await createMultiGameWineFromRoot({
-      prefix: baseWine.prefix,
+      prefix,
       distro,
       wineRoot: getWineDistroRoot(distro.id),
     });
@@ -365,7 +474,7 @@ export async function* ensureMultiGameGameWine({
   try {
     await stats(join(wineRoot, "bin", "wine"));
     return await createMultiGameWineFromRoot({
-      prefix: baseWine.prefix,
+      prefix,
       distro,
       wineRoot,
     });
@@ -429,8 +538,105 @@ export async function* ensureMultiGameGameWine({
     await getAuthorizationPrompt("AUTHORIZATION_PROMPT_REMOVE_QUARANTINE")
   );
   return await createMultiGameWineFromRoot({
-    prefix: baseWine.prefix,
+    prefix,
     distro,
     wineRoot,
+  });
+}
+
+/**
+ * Prepare the shared prefix for a per-game Wine selection. The previous
+ * distribution's Wine server is stopped first, then the newly selected Wine
+ * updates the prefix (wineboot) right away, so the next game launch does not
+ * have to do it while the startup detection timer is running.
+ */
+export async function* prepareMultiGameGameWine({
+  aria2,
+  baseWine,
+  previousWine,
+  gameId,
+  prefixId = gameId,
+  wineTag,
+  migrate = false,
+  descriptor,
+  logFile = "/dev/null",
+}: {
+  aria2: Aria2;
+  baseWine: Wine;
+  previousWine?: Wine;
+  gameId: string;
+  /** Channel client code name; selects the per-game Wine prefix path. */
+  prefixId?: string;
+  wineTag: string;
+  /** Carry the game's data over to the newly selected environment. */
+  migrate?: boolean;
+  /** Game data locations; without one a whole-prefix copy is used. */
+  descriptor?: WineUserDataDescriptor;
+  logFile?: string;
+}): TaskProgram<Wine> {
+  const staleWine = previousWine ?? baseWine;
+  await staleWine.killAll();
+  await staleWine.waitForWineServerExit({ timeoutMs: 5_000 });
+
+  let wine: Wine;
+  if (wineTag === SHARED_WINE_TAG) {
+    wine = baseWine;
+    // Switching back to the global environment: push the game's data back so
+    // the global prefix keeps the settings made with the per-game environment.
+    if (migrate && descriptor && staleWine.prefix != baseWine.prefix) {
+      yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
+      yield ["setUndeterminedProgress"];
+      await migrateWineUserData({
+        sourceWine: staleWine,
+        targetWine: baseWine,
+        descriptor,
+      });
+    }
+  } else {
+    wine = yield* ensureMultiGameGameWine({
+      aria2,
+      baseWine,
+      gameId,
+      prefixId,
+      wineTag,
+    });
+    yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
+    yield ["setUndeterminedProgress"];
+    const needsMigration = migrate && staleWine.prefix != wine.prefix;
+    if (needsMigration && descriptor) {
+      // Prepare the target prefix first, then move this game's registry keys
+      // and data directories into it.
+      await warmUpWinePrefix(wine);
+      await migrateWineUserData({
+        sourceWine: staleWine,
+        targetWine: wine,
+        descriptor,
+      });
+    } else if (needsMigration) {
+      // Games without a data descriptor keep the previous whole-prefix copy.
+      await copyMultiGamePrefix({
+        sourcePrefix: staleWine.prefix,
+        targetPrefix: wine.prefix,
+      });
+    }
+  }
+
+  yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
+  yield ["setUndeterminedProgress"];
+  await warmUpWinePrefix(wine);
+  await wine.exec2("winecfg", ["-v", "win10"], {}, logFile, {
+    timeoutMs: 120_000,
+  });
+  yield ["setStateText", "INSTALL_DONE"];
+  return wine;
+}
+
+/** Initialize a brand-new prefix or update an existing one. */
+async function warmUpWinePrefix(wine: Wine) {
+  const initialized = await fileOrDirExists(
+    join(wine.prefix, "drive_c", "windows")
+  );
+  await wine.exec2("wineboot", initialized ? ["-u"] : [], {}, undefined, {
+    timeoutMs: 300_000,
   });
 }
