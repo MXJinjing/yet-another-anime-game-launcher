@@ -172,6 +172,7 @@ export async function createMultiGameLauncher({
     const [wineEnabled, setWineEnabled] = createSignal(
       await getMultiGameGameWineEnabled(spec.id)
     );
+    const [wineTaskPending, setWineTaskPending] = createSignal(false);
     const gamePrefixPath = () =>
       getMultiGamePrefix(baseWine.prefix, spec.clientId);
     const [gameWineReady, setGameWineReady] = createSignal(false);
@@ -225,12 +226,24 @@ export async function createMultiGameLauncher({
     const enqueueWineTask = (fn: () => TaskProgram) => {
       const dispatch = gameWineTaskDispatcher.current;
       if (!dispatch) throw new Error("Game Wine task queue is unavailable");
-      dispatch({
-        gameId: spec.id,
-        downloadKey: spec.namespace,
-        title: `${resolvedSpec.title} · ${locale.get("INIT_ENVIRONMENT")}`,
-        fn,
-      });
+      setWineTaskPending(true);
+      try {
+        dispatch({
+          gameId: spec.id,
+          downloadKey: spec.namespace,
+          title: `${resolvedSpec.title} · ${locale.get("INIT_ENVIRONMENT")}`,
+          fn: async function* () {
+            try {
+              yield* fn();
+            } finally {
+              setWineTaskPending(false);
+            }
+          },
+        });
+      } catch (error) {
+        setWineTaskPending(false);
+        throw error;
+      }
     };
     const createSettings = () =>
       createGameSettings({
@@ -324,6 +337,7 @@ export async function createMultiGameLauncher({
         },
         winePrefix: () => gamePrefixPath(),
         wineInstalled: () => gameWineReady(),
+        wineSavePending: wineTaskPending,
         wineActionDisabled: () => actionDisabledRef.current(),
         onResetWineEnv: async () => {
           const wine = await ensureGameWineObject().catch(

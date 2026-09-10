@@ -95,6 +95,7 @@ export type GameSettingsOptions = {
   onOpenWineCfg?: () => void | Promise<void>;
   winePrefix?: () => string;
   wineInstalled?: () => boolean;
+  wineSavePending?: () => boolean;
   wineActionDisabled?: () => boolean;
   onResetWineEnv?: () => Promise<void>;
   gameWinePrefixExists?: () => boolean;
@@ -319,6 +320,7 @@ export async function createGameSettings(
     onOpenWineCfg: options.onOpenWineCfg,
     winePrefix: options.winePrefix,
     wineInstalled: options.wineInstalled,
+    wineSavePending: options.wineSavePending,
     wineActionDisabled: options.wineActionDisabled,
     onResetWineEnv: options.onResetWineEnv,
     gameWinePrefixExists: options.gameWinePrefixExists,

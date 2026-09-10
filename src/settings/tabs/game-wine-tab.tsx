@@ -43,6 +43,7 @@ export function GameWineTab(props: {
   onOpenWineCfg?: () => void | Promise<void>;
   winePrefix?: () => string;
   wineInstalled?: () => boolean;
+  wineSavePending?: () => boolean;
   wineActionDisabled?: () => boolean;
   onResetWineEnv?: () => Promise<void>;
   gameWinePrefixExists?: () => boolean;
@@ -51,6 +52,7 @@ export function GameWineTab(props: {
 }) {
   const currentEnabled = () => props.wineEnabled?.() ?? false;
   const currentTag = () => normalizeWineTag(props.wineTag?.());
+  const savePending = () => props.wineSavePending?.() ?? false;
 
   // Everything below is a draft: nothing is applied until the user presses the
   // tab's Save button.
@@ -65,8 +67,9 @@ export function GameWineTab(props: {
   createEffect(() => setDraftTag(currentTag()));
 
   const dirty = () =>
-    draftEnabled() != currentEnabled() ||
-    (draftEnabled() && draftTag() != currentTag());
+    !savePending() &&
+    (draftEnabled() != currentEnabled() ||
+      (draftEnabled() && draftTag() != currentTag()));
 
   createEffect(() => props.onDirtyChange?.(dirty()));
   // Leaving the tab discards the draft, so the shared dirty flag must not stay
@@ -135,6 +138,7 @@ export function GameWineTab(props: {
             checked={draftEnabled()}
             disabled={
               busy() ||
+              savePending() ||
               (props.wineActionDisabled?.() ?? false) ||
               props.wineDataSupported === false
             }
@@ -149,7 +153,11 @@ export function GameWineTab(props: {
               <AppSelect
                 value={draftTag()}
                 onChange={setDraftTag}
-                disabled={busy() || (props.wineActionDisabled?.() ?? false)}
+                disabled={
+                  busy() ||
+                  savePending() ||
+                  (props.wineActionDisabled?.() ?? false)
+                }
                 width={280}
                 options={[
                   {
@@ -227,7 +235,9 @@ export function GameWineTab(props: {
         >
           <Checkbox
             checked={migrate()}
-            disabled={busy() || (props.wineActionDisabled?.() ?? false)}
+            disabled={
+              busy() || savePending() || (props.wineActionDisabled?.() ?? false)
+            }
             title={props.locale.get("SETTING_GAME_WINE_MIGRATE_DESC")}
             onChange={event =>
               setMigrate((event.currentTarget as HTMLInputElement).checked)

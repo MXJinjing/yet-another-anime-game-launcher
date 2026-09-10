@@ -31,6 +31,7 @@ export type GameSettingsOptions = {
   onOpenWineCfg?: () => void | Promise<void>;
   winePrefix?: () => string;
   wineInstalled?: () => boolean;
+  wineSavePending?: () => boolean;
   wineActionDisabled?: () => boolean;
   onResetWineEnv?: () => Promise<void>;
   gameWinePrefixExists?: () => boolean;
@@ -142,6 +143,7 @@ export class GameSettings extends SettingsController<GameLoadedSettings> {
             onOpenWineCfg={this.options.onOpenWineCfg}
             winePrefix={this.options.winePrefix}
             wineInstalled={this.options.wineInstalled}
+            wineSavePending={this.options.wineSavePending}
             wineActionDisabled={this.options.wineActionDisabled}
             onResetWineEnv={this.options.onResetWineEnv}
             gameWinePrefixExists={this.options.gameWinePrefixExists}
