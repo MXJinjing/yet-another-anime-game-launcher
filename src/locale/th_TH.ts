@@ -127,7 +127,7 @@ export const th_TH: typeof zh_CN = {
   SETTING_USE_D3D12: "เปิดใช้ DirectX 12",
   SETTING_USE_D3D12_DESC: "เปิดเกมโดยใช้ DirectX 12",
   SETTING_NAP_METALFX: "เปิดใช้ MetalFX",
-  SETTING_NAP_METALFX_DESC: "ใช้ MetalFX แทน DLSS",
+  SETTING_NAP_METALFX_DESC: "ใช้ MetalFX แทน DLSS และรองรับเรย์เทรซิง",
   SETTING_NAP_REQUIRES_GPTK3: "ต้องมี Game Porting Toolkit 3 (GPTK3)",
   SETTING_SAVE: "บันทึก",
   SETTING_CANCEL: "ยกเลิก",

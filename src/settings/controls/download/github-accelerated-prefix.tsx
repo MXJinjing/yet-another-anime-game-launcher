@@ -78,15 +78,16 @@ export async function createGithubAcceleratedPrefixConfig({
     assertValueDefined(config.githubAcceleratedPrefix);
 
     const normalizedPrefix = normalizeGithubPrefix(prefix());
-    if (!normalizedPrefix) {
+    const nextEnabled = enabled();
+    if (nextEnabled && !normalizedPrefix) {
       setStatus("invalid");
       return NOOP;
     }
 
-    const nextEnabled = enabled();
+    const nextPrefix = normalizedPrefix ?? DEFAULT_GITHUB_PREFIX;
     configureGithubEndpoint({
       enabled: nextEnabled,
-      prefix: normalizedPrefix,
+      prefix: nextPrefix,
     });
 
     if (config.githubAcceleratedPrefixEnabled != nextEnabled) {
@@ -96,8 +97,8 @@ export async function createGithubAcceleratedPrefixConfig({
         config.githubAcceleratedPrefixEnabled
       );
     }
-    if (config.githubAcceleratedPrefix != normalizedPrefix) {
-      config.githubAcceleratedPrefix = normalizedPrefix;
+    if (config.githubAcceleratedPrefix != nextPrefix) {
+      config.githubAcceleratedPrefix = nextPrefix;
       await store.write(
         configEntries.githubAcceleratedPrefix,
         config.githubAcceleratedPrefix

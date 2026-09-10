@@ -56,7 +56,7 @@ export const configEntries = {
   ),
   githubAcceleratedPrefix: withDefault(
     "config_github_accelerated_prefix",
-    "https://ghp.3shain.uk/",
+    "",
     stringCodec
   ),
   metalFxEnable: withDefault("config_metalfx_enable", false, booleanCodec),

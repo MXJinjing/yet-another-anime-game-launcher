@@ -2,7 +2,8 @@ import { configEntries, createConfigStore } from "@config";
 import { log } from "../logging/logger";
 import { timeout } from "../runtime/async";
 
-export const DEFAULT_GITHUB_PREFIX = "https://ghp.3shain.uk/";
+/** GitHub acceleration is opt-in; no proxy endpoint is selected by default. */
+export const DEFAULT_GITHUB_PREFIX = "";
 const GITHUB_API_URL = "https://api.github.com/octocat";
 
 export class GithubRequestError extends Error {
@@ -64,15 +65,15 @@ export function configureGithubEndpoint(config: {
   prefix: string;
 }): string {
   const prefix = normalizeGithubPrefix(config.prefix);
-  if (!prefix) {
+  if (config.enabled && !prefix) {
     throw new Error("Invalid GitHub acceleration prefix");
   }
 
   githubEndpointConfig = {
     enabled: config.enabled,
-    prefix,
+    prefix: prefix ?? DEFAULT_GITHUB_PREFIX,
   };
-  return prefix;
+  return githubEndpointConfig.prefix;
 }
 
 function isGithubUrl(url: string): boolean {

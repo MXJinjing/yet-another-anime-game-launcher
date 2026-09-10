@@ -123,7 +123,7 @@ export const zh_CN = {
   SETTING_USE_D3D12: "启用 DirectX 12",
   SETTING_USE_D3D12_DESC: "启动游戏时使用 DirectX 12。",
   SETTING_NAP_METALFX: "启用 MetalFX",
-  SETTING_NAP_METALFX_DESC: "使用 MetalFX 代替 DLSS。",
+  SETTING_NAP_METALFX_DESC: "同时支持光线追踪",
   SETTING_NAP_REQUIRES_GPTK3: "需要安装 Game Porting Toolkit 3（GPTK3）。",
   SETTING_SAVE: "保存",
   SETTING_CANCEL: "取消",

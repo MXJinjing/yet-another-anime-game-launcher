@@ -128,7 +128,8 @@ export const ja_JP: typeof zh_CN = {
   SETTING_USE_D3D12: "DirectX 12 を有効化",
   SETTING_USE_D3D12_DESC: "DirectX 12 を有効にしてゲームを起動します。",
   SETTING_NAP_METALFX: "MetalFX を有効化",
-  SETTING_NAP_METALFX_DESC: "DLSS の代わりに MetalFX を使用します。",
+  SETTING_NAP_METALFX_DESC:
+    "DLSS の代わりに MetalFX を使用し、レイトレーシングにも対応します。",
   SETTING_NAP_REQUIRES_GPTK3: "Game Porting Toolkit 3（GPTK3）が必要です。",
   SETTING_SAVE: "保存",
   SETTING_CANCEL: "キャンセル",

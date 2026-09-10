@@ -128,7 +128,8 @@ export const ru_RU: typeof zh_CN = {
   SETTING_USE_D3D12: "Включить DirectX 12",
   SETTING_USE_D3D12_DESC: "Запускать игру с включённым DirectX 12.",
   SETTING_NAP_METALFX: "Включить MetalFX",
-  SETTING_NAP_METALFX_DESC: "Использовать MetalFX вместо DLSS.",
+  SETTING_NAP_METALFX_DESC:
+    "Использовать MetalFX вместо DLSS с поддержкой трассировки лучей.",
   SETTING_NAP_REQUIRES_GPTK3: "Требуется Game Porting Toolkit 3 (GPTK3).",
   SETTING_SAVE: "Сохранить",
   SETTING_CANCEL: "Отменить",

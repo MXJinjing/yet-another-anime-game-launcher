@@ -4,16 +4,17 @@ import {
   GithubRequestError,
   getGithubErrorStatus,
   configureGithubEndpoint,
-  DEFAULT_GITHUB_PREFIX,
   normalizeGithubPrefix,
   testGithubPrefix,
 } from "@src/integrations/github";
+
+const TEST_GITHUB_PREFIX = "https://proxy.example/";
 
 describe("GitHub acceleration prefix", () => {
   beforeEach(() => {
     configureGithubEndpoint({
       enabled: false,
-      prefix: DEFAULT_GITHUB_PREFIX,
+      prefix: TEST_GITHUB_PREFIX,
     });
   });
 
@@ -31,16 +32,16 @@ describe("GitHub acceleration prefix", () => {
     expect(applyGithubPrefix(githubUrl)).toBe(githubUrl);
     expect(applyGithubPrefix(otherUrl)).toBe(otherUrl);
 
-    configureGithubEndpoint({ enabled: true, prefix: DEFAULT_GITHUB_PREFIX });
+    configureGithubEndpoint({ enabled: true, prefix: TEST_GITHUB_PREFIX });
     expect(applyGithubPrefix(githubUrl)).toBe(
-      `${DEFAULT_GITHUB_PREFIX}${githubUrl}`
+      `${TEST_GITHUB_PREFIX}${githubUrl}`
     );
     expect(applyGithubPrefix(otherUrl)).toBe(otherUrl);
   });
 
   it("does not prefix an already accelerated URL twice", () => {
-    configureGithubEndpoint({ enabled: true, prefix: DEFAULT_GITHUB_PREFIX });
-    const accelerated = `${DEFAULT_GITHUB_PREFIX}https://github.com/file.zip`;
+    configureGithubEndpoint({ enabled: true, prefix: TEST_GITHUB_PREFIX });
+    const accelerated = `${TEST_GITHUB_PREFIX}https://github.com/file.zip`;
 
     expect(applyGithubPrefix(accelerated)).toBe(accelerated);
   });

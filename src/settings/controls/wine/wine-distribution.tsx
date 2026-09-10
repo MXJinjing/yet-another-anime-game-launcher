@@ -1,4 +1,12 @@
-import { Box, Button, HStack, Input, Text, VStack } from "@hope-ui/solid";
+import {
+  Box,
+  Button,
+  HStack,
+  Input,
+  Text,
+  Tooltip,
+  VStack,
+} from "@hope-ui/solid";
 import { createSignal, For, Show } from "solid-js";
 import { Locale } from "@locale";
 import { Config } from "../../../config/config-def";
@@ -359,12 +367,14 @@ export async function createWineDistroConfig({
                   class={`wine-distribution-version-row wine-distribution-version-row--${status()}`}
                 >
                   <td class="wine-distribution-status-cell">
-                    <Box
-                      class={`wine-distribution-status-dot wine-distribution-status-dot--${status()}`}
-                      title={wineDistroStatusTitle(distro)}
-                    >
-                      <Show when={active()}>{usageCount()}</Show>
-                    </Box>
+                    <Tooltip label={wineDistroStatusTitle(distro)}>
+                      <Box
+                        class={`wine-distribution-status-dot wine-distribution-status-dot--${status()}`}
+                        aria-label={wineDistroStatusTitle(distro)}
+                      >
+                        <Show when={active()}>{usageCount()}</Show>
+                      </Box>
+                    </Tooltip>
                   </td>
                   <td class="wine-distribution-version-cell">
                     <HStack
@@ -422,7 +432,9 @@ export async function createWineDistroConfig({
                       </Show>
                       <Show
                         when={
-                          installed() && !active() && !distro.systemWineRoot
+                          installed() &&
+                          !distro.systemWineRoot &&
+                          !distro.customWine
                         }
                       >
                         <Button

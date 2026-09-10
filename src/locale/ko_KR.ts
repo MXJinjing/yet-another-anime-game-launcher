@@ -126,7 +126,8 @@ export const ko_KR: typeof zh_CN = {
   SETTING_USE_D3D12: "DirectX 12 활성화",
   SETTING_USE_D3D12_DESC: "DirectX 12를 활성화하여 게임을 실행합니다.",
   SETTING_NAP_METALFX: "MetalFX 활성화",
-  SETTING_NAP_METALFX_DESC: "DLSS 대신 MetalFX를 사용합니다.",
+  SETTING_NAP_METALFX_DESC:
+    "DLSS 대신 MetalFX를 사용하며 레이 트레이싱도 지원합니다.",
   SETTING_NAP_REQUIRES_GPTK3: "Game Porting Toolkit 3(GPTK3)이 필요합니다.",
   SETTING_SAVE: "저장",
   SETTING_CANCEL: "취소",

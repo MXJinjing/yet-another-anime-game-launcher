@@ -131,7 +131,8 @@ export const es_ES: typeof zh_CN = {
   SETTING_USE_D3D12: "Activar DirectX 12",
   SETTING_USE_D3D12_DESC: "Inicia el juego con DirectX 12 activado.",
   SETTING_NAP_METALFX: "Activar MetalFX",
-  SETTING_NAP_METALFX_DESC: "Usar MetalFX en lugar de DLSS.",
+  SETTING_NAP_METALFX_DESC:
+    "Usar MetalFX en lugar de DLSS, con compatibilidad con trazado de rayos.",
   SETTING_NAP_REQUIRES_GPTK3: "Requiere Game Porting Toolkit 3 (GPTK3).",
   SETTING_SAVE: "Guardar",
   SETTING_CANCEL: "Cancelar",
