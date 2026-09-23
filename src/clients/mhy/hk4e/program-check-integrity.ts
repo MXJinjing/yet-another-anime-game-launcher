@@ -135,7 +135,7 @@ export async function* checkIntegrityProgram({
           )}（${downloadPercent(
             progress.overall_progress.downloaded_size,
             progress.overall_progress.total_size
-          )}%），速度 ${formatDownloadSpeed(
+          )}），速度 ${formatDownloadSpeed(
             progress.overall_progress.download_speed
           )}，文件 ${progress.current_file_index ?? currentFileIndex}/${
             progress.total_file_count ?? totalFileCount

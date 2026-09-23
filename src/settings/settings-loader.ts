@@ -3,6 +3,7 @@ import { Wine, WineDistribution } from "../wine";
 import { ChannelClientConfigUI } from "../channel-client";
 import { configEntries, Config, ConfigStore, createConfigStore } from "@config";
 import { createMetalHUDConfig } from "./controls/game/metal-hud";
+import { createExitOnWindowCloseConfig } from "./controls/game/exit-on-window-close";
 import { createGameInstallDirConfig } from "./controls/game/game-install-dir";
 import { createProxyEnabledConfig } from "./controls/game/proxy-enabled";
 import { createProxyHostConfig } from "./controls/game/proxy-host";
@@ -201,6 +202,11 @@ async function loadGameSettings(
     config,
     store: configStore,
   });
+  const exitOnWindowClose = await createExitOnWindowCloseConfig({
+    locale,
+    config,
+    store: configStore,
+  });
   const [gameInstallDirConfig] = await createGameInstallDirConfig({
     locale,
     config,
@@ -262,6 +268,7 @@ async function loadGameSettings(
     config,
     configStore,
     metalHUD,
+    exitOnWindowClose,
     gameInstallDir: gameInstallDirConfig,
     retina,
     vsync,

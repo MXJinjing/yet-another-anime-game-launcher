@@ -219,6 +219,8 @@ export const de_DE: typeof zh_CN = {
     "Ihre aktuelle Spielversion ({0}) ist zu alt, um inkrementell aktualisiert zu werden. Bitte installieren Sie das Spiel neu.",
 
   PREDOWNLOAD_READY: "{0} Pre-Download {1}",
+  PREDOWNLOAD_BUTTON: "Vorabdownload {0}",
+  DOWNLOAD_TASK_CHECK_INTEGRITY: "Spielintegrität prüfen ({0})",
   PREDOWNLOAD_DONE: "Vorab geladen",
   SETTING_PREDOWNLOAD: en.SETTING_PREDOWNLOAD,
   SETTING_PREDOWNLOAD_VERSION: en.SETTING_PREDOWNLOAD_VERSION,

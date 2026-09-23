@@ -213,6 +213,8 @@ export const th_TH: typeof zh_CN = {
     "เนื่องจากเวอร์ชันเกม ({0}) เก่าเกินไป จึงไม่สามารถอัปเดตแพตช์ได้ กรุณาติดตั้งเกมใหม่ทั้งหมด",
 
   PREDOWNLOAD_READY: "{0} ดาวน์โหลดล่วงหน้า {1}",
+  PREDOWNLOAD_BUTTON: "ดาวน์โหลดล่วงหน้า {0}",
+  DOWNLOAD_TASK_CHECK_INTEGRITY: "ตรวจสอบความสมบูรณ์ของเกม ({0})",
   PREDOWNLOAD_DONE: "ดาวน์โหลดล่วงหน้าแล้ว",
   SETTING_PREDOWNLOAD: en.SETTING_PREDOWNLOAD,
   SETTING_PREDOWNLOAD_VERSION: en.SETTING_PREDOWNLOAD_VERSION,

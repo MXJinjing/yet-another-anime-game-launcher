@@ -18,19 +18,16 @@ export function AboutModalContent(props: {
     <div class="about-content">
       <img class="about-icon" src={UPDATE_UI_IMAGE} alt="" />
       <div class="about-name">Yaaglm {props.channelCode}</div>
-      <div class="about-version-row">
-        <div class="about-detail">Version {CURRENT_YAAGL_VERSION}</div>
-        <Show when={props.onCheckUpdate}>
-          <button
-            type="button"
-            class="about-check-update"
-            onClick={() => props.onCheckUpdate?.()}
-          >
-            {props.locale.get("SETTING_CHECK_UPDATE")}
-          </button>
-        </Show>
-      </div>
-      <div class="about-detail">Author: MXJinjing & 3Shain</div>
+      <div class="about-detail">Version {CURRENT_YAAGL_VERSION}</div>
+      <Show when={props.onCheckUpdate}>
+        <button
+          type="button"
+          class="about-check-update"
+          onClick={() => props.onCheckUpdate?.()}
+        >
+          {props.locale.get("SETTING_CHECK_UPDATE")}
+        </button>
+      </Show>
       <button
         class="about-github"
         aria-label="GitHub"

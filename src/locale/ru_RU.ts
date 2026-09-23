@@ -217,6 +217,8 @@ export const ru_RU: typeof zh_CN = {
     "Текущая версия игры ({0}) слишком устарела для постепенного обновления. Пожалуйста, переустановите игру.",
 
   PREDOWNLOAD_READY: "{0} предзагрузка {1}",
+  PREDOWNLOAD_BUTTON: "Предзагрузить {0}",
+  DOWNLOAD_TASK_CHECK_INTEGRITY: "Проверить целостность игры ({0})",
   PREDOWNLOAD_DONE: "Предзагружено",
   SETTING_PREDOWNLOAD: en.SETTING_PREDOWNLOAD,
   SETTING_PREDOWNLOAD_VERSION: en.SETTING_PREDOWNLOAD_VERSION,

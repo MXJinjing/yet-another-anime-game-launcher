@@ -32,6 +32,8 @@ export type GameProcessMonitor = {
 export type GameProcessMonitorOptions = {
   executable: string;
   listProcesses: () => Promise<WineProcess[]>;
+  pinProcessIdsOnStart?: boolean;
+  exitOnWindowClose?: boolean;
   getWindowState?: () => Promise<boolean | undefined>;
   onWindowClosed?: () => Promise<unknown>;
   sleep?: (milliseconds: number) => Promise<void>;
@@ -93,14 +95,33 @@ export function parseWinedbgProcesses(output: string): WineProcess[] {
   return processes;
 }
 
-/** Parse macOS `ps -axo pid=,command=` output for processes using a Wine loader. */
+function normalizeWineExecutablePath(value: string) {
+  return value.trim().replaceAll("\\", "/").replace(/\/+/g, "/").toLowerCase();
+}
+
+/** Parse macOS `ps` output, including DXMT's direct Windows-executable form. */
 export function parseMacWineProcesses(
   output: string,
-  loaderPath: string
+  loaderPath: string,
+  gamePath?: string
 ): WineProcess[] {
   const normalizedLoader = loaderPath.trim();
   if (normalizedLoader.length === 0) return [];
   const loaderPaths = [`${normalizedLoader}-preloader`, normalizedLoader];
+  const driveCIndex = gamePath?.toLowerCase().indexOf("/drive_c/") ?? -1;
+  const expectedGamePaths = gamePath
+    ? [
+        normalizeWineExecutablePath(`Z:${gamePath}`),
+        normalizeWineExecutablePath(gamePath),
+        ...(driveCIndex >= 0
+          ? [
+              normalizeWineExecutablePath(
+                `C:${gamePath.slice(driveCIndex + 8)}`
+              ),
+            ]
+          : []),
+      ]
+    : [];
   const processes: WineProcess[] = [];
   for (const line of output.split(/\r?\n/)) {
     const match = line.match(/^\s*(\d+)\s+(.+?)\s*$/);
@@ -108,18 +129,47 @@ export function parseMacWineProcesses(
     const command = match[2];
     const loaderMatch = loaderPaths
       .map(path => ({ path, index: command.indexOf(path) }))
-      .find(({ index }) => index >= 0);
-    if (!loaderMatch) continue;
-    const { path: matchedLoader, index: loaderIndex } = loaderMatch;
-    const before = command[loaderIndex - 1];
-    const after = command[loaderIndex + matchedLoader.length];
-    if (before != undefined && !/[\s'"]/.test(before)) continue;
-    if (after != undefined && !/[\s'"]/.test(after)) continue;
-    const executableMatch = command
-      .slice(loaderIndex + matchedLoader.length)
-      .match(/(?:^|\s)(?:"([^"]+\.exe)"|([^\s]+\.exe))(?:\s|$)/i);
-    const executable = executableMatch?.[1] ?? executableMatch?.[2];
+      .find(({ index }) => index === 0);
+    let executable: string | undefined;
+    if (loaderMatch) {
+      const { path: matchedLoader, index: loaderIndex } = loaderMatch;
+      const before = command[loaderIndex - 1];
+      const after = command[loaderIndex + matchedLoader.length];
+      if (before != undefined && !/[\s'"]/.test(before)) continue;
+      if (after != undefined && !/[\s'"]/.test(after)) continue;
+      const argumentsText = command.slice(loaderIndex + matchedLoader.length);
+      const executableMatch =
+        argumentsText.match(
+          /(?:^|\s)(?:"([^"]+\.exe)"|((?:[a-z]:[\\/].+?)\.exe))(?:\s|$)/i
+        ) ??
+        argumentsText.match(
+          /(?:^|\s)(?:"([^"]+\.exe)"|([^\s]+\.exe))(?:\s|$)/i
+        );
+      executable = executableMatch?.[1] ?? executableMatch?.[2];
+    } else if (expectedGamePaths.length > 0) {
+      // DXMT exposes the Windows executable itself as the macOS process
+      // command. Require its full path so another installation or a Steam
+      // wrapper mentioning the game in its arguments is not mistaken for it.
+      const executableMatch = command.match(
+        /^(?:"([^"]+\.exe)"|((?:[a-z]:[\\/].+?)\.exe))(?:\s|$)/i
+      );
+      const directExecutable = executableMatch?.[1] ?? executableMatch?.[2];
+      if (
+        directExecutable &&
+        expectedGamePaths.includes(
+          normalizeWineExecutablePath(directExecutable)
+        )
+      ) {
+        executable = directExecutable;
+      }
+    }
     if (!executable) continue;
+    if (
+      expectedGamePaths.length > 0 &&
+      !expectedGamePaths.includes(normalizeWineExecutablePath(executable))
+    ) {
+      continue;
+    }
     processes.push({ pid: match[1], name: executable, command });
   }
   return processes;
@@ -136,6 +186,7 @@ export function createGameProcessMonitor(
   const now = options.now ?? (() => Date.now());
   const writeLog = options.log ?? log;
   let startedAt: number | undefined;
+  let startedProcessIds: Set<string> | undefined;
   let sawApplicationWindow = false;
 
   async function listProcesses(queryTimeoutMs = 10_000) {
@@ -196,6 +247,7 @@ export function createGameProcessMonitor(
     const deadline = now() + timeoutMs;
     let unavailableSamples = 0;
     let seenSamples = 0;
+    let previousStartPids = new Set<string>();
     if (initialDelayMs > 0) {
       await sleep(Math.min(initialDelayMs, Math.max(0, deadline - now())));
     }
@@ -206,7 +258,22 @@ export function createGameProcessMonitor(
           Math.min(queryTimeoutMs, remainingMs)
         );
         if (processes.length > 0) {
-          if (options.getWindowState && (await options.getWindowState())) {
+          const currentPids = new Set(processes.map(process => process.pid));
+          const continuingPids = processes
+            .map(process => process.pid)
+            .filter(pid => previousStartPids.has(pid));
+          if (
+            options.pinProcessIdsOnStart &&
+            seenSamples > 0 &&
+            continuingPids.length === 0
+          ) {
+            seenSamples = 0;
+          }
+          if (
+            options.exitOnWindowClose &&
+            options.getWindowState &&
+            (await options.getWindowState())
+          ) {
             sawApplicationWindow = true;
           }
           if (seenSamples === 0) startedAt = now();
@@ -214,6 +281,9 @@ export function createGameProcessMonitor(
           // Require two observations so a short-lived helper process cannot
           // make the launcher restore patches while the game is starting.
           if (seenSamples >= 2) {
+            if (options.pinProcessIdsOnStart) {
+              startedProcessIds = new Set(continuingPids);
+            }
             await writeLog(
               `Game process detected: ${target} (${processes
                 .map(process => process.pid)
@@ -221,8 +291,10 @@ export function createGameProcessMonitor(
             );
             return "started" as const;
           }
+          previousStartPids = currentPids;
         } else {
           seenSamples = 0;
+          previousStartPids.clear();
         }
         unavailableSamples = 0;
       } catch (error) {
@@ -242,7 +314,7 @@ export function createGameProcessMonitor(
 
   async function waitForExit({
     missingSamples = 3,
-    pollIntervalMs = 3_000,
+    pollIntervalMs = 1_000,
     crashThresholdMs = 5_000,
     queryTimeoutMs = 10_000,
     missingWindowSamples = 3,
@@ -255,6 +327,10 @@ export function createGameProcessMonitor(
     missingWindowSamples?: number;
     missingWindowGraceMs?: number;
   } = {}) {
+    if (options.pinProcessIdsOnStart && !startedProcessIds) {
+      await writeLog(`Game process identity was not established: ${target}`);
+      return "unknown" as const;
+    }
     let missing = 0;
     let unavailable = 0;
     let firstMissingAt: number | undefined;
@@ -262,7 +338,17 @@ export function createGameProcessMonitor(
     let firstMissingWindowAt: number | undefined;
     while (missing < missingSamples) {
       try {
-        const processes = await matchingProcesses(queryTimeoutMs);
+        const allProcesses = await matchingProcesses(queryTimeoutMs);
+        const pinnedIds = startedProcessIds;
+        const processes = pinnedIds
+          ? allProcesses.filter(process => pinnedIds.has(process.pid))
+          : allProcesses;
+        if (pinnedIds && allProcesses.length > 0 && processes.length === 0) {
+          await writeLog(
+            `Game process identity changed while waiting for exit: ${target}`
+          );
+          return "unknown" as const;
+        }
         unavailable = 0;
         if (processes.length === 0) {
           if (missing === 0) firstMissingAt = now();
@@ -270,7 +356,9 @@ export function createGameProcessMonitor(
         } else {
           missing = 0;
           firstMissingAt = undefined;
-          const hasWindow = await options.getWindowState?.();
+          const hasWindow = options.exitOnWindowClose
+            ? await options.getWindowState?.()
+            : undefined;
           if (hasWindow === true) {
             sawApplicationWindow = true;
             missingWindow = 0;
@@ -305,8 +393,8 @@ export function createGameProcessMonitor(
             error
           )}`
         );
-        // Unknown is never treated as exited. This protects a running game
-        // when both tasklist and the fallback process source are unavailable.
+        // Unknown is never treated as exited. A failed ps query cannot prove
+        // that the game process has disappeared.
         if (unavailable >= 3) return "unknown" as const;
       }
       if (missing < missingSamples) await sleep(pollIntervalMs);

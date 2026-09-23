@@ -215,6 +215,8 @@ export const ko_KR: typeof zh_CN = {
     "현재 게임 버전({0})은 점진적으로 업데이트하기에는 너무 오래되었습니다. 게임을 다시 설치해 주세요",
 
   PREDOWNLOAD_READY: "{0} 사전 다운로드 {1}",
+  PREDOWNLOAD_BUTTON: "{0} 사전 다운로드",
+  DOWNLOAD_TASK_CHECK_INTEGRITY: "게임 무결성 검사 ({0})",
   PREDOWNLOAD_DONE: "사전 다운로드 완료",
   SETTING_PREDOWNLOAD: en.SETTING_PREDOWNLOAD,
   SETTING_PREDOWNLOAD_VERSION: en.SETTING_PREDOWNLOAD_VERSION,

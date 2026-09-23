@@ -46,6 +46,25 @@ describe("instance storage", () => {
     );
   });
 
+  it("stores the window-exit preference separately for each game", async () => {
+    await createStorage("test-a").setKey("config_exit_on_window_close", "true");
+    await createStorage("test-b").setKey(
+      "config_exit_on_window_close",
+      "false"
+    );
+
+    expect(writeFile).toHaveBeenNthCalledWith(
+      1,
+      ".storage/test-a_config_exit_on_window_close.neustorage",
+      "true"
+    );
+    expect(writeFile).toHaveBeenNthCalledWith(
+      2,
+      ".storage/test-b_config_exit_on_window_close.neustorage",
+      "false"
+    );
+  });
+
   it("leaves launcher-wide keys in the default storage scope", async () => {
     await globalStorage.setKey("hyp_last_view", "hk4e");
     expect(writeFile).toHaveBeenCalledWith(

@@ -217,6 +217,8 @@ export const en: typeof zh_CN = {
     "Your current game version ({0}) is too old to update incrementally. Please re-install the game.",
 
   PREDOWNLOAD_READY: "{0} pre-download {1}",
+  PREDOWNLOAD_BUTTON: "Pre-download {0}",
+  DOWNLOAD_TASK_CHECK_INTEGRITY: "Check game integrity ({0})",
   PREDOWNLOAD_DONE: "Preloaded",
   SETTING_PREDOWNLOAD: "Pre-download",
   SETTING_PREDOWNLOAD_VERSION: "Current pre-download version: {0}",

@@ -245,9 +245,6 @@ def _perform_update(
     cli.retrieve_API_keys()
     cli.load_manifest("game")
 
-    if not options.predownload:
-        cli.process_deletefiles(progress_handler=progress)
-
     wait_if_paused(pause_event, cancel_event)
     cli.apply_or_prepare_ldiff_files(
         progress_handler=progress,
@@ -258,6 +255,7 @@ def _perform_update(
 
     if not options.predownload:
         cli.load_manifest("game")
+        cli.process_deletefiles(progress_handler=progress)
         cli.update_config_ini_version()
         cli.remove_ldiff_files(progress_handler=progress)
 

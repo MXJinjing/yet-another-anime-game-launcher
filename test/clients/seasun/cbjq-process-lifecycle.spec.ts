@@ -110,7 +110,12 @@ describe("cbjq game process lifecycle", () => {
       })
     );
 
-    expect(raw.createGameProcessMonitor).toHaveBeenCalledWith(executable);
+    expect(raw.createGameProcessMonitor).toHaveBeenCalledWith(
+      "/game/" + executable,
+      {
+        exitOnWindowClose: false,
+      }
+    );
     expect(monitor.isRunning).toHaveBeenCalledOnce();
     expect(monitor.waitForStart).toHaveBeenCalledOnce();
     expect(monitor.waitForExit).toHaveBeenCalledOnce();

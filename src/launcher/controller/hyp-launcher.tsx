@@ -1228,15 +1228,7 @@ export async function createHypLauncher({
             game.client.checkIntegrity()
           ),
           name: "SETTING_CHECK_INTEGRITY",
-          ...(game.id !== "hk4e"
-            ? {
-                downloadTask: gameDownloadTaskMetadata(
-                  game,
-                  locale,
-                  "integrity"
-                ),
-              }
-            : {}),
+          downloadTask: gameDownloadTaskMetadata(game, locale, "integrity"),
         });
       }
     }
@@ -1680,8 +1672,7 @@ export async function createHypLauncher({
                 fallback={
                   <button class="hyp-secondary-button" onClick={onPredownload}>
                     <img src={cloudDownloadIcon} alt="" aria-hidden="true" />
-                    {locale.format("PREDOWNLOAD_READY", [
-                      selectedGame().title,
+                    {locale.format("PREDOWNLOAD_BUTTON", [
                       selectedGame().client.predownloadVersion(),
                     ])}
                   </button>

@@ -52,10 +52,13 @@ export async function* launchGameProgram({
   const blockHosts = config.blockNet
     ? buildBlockHosts(config, [{ domain: blockUrl, ip: "0.0.0.0" }])
     : [];
-  const processMonitor = wine.createGameProcessMonitor(gameExecutable);
+  const gameExecutablePath = join(gameDir, gameExecutable);
+  const processMonitor = wine.createGameProcessMonitor(gameExecutablePath, {
+    exitOnWindowClose: config.exitOnWindowClose === true,
+  });
   if (await processMonitor.isRunning()) {
     throw new Error(
-      `The game process is already running in Wine prefix ${wine.prefix}`
+      `The game executable is already running: ${gameExecutablePath}`
     );
   }
   yield ["setUndeterminedProgress"];

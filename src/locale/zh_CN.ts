@@ -207,6 +207,8 @@ export const zh_CN = {
     "当前游戏版本({0})太过久远，无法增量更新。请重新安装游戏。",
 
   PREDOWNLOAD_READY: "{0}预载{1}版本",
+  PREDOWNLOAD_BUTTON: "预载{0}版本",
+  DOWNLOAD_TASK_CHECK_INTEGRITY: "检测游戏完整性（{0}）",
   PREDOWNLOAD_DONE: "已预载",
   SETTING_PREDOWNLOAD: "预下载",
   SETTING_PREDOWNLOAD_VERSION: "当前预载版本：{0}",

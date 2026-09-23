@@ -114,7 +114,10 @@ describe("bh3 game process lifecycle", () => {
       })
     );
 
-    expect(raw.createGameProcessMonitor).toHaveBeenCalledWith("TargetGame.exe");
+    expect(raw.createGameProcessMonitor).toHaveBeenCalledWith(
+      "/game/TargetGame.exe",
+      { exitOnWindowClose: false }
+    );
     expect(monitor.waitForStart).toHaveBeenCalledOnce();
     expect(monitor.waitForExit).toHaveBeenCalledOnce();
     expect(raw.waitForWineServerExit).toHaveBeenCalledWith({

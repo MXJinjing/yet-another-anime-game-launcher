@@ -217,6 +217,8 @@ export const ja_JP: typeof zh_CN = {
     "現在お使いゲームバージョン（{0}）は古すぎるため、増分更新を行うことができません。ゲームを再インストールしてください。",
 
   PREDOWNLOAD_READY: "{0}事前ダウンロード{1}",
+  PREDOWNLOAD_BUTTON: "{0}を事前ダウンロード",
+  DOWNLOAD_TASK_CHECK_INTEGRITY: "ゲームの整合性を確認（{0}）",
   PREDOWNLOAD_DONE: "事前ダウンロード済み",
   SETTING_PREDOWNLOAD: en.SETTING_PREDOWNLOAD,
   SETTING_PREDOWNLOAD_VERSION: en.SETTING_PREDOWNLOAD_VERSION,

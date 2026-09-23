@@ -278,15 +278,36 @@ class DownloadFileResumeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             dstfile = pathlib.Path(tmp) / "out.bin"
             dstfile.write_bytes(b"complete")
+            progress = []
             with (
                 patch.object(sophon_api.pycurl, "Curl") as curl_mock,
                 patch.object(sophon_api, "limiter") as mock_limiter,
             ):
                 sophon_api.SophonClient()._download_file_resume(
-                    "https://example.com/chunk", dstfile, len(b"complete")
+                    "https://example.com/chunk", dstfile, len(b"complete"),
+                    progress_callback=progress.append,
                 )
         curl_mock.assert_not_called()
         mock_limiter.acquire.assert_not_called()
+        self.assertEqual(progress, [])
+
+    def test_resume_reports_only_new_network_bytes(self):
+        curl, _captured, calls = self._make_curl(perform_writes=(b"de",))
+        with tempfile.TemporaryDirectory() as tmp:
+            dstfile = pathlib.Path(tmp) / "out.bin"
+            dstfile.write_bytes(b"abc")
+            progress = []
+            with (
+                patch.object(sophon_api.pycurl, "Curl", return_value=curl),
+                patch.object(sophon_api, "limiter"),
+            ):
+                sophon_api.SophonClient()._download_file_resume(
+                    "https://example.com/chunk", dstfile, 5,
+                    progress_callback=progress.append,
+                )
+            self.assertEqual(dstfile.read_bytes(), b"abcde")
+        self.assertIn(("RANGE", "3-"), calls)
+        self.assertEqual(progress, [2])
 
     def test_transient_curl_error_retries_instead_of_returning(self):
         curl, captured, calls = self._make_curl(response_code=200)

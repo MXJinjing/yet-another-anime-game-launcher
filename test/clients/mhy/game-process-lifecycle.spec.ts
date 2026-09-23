@@ -154,6 +154,10 @@ describe("game launch process-monitor integration", () => {
     );
 
     expect(monitor.isRunning).toHaveBeenCalledOnce();
+    expect(raw.createGameProcessMonitor).toHaveBeenCalledWith(
+      "/game/TargetGame.exe",
+      { exitOnWindowClose: false }
+    );
     expect(monitor.waitForStart).toHaveBeenCalledOnce();
     expect(monitor.waitForExit).toHaveBeenCalledOnce();
     expect(raw.waitForWineServerExit).toHaveBeenCalledWith({
@@ -168,6 +172,24 @@ describe("game launch process-monitor integration", () => {
       "GAME_RUNNING",
       "REVERT_PATCHING",
     ]);
+  });
+
+  it("passes the per-game window exit preference to the Wine monitor", async () => {
+    const { wine, raw } = createWine();
+    await collect(
+      launchHk4e({
+        gameDir: "/game",
+        gameExecutable: "TargetGame.exe",
+        wine,
+        config: { ...config, exitOnWindowClose: true },
+        server: server("hk4e_cn", "TargetGame.exe"),
+      })
+    );
+
+    expect(raw.createGameProcessMonitor).toHaveBeenCalledWith(
+      "/game/TargetGame.exe",
+      { exitOnWindowClose: true }
+    );
   });
 
   it("preserves hk4e's Steam launch branch", async () => {

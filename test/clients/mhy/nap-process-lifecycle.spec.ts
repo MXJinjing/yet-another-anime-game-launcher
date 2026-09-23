@@ -161,6 +161,10 @@ describe("nap game process lifecycle", () => {
     );
 
     expect(monitor.isRunning).toHaveBeenCalledOnce();
+    expect(raw.createGameProcessMonitor).toHaveBeenCalledWith(
+      "/game/TargetGame.exe",
+      { exitOnWindowClose: false }
+    );
     expect(monitor.waitForStart).toHaveBeenCalledWith({
       timeoutMs: 180_000,
     });

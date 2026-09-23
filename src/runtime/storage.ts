@@ -29,6 +29,7 @@ function shouldNamespaceStorageKey(key: string) {
     key == "config_block_net_hosts" ||
     key == "config_runtime_replacements" ||
     key == "config_custom_environment_variables" ||
+    key == "config_exit_on_window_close" ||
     key == "config_hk4e_enable_hdr" ||
     key == "config_metalfx_enable" ||
     key == "config_metalfx_factor" ||

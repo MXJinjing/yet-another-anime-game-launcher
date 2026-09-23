@@ -360,7 +360,10 @@ export async function createWine(options: {
     };
   }
 
-  function createGameProcessMonitorFor(executable: string): GameProcessMonitor {
+  function createGameProcessMonitorFor(
+    executable: string,
+    { exitOnWindowClose = false }: { exitOnWindowClose?: boolean } = {}
+  ): GameProcessMonitor {
     // Pin the Wine loader that owns this game session. The active
     // distribution may still be switched later (e.g. before the next
     // launch), but process enumeration for this game must keep using the
@@ -372,23 +375,9 @@ export async function createWine(options: {
       WINEPREFIX: options.prefix,
     });
 
-    // DXMT distributions answer in-Wine tasklist/winedbg reliably. Other
-    // runtimes (e.g. Apple Game Porting Toolkit) can block those tools for
-    // tens of seconds while they initialize or update the prefix, so they are
-    // enumerated from the host process table instead.
-    const useInWineEnumeration = attributes.renderBackend == "dxmt";
-
-    async function listWineProcesses(): Promise<WineProcess[]> {
-      if (!useInWineEnumeration) {
-        const result = await unixExec2(
-          ["ps", "-axo", "pid=,command="],
-          undefined,
-          false,
-          undefined,
-          { timeoutMs: 3_000 }
-        );
-        return parseMacWineProcesses(result.stdOut, pinnedLoaderBin);
-      }
+    // Retained for diagnostics, but never invoked by the game monitor.
+    // Restarting Wine just to run tasklist after a force quit is slow.
+    async function listWineProcessesViaWine(): Promise<WineProcess[]> {
       try {
         const result = await unixExec2(
           [pinnedLoaderBin, "tasklist", "/fo", "csv", "/nh"],
@@ -417,11 +406,28 @@ export async function createWine(options: {
       }
     }
 
+    async function listWineProcesses(): Promise<WineProcess[]> {
+      const result = await unixExec2(
+        ["ps", "-axww", "-o", "pid=,command="],
+        undefined,
+        false,
+        undefined,
+        { timeoutMs: 3_000 }
+      );
+      // A ps failure must propagate as "unknown", never as game exit. Do not
+      // fall back to tasklist/winedbg, which would restart the Wine prefix.
+      return parseMacWineProcesses(result.stdOut, pinnedLoaderBin, executable);
+    }
+
     return createGameProcessMonitor({
       executable,
       listProcesses: listWineProcesses,
-      getWindowState: createNativeGameWindowState(executable),
-      onWindowClosed: killAll,
+      pinProcessIdsOnStart: true,
+      exitOnWindowClose,
+      getWindowState: exitOnWindowClose
+        ? createNativeGameWindowState(executable)
+        : undefined,
+      onWindowClosed: exitOnWindowClose ? killAll : undefined,
     });
   }
 

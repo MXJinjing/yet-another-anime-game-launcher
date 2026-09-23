@@ -13,6 +13,10 @@ case "$TARGET_ARCH" in
     ;;
 esac
 
+if [ "$TARGET_ARCH" = "arm64" ] && [ -z "${SOPHON_PYTHON:-}" ] && [ -x "$PWD/sophon_server/.venv/bin/python" ]; then
+  SOPHON_PYTHON="$PWD/sophon_server/.venv/bin/python"
+fi
+
 OUTPUT_DIR="./build"
 if [ "$TARGET_ARCH" = "x64" ]; then
   OUTPUT_DIR="./build-x64"
@@ -33,9 +37,11 @@ fi
 
 cp "./sidecar/${TARGET_ARCH}/hpatchz/hpatchz" ./sophon_server/hpatchz
 
-curl -sSL https://github.com/protocolbuffers/protobuf/releases/download/v31.1/protoc-31.1-osx-universal_binary.zip > protobuf.zip
-unzip -o -j protobuf.zip bin/protoc -d bin
-rm protobuf.zip
+if [ ! -x ./bin/protoc ] || [ "$(./bin/protoc --version)" != "libprotoc 31.1" ]; then
+  curl -fsSL https://github.com/protocolbuffers/protobuf/releases/download/v31.1/protoc-31.1-osx-universal_binary.zip -o protobuf.zip
+  unzip -o -j protobuf.zip bin/protoc -d bin
+  rm protobuf.zip
+fi
 
 pushd sophon_server
 ../bin/protoc --python_out=. *.proto

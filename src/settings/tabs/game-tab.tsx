@@ -10,6 +10,7 @@ export function GameTab(props: {
   ProxyEnabledConfig: () => JSXElement;
   ProxyHostConfig: () => JSXElement;
   MetalHUDConfig: () => JSXElement;
+  ExitOnWindowCloseConfig: () => JSXElement;
 }) {
   return (
     <SettingsTabPanel>
@@ -24,6 +25,8 @@ export function GameTab(props: {
         </VStack>
         <Divider />
         <props.MetalHUDConfig />
+        <Divider />
+        <props.ExitOnWindowCloseConfig />
       </>
     </SettingsTabPanel>
   );

@@ -237,13 +237,7 @@ class InstallProgressHandler:
 
     def file_download_complete(self, filename: str, file_size: int):
         with self._progress_lock:
-            details = self.active_files.pop(filename, None)
-            if details and details["total_size"] > details["downloaded_size"]:
-                remaining = details["total_size"] - details["downloaded_size"]
-                self.downloaded_size = min(
-                    self.download_size,
-                    self.downloaded_size + remaining,
-                ) if self.download_size > 0 else self.downloaded_size + remaining
+            self.active_files.pop(filename, None)
         self.conn_manager.send_message_threadsafe({
             "type": "file_download_complete",
             "task_id": self.task_id,
@@ -397,13 +391,7 @@ class UpdateProgressHandler(InstallProgressHandler):
 
     def ldiff_download_complete(self, filename: str, file_size: int):
         with self._progress_lock:
-            details = self.active_files.pop(filename, None)
-            if details and details["total_size"] > details["downloaded_size"]:
-                remaining = details["total_size"] - details["downloaded_size"]
-                self.downloaded_size = min(
-                    self.download_size,
-                    self.downloaded_size + remaining,
-                ) if self.download_size > 0 else self.downloaded_size + remaining
+            self.active_files.pop(filename, None)
         self.conn_manager.send_message_threadsafe({
             "type": "ldiff_download_complete",
             "task_id": self.task_id,

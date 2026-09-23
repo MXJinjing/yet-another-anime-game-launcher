@@ -47,6 +47,20 @@ describe("ConfigStore", () => {
     ).resolves.toBe(1024);
   });
 
+  it("keeps window-based game exit disabled until explicitly enabled", async () => {
+    vi.mocked(globalStorage.getKey)
+      .mockRejectedValueOnce(new Error("missing value"))
+      .mockResolvedValueOnce("true");
+    const store = createConfigStore();
+
+    await expect(store.read(configEntries.exitOnWindowClose)).resolves.toBe(
+      false
+    );
+    await expect(store.read(configEntries.exitOnWindowClose)).resolves.toBe(
+      true
+    );
+  });
+
   it("serializes and removes values using the entry key", async () => {
     const store = createConfigStore();
 

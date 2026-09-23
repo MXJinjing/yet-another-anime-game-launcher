@@ -222,6 +222,8 @@ export const fr_FR: typeof zh_CN = {
     "Votre version actuelle du jeu ({0}) est trop ancienne pour être mise à jour progressivement. Veuillez réinstaller le jeu.",
 
   PREDOWNLOAD_READY: "{0} prétéléchargement {1}",
+  PREDOWNLOAD_BUTTON: "Pré-télécharger {0}",
+  DOWNLOAD_TASK_CHECK_INTEGRITY: "Vérifier l'intégrité du jeu ({0})",
   PREDOWNLOAD_DONE: "Préchargé",
   SETTING_PREDOWNLOAD: en.SETTING_PREDOWNLOAD,
   SETTING_PREDOWNLOAD_VERSION: en.SETTING_PREDOWNLOAD_VERSION,

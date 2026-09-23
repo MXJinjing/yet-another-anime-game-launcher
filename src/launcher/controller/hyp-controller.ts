@@ -95,7 +95,7 @@ export function gameDownloadTaskMetadata(
   return {
     title:
       mode === "integrity"
-        ? `${game.title} ${locale.get("SETTING_CHECK_INTEGRITY")}`
+        ? locale.format("DOWNLOAD_TASK_CHECK_INTEGRITY", [game.title])
         : mode === "predownload"
         ? `${baseTitle} ${locale.get("DOWNLOAD_TASK_PREDOWNLOAD_SUFFIX")}`
         : baseTitle,

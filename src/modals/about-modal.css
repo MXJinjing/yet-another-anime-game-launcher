@@ -94,13 +94,6 @@
   margin-right: auto;
 }
 
-/* Version line with a check-for-updates button on its right. */
-.about-version-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .about-check-update {
   padding: 4px 12px;
   border: 1px solid rgba(255, 255, 255, 0.14);

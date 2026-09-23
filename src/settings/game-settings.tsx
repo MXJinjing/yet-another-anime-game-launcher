@@ -110,6 +110,7 @@ export class GameSettings extends SettingsController<GameLoadedSettings> {
           ProxyEnabledConfig={settings.proxyEnabled}
           ProxyHostConfig={settings.proxyHost}
           MetalHUDConfig={settings.metalHUD}
+          ExitOnWindowCloseConfig={settings.exitOnWindowClose}
         />
         <VideoTab
           locale={this.locale}

@@ -357,18 +357,8 @@ export async function createMultiGameWineFromRoot({
       if (timeout != undefined) clearTimeout(timeout);
     }
   };
-  const useInWineEnumeration = distro.attributes.renderBackend == "dxmt";
-  const listWineProcesses = async (): Promise<WineProcess[]> => {
-    if (!useInWineEnumeration) {
-      const result = await exec2(
-        ["ps", "-axo", "pid=,command="],
-        undefined,
-        false,
-        undefined,
-        { timeoutMs: 3_000 }
-      );
-      return parseMacWineProcesses(result.stdOut, loaderBin);
-    }
+  // Retained for diagnostics, but never invoked by the game monitor.
+  const listWineProcessesViaWine = async (): Promise<WineProcess[]> => {
     try {
       const result = await exec2(
         [loaderBin, "tasklist", "/fo", "csv", "/nh"],
@@ -396,6 +386,20 @@ export async function createMultiGameWineFromRoot({
       throw new Error("winedbg returned no parseable process rows");
     }
   };
+  const listWineProcesses = async (
+    executable: string
+  ): Promise<WineProcess[]> => {
+    const result = await exec2(
+      ["ps", "-axww", "-o", "pid=,command="],
+      undefined,
+      false,
+      undefined,
+      { timeoutMs: 3_000 }
+    );
+    // A ps failure must propagate as "unknown", never as game exit. Do not
+    // fall back to tasklist/winedbg, which would restart the Wine prefix.
+    return parseMacWineProcesses(result.stdOut, loaderBin, executable);
+  };
   const killAll = async () => {
     try {
       await exec(
@@ -408,12 +412,19 @@ export async function createMultiGameWineFromRoot({
       /* best-effort cleanup */
     }
   };
-  const createGameProcessMonitorFor = (executable: string) =>
+  const createGameProcessMonitorFor = (
+    executable: string,
+    { exitOnWindowClose = false }: { exitOnWindowClose?: boolean } = {}
+  ) =>
     createGameProcessMonitor({
       executable,
-      listProcesses: listWineProcesses,
-      getWindowState: createNativeGameWindowState(executable),
-      onWindowClosed: killAll,
+      listProcesses: () => listWineProcesses(executable),
+      pinProcessIdsOnStart: true,
+      exitOnWindowClose,
+      getWindowState: exitOnWindowClose
+        ? createNativeGameWindowState(executable)
+        : undefined,
+      onWindowClosed: exitOnWindowClose ? killAll : undefined,
     });
   let netbiosname: string;
   try {

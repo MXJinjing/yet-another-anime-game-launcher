@@ -46,6 +46,7 @@ export type GlobalLoadedSettings = BaseLoadedSettings & {
 
 export type GameLoadedSettings = BaseLoadedSettings & {
   metalHUD: SettingsComponent;
+  exitOnWindowClose: SettingsComponent;
   gameInstallDir: SettingsComponent;
   retina: SettingsComponent;
   vsync: SettingsComponent;

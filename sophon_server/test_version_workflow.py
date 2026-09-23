@@ -67,6 +67,32 @@ class PredownloadAvailabilityTests(unittest.TestCase):
             pause_event=pause_event,
         )
 
+    def test_failed_full_download_does_not_delete_files_or_advance_version(self):
+        client = MagicMock()
+        client.rel_type = "cn"
+        client.diff_download_new_files.side_effect = RuntimeError("download failed")
+        with tempfile.TemporaryDirectory() as game_dir:
+            request = UpdateRequest(gamedir=game_dir, game_type="hk4e")
+            with patch.object(tasks, "SophonClient", return_value=client):
+                with self.assertRaisesRegex(RuntimeError, "download failed"):
+                    tasks._perform_update(MagicMock(), request)
+        client.process_deletefiles.assert_not_called()
+        client.update_config_ini_version.assert_not_called()
+
+    def test_successful_update_deletes_old_files_after_verified_downloads(self):
+        client = MagicMock()
+        client.rel_type = "cn"
+        with tempfile.TemporaryDirectory() as game_dir:
+            request = UpdateRequest(gamedir=game_dir, game_type="hk4e")
+            with patch.object(tasks, "SophonClient", return_value=client):
+                tasks._perform_update(MagicMock(), request)
+        calls = client.mock_calls
+        download_index = next(i for i, call in enumerate(calls) if call[0] == "diff_download_new_files")
+        delete_index = next(i for i, call in enumerate(calls) if call[0] == "process_deletefiles")
+        version_index = next(i for i, call in enumerate(calls) if call[0] == "update_config_ini_version")
+        self.assertLess(download_index, delete_index)
+        self.assertLess(delete_index, version_index)
+
 
 class RepairWorkflowTests(unittest.TestCase):
     def test_updates_supported_older_version_before_repair(self):

@@ -220,6 +220,17 @@ def try_get_file_size(filename: pathlib.Path):
 	except FileNotFoundError:
 		return -1
 
+def file_md5(filename: pathlib.Path) -> str:
+	"""Hash large game files without loading them into memory."""
+	digest = hashlib.md5()
+	with filename.open("rb") as fh:
+		for block in iter(lambda: fh.read(8 * 1024 * 1024), b""):
+			digest.update(block)
+	return digest.hexdigest()
+
+def file_matches(filename: pathlib.Path, size: int, md5: str) -> bool:
+	return try_get_file_size(filename) == size and file_md5(filename) == md5
+
 def filename_safety_check(filename):
 	"""
 	Checks whether the path is relative AND within this tree
@@ -380,6 +391,15 @@ class SophonClient:
 
 	new_files_to_download = set() # Update only. Relative file name
 	ldiff_files_to_remove = set() # Update only. File name (no path)
+
+	def __init__(self):
+		# Downloads may run in separate tasks; their manifests and work queues
+		# must not leak into one another.
+		self.di_chunks = DownloadInfo()
+		self.di_diffs = DownloadInfo()
+		self.new_files_to_download = set()
+		self.ldiff_files_to_remove = set()
+		self.branches_json = None
 
 
 	def initialize(self, opts: Options):
@@ -902,18 +922,29 @@ class SophonClient:
 		return None
 
 
+	def remaining_chunk_download_size(self, file_info) -> int:
+		"""Compressed bytes still needed from the network for one file."""
+		filename_safety_check(file_info.filename)
+		if file_info.flags == 64:
+			return 0
+		filename = pathlib.Path(file_info.filename)
+		if file_matches(gamedir(filename), file_info.size, file_info.md5):
+			return 0
+		if file_matches(tempdir("files", filename), file_info.size, file_info.md5):
+			return 0
+		remaining = 0
+		for chunk in file_info.chunks:
+			cached = try_get_file_size(tempdir(chunk.chunk_id))
+			remaining += chunk.compressed_size - cached if 0 <= cached <= chunk.compressed_size else chunk.compressed_size
+		return remaining
+
 	def get_chunk_download_size(self, filter_by_new: bool) -> int:
-		"""
-		Returns the sum of the chunk sizes
-		"""
-		download_size_total: int = 0
-		for v in self.di_chunks.manifest.files:
-			if filter_by_new:
-				if not (v.filename in self.new_files_to_download):
-					continue
-			for c in v.chunks:
-				download_size_total += c.compressed_size
-		return download_size_total
+		"""Count only the bytes absent from staged files and chunk cache."""
+		return sum(
+			self.remaining_chunk_download_size(v)
+			for v in self.di_chunks.manifest.files
+			if not filter_by_new or v.filename in self.new_files_to_download
+		)
 
 
 	def _download_file_resume(self, url: str, dstfile: pathlib.Path, dstsize: int, cancel_event = None, pause_event = None, progress_callback = None):
@@ -926,8 +957,6 @@ class SophonClient:
 				warnlog(f"Removing corrupted file: {dstfile.name}")
 				dstfile.unlink()
 				filesize = 0
-		if progress_callback and filesize > 0:
-			progress_callback(filesize)
 		if filesize == dstsize:
 			return
 
@@ -998,7 +1027,7 @@ class SophonClient:
 		Returns `True` if the file is (now) present.
 		"""
 
-		total_download_bytes = sum(chunk.compressed_size for chunk in file_info.chunks)
+		total_download_bytes = self.remaining_chunk_download_size(file_info)
 		if install_progress_handler:
 			install_progress_handler.file_download_start(file_info.filename, total_download_bytes)
 
@@ -1016,8 +1045,8 @@ class SophonClient:
 		filename_safety_check(file_info.filename)
 		filename = pathlib.Path(file_info.filename) # "UnityGame_Data/Subdirectory/file.txt"
 
-		# Check whether the file already exists
-		if try_get_file_size(gamedir(filename)) == file_info.size:
+		# A matching size alone does not make an existing file safe to reuse.
+		if file_matches(gamedir(filename), file_info.size, file_info.md5):
 			if install_progress_handler:
 				install_progress_handler.file_download_skipped(file_info.filename, "exists")
 			#infolog(f"File '{filename.name}' already exists. ")
@@ -1036,13 +1065,16 @@ class SophonClient:
 			return
 
 		# Download to the temporary directory. Move after we're done.
-		dstfile = tempdir(filename.name)
+		dstfile = tempdir("files", filename)
+		dstfile.parent.mkdir(parents=True, exist_ok=True)
 		bytes_written = 0
 
 		while True: # run once
 			if try_get_file_size(dstfile) == file_info.size:
-				# File was already downloaded but not moved (e.g. out of space)
-				break
+				# A completed staging file may be reused only after verification.
+				if file_md5(dstfile) == file_info.md5:
+					break
+				dstfile.unlink()
 
 			with dstfile.open("wb") as fh:
 				# Download all chunks. Closing this handle before integrity
@@ -1072,12 +1104,16 @@ class SophonClient:
 					)
 
 					# Write chunk to file
-					with cfname.open("rb") as zfh:
-						reader = zstandard.ZstdDecompressor().stream_reader(zfh)
-						data = reader.read()
-						fh.seek(chunk.offset)
-						fh.write(data)
-						bytes_written += len(data)
+					try:
+						with cfname.open("rb") as zfh:
+							reader = zstandard.ZstdDecompressor().stream_reader(zfh)
+							data = reader.read()
+					except zstandard.ZstdError:
+						cfname.unlink(True)
+						raise
+					fh.seek(chunk.offset)
+					fh.write(data)
+					bytes_written += len(data)
 
 					debuglog(f"\t Progress: {(bytes_written * 100 / file_info.size):2.0f} % | "
 					         + f" {bytes_to_MiB(bytes_written)} / {size_mib} MiB", end="\r")
@@ -1091,11 +1127,13 @@ class SophonClient:
 			print("") # Keep the last "100 %" line
 
 		# Verify file integrity
-		md5 = hashlib.md5(dstfile.read_bytes()).hexdigest()
+		md5 = file_md5(dstfile)
 		if file_info.md5 == md5:
 			infolog("\t File is correct (md5 check)")
 		else:
 			dstfile.unlink() # delete
+			for chunk in file_info.chunks:
+				tempdir(chunk.chunk_id).unlink(True)
 			abortlog(f"\t File is corrupt after download: {filename.name}. Please retry.")
 
 		if RUN_MEMORY_HACK:
@@ -1187,6 +1225,14 @@ class SophonClient:
 
 		return pinfo
 
+	def remaining_ldiff_download_size(self, ldiff_dir: pathlib.Path, pinfo) -> int:
+		filename_safety_check(pinfo.patch_id)
+		ldiffname = ldiff_dir / pinfo.patch_id
+		if try_get_file_size(ldiffname) == pinfo.patch_size:
+			return 0
+		cached = try_get_file_size(pathlib.Path(f"{ldiffname}_tmp"))
+		return pinfo.patch_size - cached if 0 <= cached <= pinfo.patch_size else pinfo.patch_size
+
 
 	def _download_ldiff_file(self, ldiff_dir: pathlib.Path, v: manifest_ldiff_pb2.DiffFileInfo, progress_handler = None, cancel_event = None, pause_event = None):
 		"""
@@ -1222,42 +1268,27 @@ class SophonClient:
 				progress_handler.ldiff_download_skipped(v.filename, "not modified")
 			return None # The file was not modified in the new version
 		if progress_handler:
-			progress_handler.ldiff_download_start(v.filename, pinfo.patch_size)
+			progress_handler.ldiff_download_start(v.filename, self.remaining_ldiff_download_size(ldiff_dir, pinfo))
 
-		# Check whether the file is ready for patching
-		while True: # run once
-			gamefile = gamedir(v.filename)
-			gamefilesize = try_get_file_size(gamefile)
-			md5 = None
-
-			if gamefilesize == pinfo.original_size:
-				# Ready for patching (do we want to compute the md5 hash here?)
-				break
-
-			if gamefilesize == v.size:
-				# Maybe already up-to-date?
-				md5 = hashlib.md5(gamefile.read_bytes()).hexdigest()
-				if md5 == v.hash:
-					if progress_handler:
-						progress_handler.ldiff_download_skipped(v.filename, "already updated")
-					debuglog(f"File '{gamefile.name}' is already up-to-date. Skipping.")
-					return None
-
-			if gamefilesize == -1:
-				# For some reason, patch files may be given for new files (?)
-				# How did they generate the patch?
-				if progress_handler:
-					progress_handler.ldiff_download_skipped(v.filename, "file missing")
-				infolog(f"Cannot find file '{gamefile.name}'. Adding to chunk download queue.")
-				self.new_files_to_download.add(v.filename)
-				return None
-
-			md5 = md5 if md5 else hashlib.md5(gamefile.read_bytes()).hexdigest()
+		# Old and new files can have the same size. Verify their content before
+		# reusing a patch, both during pre-download and during the real update.
+		gamefile = gamedir(v.filename)
+		gamefilesize = try_get_file_size(gamefile)
+		md5 = file_md5(gamefile) if gamefilesize >= 0 else None
+		if gamefilesize == v.size and md5 == v.hash:
+			if progress_handler:
+				progress_handler.ldiff_download_skipped(v.filename, "already updated")
+			return None
+		if gamefilesize != pinfo.original_size or md5 != pinfo.original_hash:
+			if OPT.predownload:
+				abortlog(
+					f"Cannot pre-download {v.filename}: installed file does not match "
+					"the official source checksum. Run Check Game Integrity first."
+				)
 			if progress_handler:
 				progress_handler.ldiff_download_skipped(v.filename, "file corrupt")
-			warnlog(f"md5 hash mismatch in '{gamefile.name}'. is={md5}, should={pinfo.original_hash} or {v.hash}")
+			warnlog(f"Source file differs from the patch manifest: {v.filename}. Downloading full file.")
 			self.new_files_to_download.add(v.filename)
-			# TODO. shall the file be removed?
 			return None
 
 		ldiffname = ldiff_dir.joinpath(pinfo.patch_id)
@@ -1281,28 +1312,39 @@ class SophonClient:
 			warnlog(f"NOT downloading diff for {ldiffname.name}")
 			return None
 
-		DIFF_URL_PREFIX = self.di_diffs.category_json["diff_download"]["url_prefix"]
-		wait_if_paused(pause_event, cancel_event)
-		self._download_file_resume(
-			DIFF_URL_PREFIX + "/" + pinfo.patch_id,
-			tmp_file,
-			pinfo.patch_size,
-			cancel_event=cancel_event,
-			pause_event=pause_event,
-			progress_callback=(
-				lambda byte_count: progress_handler.ldiff_transfer_progress(
-					v.filename,
-					byte_count,
-					pinfo.patch_size,
-				)
-				if progress_handler else None
-			),
-		)
-		raise_if_cancelled(cancel_event)
+		try:
+			DIFF_URL_PREFIX = self.di_diffs.category_json["diff_download"]["url_prefix"]
+			wait_if_paused(pause_event, cancel_event)
+			self._download_file_resume(
+				DIFF_URL_PREFIX + "/" + pinfo.patch_id,
+				tmp_file,
+				pinfo.patch_size,
+				cancel_event=cancel_event,
+				pause_event=pause_event,
+				progress_callback=(
+					lambda byte_count: progress_handler.ldiff_transfer_progress(
+						v.filename, byte_count, pinfo.patch_size,
+					)
+					if progress_handler else None
+				),
+			)
+			raise_if_cancelled(cancel_event)
+			if tmp_file.stat().st_size != pinfo.patch_size:
+				raise RuntimeError("Corrupted patch download")
+		except TaskCancelledError:
+			raise
+		except (OSError, RuntimeError) as error:
+			# Pre-download must remain incomplete. A real update can recover
+			# using chunks even when its diff is unavailable.
+			if OPT.predownload:
+				raise
+			tmp_file.unlink(True)
+			if progress_handler:
+				progress_handler.ldiff_download_error(v.filename, str(error))
+			warnlog(f"Cannot download diff for {v.filename}: {error}. Downloading full file.")
+			self.new_files_to_download.add(v.filename)
+			return None
 		debuglog("Download done")
-
-		# Verify patch file size (TODO: what's the purpose of the file name?)
-		assert tmp_file.stat().st_size == pinfo.patch_size, "Corrupted patch download"
 
 		# Move to original ldiff file name (without _tmp)
 		# This does not need special dry-run handling (game files are not affected)
@@ -1331,61 +1373,66 @@ class SophonClient:
 			return
 
 		gamefile = gamedir(v.filename)
+		# The file may have changed since pre-download or since the diff was
+		# selected. Do not feed such a file to hpatchz.
+		gamefilesize = try_get_file_size(gamefile)
+		md5 = file_md5(gamefile) if gamefilesize >= 0 else None
+		if gamefilesize == v.size and md5 == v.hash:
+			return True
+		if gamefilesize != pinfo.original_size or md5 != pinfo.original_hash:
+			self.new_files_to_download.add(v.filename)
+			return False
 
 		# Patched file goes into the temporary directory (at first)
-		dstfile = tempdir(pathlib.Path(v.filename).name)
+		dstfile = tempdir("patches", v.filename)
+		dstfile.parent.mkdir(parents=True, exist_ok=True)
 		dstfile.unlink(True)  # remove any existing duplicate temporary file
 
 		ldiffname = ldiff_dir.joinpath(pinfo.patch_id)
 
 		if not ldiffname.is_file():
-			if OPT.disallow_download:
-				return
 			if progress_handler:
 				progress_handler.ldiff_patch_error(v.filename, "diff file missing")
-			abortlog(f"Diff file {ldiffname.name} is missing. Please redownload.")
+			self.new_files_to_download.add(v.filename)
+			return False
 
-		# Apply the patch file
-		raise_if_cancelled(cancel_event)
-		done = hpatchz_patch_file(
-			gamefile,
-			dstfile,
-			ldiffname,
-			pinfo.patch_offset,
-			pinfo.patch_length,
-			cancel_event=cancel_event,
-		)
-		if not done:
-			# retry with longer timeout
+		try:
+			raise_if_cancelled(cancel_event)
 			done = hpatchz_patch_file(
 				gamefile,
 				dstfile,
 				ldiffname,
 				pinfo.patch_offset,
 				pinfo.patch_length,
-				300,
 				cancel_event=cancel_event,
 			)
-
-		# Verify patched file integrity (NOTE: hpatchz might already have checked it)
-		assert dstfile.stat().st_size == v.size
-		md5 = hashlib.md5(dstfile.read_bytes()).hexdigest()
-		if md5 != v.hash:
+			if not done:
+				done = hpatchz_patch_file(
+					gamefile, dstfile, ldiffname, pinfo.patch_offset,
+					pinfo.patch_length, 300, cancel_event=cancel_event,
+				)
+			if not done or not file_matches(dstfile, v.size, v.hash):
+				raise RuntimeError("patched file checksum failed")
+		except TaskCancelledError:
+			dstfile.unlink(True)
+			raise
+		except (OSError, RuntimeError, AssertionError) as error:
+			dstfile.unlink(True)
 			if progress_handler:
-				progress_handler.ldiff_patch_error(v.filename, "checksum failed")
-			warnlog(f"Checksum failed on file {v.filename}. Corrupt?")
-			# Retry by downloading from scratch
+				progress_handler.ldiff_patch_error(v.filename, str(error))
+			warnlog(f"Cannot patch {v.filename}: {error}. Downloading full file.")
 			self.new_files_to_download.add(v.filename)
-		else:
-			infolog(f"Patched file {v.filename}")
+			return False
+		infolog(f"Patched file {v.filename}")
 
 		# Replace the game install file
 		if OPT.dry_run:
 			infolog(f"[move patched '{dstfile.name}' -> game dir]")
-			return
+			return True
 
 		raise_if_cancelled(cancel_event)
 		shutil.move(dstfile, gamefile)
+		return True
 
 
 	def apply_or_prepare_ldiff_files(self, progress_handler = None, cancel_event = None, pause_event = None):
@@ -1411,7 +1458,7 @@ class SophonClient:
 				continue
 
 			download_sizes_checked.add(pinfo.patch_id)
-			download_size_total += pinfo.patch_size
+			download_size_total += self.remaining_ldiff_download_size(ldiff_dir, pinfo)
 		infolog(f"Downloading ldiff files (up to {bytes_to_MiB(download_size_total)} MiB) ...")
 		if progress_handler:
 			progress_handler.ldiff_download_summary(
@@ -1449,13 +1496,13 @@ class SophonClient:
 					# Normal case: update the file
 					if progress_handler:
 						progress_handler.ldiff_patch_start(v.filename)
-					self._apply_ldiff_file(
+					patched = self._apply_ldiff_file(
 						ldiff_dir,
 						v,
 						progress_handler=progress_handler,
 						cancel_event=cancel_event,
 					)
-					if progress_handler:
+					if patched and progress_handler:
 						progress_handler.ldiff_patch_complete(v.filename)
 					if RUN_MEMORY_HACK:
 						force_memory_release()
@@ -1546,7 +1593,10 @@ class SophonClient:
 			while err_cnt < 5:
 				try:
 					wait_if_paused(pause_event, cancel_event)
-					self.download_game_file(v, install_progress_handler=progress_handler, cancel_event=cancel_event, pause_event=pause_event)
+					self.download_game_file(
+						v, install_progress_handler=progress_handler,
+						cancel_event=cancel_event, pause_event=pause_event,
+					)
 					break
 				except TaskCancelledError:
 					raise
@@ -1554,10 +1604,13 @@ class SophonClient:
 					err_cnt += 1
 					err_logs.append(str(e))
 			if err_cnt == 5:
-				raise Exception(f"Download file {v.name} failed after 3 attempts: {err_logs}")["pkg_version", ""]
+				raise RuntimeError(f"Download file {v.filename} failed after 5 attempts: {err_logs}")
 
 		with concurrent.futures.ThreadPoolExecutor(max_workers=WORKER_CNT) as executor:
 			repair_files = [v for v in self.di_chunks.manifest.files if v.filename in self.new_files_to_download]
+			missing = self.new_files_to_download - {v.filename for v in repair_files}
+			if missing:
+				abortlog(f"Files missing from target manifest: {sorted(missing)}")
 			futures = [executor.submit(download_file, v) for v in repair_files]
 			for future in concurrent.futures.as_completed(futures):
 				future.result()
@@ -1652,7 +1705,7 @@ class SophonClient:
 			if gamefilesize != v.size:
 				reason = f"size mismatch. is={gamefilesize}, should={v.size}"
 			elif reliable_checking:
-				md5 = hashlib.md5(gamefile.read_bytes()).hexdigest()
+				md5 = file_md5(gamefile)
 				if md5 != v.md5:
 					reason = f"md5 mismatch. is={md5}, should={v.md5}"
 				del md5

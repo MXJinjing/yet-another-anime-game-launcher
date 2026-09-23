@@ -19,6 +19,11 @@ export const configEntries = {
     false,
     booleanCodec
   ),
+  exitOnWindowClose: withDefault(
+    "config_exit_on_window_close",
+    false,
+    booleanCodec
+  ),
   downloadProxyEnabled: withDefault(
     "config_downloadProxyEnabled",
     false,

@@ -41,7 +41,7 @@ def test_completed_and_skipped_files_leave_the_active_snapshot():
     handler.file_download_start("complete.bin", 100)
     handler.file_transfer_progress("complete.bin", 50, 100)
     handler.file_download_complete("complete.bin", 150)
-    assert handler.downloaded_size == 100
+    assert handler.downloaded_size == 50
     assert handler._active_files_snapshot_locked() == []
 
     handler.file_download_start("skip.bin", 100)
@@ -78,5 +78,5 @@ def test_ldiff_progress_uses_the_same_live_file_protocol():
     assert snapshot[0]["progress_percent"] == 25
 
     handler.ldiff_download_complete("patch.diff", 64)
-    assert handler.downloaded_size == 64
+    assert handler.downloaded_size == 16
     assert handler._active_files_snapshot_locked() == []
