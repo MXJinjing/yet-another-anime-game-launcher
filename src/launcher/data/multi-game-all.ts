@@ -1,8 +1,5 @@
 import AponiaIcon from "../../assets/Aponia.cr.webp";
-import NahidaIcon from "../../assets/Nahida.cr.png";
 import { createClient as createBh3Client } from "../../clients/bh3glb";
-import { createClient as createCbjqCnClient } from "../../clients/cbjqcn";
-import { createClient as createCbjqClient } from "../../clients/cbjq";
 import { createClient as createHk4eCnClient } from "../../clients/hk4ecn";
 import { createClient as createHk4eOsClient } from "../../clients/hk4eos";
 import { createClient as createHsrCnClient } from "../../clients/hkrpgcn";
@@ -116,23 +113,5 @@ export const MULTI_GAME_ALL_GAME_SPECS: MultiGameGameSpec[] = [
     displayRegion: "OS",
     displayBiz: "bh3_global",
     createClient: createBh3Client,
-  },
-  {
-    id: "all-cbjq-os",
-    clientId: "cbjq",
-    namespace: "all-cbjq-os",
-    title: atob("U25vd2JyZWFrOiBDb250YWlubWVudCBab25l"),
-    fallbackIcon: NahidaIcon,
-    serverLabel: "SERVER_LABEL_GLOBAL",
-    createClient: createCbjqClient,
-  },
-  {
-    id: "all-cbjq-cn",
-    clientId: "cbjqcn",
-    namespace: "all-cbjq-cn",
-    title: atob("U25vd2JyZWFrOiBDb250YWlubWVudCBab25lIENO"),
-    fallbackIcon: NahidaIcon,
-    serverLabel: "SERVER_LABEL_CN",
-    createClient: createCbjqCnClient,
   },
 ];
