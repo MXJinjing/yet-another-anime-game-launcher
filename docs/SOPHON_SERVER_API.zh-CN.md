@@ -4,7 +4,7 @@
 
 ## 1. 服务概览
 
-Sophon server 是一个由 FastAPI 和 Uvicorn 提供的本地服务。启动器通常随机选择 `40000` 到 `65534` 之间的端口，并以以下地址访问：
+Sophon server 是一个由 FastAPI 和 Uvicorn 提供的本地服务。启动器通常随机选择 `50000` 到 `65534` 之间的端口，并以以下地址访问：
 
 ```text
 http://127.0.0.1:<port>
@@ -16,7 +16,9 @@ WebSocket 使用对应的地址：
 ws://127.0.0.1:<port>/ws/<task_id>
 ```
 
-服务端入口为 `sophon_server/server.py`。直接运行时可通过环境变量配置监听地址和端口：
+本文档的基准是原启动器仓库当前 Python 实现；独立项目的统一 API 文档位于 `~/Projects/yaagl-build/sophon/SOPHON_SERVER_API.zh-CN.md`；本文仍描述原启动器仓库的 Python 实现，使用时请以对应服务端的文档为准。
+
+原仓库服务端入口为 `sophon_server/server.py`，迁移后的入口为 `sophon-server/src/server.py`。直接运行时可通过环境变量配置监听地址和端口：
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -105,7 +107,7 @@ GET /api/game/online_info?game=<game>&reltype=<reltype>
 | 参数 | 类型 | 可选值 | 说明 |
 | --- | --- | --- | --- |
 | `game` | string | `hk4e`, `nap` | 游戏类型 |
-| `reltype` | string | `os`, `cn`, `bb` | 发行渠道；当前 `bb` 仅部分游戏适用 |
+| `reltype` | string | `os`, `cn`, `bb` | 发行渠道；`bb` 分支信息只适用于 hk4e，完整下载支持见下文 |
 
 示例：
 
@@ -137,11 +139,11 @@ GET /api/game/online_info?game=hk4e&reltype=cn
 | `install_size` | integer | 完整安装所需的压缩 chunk 总大小；读取 manifest 失败时可能为 `0` |
 | `updatable_versions` | string[] | 官方提供的可增量更新起始版本 |
 | `release_type` | string | 原样返回的渠道参数 |
-| `pre_download` | boolean | 是否存在可用预下载分支 |
-| `pre_download_version` | string/null | 预下载版本；没有时为 `0.0.0` |
+| `pre_download` | boolean | 是否取得预下载分支参数；不保证清单或 chunk 可用 |
+| `pre_download_version` | string/null | 成功查询但没有预下载分支时为 `0.0.0`；整体查询失败时通常为 null |
 | `error` | string/null | 服务端捕获异常时的错误信息 |
 
-服务端可能在 manifest 读取失败时仍返回版本信息，此时应检查 `error` 和 `install_size`。
+manifest 读取失败只记录服务端日志，仍可能返回有效版本、`install_size=0` 和 `error=null`；不能仅凭 `error=null` 判断清单或下载资源可用。`pre_download=true` 只表示成功取得预下载分支信息，未验证其 manifest 或全部 chunk 可下载。整体查询失败时，`pre_download_version` 通常为 `null`，成功但没有预下载分支时为 `0.0.0`。
 
 ### 3.3 启动安装任务
 
@@ -171,7 +173,9 @@ POST /api/install
 | `download_speed_limit` | integer | 否 | bytes/s；默认 `0`，表示不限速 |
 | `install_reltype` | string | 是 | `os`、`cn` 或 `bb` |
 
-安装目录通常应为空，服务端会在其中创建或写入游戏文件。安装任务会下载完整的 `game` manifest 中的文件。
+安装目录应使用专用目录。当前空目录检查实际为目录条目数小于 2，因此不是严格的空目录校验。服务端会创建或写入 `config.ini` 并下载 `game` manifest 中的文件；不会自动下载全部语音分类。安装开始后，在文件下载完成前就会写入目标版本号，因此不能仅用 `config.ini` 判断安装成功。
+
+`bb` 虽然可取得 hk4e 的分支信息，但当前 `make_getBuild_url` 没有 `bb` 分支，完整安装、更新、修复会在读取下载清单时失败。
 
 ### 3.4 启动更新或预下载任务
 
@@ -201,7 +205,7 @@ POST /api/update
 | `download_speed_limit` | integer | 否 | bytes/s；默认 `0` |
 | `predownload` | boolean | 否 | `true` 表示只准备预下载资源，不应用更新；默认 `false` |
 
-普通更新会处理删除、下载和应用 ldiff，并在完成后清理不再需要的 ldiff 文件。预下载支持取决于渠道；当前服务端只允许海外渠道使用完整预下载流程。
+普通更新会处理删除、下载和应用 ldiff，并在完成后清理不再需要的 ldiff 文件。预下载支持取决于渠道；当前服务端允许 `os`、`cn` 使用预下载流程，禁用 `bb`；是否存在预下载分支由官方返回结果决定。
 
 ### 3.5 启动修复任务
 
@@ -231,7 +235,9 @@ POST /api/repair
 | `download_speed_limit` | integer | 否 | bytes/s；默认 `0` |
 | `repair_mode` | string | 是 | `quick` 只检查文件大小；`reliable` 额外检查 MD5 |
 
-如果已安装版本低于在线版本，修复任务可能先自动执行一次更新，再继续修复。
+`quick` 和 `reliable` 都是检查后自动下载、替换异常文件的修复操作，不是只检查接口。
+
+已安装版本低于在线版本且位于官方 `updatable_versions` 中时，会先自动更新再继续修复；不在该列表中会失败。已安装版本高于在线版本时也会失败。
 
 ### 3.6 修改下载速度限制
 
@@ -274,7 +280,7 @@ GET /api/tasks/<task_id>/status
 }
 ```
 
-当前 `progress` 字段由模型保留，实际详细进度通过 WebSocket 事件发送，通常为 `null`。
+当前 `progress` 字段由模型保留，现有实现没有为它更新数值，通常为 `null`；详细进度通过 WebSocket 事件发送。状态响应不包含任务结果，`completed.result` 当前通常为 `null`。
 
 查询不存在的任务时仍返回 HTTP `200`：
 
@@ -361,9 +367,9 @@ ws://127.0.0.1:<port>/ws/3f5c1c1d-8cb5-4d26-b1b9-2c7a2d8f6a0f
 ws://<host>:<port>/ws/<task_id>
 ```
 
-客户端不需要先发送订阅消息。连接建立后，服务端会推送缓存的进度事件；如果任务已经结束，也会补发对应的终止事件。
+客户端不需要先发送订阅消息。连接建立后，服务端会推送尚存的缓存事件。每个任务默认最多缓存 512 条消息，优先保留终止事件；闲置超过 300 秒的缓存会在后续缓存操作或连接时清理。如果任务已经结束且没有缓存终止事件，连接时会根据内存中的任务状态补发终止事件。事件缓存不构成完整、可重放的历史日志。每个任务只保留一个活跃连接，新连接会替换旧连接的接收位置。不存在的任务也可以建立连接，但没有状态可补发，不能用连接成功判断任务存在。
 
-服务端每 30 秒等待一次客户端文本消息，以保持连接；启动器无需发送业务消息，但可以发送任意文本作为保活消息。
+服务端对每次接收客户端文本消息设置 30 秒超时，超时后继续等待；它不会因此主动发送心跳或关闭连接。启动器无需发送业务消息。协议层 ping/pong 由 WebSocket 实现处理。
 
 ### 5.2 通用字段
 
@@ -416,7 +422,7 @@ ws://<host>:<port>/ws/<task_id>
 
 #### `completed`
 
-后台任务函数正常返回。通常随后还会发送 `job_end`。
+后台任务函数正常返回后，由线程包装器发送 `completed`。安装、更新、修复任务通常先在函数内发送 `job_end`，随后才发送 `completed`；客户端不应假设 `completed` 先到达，或等待两个事件均到达才结束。
 
 ```json
 {
@@ -428,7 +434,7 @@ ws://<host>:<port>/ws/<task_id>
 
 #### `job_end`
 
-任务成功结束，客户端可以关闭 WebSocket。
+任务函数已经完成主要工作，客户端可以关闭 WebSocket。后台线程随后才更新内存中的任务状态，因此收到终止事件时，紧接着的状态查询仍可能短暂返回 `running`。
 
 ```json
 {
@@ -440,7 +446,7 @@ ws://<host>:<port>/ws/<task_id>
 
 #### `job_error`
 
-任务被取消或以可识别的任务错误结束。
+当前任务线程在捕获取消异常时发送，通常表示任务被取消。线程直接发送的事件不包含 `active_files`；下例中的该字段属于进度处理器能够生成的格式，客户端应把它视为可选字段。
 
 ```json
 {
@@ -453,7 +459,7 @@ ws://<host>:<port>/ws/<task_id>
 
 #### `error`
 
-任务发生未处理异常。
+任务发生未处理异常。取消和异常事件发送后，线程才更新任务状态，轮询结果可能短暂滞后。
 
 ```json
 {
@@ -594,7 +600,12 @@ finally:
 
 ## 7. 错误和限制
 
-- 参数校验失败时，FastAPI/Pydantic 通常返回 HTTP `422` 及验证错误详情。
+- 请求结构或严格枚举字段（如 `game_type`、路径中的任务类型）校验失败时返回 HTTP `422`。但三个任务接口共用 `Union[InstallRequest, RepairRequest, UpdateRequest]`，操作类型与请求模型没有绑定：安装缺少 `install_reltype` 或修复缺少 `repair_mode` 仍可能被解析为 `UpdateRequest`，先返回 HTTP `200` 和任务 ID，随后后台任务失败。客户端必须按目标操作完整发送字段。
+- `reltype`、`install_reltype`、`repair_mode` 在模型中实际是普通字符串，并未严格限制表格列出的取值；未知值可能在业务处理中失败，非 `reliable` 的修复模式实际按快速检查处理。
+- 限速字段没有非负约束，负数会被限速器归一化为 `0`，表示不限速。每次创建任务会重新设置共享限速器，可能改变已有任务的限速。
+- Pydantic 默认忽略额外字段。现有接口没有历史版本、分类选择、指定文件下载或只检查参数；发送 `version`、`files` 等未知字段不会启用这些功能。
+- 当前底层下载代码使用进程全局 `OPT`，在线查询还使用固定临时目录。虽然 HTTP 层允许创建多个任务，但不能据此认为不同目录的任务和在线查询可以安全并发。客户端应串行执行涉及底层下载器的操作。
+- `file_download_error`、进度处理器的 `job_error` 有事件生成方法，但当前主要任务路径未调用它们；实际文件失败可能直接表现为任务级 `error`。不能依赖每个失败文件都有对应文件级错误事件。
 - 不存在的任务在取消、暂停和恢复接口上目前不会返回 `404`；调用方需要结合状态接口判断任务是否存在。
 - 任务状态和进度只保存在内存中，没有持久化任务数据库。
 - 默认使用单个 Uvicorn worker；服务不面向多进程共享任务状态的部署场景。
