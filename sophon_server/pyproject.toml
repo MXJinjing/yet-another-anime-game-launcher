@@ -14,3 +14,34 @@ dependencies = [
     "websockets>=15.0.1",
     "zstandard>=0.23.0",
 ]
+
+[dependency-groups]
+dev = [
+    "coverage[toml]>=7.6,<8",
+    "grpcio-tools>=1.73.1,<2",
+    "httpx>=0.27,<1",
+    "pytest>=8,<10",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["."]
+omit = [
+    "test_*.py",
+    "*_pb2.py",
+    "*/.venv*/*",
+    "*/build/*",
+    "*/build-x64/*",
+]
+
+[tool.coverage.report]
+precision = 2
+
+[tool.coverage.html]
+directory = "../coverage/sophon/html"
+
+[tool.coverage.json]
+output = "../coverage/sophon/coverage.json"
+
+[tool.coverage.xml]
+output = "../coverage/sophon/cobertura.xml"

@@ -35,5 +35,29 @@ export default defineConfig({
     deps: {
       inline: ["@hope-ui/solid", "scroll-lock"],
     },
+    coverage: {
+      provider: "istanbul",
+      all: true,
+      include: ["src/**/*.ts", "src/**/*.tsx"],
+      exclude: [
+        "src/**/*.d.ts",
+        "src/**/secret.ts",
+        "src/**/*.secret.ts",
+        // Istanbul's file discovery scans the project root before filtering
+        // include patterns. Keep generated runtimes and Wine prefixes out.
+        "dev/**",
+        "dist/**",
+        "bin/**",
+        "external/**",
+        "sidecar/**",
+        "sophon_server/**",
+        "coverage/**",
+        ".git/**",
+        ".tmp/**",
+        ".pnpm-store/**",
+      ],
+      reportsDirectory: "coverage/frontend",
+      reporter: ["text-summary", "html", "json", "json-summary", "lcov"],
+    },
   },
 });

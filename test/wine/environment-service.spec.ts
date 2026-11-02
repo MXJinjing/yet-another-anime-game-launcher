@@ -118,3 +118,48 @@ describe("Wine shutdown failure", () => {
     }
   );
 });
+
+describe("Wine environment tasks", () => {
+  it("initializes and marks ready only after configuration and selection", async () => {
+    const { service, dependencies, wine, setWineInstalled } = createHarness();
+    await collect(service.initialize(distro));
+    expect(dependencies.installWineEnvironmentProgram).toHaveBeenCalledWith(
+      expect.objectContaining({ activate: false, finishMessage: false })
+    );
+    expect(wine.setDistribution).toHaveBeenCalledWith(distro);
+    expect(wine.setDistribution.mock.invocationCallOrder[0]).toBeLessThan(
+      setWineInstalled.mock.invocationCallOrder[0]
+    );
+    expect(setWineInstalled).toHaveBeenCalledWith(true);
+  });
+  it("preserves installation state when configuration fails", async () => {
+    const { service, dependencies, wine, setWineInstalled } = createHarness();
+    dependencies.configureWineEnvironmentProgram.mockImplementation(
+      async function* () {
+        throw new Error("configuration failed");
+      }
+    );
+    await expect(collect(service.initialize(distro))).rejects.toThrow(
+      "configuration failed"
+    );
+    expect(wine.setDistribution).not.toHaveBeenCalled();
+    expect(setWineInstalled).not.toHaveBeenCalled();
+  });
+  it("downloads without activating the distribution", async () => {
+    const { service, dependencies, wine, setWineInstalled } = createHarness();
+    await collect(service.download(distro, "game"));
+    expect(dependencies.installWineEnvironmentProgram).toHaveBeenCalledWith(
+      expect.objectContaining({ activate: false, downloadKey: "game" })
+    );
+    expect(wine.setDistribution).not.toHaveBeenCalled();
+    expect(setWineInstalled).not.toHaveBeenCalled();
+  });
+  it("does not report uninstall completion when removing the distribution fails", async () => {
+    const { service, dependencies } = createHarness();
+    dependencies.uninstallWineDistro.mockRejectedValueOnce(new Error("busy"));
+    await expect(collect(service.uninstall(distro))).rejects.toThrow("busy");
+    const commands = await collect(service.uninstall(distro));
+    expect(commands.at(-1)).toEqual(["setStateText", "INSTALL_DONE"]);
+    expect(dependencies.uninstallWineDistro).toHaveBeenCalledWith(distro.id);
+  });
+});

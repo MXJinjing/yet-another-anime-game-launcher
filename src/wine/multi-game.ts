@@ -604,7 +604,9 @@ export async function* prepareMultiGameGameWine({
 }): TaskProgram<Wine> {
   const staleWine = previousWine ?? baseWine;
   await staleWine.killAll();
-  await staleWine.waitForWineServerExit({ timeoutMs: 5_000 });
+  if (!(await staleWine.waitForWineServerExit({ timeoutMs: 5_000 }))) {
+    throw new Error("Wine server did not exit; environment was not changed");
+  }
 
   let wine: Wine;
   if (wineTag === SHARED_WINE_TAG) {

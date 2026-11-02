@@ -1270,26 +1270,8 @@ class SophonClient:
 		if progress_handler:
 			progress_handler.ldiff_download_start(v.filename, self.remaining_ldiff_download_size(ldiff_dir, pinfo))
 
-		# Old and new files can have the same size. Verify their content before
-		# reusing a patch, both during pre-download and during the real update.
-		gamefile = gamedir(v.filename)
-		gamefilesize = try_get_file_size(gamefile)
-		md5 = file_md5(gamefile) if gamefilesize >= 0 else None
-		if gamefilesize == v.size and md5 == v.hash:
-			if progress_handler:
-				progress_handler.ldiff_download_skipped(v.filename, "already updated")
-			return None
-		if gamefilesize != pinfo.original_size or md5 != pinfo.original_hash:
-			if OPT.predownload:
-				abortlog(
-					f"Cannot pre-download {v.filename}: installed file does not match "
-					"the official source checksum. Run Check Game Integrity first."
-				)
-			if progress_handler:
-				progress_handler.ldiff_download_skipped(v.filename, "file corrupt")
-			warnlog(f"Source file differs from the patch manifest: {v.filename}. Downloading full file.")
-			self.new_files_to_download.add(v.filename)
-			return None
+		# Download independently of the installed files. Source validation and
+		# full-file fallback happen only when applying the update.
 
 		ldiffname = ldiff_dir.joinpath(pinfo.patch_id)
 
@@ -1380,6 +1362,9 @@ class SophonClient:
 		if gamefilesize == v.size and md5 == v.hash:
 			return True
 		if gamefilesize != pinfo.original_size or md5 != pinfo.original_hash:
+			if progress_handler:
+				progress_handler.ldiff_patch_error(v.filename, "source file missing or checksum mismatch")
+			warnlog(f"Source file differs from the patch manifest: {v.filename}. Downloading full file.")
 			self.new_files_to_download.add(v.filename)
 			return False
 
