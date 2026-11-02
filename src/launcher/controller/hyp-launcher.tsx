@@ -20,6 +20,7 @@ import {
 import { AUTO_WINE_TAG, SHARED_WINE_TAG } from "@wine/multi-game";
 import { join } from "path-browserify";
 import {
+  notificationService,
   Popover,
   PopoverBody,
   PopoverContent,
@@ -338,7 +339,7 @@ export async function createHypLauncher({
   });
 
   // Debug mode: when enabled (game settings -> Launch -> Debug mode),
-  // launching a game opens its configured runtime/error log file. The
+  // launching a game opens its configured runtime/error log in Console.app. The
   // preference lives in the global `config_debug_mode` key and is read fresh
   // at every launch.
   let stopGameLogOpen: (() => void) | undefined;
@@ -1252,6 +1253,16 @@ export async function createHypLauncher({
             getStopGameLogOpen: () => stopGameLogOpen,
             setStopGameLogOpen: stop => {
               stopGameLogOpen = stop;
+            },
+            onGameLogOpenError: path => {
+              const zh = locale.currentLanguage.startsWith("zh");
+              notificationService.show({
+                status: "warning",
+                title: zh ? "无法打开游戏日志" : "Unable to open game log",
+                description: zh
+                  ? `无法使用 macOS「控制台」打开日志。日志路径：${path}`
+                  : `Unable to open the log in macOS Console. Log path: ${path}`,
+              });
             },
           })
         ),

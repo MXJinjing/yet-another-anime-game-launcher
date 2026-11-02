@@ -44,11 +44,13 @@ export function createGameLaunchProgram({
   baseWine,
   getStopGameLogOpen,
   setStopGameLogOpen,
+  onGameLogOpenError,
 }: {
   game: HypGame;
   baseWine: import("../../wine").Wine;
   getStopGameLogOpen: () => (() => void) | undefined;
   setStopGameLogOpen: (stop: (() => void) | undefined) => void;
+  onGameLogOpenError?: (path: string) => void;
 }): TaskProgram {
   return (async function* () {
     const config = game.config.advancedEnable
@@ -67,6 +69,7 @@ export function createGameLaunchProgram({
           prefix,
           gameDir: game.client.installDir(),
           locations: game.client.gameLogLocations,
+          onOpenError: onGameLogOpenError,
         })
       );
     }
