@@ -66,26 +66,85 @@ class SophonIntegrityTests(unittest.TestCase):
         path.write_bytes(data)
         return path
 
-    def test_predownload_rejects_same_size_wrong_source_without_changing_game(self):
+    def test_download_does_not_validate_installed_files(self):
         diff = self.make_diff()
-        path = self.write_game(diff.filename, b"bad!")
-        sophon_api.OPT.predownload = True
-        with self.assertRaisesRegex(RuntimeError, "Check Game Integrity"):
-            self.client._download_ldiff_file(self.game / "ldiff", diff)
-        self.assertEqual(path.read_bytes(), b"bad!")
-        self.assertEqual(self.client.new_files_to_download, set())
+        ldiff_dir = self.game / "ldiff"
+        ldiff_dir.mkdir()
+        self.client.di_diffs.category_json = {"diff_download": {"url_prefix": "https://example.test"}}
+        for predownload in (True, False):
+            for contents in (None, b"bad!", b"old!", b"new!"):
+                for cached in (True, False):
+                    with self.subTest(predownload=predownload, contents=contents, cached=cached):
+                        sophon_api.OPT.predownload = predownload
+                        path = self.game / diff.filename
+                        path.unlink(missing_ok=True)
+                        if contents is not None:
+                            self.write_game(diff.filename, contents)
+                        bundle = ldiff_dir / "patch-1"
+                        bundle.unlink(missing_ok=True)
+                        if cached:
+                            bundle.write_bytes(b"patch")
 
-    def test_predownload_skips_file_already_at_target_hash(self):
+                        def download(_url, output, _size, **_kwargs):
+                            output.write_bytes(b"patch")
+
+                        with (
+                            patch.object(sophon_api, "file_md5", side_effect=AssertionError("Download must not hash game files")),
+                            patch.object(self.client, "_download_file_resume", side_effect=download) as downloader,
+                        ):
+                            self.assertEqual(self.client._download_ldiff_file(ldiff_dir, diff), "patch-1")
+                        self.assertEqual(downloader.call_count, 0 if cached else 1)
+                        self.assertEqual(path.read_bytes() if path.exists() else None, contents)
+                        self.assertEqual(self.client.new_files_to_download, set())
+
+    def test_invalid_source_falls_back_to_single_full_file_at_install(self):
+        for source in (None, b"bad!"):
+            for source_metadata in (True, False):
+                with self.subTest(source=source, source_metadata=source_metadata):
+                    diff = self.make_diff()
+                    if not source_metadata:
+                        diff.patches[0].info.ClearField("original_size")
+                        diff.patches[0].info.ClearField("original_hash")
+                    path = self.game / diff.filename
+                    path.unlink(missing_ok=True)
+                    if source is not None:
+                        self.write_game(diff.filename, source)
+                    info, compressed = self.make_file(diff.filename, b"new!")
+                    unrelated, _ = self.make_file("Data/unrelated", b"keep")
+                    self.write_game(unrelated.filename, b"keep")
+                    self.client.di_diffs.manifest = manifest_ldiff_pb2.DiffManifest(files=[diff])
+                    self.client.di_chunks.manifest = manifest_pb2.Manifest(files=[info, unrelated])
+                    self.client.di_chunks.getBuild_json = {"data": {"tag": "7.1.0"}}
+                    ldiff_dir = self.game / "ldiff"
+                    ldiff_dir.mkdir(exist_ok=True)
+                    (ldiff_dir / "patch-1").write_bytes(b"patch")
+
+                    def download_chunk(_url, output, _size, **_kwargs):
+                        output.write_bytes(compressed)
+
+                    sophon_api.OPT.predownload = True
+                    with patch.object(sophon_api, "hpatchz_patch_file") as patcher:
+                        self.client.apply_or_prepare_ldiff_files()
+                        self.assertEqual(self.client.new_files_to_download, set())
+                        self.assertEqual(path.read_bytes() if path.exists() else None, source)
+                        sophon_api.OPT.predownload = False
+                        self.client.apply_or_prepare_ldiff_files()
+                        patcher.assert_not_called()
+                    self.assertEqual(self.client.new_files_to_download, {diff.filename})
+                    with patch.object(self.client, "_download_file_resume", side_effect=download_chunk) as downloader:
+                        self.client.diff_download_new_files()
+                    self.assertLessEqual(downloader.call_count, 1)
+                    self.assertEqual(path.read_bytes(), b"new!")
+                    self.assertEqual((self.game / unrelated.filename).read_bytes(), b"keep")
+                    self.assertEqual(self.client.new_files_to_download, set())
+
+    def test_install_skips_file_already_at_target_hash(self):
         diff = self.make_diff()
         self.write_game(diff.filename, b"new!")
-        sophon_api.OPT.predownload = True
-        self.assertIsNone(self.client._download_ldiff_file(self.game / "ldiff", diff))
-
-    def test_update_queues_full_file_when_source_hash_is_wrong(self):
-        diff = self.make_diff()
-        self.write_game(diff.filename, b"bad!")
-        self.assertIsNone(self.client._download_ldiff_file(self.game / "ldiff", diff))
-        self.assertEqual(self.client.new_files_to_download, {diff.filename})
+        with patch.object(sophon_api, "hpatchz_patch_file") as patcher:
+            self.assertTrue(self.client._apply_ldiff_file(self.game / "ldiff", diff))
+        patcher.assert_not_called()
+        self.assertEqual(self.client.new_files_to_download, set())
 
     def test_failed_diff_download_uses_full_file_only_for_real_update(self):
         diff = self.make_diff()
