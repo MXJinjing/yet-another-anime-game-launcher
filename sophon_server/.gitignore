@@ -4,3 +4,5 @@ manifest_pb2.py
 .venv*/
 build/
 build-x64/
+.coverage*
+.pytest_cache/

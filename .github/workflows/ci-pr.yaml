@@ -4,38 +4,30 @@ on:
   pull_request:
     branches:
       - main
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: pr-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  tests:
+    uses: ./.github/workflows/tests.yaml
+
+  # Keep this status name stable: main branch protection requires "check".
+  # always() is essential so failed/cancelled dependencies cannot skip the gate.
   check:
-    runs-on: macos-14
-    timeout-minutes: 60
+    if: always()
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Configure channel secrets and Neutralino runtime
-        run: ./configure.sh
+      - name: Require every test job to succeed
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Type check, lint, and format
-        run: pnpm run precommit
-
-      - name: Unit tests
-        run: pnpm exec vitest run
+          TEST_RESULT: ${{ needs.tests.result }}
+        run: test "$TEST_RESULT" = success

@@ -1,0 +1,58 @@
+name: Tests and Coverage
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare channel configuration
+        run: base64 -d -i src/clients/secret.b64 -o src/clients/secret.ts
+      - name: Type check, lint, and format
+        run: pnpm run precommit
+      - name: Frontend tests and coverage policy
+        run: pnpm run test:coverage
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: coverage/frontend
+          if-no-files-found: warn
+
+  sophon:
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+          python-version: "3.13.14"
+      - name: Sophon tests and coverage policy
+        run: |
+          bash scripts/test-sophon.sh
+          node scripts/check-coverage.mjs sophon
+      - name: Upload Sophon coverage and test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sophon-coverage
+          path: coverage/sophon
+          if-no-files-found: warn

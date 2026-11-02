@@ -10,7 +10,7 @@ export async function sha256_16(str: string) {
 }
 
 export function binaryPatternSearch(view: Uint8Array, pattern: number[]) {
-  retry: for (let i = 0; i < view.byteLength - pattern.length; i++) {
+  retry: for (let i = 0; i <= view.byteLength - pattern.length; i++) {
     for (let j = 0; j < pattern.length; j++) {
       if (view[i + j] != pattern[j]) continue retry;
     }

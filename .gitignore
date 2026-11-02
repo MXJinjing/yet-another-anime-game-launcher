@@ -37,3 +37,6 @@ neutralino.config.json.bak
 build-all.sh
 /release-assets
 *.log
+
+# Local test and coverage reports
+/coverage/

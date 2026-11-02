@@ -1,0 +1,38 @@
+{
+  "frontend": {
+    "global": {
+      "lines": 27,
+      "statements": 26,
+      "branches": 30,
+      "functions": 17
+    },
+    "files": {
+      "src/runtime/binary.ts": { "lines": 100, "branches": 100 },
+      "src/download/aria2-service.ts": { "lines": 95, "branches": 70 },
+      "src/integrations/aria2.ts": { "lines": 85, "branches": 70 },
+      "src/download/stream-scheduler.ts": { "lines": 85, "branches": 80 },
+      "src/download/task-registry.ts": { "lines": 85, "branches": 75 },
+      "src/wine/system-wine.ts": { "lines": 100, "branches": 95 },
+      "src/wine/distro.ts": { "lines": 95, "branches": 95 },
+      "src/wine/environment-service.ts": { "lines": 95, "branches": 80 },
+      "src/wine/runtime-resources.ts": { "lines": 95, "branches": 90 },
+      "src/wine/wine-install-program.ts": { "lines": 95, "branches": 90 },
+      "src/wine/game-process-monitor.ts": { "lines": 90, "branches": 85 },
+      "src/update/updater.ts": { "lines": 85, "branches": 70 },
+      "src/launcher/orchestration/multi-game.ts": {
+        "lines": 70,
+        "branches": 75
+      },
+      "src/tasks/task-runner.ts": { "lines": 85, "branches": 70 }
+    }
+  },
+  "sophon": {
+    "global": { "lines": 68, "branches": 48 },
+    "files": {
+      "server.py": { "lines": 85, "branches": 80 },
+      "tasks.py": { "lines": 90, "branches": 75 },
+      "rate_limiter.py": { "lines": 90, "branches": 75 },
+      "sophon_api.py": { "lines": 58, "branches": 40 }
+    }
+  }
+}

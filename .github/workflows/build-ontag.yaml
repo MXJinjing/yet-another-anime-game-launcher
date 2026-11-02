@@ -9,7 +9,11 @@ permissions:
   contents: write
 
 jobs:
+  tests:
+    uses: ./.github/workflows/tests.yaml
+
   release:
+    needs: tests
     runs-on: macos-14
     timeout-minutes: 120
     env:
