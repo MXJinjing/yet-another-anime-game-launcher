@@ -1,5 +1,6 @@
 import { join } from "path-browserify";
-import { readFile, stats } from "../platform/neutralino";
+import { execCommand, readFile, stats } from "../platform/neutralino";
+import { build } from "../platform/shell";
 import type { GameLogLocation } from "../channel-client";
 
 /**
@@ -291,7 +292,7 @@ export function createGameLogTail(options: {
 }
 
 /**
- * Wait for the configured game log and open it with macOS's default app.
+ * Wait for the configured game log and open it in macOS Console.app.
  * This intentionally does not use the launcher logger or runtime-log store.
  */
 export function openGameLogFile(options: {
@@ -299,6 +300,7 @@ export function openGameLogFile(options: {
   gameDir?: string;
   locations?: readonly GameLogLocation[];
   pollIntervalMs?: number;
+  onOpenError?: (path: string) => void;
 }): () => void {
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const locations = options.locations ?? [];
@@ -316,12 +318,16 @@ export function openGameLogFile(options: {
             existingOnly: true,
           })
         : await findLegacyUnityLogFiles(options.prefix);
+    if (stopped) return;
     const path = paths[0];
     if (path) {
       try {
-        await Neutralino.os.open(`file://${encodeURI(path)}`);
+        const result = await execCommand(
+          build(["/usr/bin/open", "-b", "com.apple.Console", path])
+        );
+        if (result.exitCode !== 0 && !stopped) options.onOpenError?.(path);
       } catch {
-        // Opening the file is best-effort; do not add an entry to launcher log.
+        if (!stopped) options.onOpenError?.(path);
       }
       return;
     }
