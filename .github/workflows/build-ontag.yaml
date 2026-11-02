@@ -77,10 +77,13 @@ jobs:
           test "$(find release-assets/universal -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 24
 
       - name: Publish draft release
+        id: publish
         uses: softprops/action-gh-release@v2
         with:
           name: Yaaglm ${{ github.ref_name }} Release
           draft: true
+          preserve_order: true
+          fail_on_unmatched_files: true
           body: |
             # Yaaglm ${{ github.ref_name }}
 
@@ -138,3 +141,13 @@ jobs:
             release-assets/arm64/*.tar.gz
             release-assets/x64/*.tar.gz
             release-assets/universal/*.tar.gz
+
+      - name: Preserve release assets after an upload failure
+        if: failure() && steps.publish.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: yaaglm-${{ github.ref_name }}-release-assets
+          path: release-assets/
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
