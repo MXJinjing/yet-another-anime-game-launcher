@@ -1,3 +1,4 @@
+import { processingProgressCommands } from "./processing-progress";
 import { join, basename } from "path-browserify";
 import { Sophon } from "@sophon";
 import type { TaskProgram } from "@tasks/task-program";
@@ -44,6 +45,10 @@ async function* downloadAndPatch(
   const transferProgress = createTransferProgressTracker();
   for await (const progress of sophon.streamOperationProgress(taskId)) {
     switch (progress.type) {
+      case "processing_progress":
+        yield* processingProgressCommands(progress);
+        break;
+
       case "delete_file":
         yield ["setStateText", "PATCHING"];
         yield [
@@ -232,6 +237,10 @@ async function* predownload(
   const transferProgress = createTransferProgressTracker();
   for await (const progress of sophon.streamOperationProgress(taskId)) {
     switch (progress.type) {
+      case "processing_progress":
+        yield* processingProgressCommands(progress);
+        break;
+
       case "ldiff_download_summary":
         totalFileCount = progress.ldiff_file_count ?? 0;
         currentFileIndex = 0;

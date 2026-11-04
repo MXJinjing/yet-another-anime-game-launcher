@@ -36,6 +36,10 @@ export const ru_RU: typeof zh_CN = {
   PROCESSING: "Обработка…",
   FORCE_QUIT_GAME: "Принудительно закрыть",
   FIXING_FILES: "Исправление игровых файлов {0}/{1}",
+  PATCHING_FILE_PROGRESS:
+    "Patching files: {0}/{1}, current file {2}{3}, {4}s elapsed",
+  CHECKING_DOWNLOAD_FILES:
+    "Checking existing files and calculating download size: {0}/{1}, {2}{3}, {4}s elapsed",
   PATCHING: "Патчинг игровых файлов",
   GAME_STARTING: "Запуск игры",
   GAME_CRASHED: "Обнаружено аварийное завершение игры",

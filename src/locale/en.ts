@@ -35,6 +35,10 @@ export const en: typeof zh_CN = {
   PROCESSING: "Processing…",
   FORCE_QUIT_GAME: "Force quit",
   FIXING_FILES: "Fixing game files {0}/{1}",
+  PATCHING_FILE_PROGRESS:
+    "Patching files: {0}/{1}, current file {2}{3}, {4}s elapsed",
+  CHECKING_DOWNLOAD_FILES:
+    "Checking existing files and calculating download size: {0}/{1}, {2}{3}, {4}s elapsed",
   PATCHING: "Patching game files",
   GAME_STARTING: "Starting game",
   GAME_CRASHED: "Game crash detected",

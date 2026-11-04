@@ -75,7 +75,7 @@ The target channel is selected at build time through `YAAGL_CHANNEL_CLIENT`. A c
 │   ├── locale/        # Localization resources
 │   ├── assets/        # Interface assets and images
 │   └── icons/         # Icon resources
-├── sophon_server/     # Python sidecar service
+├── sophon_server/     # Modular Sophon sidecar (src/, proto/, tests/)
 ├── sidecar/           # aria2, 7z, hpatchz, xdelta, and runtime helpers
 ├── external/          # External patches and build-time resources
 ├── configure.sh       # Initialize configuration and Neutralino runtime
