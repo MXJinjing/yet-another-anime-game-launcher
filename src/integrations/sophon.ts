@@ -363,7 +363,33 @@ export class SophonClient {
             });
           }
 
-          if (message.overall_progress) {
+          if (message.type === "processing_progress") {
+            updateStream(`sophon:${taskId}`, {
+              phaseKind: "verifying",
+              progress: Number(message.overall_progress?.overall_percent) || 0,
+              speed: 0,
+              downloaded: 0,
+              total: 0,
+              files: message.filename
+                ? [
+                    {
+                      id: String(message.filename),
+                      name: String(message.filename),
+                      progress:
+                        message.file_bytes > 0
+                          ? Math.min(
+                              100,
+                              (message.current_bytes / message.file_bytes) * 100
+                            )
+                          : 0,
+                      speed: 0,
+                      downloaded: Number(message.current_bytes) || 0,
+                      total: Number(message.file_bytes) || 0,
+                    },
+                  ]
+                : [],
+            });
+          } else if (message.overall_progress) {
             const op = message.overall_progress;
             const progressPatch: {
               progress?: number;

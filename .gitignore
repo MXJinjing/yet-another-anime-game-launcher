@@ -40,3 +40,12 @@ build-all.sh
 
 # Local test and coverage reports
 /coverage/
+
+# Sophon generated environments and distributions
+/sophon_server/.venv*/
+/sophon_server/.cache/
+/sophon_server/build/
+/sophon_server/build-x64/
+/sophon_server/manifest*_pb2.py
+/sophon_server/.coverage*
+**/.pytest_cache/

@@ -25,9 +25,9 @@ dev = [
 
 [tool.coverage.run]
 branch = true
-source = ["."]
+source = ["src"]
 omit = [
-    "test_*.py",
+    "tests/*",
     "*_pb2.py",
     "*/.venv*/*",
     "*/build/*",
@@ -45,3 +45,7 @@ output = "../coverage/sophon/coverage.json"
 
 [tool.coverage.xml]
 output = "../coverage/sophon/cobertura.xml"
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]

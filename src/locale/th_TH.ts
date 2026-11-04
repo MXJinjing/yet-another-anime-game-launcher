@@ -36,6 +36,10 @@ export const th_TH: typeof zh_CN = {
   PROCESSING: "กำลังประมวลผล…",
   FORCE_QUIT_GAME: "บังคับปิด",
   FIXING_FILES: "กำลังซ่อมแซมไฟล์เกม {0}/{1}",
+  PATCHING_FILE_PROGRESS:
+    "Patching files: {0}/{1}, current file {2}{3}, {4}s elapsed",
+  CHECKING_DOWNLOAD_FILES:
+    "Checking existing files and calculating download size: {0}/{1}, {2}{3}, {4}s elapsed",
   PATCHING: "กำลังแก้ไขไฟล์เกม",
   GAME_STARTING: "กำลังเริ่มเกม",
   GAME_CRASHED: "ตรวจพบว่าเกมหยุดทำงาน",

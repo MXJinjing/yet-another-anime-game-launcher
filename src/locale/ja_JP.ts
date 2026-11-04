@@ -36,6 +36,10 @@ export const ja_JP: typeof zh_CN = {
   PROCESSING: "処理中…",
   FORCE_QUIT_GAME: "強制終了",
   FIXING_FILES: "ゲームファイルを修復中{0}/{1}",
+  PATCHING_FILE_PROGRESS:
+    "Patching files: {0}/{1}, current file {2}{3}, {4}s elapsed",
+  CHECKING_DOWNLOAD_FILES:
+    "Checking existing files and calculating download size: {0}/{1}, {2}{3}, {4}s elapsed",
   PATCHING: "ゲームファイルをパッチ中",
   GAME_STARTING: "ゲームを起動中",
   GAME_CRASHED: "ゲームのクラッシュを検出しました",

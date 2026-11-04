@@ -36,6 +36,10 @@ export const ko_KR: typeof zh_CN = {
   PROCESSING: "처리 중…",
   FORCE_QUIT_GAME: "강제 종료",
   FIXING_FILES: "게임 파일 복구 중 {0}/{1}",
+  PATCHING_FILE_PROGRESS:
+    "Patching files: {0}/{1}, current file {2}{3}, {4}s elapsed",
+  CHECKING_DOWNLOAD_FILES:
+    "Checking existing files and calculating download size: {0}/{1}, {2}{3}, {4}s elapsed",
   PATCHING: "게임 파일 패치 중",
   GAME_STARTING: "게임 실행 중",
   GAME_CRASHED: "게임 충돌이 감지되었습니다",

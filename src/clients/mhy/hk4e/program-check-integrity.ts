@@ -1,3 +1,4 @@
+import { processingProgressCommands } from "./processing-progress";
 import { basename, join } from "path-browserify";
 import { Sophon } from "@sophon";
 import type { TaskProgram } from "@tasks/task-program";
@@ -40,6 +41,10 @@ export async function* checkIntegrityProgram({
   const transferProgress = createTransferProgressTracker();
   for await (const progress of sophon.streamOperationProgress(taskId)) {
     switch (progress.type) {
+      case "processing_progress":
+        yield* processingProgressCommands(progress);
+        break;
+
       case "auto_update_start":
         yield ["setStateText", "UPDATING"];
         yield ["setUndeterminedProgress"];

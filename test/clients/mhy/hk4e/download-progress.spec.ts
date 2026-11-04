@@ -211,3 +211,63 @@ describe("hk4e download progress across file boundaries", () => {
     expect(transferArgs(commands[1])).toEqual(transferArgs(commands[0]));
   });
 });
+
+describe("local processing progress", () => {
+  it("switches from patching to file checking with separate counters", async () => {
+    const sophon = createSophon([
+      {
+        type: "processing_progress",
+        task_id: "t",
+        phase: "patching",
+        filename: "Data/patch.bin",
+        processed_files: 2,
+        total_files: 4,
+        current_bytes: 1024,
+        file_bytes: 2048,
+        elapsed_seconds: 3,
+      },
+      {
+        type: "processing_progress",
+        task_id: "t",
+        phase: "calculating_download",
+        filename: "Data/check.bin",
+        processed_files: 1,
+        total_files: 10,
+        elapsed_seconds: 2,
+      },
+    ]);
+    const commands = await collect(
+      updateGameProgram({
+        sophon: sophon as unknown as Sophon,
+        gameDir: "/game",
+        server: { dataDir: "Data" } as never,
+        updatedGameVersion: "7.2.0",
+        storage: { setKey: vi.fn() } as never,
+      })
+    );
+    expect(commands).toContainEqual([
+      "setStateText",
+      "PATCHING_FILE_PROGRESS",
+      "2",
+      "4",
+      "patch.bin",
+      " (size:1024/size:2048)",
+      "3",
+    ]);
+    expect(commands).toContainEqual([
+      "setStateText",
+      "CHECKING_DOWNLOAD_FILES",
+      "1",
+      "10",
+      "check.bin",
+      "",
+      "2",
+    ]);
+    expect(commands).toContainEqual(["setProgress", 50]);
+    expect(commands).toContainEqual(["setProgress", 10]);
+    expect(commands).toContainEqual([
+      "setDownloadStats",
+      { speed: 0, downloaded: 0, total: 0 },
+    ]);
+  });
+});

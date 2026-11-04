@@ -35,6 +35,10 @@ export const zh_CN = {
   PROCESSING: "处理中…",
   FORCE_QUIT_GAME: "强制退出",
   FIXING_FILES: "正在修复第{0}个文件，共{1}个",
+  PATCHING_FILE_PROGRESS:
+    "正在应用补丁：已处理 {0}/{1} 个文件，当前文件 {2}{3}，已用 {4} 秒",
+  CHECKING_DOWNLOAD_FILES:
+    "正在检查已有文件并计算下载量：{0}/{1}，{2}{3}，已用 {4} 秒",
   PATCHING: "正在应用补丁",
   GAME_STARTING: "正在启动",
   GAME_CRASHED: "检测到游戏闪退",

@@ -1,3 +1,4 @@
+import { processingProgressCommands } from "./processing-progress";
 import { join, basename } from "path-browserify";
 import { SophonClient } from "@sophon";
 import type { TaskProgram } from "@tasks/task-program";
@@ -40,6 +41,10 @@ export async function* downloadAndInstallGameProgram({
   const transferProgress = createTransferProgressTracker();
   for await (const progress of sophonClient.streamOperationProgress(taskId)) {
     switch (progress.type) {
+      case "processing_progress":
+        yield* processingProgressCommands(progress);
+        break;
+
       case "job_start":
         yield ["setUndeterminedProgress"];
         yield ["setStateText", "ALLOCATING_FILE"];
