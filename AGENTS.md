@@ -50,3 +50,11 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 - Do NOT automatically run local `pnpm exec tsc`, `pnpm run lint`, or `pnpm run format-check` right after modifying code.
 - Only run these local checks when the user explicitly asks to build (`pnpm build`, `pnpm run build-<channel>`, `node build-app.js`, `./build-all.sh`, or similar), immediately before the build.
 - This timing restriction applies to local checks. Automatic PR and release CI must always run their configured checks and coverage policies.
+
+## Shared Sophon source maintenance
+
+- Keep source-copy integration; do not convert Sophon to a Git submodule.
+- The canonical shared server lives in the sibling `sophon` repository (`MXJinjing/sophon`). Implement shared fixes there first, commit them, then run `python3 scripts/sync-sophon.py --source ../sophon --apply` here.
+- `sophon_server/upstream-lock.json` pins the source commit and SHA-256 hashes. Use `--check` to verify synchronization; `--apply` refuses divergent local shared edits that have not been backported.
+- Copy only shared server source, protobuf schemas, license and server tests. Keep launcher UI, build adapters, dependency/test configuration, README and `test_launcher_*.py` local. Generated protobuf, environments, caches, build outputs and the standalone release packaging test are excluded.
+- Update the API references in both repositories for shared protocol changes. Commit the refreshed revision lock with each source synchronization.
