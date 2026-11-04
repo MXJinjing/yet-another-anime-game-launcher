@@ -118,7 +118,7 @@ def synchronize(source: Path, destination: Path, lock_path: Path, apply: bool = 
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(path, target)
     for name in set(previous) - set(upstream):
-        (destination / safe_relative(name)).unlink()
+        (destination / safe_relative(name)).unlink(missing_ok=True)
     lock_path.write_text(json.dumps(expected, indent=2) + "\n")
     return expected
 

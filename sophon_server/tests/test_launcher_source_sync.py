@@ -105,3 +105,12 @@ class SourceSyncTests(unittest.TestCase):
         (self.destination / "src/server.py").write_text("drift\n")
         with self.assertRaisesRegex(ValueError, "differs from the revision lock"):
             sync.verify_lock(self.destination, self.lock)
+
+    def test_backported_deletion_already_absent_locally_updates_lock(self):
+        self.apply()
+        (self.destination / "src/server.py").unlink()
+        self.snapshot.stop()
+        with patch.object(sync, "source_snapshot", return_value=("new-revision", {"LICENSE": self.license})):
+            self.apply()
+        self.assertNotIn("src/server.py", json.loads(self.lock.read_text())["files"])
+        sync.verify_lock(self.destination, self.lock)
