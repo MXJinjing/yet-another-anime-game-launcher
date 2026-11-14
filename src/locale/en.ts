@@ -135,6 +135,8 @@ export const en: typeof zh_CN = {
   SETTING_NAP_METALFX: "Enable MetalFX",
   SETTING_NAP_METALFX_DESC:
     "Use MetalFX instead of DLSS, with ray tracing support.",
+  SETTING_NAP_D3D12_REQUIREMENTS:
+    "DirectX 12 requires a D3DMetal Wine runtime or Game Porting Toolkit.",
   SETTING_NAP_REQUIRES_GPTK3: "Requires Game Porting Toolkit 3 (GPTK3).",
   SETTING_SAVE: "Save",
   SETTING_CANCEL: "Cancel",
@@ -324,6 +326,17 @@ export const en: typeof zh_CN = {
   AHEAD_OF_LATEST_TITLE: "Ahead of the latest release",
   AHEAD_OF_LATEST_JOKE:
     "While the official release is still drip-feeding updates 🐌, you\u2019re already on the next generation 🚀. Keep it low-key \u2014 don\u2019t spoil it 🤫.",
+  D3DMETAL_LICENSE_TITLE: "Game Porting Toolkit 4.0 beta 2 License agreement",
+  D3DMETAL_LICENSE_LOADING: "Downloading and verifying the license…",
+  D3DMETAL_LICENSE_ERROR:
+    "Could not load or verify the license. Installation has not started.",
+  D3DMETAL_LICENSE_RETRY: "Retry",
+  D3DMETAL_LICENSE_ACKNOWLEDGE:
+    "I have read and agree to Apple's software license agreement.",
+  D3DMETAL_LICENSE_ACCEPT: "Agree and install",
+  D3DMETAL_LICENSE_REQUIREMENTS:
+    "Experimental runtime for Apple silicon and macOS 26 or later.",
+
   UPDATE_LAUNCHER: "Update Launcher",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",

@@ -129,6 +129,8 @@ export const zh_CN = {
   SETTING_USE_D3D12_DESC: "启动游戏时使用 DirectX 12。",
   SETTING_NAP_METALFX: "启用 MetalFX",
   SETTING_NAP_METALFX_DESC: "同时支持光线追踪",
+  SETTING_NAP_D3D12_REQUIREMENTS:
+    "DirectX 12 需要使用 D3DMetal Wine 运行时或 Game Porting Toolkit。",
   SETTING_NAP_REQUIRES_GPTK3: "需要安装 Game Porting Toolkit 3（GPTK3）。",
   SETTING_SAVE: "保存",
   SETTING_CANCEL: "取消",
@@ -307,6 +309,15 @@ export const zh_CN = {
   AHEAD_OF_LATEST_TITLE: "领先于最新发布版",
   AHEAD_OF_LATEST_JOKE:
     "当官方还在挤牙膏🐌，你已经用上了下一代🚀。低调点，别剧透🤫。",
+  D3DMETAL_LICENSE_TITLE: "Game Porting Toolkit 4.0 beta 2 许可协议",
+  D3DMETAL_LICENSE_LOADING: "正在获取并验证许可协议…",
+  D3DMETAL_LICENSE_ERROR: "无法获取或验证许可协议。安装尚未开始。",
+  D3DMETAL_LICENSE_RETRY: "重试",
+  D3DMETAL_LICENSE_ACKNOWLEDGE: "我已阅读并同意 Apple 软件许可协议。",
+  D3DMETAL_LICENSE_ACCEPT: "同意并安装",
+  D3DMETAL_LICENSE_REQUIREMENTS:
+    "实验性运行时，要求 Apple 芯片及 macOS 26 或更新版本。",
+
   UPDATE_LAUNCHER: "更新启动器",
   INIT_ENVIRONMENT: "初始化环境",
   INIT_ENVIRONMENT_TITLE: "初始化运行环境",

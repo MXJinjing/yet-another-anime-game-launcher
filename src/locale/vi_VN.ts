@@ -137,6 +137,8 @@ export const vi_VN: typeof zh_CN = {
   SETTING_NAP_METALFX: "Bật MetalFX",
   SETTING_NAP_METALFX_DESC:
     "Sử dụng MetalFX thay cho DLSS, đồng thời hỗ trợ dò tia.",
+  SETTING_NAP_D3D12_REQUIREMENTS:
+    "DirectX 12 yêu cầu Wine có D3DMetal hoặc Game Porting Toolkit.",
   SETTING_NAP_REQUIRES_GPTK3: "Cần Game Porting Toolkit 3 (GPTK3).",
   SETTING_SAVE: "Lưu",
   SETTING_CANCEL: "Huỷ",
@@ -324,6 +326,15 @@ export const vi_VN: typeof zh_CN = {
   AHEAD_OF_LATEST_TITLE: "Mới hơn bản phát hành mới nhất",
   AHEAD_OF_LATEST_JOKE:
     "Trong khi bản chính thức vẫn còn nhỏ giọt cập nhật 🐌, bạn đã ở thế hệ tiếp theo 🚀. Kín tiếng thôi, đừng spoil 🤫.",
+  D3DMETAL_LICENSE_TITLE: "Thỏa thuận cấp phép Game Porting Toolkit 4.0 beta 2",
+  D3DMETAL_LICENSE_LOADING: en.D3DMETAL_LICENSE_LOADING,
+  D3DMETAL_LICENSE_ERROR: en.D3DMETAL_LICENSE_ERROR,
+  D3DMETAL_LICENSE_RETRY: en.D3DMETAL_LICENSE_RETRY,
+  D3DMETAL_LICENSE_ACKNOWLEDGE: en.D3DMETAL_LICENSE_ACKNOWLEDGE,
+  D3DMETAL_LICENSE_ACCEPT: en.D3DMETAL_LICENSE_ACCEPT,
+  D3DMETAL_LICENSE_REQUIREMENTS:
+    "Môi trường thử nghiệm cho Apple silicon và macOS 26 trở lên.",
+
   UPDATE_LAUNCHER: "Cập nhật Launcher",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",

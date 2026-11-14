@@ -23,7 +23,11 @@ import { exec } from "@runtime/command-runner";
 import { getKey, setKey } from "@runtime/storage";
 import { ensureActiveWineCompatLink, isWineDistroInstalled } from "@wine/wine";
 import { readCustomWineEntries, findConfiguredWine } from "@wine/system-wine";
-import { checkWine, getWineDistributions } from "@wine/distro";
+import {
+  checkWine,
+  getWineDistributions,
+  isWineRuntimeReady,
+} from "@wine/distro";
 
 const defaultId = "11.0-1-crossover-signed-experimental";
 let values: Record<string, string>;
@@ -72,6 +76,47 @@ describe("Wine distribution discovery and activation", () => {
       displayName: "A",
       systemWineRoot: "/custom",
     });
+  });
+  it("advertises DX12 only for managed D3DMetal or recognized toolkit roots", async () => {
+    vi.mocked(stats).mockResolvedValue({} as never);
+    vi.mocked(exec).mockResolvedValue({ stdOut: "4.0\n" } as never);
+    vi.mocked(readCustomWineEntries).mockResolvedValue([
+      { name: "Custom toolkit", binary: "/local/bin/wine64" },
+      { name: "Plain Wine", binary: "/plain/bin/wine64" },
+    ]);
+    vi.mocked(findConfiguredWine).mockImplementation(async binary => ({
+      root: binary.startsWith("/local") ? "/local" : "/plain",
+      binary,
+    }));
+    vi.mocked(fileOrDirExists).mockImplementation(
+      async path => path === "/local/lib/external/D3DMetal.framework/D3DMetal"
+    );
+    const distributions = await getWineDistributions();
+    expect(
+      distributions.filter(d => d.attributes.supportsD3d12).map(d => d.id)
+    ).toEqual(["gptk3-system", "/local", "wine-11.17-d3dmetal-gptk4.0b2-10"]);
+    expect(distributions.find(d => d.id === "/plain")?.systemWineRoot).toBe(
+      "/plain"
+    );
+  });
+
+  it("keeps a legacy Wine directory out of the new managed D3DMetal root", async () => {
+    values = {
+      wine_state: "ready",
+      wine_tag: "wine-11.17-d3dmetal-gptk4.0b2-10",
+    };
+    vi.mocked(fileOrDirExists).mockResolvedValue(true);
+    await expect(checkWine(defaultId)).resolves.toMatchObject({
+      wineReady: false,
+      wineDistribution: { id: values.wine_tag },
+    });
+    expect(exec).not.toHaveBeenCalled();
+  });
+  it("requires DXMT files only while using a DXMT runtime", () => {
+    expect(isWineRuntimeReady({ renderBackend: "d3dmetal" }, false)).toBe(true);
+    expect(isWineRuntimeReady({}, false)).toBe(true);
+    expect(isWineRuntimeReady({ renderBackend: "dxmt" }, false)).toBe(false);
+    expect(isWineRuntimeReady({ renderBackend: "dxmt" }, true)).toBe(true);
   });
   it("fails clearly for an unknown channel default", async () => {
     await expect(checkWine("unknown")).rejects.toThrow(

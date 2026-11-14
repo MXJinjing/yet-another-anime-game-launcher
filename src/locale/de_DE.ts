@@ -137,6 +137,8 @@ export const de_DE: typeof zh_CN = {
   SETTING_NAP_METALFX: "MetalFX aktivieren",
   SETTING_NAP_METALFX_DESC:
     "MetalFX anstelle von DLSS verwenden, mit Raytracing-Unterstützung.",
+  SETTING_NAP_D3D12_REQUIREMENTS:
+    "DirectX 12 erfordert eine D3DMetal-Wine-Laufzeit oder das Game Porting Toolkit.",
   SETTING_NAP_REQUIRES_GPTK3: "Erfordert Game Porting Toolkit 3 (GPTK3).",
   SETTING_SAVE: "Speichern",
   SETTING_CANCEL: "Abbrechen",
@@ -329,6 +331,15 @@ export const de_DE: typeof zh_CN = {
   AHEAD_OF_LATEST_TITLE: "Neuer als die neueste Version",
   AHEAD_OF_LATEST_JOKE:
     "Während die offizielle Version noch im Schneckentempo aktualisiert 🐌, bist du schon in der nächsten Generation 🚀. Bleib unauffällig \u2013 nicht spoilern 🤫.",
+  D3DMETAL_LICENSE_TITLE: "Game Porting Toolkit 4.0 beta 2 Lizenzvereinbarung",
+  D3DMETAL_LICENSE_LOADING: en.D3DMETAL_LICENSE_LOADING,
+  D3DMETAL_LICENSE_ERROR: en.D3DMETAL_LICENSE_ERROR,
+  D3DMETAL_LICENSE_RETRY: en.D3DMETAL_LICENSE_RETRY,
+  D3DMETAL_LICENSE_ACKNOWLEDGE: en.D3DMETAL_LICENSE_ACKNOWLEDGE,
+  D3DMETAL_LICENSE_ACCEPT: en.D3DMETAL_LICENSE_ACCEPT,
+  D3DMETAL_LICENSE_REQUIREMENTS:
+    "Experimentelle Laufzeit für Apple-Chips und macOS 26 oder neuer.",
+
   UPDATE_LAUNCHER: "Launcher aktualisieren",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",

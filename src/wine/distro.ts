@@ -1,4 +1,5 @@
 import { fileOrDirExists, resolve, stats } from "@platform/neutralino";
+import { join } from "path-browserify";
 import { exec } from "@runtime/command-runner";
 import { getKey, setKey } from "@runtime/storage";
 import {
@@ -14,10 +15,23 @@ import {
   readCustomWineEntries,
   registerSystemWineRoot,
 } from "./system-wine";
+import {
+  D3DMETAL_ARCHIVE_SHA256,
+  D3DMETAL_RUNTIME_ID,
+  D3DMETAL_RUNTIME_URL,
+} from "./d3dmetal";
 
 export interface WineDistributionAttributes {
-  renderBackend: "dxmt";
+  renderBackend: "dxmt" | "d3dmetal";
+  supportsD3d12: boolean;
   winePath: string; // Path to the wine directory inside the archive
+}
+
+export function isWineRuntimeReady(
+  attributes: Partial<WineDistributionAttributes>,
+  dxmtInstalled: boolean
+) {
+  return attributes.renderBackend !== "dxmt" || dxmtInstalled;
 }
 
 export interface WineDistribution {
@@ -94,6 +108,17 @@ const YAAGL_BUILTIN_WINE: WineDistribution[] = [
   },
 
   {
+    id: D3DMETAL_RUNTIME_ID,
+    displayName: "Wine 11.17 D3DMetal (GPTK 4.0b2, experimental)",
+    remoteUrl: D3DMETAL_RUNTIME_URL,
+    checksum: `sha-256=${D3DMETAL_ARCHIVE_SHA256}`,
+    attributes: {
+      renderBackend: "d3dmetal",
+      supportsD3d12: true,
+      winePath: "wine",
+    },
+  },
+  {
     id: "9.9-dxmt",
     displayName: "Wine 9.9 DXMT",
     remoteUrl:
@@ -134,7 +159,7 @@ async function getSystemGPTKWineDistribution(): Promise<WineDistribution | null>
       id: GPTK_WINE_ID,
       displayName: `Game Porting Toolkit ${version}`,
       remoteUrl: "",
-      attributes: {},
+      attributes: { renderBackend: "d3dmetal", supportsD3d12: true },
       systemWineRoot: registerSystemWineRoot(GPTK_WINE_ID, GPTK_WINE_ROOT),
     };
   } catch {
@@ -151,23 +176,28 @@ async function getCustomWineDistributions(): Promise<WineDistribution[]> {
     }))
   );
   const roots = new Set<string>();
-  return wines.flatMap(({ entry, wine }) => {
+  const distributions: WineDistribution[] = [];
+  for (const { entry, wine } of wines) {
     if (!wine || wine.root == GPTK_WINE_ROOT || roots.has(wine.root)) {
-      return [];
+      continue;
     }
     roots.add(wine.root);
     const id = getCustomWineId(wine.root);
-    return [
-      {
-        id,
-        displayName: entry.name,
-        remoteUrl: "",
-        attributes: {},
-        systemWineRoot: registerSystemWineRoot(id, wine.root),
-        customWine: entry,
-      },
-    ];
-  });
+    const hasD3DMetal = await fileOrDirExists(
+      join(wine.root, "lib/external/D3DMetal.framework/D3DMetal")
+    );
+    distributions.push({
+      id,
+      displayName: entry.name,
+      remoteUrl: "",
+      attributes: hasD3DMetal
+        ? { renderBackend: "d3dmetal", supportsD3d12: true }
+        : {},
+      systemWineRoot: registerSystemWineRoot(id, wine.root),
+      customWine: entry,
+    });
+  }
+  return distributions;
 }
 
 export type WineStatus =
@@ -252,6 +282,12 @@ export async function checkWine(
 }
 
 async function migrateLegacyWineDir(distroId: string) {
+  if (
+    distroId === D3DMETAL_RUNTIME_ID ||
+    distroId === GPTK_WINE_ID ||
+    distroId.startsWith("custom-wine-")
+  )
+    return;
   const legacyWineDir = resolve("./wine");
   const versionedWineDir = getWineInstallDir(distroId);
   if (await isWineDistroInstalled(distroId)) return;

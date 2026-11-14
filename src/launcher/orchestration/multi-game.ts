@@ -144,7 +144,15 @@ export async function createMultiGameLauncher({
       "BOOT_INITIALIZING_GAME_CLIENT",
       66 + Math.round((index / Math.max(1, specs.length)) * 30)
     );
-    const wineRef: MultiGameWineRef = { current: baseWine };
+    const [effectiveWine, setEffectiveWine] = createSignal(baseWine);
+    const wineRef: MultiGameWineRef = {
+      get current() {
+        return effectiveWine();
+      },
+      set current(wine) {
+        setEffectiveWine(wine);
+      },
+    };
     const gameWine = createMultiGameWineProxy(wineRef);
     const client = await (bootPerformance?.measure(
       `game-client:${spec.id}`,

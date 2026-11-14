@@ -135,6 +135,8 @@ export const ru_RU: typeof zh_CN = {
   SETTING_NAP_METALFX: "Включить MetalFX",
   SETTING_NAP_METALFX_DESC:
     "Использовать MetalFX вместо DLSS с поддержкой трассировки лучей.",
+  SETTING_NAP_D3D12_REQUIREMENTS:
+    "Для DirectX 12 требуется Wine с D3DMetal или Game Porting Toolkit.",
   SETTING_NAP_REQUIRES_GPTK3: "Требуется Game Porting Toolkit 3 (GPTK3).",
   SETTING_SAVE: "Сохранить",
   SETTING_CANCEL: "Отменить",
@@ -326,6 +328,16 @@ export const ru_RU: typeof zh_CN = {
   AHEAD_OF_LATEST_TITLE: "Новее последнего релиза",
   AHEAD_OF_LATEST_JOKE:
     "Пока официальная версия обновляется по капле 🐌, ты уже на следующем поколении 🚀. Держись скромно, без спойлеров 🤫.",
+  D3DMETAL_LICENSE_TITLE:
+    "Лицензионное соглашение Game Porting Toolkit 4.0 beta 2",
+  D3DMETAL_LICENSE_LOADING: en.D3DMETAL_LICENSE_LOADING,
+  D3DMETAL_LICENSE_ERROR: en.D3DMETAL_LICENSE_ERROR,
+  D3DMETAL_LICENSE_RETRY: en.D3DMETAL_LICENSE_RETRY,
+  D3DMETAL_LICENSE_ACKNOWLEDGE: en.D3DMETAL_LICENSE_ACKNOWLEDGE,
+  D3DMETAL_LICENSE_ACCEPT: en.D3DMETAL_LICENSE_ACCEPT,
+  D3DMETAL_LICENSE_REQUIREMENTS:
+    "Экспериментальная среда для Apple Silicon и macOS 26 или новее.",
+
   UPDATE_LAUNCHER: "Обновить лаунчер",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",

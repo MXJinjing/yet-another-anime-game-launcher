@@ -15,6 +15,8 @@ import {
 import { CURRENT_YAAGL_VERSION } from "@constants";
 import { log } from "./logging/logger";
 import { createLocale, type Locale } from "./locale";
+import { D3DMetalLicenseModal } from "./modals/d3dmetal-license-modal";
+import { setD3DMetalLicensePrompt } from "./wine/d3dmetal";
 import { CloseConfirmationModal } from "./modals/close-confirmation-modal";
 import { LauncherUpdateModal } from "./modals/launcher-update-modal";
 import { HostsHelperTokenRecoveryModal } from "./modals/hosts-helper-token-recovery-modal";
@@ -281,6 +283,22 @@ export async function createApp(bootPerformance?: BootPerformance) {
   bootPerformance?.mark("create-app-complete");
 
   return function AppRoot() {
+    const [licenseRequest, setLicenseRequest] = createSignal<{
+      loadLicense: () => Promise<string>;
+      decide: (accepted: boolean) => void;
+    }>();
+    setD3DMetalLicensePrompt(
+      loadLicense =>
+        new Promise<boolean>(resolve => {
+          setLicenseRequest({
+            loadLicense,
+            decide: accepted => {
+              setLicenseRequest(undefined);
+              resolve(accepted);
+            },
+          });
+        })
+    );
     const [updaterComponent, setUpdaterComponent] = createSignal<
       (() => JSXElement) | undefined
     >();
@@ -531,6 +549,15 @@ export async function createApp(bootPerformance?: BootPerformance) {
           onRepair={repairHostsHelperRegistration}
           onDelete={deleteMissingTokenRegistration}
         />
+        <Show when={licenseRequest()} keyed>
+          {request => (
+            <D3DMetalLicenseModal
+              locale={locale}
+              loadLicense={request.loadLicense}
+              onDecision={request.decide}
+            />
+          )}
+        </Show>
         <CloseConfirmationModal
           prompt={closePrompt}
           locale={locale}

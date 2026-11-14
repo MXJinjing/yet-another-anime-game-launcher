@@ -1,3 +1,4 @@
+import { isWineRuntimeReady } from "@wine/distro";
 import { batch, createSignal } from "solid-js";
 import type { TaskProgram } from "@tasks/task-program";
 import {
@@ -136,15 +137,15 @@ export async function createCBJQChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
-    runtimeReady: () => runtimeReady(),
+    runtimeReady: () => isWineRuntimeReady(wine.attributes, runtimeReady()),
     async refreshRuntimeReady() {
       setRuntimeReady(await isDXMTInstalled());
     },
     async *continueInstall(): TaskProgram {
       if (wine.attributes.renderBackend == "dxmt") {
         yield* checkAndDownloadDXMT(aria2, storage.namespace);
+        setRuntimeReady(true);
       }
-      setRuntimeReady(true);
     },
     async *install(selection: string): TaskProgram {
       if (!versionLoaded) {

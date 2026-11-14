@@ -5,6 +5,7 @@ vi.mock("@logging/logger", () => ({
 }));
 
 vi.mock("@platform/neutralino", () => ({
+  fileOrDirExists: vi.fn(async () => false),
   readBinary: vi.fn(async () =>
     new TextEncoder().encode(
       "Screenmanager Resolution Width_h182942802    REG_DWORD    0x780\r\n"
@@ -19,6 +20,7 @@ vi.mock("@platform/neutralino", () => ({
 
 vi.mock("@runtime/macos-filesystem", () => ({
   cp: vi.fn(async () => undefined),
+  forceMove: vi.fn(async () => undefined),
   mkdirp: vi.fn(async () => undefined),
 }));
 
@@ -42,10 +44,10 @@ vi.mock("@src/clients/mhy/patch", () => ({
 
 import type { Config } from "@config";
 import type { Server } from "@constants";
-import { removeFile } from "@platform/neutralino";
+import { fileOrDirExists, removeFile, writeFile } from "@platform/neutralino";
 import type { TaskProgressCommand } from "@tasks/task-program";
 import type { Wine } from "@wine";
-import { cp } from "@runtime/macos-filesystem";
+import { cp, forceMove } from "@runtime/macos-filesystem";
 import { patchProgram, patchRevertProgram } from "@src/clients/mhy/patch";
 import { launchGameProgram } from "@src/clients/mhy/nap/program-launch-game";
 
@@ -310,8 +312,9 @@ describe("nap game process lifecycle", () => {
     );
   });
 
-  it("preserves the Steam patch launch branch", async () => {
+  it("preserves the Steam DX12 launch branch for a capable runtime", async () => {
     const { wine, raw } = createWine();
+    raw.attributes.supportsD3d12 = true;
     await collect(
       launchGameProgram({
         gameDir: "/game",
@@ -333,6 +336,70 @@ describe("nap game process lifecycle", () => {
       expect.objectContaining({ WINEDLLOVERRIDES: "" }),
       expect.stringContaining("game_")
     );
+  });
+
+  it.each([true, false])(
+    "ignores a stale DX12 preference on DXMT (Steam: %s)",
+    async steamPatch => {
+      const { wine, raw } = createWine();
+      raw.attributes.renderBackend = "dxmt";
+      await collect(
+        launchGameProgram({
+          gameDir: "/game",
+          gameExecutable: "TargetGame.exe",
+          wine,
+          config: {
+            ...config,
+            resolutionCustom: false,
+            steamPatch,
+            useD3D12: true,
+          },
+          server: server("nap_cn"),
+        })
+      );
+      expect(writeFile).toHaveBeenCalledWith(
+        "/launcher/config.bat",
+        expect.not.stringContaining("-use-d3d12")
+      );
+      expect(raw.exec2.mock.calls[0][1]).not.toContain("-use-d3d12");
+    }
+  );
+
+  it("uses the built-in D3DMetal bridge with native DX12", async () => {
+    const { wine, raw } = createWine();
+    raw.attributes.renderBackend = "d3dmetal";
+    raw.attributes.supportsD3d12 = true;
+    vi.mocked(fileOrDirExists).mockImplementation(async path =>
+      path.endsWith("/nvngx.dll")
+    );
+    await collect(
+      launchGameProgram({
+        gameDir: "/game",
+        gameExecutable: "TargetGame.exe",
+        wine,
+        config: {
+          ...config,
+          resolutionCustom: false,
+          napMetalFxEnable: true,
+          useD3D12: true,
+        },
+        server: server("nap_cn"),
+      })
+    );
+    expect(writeFile).toHaveBeenCalledWith(
+      "/launcher/config.bat",
+      expect.stringContaining("-use-d3d12")
+    );
+    expect(cp).toHaveBeenCalledWith(
+      "/wine/lib/wine/x86_64-windows/nvngx.dll",
+      "/prefix/drive_c/windows/system32/nvngx.dll.yaagl-runtime.tmp"
+    );
+    expect(forceMove).toHaveBeenCalledWith(
+      "/prefix/drive_c/windows/system32/nvngx.dll.yaagl-runtime.tmp",
+      "/prefix/drive_c/windows/system32/nvngx.dll"
+    );
+    expect(raw.exec2.mock.calls[0][2]).not.toHaveProperty("DXMT_CONFIG");
+    vi.mocked(fileOrDirExists).mockResolvedValue(false);
   });
 
   it("waits indefinitely for the prefix when process enumeration becomes unknown", async () => {

@@ -133,6 +133,8 @@ export const ko_KR: typeof zh_CN = {
   SETTING_NAP_METALFX: "MetalFX 활성화",
   SETTING_NAP_METALFX_DESC:
     "DLSS 대신 MetalFX를 사용하며 레이 트레이싱도 지원합니다.",
+  SETTING_NAP_D3D12_REQUIREMENTS:
+    "DirectX 12에는 D3DMetal Wine 런타임 또는 Game Porting Toolkit이 필요합니다.",
   SETTING_NAP_REQUIRES_GPTK3: "Game Porting Toolkit 3(GPTK3)이 필요합니다.",
   SETTING_SAVE: "저장",
   SETTING_CANCEL: "취소",
@@ -321,6 +323,17 @@ export const ko_KR: typeof zh_CN = {
   AHEAD_OF_LATEST_TITLE: "최신 릴리스보다 최신",
   AHEAD_OF_LATEST_JOKE:
     "공식 버전이 아직 조금씩 업데이트를 내놓는 동안🐌, 당신은 이미 다음 세대🚀. 조용히, 스포일러 금지🤫.",
+  D3DMETAL_LICENSE_TITLE: "Game Porting Toolkit 4.0 beta 2 License 동의",
+  D3DMETAL_LICENSE_LOADING: "사용권 계약을 다운로드하고 검증하는 중…",
+  D3DMETAL_LICENSE_ERROR:
+    "사용권 계약을 불러오거나 검증할 수 없습니다. 설치는 시작되지 않았습니다.",
+  D3DMETAL_LICENSE_RETRY: "다시 시도",
+  D3DMETAL_LICENSE_ACKNOWLEDGE:
+    "Apple 소프트웨어 사용권 계약을 읽었으며 이에 동의합니다.",
+  D3DMETAL_LICENSE_ACCEPT: "동의하고 설치",
+  D3DMETAL_LICENSE_REQUIREMENTS:
+    "Apple Silicon 및 macOS 26 이상용 실험적 런타임입니다.",
+
   UPDATE_LAUNCHER: "런처 업데이트",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",

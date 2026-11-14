@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js";
 import { log } from "../logging/logger";
 import {
   fileOrDirExists,
@@ -15,6 +16,7 @@ import { rmrf_dangerously } from "@runtime/macos-filesystem";
 import { getKey, setKey } from "@runtime/storage";
 import { dirname, join } from "path-browserify";
 import type { WineDistribution, WineDistributionAttributes } from "./distro";
+import { D3DMETAL_RUNTIME_ID, isD3DMetalRuntimePrepared } from "./d3dmetal";
 import { getRegisteredSystemWineRoot, GPTK_WINE_ID } from "./system-wine";
 import {
   createGameProcessMonitor,
@@ -50,9 +52,13 @@ export function isWineserverUnavailableError(error: unknown) {
 
 export async function isWineDistroInstalled(distroId: string) {
   const wineRoot = getWineDistroRoot(distroId);
-  return (
+  const hasLoader =
     (await fileOrDirExists(join(wineRoot, "bin", "wine"))) ||
-    (await fileOrDirExists(join(wineRoot, "bin", "wine64")))
+    (await fileOrDirExists(join(wineRoot, "bin", "wine64")));
+  return (
+    hasLoader &&
+    (distroId !== D3DMETAL_RUNTIME_ID ||
+      (await isD3DMetalRuntimePrepared(wineRoot)))
   );
 }
 
@@ -524,20 +530,16 @@ exit /b 0
     await waitUntilServerOff();
   }
 
-  const attributes: Partial<WineDistributionAttributes> = {
-    ...options.distro.attributes,
-  };
+  const [attributes, setAttributes] = createSignal<
+    Partial<WineDistributionAttributes>
+  >({ ...options.distro.attributes });
 
   async function setDistribution(distro: WineDistribution) {
-    for (const key of Object.keys(attributes) as Array<
-      keyof WineDistributionAttributes
-    >) {
-      delete attributes[key];
-    }
-    Object.assign(attributes, distro.attributes);
+    const nextLoader = await getCorrectWineBinary(distro.id);
     await ensureActiveWineCompatLink(distro.id);
-    loaderBin = await getCorrectWineBinary(distro.id);
+    loaderBin = nextLoader;
     wineRoot = getWineDistroRoot(distro.id);
+    setAttributes({ ...distro.attributes });
   }
 
   return {
@@ -558,7 +560,9 @@ exit /b 0
     setNVExtension,
     clearNVExtension,
     setDistribution,
-    attributes,
+    get attributes() {
+      return attributes();
+    },
   };
 }
 

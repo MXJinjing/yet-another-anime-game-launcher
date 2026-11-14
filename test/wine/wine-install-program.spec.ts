@@ -28,6 +28,14 @@ vi.mock("@wine/wine", () => ({
 }));
 vi.mock("@wine/mf", () => ({ installMediaFoundation: vi.fn() }));
 vi.mock("@wine/cert", () => ({ addCertsToWine: vi.fn() }));
+vi.mock("@wine/d3dmetal", () => ({
+  D3DMETAL_RUNTIME_ID: "d3dmetal-test",
+  assertD3DMetalHostSupported: vi.fn(),
+  isD3DMetalRuntimePrepared: vi.fn(async () => true),
+  prepareD3DMetalWine: vi.fn(),
+  requireD3DMetalLicense: vi.fn(),
+  verifyD3DMetalArchive: vi.fn(),
+}));
 
 import { removeFile, removeFileIfExists } from "@platform/neutralino";
 import { tar_extract, tar_extract_directory } from "@runtime/archive";
@@ -36,6 +44,13 @@ import { rmrf_dangerously, xattrRemove } from "@runtime/macos-filesystem";
 import { setKey } from "@runtime/storage";
 import { createWine, isWineDistroInstalled } from "@wine/wine";
 import { addCertsToWine } from "@wine/cert";
+import {
+  assertD3DMetalHostSupported,
+  D3DMETAL_RUNTIME_ID,
+  prepareD3DMetalWine,
+  requireD3DMetalLicense,
+  verifyD3DMetalArchive,
+} from "@wine/d3dmetal";
 import {
   createWineInstallProgram,
   installWineEnvironmentProgram,
@@ -305,4 +320,105 @@ describe("Wine environment installation", () => {
       expect(commands.at(-1)).toEqual(["setStateText", "INSTALL_DONE"]);
     }
   );
+});
+
+describe("Experimental D3DMetal Wine installation", () => {
+  const d3dMetal = {
+    id: D3DMETAL_RUNTIME_ID,
+    displayName: "D3DMetal",
+    remoteUrl: "https://example.invalid/wine.tar.xz",
+    attributes: {
+      winePath: "wine",
+      supportsD3d12: true,
+      renderBackend: "d3dmetal",
+    },
+  } as const;
+  const stage = "/wines/d3dmetal-test.installing";
+  const destination = "/wines/d3dmetal-test";
+  const archive = "./wine-d3dmetal-test.tar.xz";
+  const install = (activate = true) =>
+    collect(
+      installWineEnvironmentProgram({
+        ...options(),
+        wineDistro: d3dMetal,
+        activate,
+      })
+    );
+
+  it("checks host and consent before download, and prepares the staged runtime before activation", async () => {
+    await install();
+    expect(requireD3DMetalLicense).toHaveBeenCalledOnce();
+    expect(
+      vi.mocked(assertD3DMetalHostSupported).mock.invocationCallOrder[0]
+    ).toBeLessThan(
+      vi.mocked(requireD3DMetalLicense).mock.invocationCallOrder[0]
+    );
+    expect(
+      vi.mocked(requireD3DMetalLicense).mock.invocationCallOrder[0]
+    ).toBeLessThan(download.mock.invocationCallOrder[0]);
+    expect(verifyD3DMetalArchive).toHaveBeenCalledWith(archive);
+    expect(tar_extract_directory).toHaveBeenCalledWith(
+      archive,
+      stage,
+      "wine",
+      true
+    );
+    expect(prepareD3DMetalWine).toHaveBeenCalledWith(stage);
+    expect(addCertsToWine).toHaveBeenCalledWith(stage);
+    expect(
+      vi.mocked(prepareD3DMetalWine).mock.invocationCallOrder[0]
+    ).toBeLessThan(vi.mocked(createWine).mock.invocationCallOrder[0]);
+    expect(exec).toHaveBeenCalledWith(["mv", stage, destination]);
+    expect(setKey).toHaveBeenCalledWith("wine_tag", D3DMETAL_RUNTIME_ID);
+  });
+
+  it("lets overlapping requests fail without blocking the first installation", async () => {
+    const program = installWineEnvironmentProgram({
+      ...options(),
+      wineDistro: d3dMetal,
+    });
+    await program.next();
+    await expect(install(false)).rejects.toThrow("already in progress");
+    await program.return();
+    await expect(install(false)).resolves.toBeDefined();
+  });
+
+  it("does not download a runtime after license decline", async () => {
+    vi.mocked(requireD3DMetalLicense).mockRejectedValueOnce(
+      new DownloadCancelledError()
+    );
+    await expect(install()).rejects.toBeInstanceOf(DownloadCancelledError);
+    expect(download).not.toHaveBeenCalled();
+    expect(exec).not.toHaveBeenCalled();
+    expect(setKey).not.toHaveBeenCalled();
+  });
+
+  it("prepares Wine for per-game use without switching the global runtime", async () => {
+    await install(false);
+    expect(prepareD3DMetalWine).toHaveBeenCalledWith(stage);
+    expect(exec).toHaveBeenCalledWith(["mv", stage, destination]);
+    expect(setKey).not.toHaveBeenCalled();
+  });
+
+  it("keeps the verified archive for retry and never promotes a failed preparation", async () => {
+    vi.mocked(prepareD3DMetalWine).mockRejectedValueOnce(
+      new Error("signature failure")
+    );
+    await expect(install()).rejects.toThrow("signature failure");
+    expect(rmrf_dangerously).toHaveBeenCalledWith(stage);
+    expect(rmrf_dangerously).not.toHaveBeenCalledWith(destination);
+    expect(exec).not.toHaveBeenCalledWith(["mv", stage, destination]);
+    expect(removeFile).not.toHaveBeenCalled();
+    expect(setKey).not.toHaveBeenCalled();
+  });
+
+  it("reuses an already prepared installation without touching its binaries", async () => {
+    vi.mocked(isWineDistroInstalled).mockResolvedValue(true);
+    await install();
+    expect(download).not.toHaveBeenCalled();
+    expect(requireD3DMetalLicense).not.toHaveBeenCalled();
+    expect(prepareD3DMetalWine).not.toHaveBeenCalled();
+    expect(addCertsToWine).not.toHaveBeenCalled();
+    expect(createWine).toHaveBeenCalledOnce();
+  });
 });

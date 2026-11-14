@@ -12,7 +12,7 @@ import {
   writeFile,
 } from "@platform/neutralino";
 import { utf16le } from "@runtime/binary";
-import { cp, mkdirp } from "@runtime/macos-filesystem";
+import { cp, forceMove, mkdirp } from "@runtime/macos-filesystem";
 import { getKeyOrDefault, globalStorage, type Storage } from "@runtime/storage";
 import { Wine } from "../../../wine";
 import { Config } from "@config";
@@ -98,7 +98,8 @@ export async function* launchGameProgram({
     args.push("-screen-height", config.resolutionHeight);
     args.push("-screen-fullscreen", "0");
   }
-  if (config.useD3D12) args.push("-use-d3d12");
+  const useD3D12 = config.useD3D12 && wine.attributes.supportsD3d12 === true;
+  if (useD3D12) args.push("-use-d3d12");
   const cmd = `@echo off
 cd "%~dp0"
 copy "${wine.toWinePath(
@@ -145,14 +146,34 @@ cd /d "${wine.toWinePath(gameDir)}"
     const gptkWindowsDir = join(wine.wineRoot, "lib/wine/x86_64-windows");
     const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
     const metalfxBridge = join(gptkWindowsDir, "nvngx-on-metalfx.dll");
+    // Replace the directory entry in the prefix. Wine may have populated
+    // system32 with symlinks into its own installation.
+    async function installPrefixLibrary(source: string, destination: string) {
+      const temporary = `${destination}.yaagl-runtime.tmp`;
+      await removeFileIfExists(temporary);
+      try {
+        await cp(source, temporary);
+        await forceMove(temporary, destination);
+      } finally {
+        await removeFileIfExists(temporary);
+      }
+    }
     try {
       if (await fileOrDirExists(metalfxBridge)) {
-        await cp(metalfxBridge, join(system32Dir, "nvngx-on-metalfx.dll"));
-        await cp(metalfxBridge, join(system32Dir, "nvngx.dll"));
+        await installPrefixLibrary(
+          metalfxBridge,
+          join(system32Dir, "nvngx-on-metalfx.dll")
+        );
+        await installPrefixLibrary(metalfxBridge, system32Nvngx);
+      } else if (wine.attributes.renderBackend === "d3dmetal") {
+        const builtInBridge = join(gptkWindowsDir, "nvngx.dll");
+        if (await fileOrDirExists(builtInBridge)) {
+          await installPrefixLibrary(builtInBridge, system32Nvngx);
+        }
       }
       const nvapi = join(gptkWindowsDir, "nvapi64.dll");
       if (await fileOrDirExists(nvapi)) {
-        await cp(nvapi, join(system32Dir, "nvapi64.dll"));
+        await installPrefixLibrary(nvapi, join(system32Dir, "nvapi64.dll"));
       }
     } catch (error) {
       await log(
@@ -196,7 +217,7 @@ cd /d "${wine.toWinePath(gameDir)}"
         config.steamPatch
           ? [
               wine.toWinePath(join(gameDir, gameExecutable)),
-              ...(config.useD3D12 ? ["-use-d3d12"] : []),
+              ...(useD3D12 ? ["-use-d3d12"] : []),
             ]
           : ["/c", `${wine.toWinePath(resolve("./config.bat"))} `],
         {
