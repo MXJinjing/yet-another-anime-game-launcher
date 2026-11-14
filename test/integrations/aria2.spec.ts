@@ -26,6 +26,7 @@ vi.mock("@src/integrations/github", () => ({
 }));
 
 import { WebSocket as RPC } from "libaria2-ts";
+import { sha256_16 } from "@runtime/binary";
 import { getKeyOrDefault } from "@runtime/storage";
 import { fileOrDirExists } from "@platform/neutralino";
 import {
@@ -116,6 +117,24 @@ describe("aria2 download lifecycle", () => {
       expect.objectContaining({ progress: 25, speed: 10, total: 100 })
     );
     expect(unregisterStream).toHaveBeenCalledWith("aria2:gid");
+  });
+
+  it("includes the checksum in the task identity and in new downloads", async () => {
+    const aria2 = await client();
+    for (const digest of ["a", "b"]) {
+      const checksum = `sha-256=${digest.repeat(64)}`;
+      rpc.tellStatus
+        .mockRejectedValueOnce({ code: 1 })
+        .mockResolvedValueOnce(status("complete"));
+      await collect(aria2.doStreamingDownload({ ...request, checksum }));
+      expect(sha256_16).toHaveBeenLastCalledWith(
+        `${request.uri}:${request.absDst}:${checksum}`
+      );
+      expect(rpc.addUri).toHaveBeenLastCalledWith(
+        request.uri,
+        expect.objectContaining({ checksum })
+      );
+    }
   });
 
   it.each(["active", "waiting", "paused"])(
