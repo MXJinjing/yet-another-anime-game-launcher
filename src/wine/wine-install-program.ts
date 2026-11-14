@@ -27,6 +27,7 @@ import {
 import { installMediaFoundation } from "./mf";
 import { WineDistribution } from "./distro";
 import { addCertsToWine } from "./cert";
+import { createWinePrefixInitializationLog } from "./prefix-initialization-log";
 
 /**
  * Returns the install task. Rendering it is the composition layer's concern.
@@ -197,8 +198,13 @@ export async function* configureWineEnvironmentProgram({
     prefix: wineAbsPrefix,
     distro: wineDistro,
   });
-  await wine.exec("wineboot", ["-u"], {}, "/dev/null");
-  await wine.exec("winecfg", ["-v", "win10"], {}, "/dev/null");
+  const runInitializationStep = await createWinePrefixInitializationLog();
+  await runInitializationStep("wineboot", logFile =>
+    wine.exec("wineboot", ["-u"], {}, logFile)
+  );
+  await runInitializationStep("winecfg", logFile =>
+    wine.exec("winecfg", ["-v", "win10"], {}, logFile)
+  );
 
   if (
     String(import.meta.env["YAAGL_CHANNEL_CLIENT"]).startsWith("bh3") ||

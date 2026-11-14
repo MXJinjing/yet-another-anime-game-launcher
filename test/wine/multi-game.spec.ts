@@ -21,11 +21,16 @@ vi.mock("@logging/logger", () => ({
 }));
 
 vi.mock("@platform/neutralino", () => ({
+  resolve: (path: string) => path,
   fileOrDirExists: vi.fn(async () => false),
   removeFileIfExists: vi.fn(async () => undefined),
   stats: vi.fn(async () => ({ isDirectory: true, isFile: false })),
   writeFile: vi.fn(async () => undefined),
 }));
+vi.mock("@runtime/command-runner", () => ({ exec: vi.fn() }));
+
+import { fileOrDirExists } from "@platform/neutralino";
+import { exec } from "@runtime/command-runner";
 import type { TaskProgressCommand } from "@tasks/task-program";
 import * as runtimeStorage from "@runtime/storage";
 import {
@@ -46,7 +51,16 @@ const storage = (
 ).__storage;
 
 describe("multi-game Wine", () => {
-  beforeEach(() => storage.clear());
+  beforeEach(() => {
+    storage.clear();
+    vi.mocked(fileOrDirExists).mockResolvedValue(false);
+    vi.mocked(exec).mockResolvedValue({
+      stdOut: "logs/wine-initialization.test\n",
+      stdErr: "",
+      exitCode: 0,
+      pid: 1,
+    });
+  });
 
   it("migrates legacy Wine keys without leaving a downgrade-unsafe tag", async () => {
     storage.set("yaaglm_zzz_wine_tag", "gptk3-system");
@@ -116,20 +130,68 @@ describe("multi-game Wine", () => {
     expect(wine.waitForWineServerExit).toHaveBeenCalledWith({
       timeoutMs: 5_000,
     });
-    // A brand-new prefix is initialized (no `-u`), and failures keep stderr
-    // visible by not redirecting the output.
-    expect(wine.exec2).toHaveBeenCalledWith("wineboot", [], {}, undefined, {
-      timeoutMs: 300_000,
-    });
+    expect(wine.exec2).toHaveBeenCalledWith(
+      "wineboot",
+      [],
+      {},
+      "logs/wine-initialization.test/1-wineboot.log",
+      { timeoutMs: 300_000 }
+    );
     expect(wine.exec2).toHaveBeenCalledWith(
       "winecfg",
       ["-v", "win10"],
       {},
-      "/dev/null",
+      "logs/wine-initialization.test/2-winecfg.log",
       { timeoutMs: 120_000 }
     );
     expect(states).toEqual(["CONFIGURING_ENVIRONMENT", "INSTALL_DONE"]);
     expect(result).toBe(wine);
+  });
+
+  it("uses separate logs when preparing Wine environments concurrently", async () => {
+    vi.mocked(fileOrDirExists).mockResolvedValue(true);
+    let directory = 0;
+    vi.mocked(exec).mockImplementation(async ([command]) => ({
+      stdOut: command === "/usr/bin/mktemp" ? `logs/run-${++directory}\n` : "",
+      stdErr: "",
+      exitCode: 0,
+      pid: 1,
+    }));
+    const error = new Error("winecfg timed out");
+    const wines = ["/prefix-one", "/prefix-two"].map(prefix => ({
+      prefix,
+      killAll: vi.fn(async () => undefined),
+      waitForWineServerExit: vi.fn(async () => true),
+      exec2: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(error),
+    }));
+
+    await Promise.all(
+      wines.map(async (wine, index) => {
+        const program = prepareMultiGameGameWine({
+          aria2: {} as never,
+          baseWine: wine as never,
+          gameId: `game-${index}`,
+          wineTag: SHARED_WINE_TAG,
+        });
+        const directory = `logs/run-${index + 1}`;
+        await expect(program.next()).resolves.toMatchObject({ done: false });
+        await expect(program.next()).resolves.toMatchObject({ done: false });
+        await expect(program.next()).rejects.toMatchObject({
+          cause: error,
+          message: expect.stringContaining(`${directory}/2-winecfg.log`),
+        });
+        expect(wine.exec2).toHaveBeenCalledWith(
+          "wineboot",
+          ["-u"],
+          {},
+          `${directory}/1-wineboot.log`,
+          { timeoutMs: 300_000 }
+        );
+      })
+    );
   });
 
   it("copies the current prefix once into the per-game location", async () => {

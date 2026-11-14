@@ -16,6 +16,7 @@ import { log } from "../logging/logger";
 import { getWineDistributions } from "./distro";
 import type { WineDistribution } from "./distro";
 import { installWineEnvironmentProgram } from "./wine-install-program";
+import { createWinePrefixInitializationLog } from "./prefix-initialization-log";
 import {
   getWineDistroRoot,
   isWineDistroInstalled,
@@ -584,7 +585,6 @@ export async function* prepareMultiGameGameWine({
   wineTag,
   migrate = false,
   descriptor,
-  logFile = "/dev/null",
   downloadKey,
 }: {
   aria2: Aria2;
@@ -598,7 +598,6 @@ export async function* prepareMultiGameGameWine({
   migrate?: boolean;
   /** Game data locations; without one a whole-prefix copy is used. */
   descriptor?: WineUserDataDescriptor;
-  logFile?: string;
   /** Download-control namespace used if the selected shared Wine is missing. */
   downloadKey?: string;
 }): TaskProgram<Wine> {
@@ -608,6 +607,7 @@ export async function* prepareMultiGameGameWine({
     throw new Error("Wine server did not exit; environment was not changed");
   }
 
+  const runInitializationStep = await createWinePrefixInitializationLog();
   let wine: Wine;
   if (wineTag === SHARED_WINE_TAG) {
     wine = baseWine;
@@ -637,7 +637,7 @@ export async function* prepareMultiGameGameWine({
     if (needsMigration && descriptor) {
       // Prepare the target prefix first, then move this game's registry keys
       // and data directories into it.
-      await warmUpWinePrefix(wine);
+      await warmUpWinePrefix(wine, runInitializationStep);
       await migrateWineUserData({
         sourceWine: staleWine,
         targetWine: wine,
@@ -654,20 +654,29 @@ export async function* prepareMultiGameGameWine({
 
   yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
   yield ["setUndeterminedProgress"];
-  await warmUpWinePrefix(wine);
-  await wine.exec2("winecfg", ["-v", "win10"], {}, logFile, {
-    timeoutMs: 120_000,
-  });
+  await warmUpWinePrefix(wine, runInitializationStep);
+  await runInitializationStep("winecfg", logFile =>
+    wine.exec2("winecfg", ["-v", "win10"], {}, logFile, {
+      timeoutMs: 120_000,
+    })
+  );
   yield ["setStateText", "INSTALL_DONE"];
   return wine;
 }
 
 /** Initialize a brand-new prefix or update an existing one. */
-async function warmUpWinePrefix(wine: Wine) {
+async function warmUpWinePrefix(
+  wine: Wine,
+  runInitializationStep: Awaited<
+    ReturnType<typeof createWinePrefixInitializationLog>
+  >
+) {
   const initialized = await fileOrDirExists(
     join(wine.prefix, "drive_c", "windows")
   );
-  await wine.exec2("wineboot", initialized ? ["-u"] : [], {}, undefined, {
-    timeoutMs: 300_000,
-  });
+  await runInitializationStep("wineboot", logFile =>
+    wine.exec2("wineboot", initialized ? ["-u"] : [], {}, logFile, {
+      timeoutMs: 300_000,
+    })
+  );
 }
