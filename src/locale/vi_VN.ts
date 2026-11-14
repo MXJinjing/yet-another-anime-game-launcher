@@ -445,4 +445,7 @@ export const vi_VN: typeof zh_CN = {
   CHECK_GAME_UPDATE_FAILED: "Kiểm tra cập nhật trò chơi thất bại",
   CHECK_GAME_UPDATE_FAILED_DESC:
     "Không thể kết nối đến máy chủ cập nhật. Vui lòng kiểm tra kết nối mạng và thử lại.",
+  GAME_VERSION_INVALID: "Phiên bản trò chơi không hợp lệ",
+  GAME_VERSION_UNREADABLE:
+    "Không thể đọc phiên bản trò chơi đã cài đặt. Bạn có thể cần sửa chữa hoặc cập nhật tệp trò chơi của mình.",
 };

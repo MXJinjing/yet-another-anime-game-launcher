@@ -15,7 +15,11 @@ import { getFreeSpace } from "@runtime/macos-filesystem";
 import { log } from "@logging/logger";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
-import { gt, lt } from "semver";
+import {
+  isNewerGameVersion,
+  readGameVersion,
+  requireGameVersion,
+} from "../../game-version";
 import { Config } from "@config";
 import { checkIntegrityProgram } from "../program-check-integrity";
 import {
@@ -122,7 +126,9 @@ export async function createBH3ChannelClient({
     const versionInfo: LauncherResourceData = await getLatestVersionInfo(
       server
     );
-    GAME_LATEST_VERSION = versionInfo.data.game.latest.version || "0.0.0";
+    GAME_LATEST_VERSION = requireGameVersion(
+      versionInfo.data.game.latest.version
+    );
     diffs = versionInfo.data.game.diffs;
     decompressed_path = versionInfo.data.game.latest.decompressed_path;
     path = versionInfo.data.game.latest.path;
@@ -149,6 +155,11 @@ export async function createBH3ChannelClient({
       hasPreDownload = false;
     }
   const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
+  const initialVersion = readGameVersion(gameVersion) ?? "0.0.0";
+  if (gameInstalled && initialVersion === "0.0.0") {
+    await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+  }
+
   type PreDownloadGame = Exclude<
     LauncherResourceData["data"]["pre_download_game"],
     null
@@ -165,18 +176,14 @@ export async function createBH3ChannelClient({
         (await getKeyOrDefault("predownloaded_all", "NOTFOUND")) ==
           "NOTFOUND" && // not downloaded yet
         gameInstalled && // game installed
-        gt(
-          predownloadGame ? predownloadGame.latest.version || "0.0.0" : "0.0.0",
-          gameVersion || "0.0.0"
-        ) // predownload version is greater
+        isNewerGameVersion(predownloadGame?.latest.version, initialVersion) // predownload version is greater
     );
   const [_gameInstallDir, setGameInstallDir] = createSignal(
     gameInstallDir ?? ""
   );
-  const [gameCurrentVersion, setGameVersion] = createSignal(
-    gameVersion ?? "0.0.0"
-  );
-  const updateRequired = () => lt(gameCurrentVersion(), GAME_LATEST_VERSION);
+  const [gameCurrentVersion, setGameVersion] = createSignal(initialVersion);
+  const updateRequired = () =>
+    isNewerGameVersion(GAME_LATEST_VERSION, gameCurrentVersion());
   const [uiContent, setUiContent] = createStore<ChannelClient["uiContent"]>({
     background,
     background_video: video_url || undefined,
@@ -215,7 +222,8 @@ export async function createBH3ChannelClient({
         setUiContent("launcherContentLoaded", true);
       }
     },
-    predownloadVersion: () => pre_download_game?.latest.version ?? "",
+    predownloadVersion: () =>
+      readGameVersion(pre_download_game?.latest.version) ?? "",
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
@@ -288,14 +296,18 @@ export async function createBH3ChannelClient({
         return;
       }
       const gameVersion = await getGameVersion(join(selection, server.dataDir));
-      if (gt(gameVersion, CURRENT_SUPPORTED_VERSION)) {
+      if (!readGameVersion(gameVersion)) {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
+      if (isNewerGameVersion(gameVersion, CURRENT_SUPPORTED_VERSION)) {
         await locale.alert(
           "UNSUPPORTED_VERSION",
           "PLEASE_WAIT_FOR_LAUNCHER_UPDATE",
           [gameVersion]
         );
         return;
-      } else if (lt(gameVersion, GAME_LATEST_VERSION)) {
+      } else if (isNewerGameVersion(GAME_LATEST_VERSION, gameVersion)) {
         const updateTarget = diffs.find(x => x.version == gameVersion);
         if (!updateTarget) {
           await locale.prompt(
@@ -331,7 +343,14 @@ export async function createBH3ChannelClient({
     },
     async *predownload() {
       setShowPredownloadPrompt(false);
-      if (pre_download_game == null) return;
+      if (
+        pre_download_game == null ||
+        !isNewerGameVersion(
+          pre_download_game.latest.version,
+          gameCurrentVersion()
+        )
+      )
+        return;
       const updateTarget = pre_download_game.diffs.find(
         x => x.version == gameCurrentVersion()
       );
@@ -368,6 +387,10 @@ export async function createBH3ChannelClient({
       });
     },
     async *update() {
+      if (gameCurrentVersion() === "0.0.0") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
       if (diffs.length === 0) {
         await locale.alert(
           "CHECK_GAME_UPDATE_FAILED",
@@ -428,8 +451,12 @@ export async function createBH3ChannelClient({
       });
     },
     async *launch(config: Config) {
+      if (gameCurrentVersion() === "0.0.0") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
       if (
-        gt(gameCurrentVersion(), CURRENT_SUPPORTED_VERSION) &&
+        isNewerGameVersion(gameCurrentVersion(), CURRENT_SUPPORTED_VERSION) &&
         !config.patchOff
       ) {
         await locale.alert(
@@ -456,6 +483,13 @@ export async function createBH3ChannelClient({
       });
     },
     async *checkIntegrity() {
+      if (!versionLoaded) {
+        await locale.alert(
+          "CHECK_GAME_UPDATE_FAILED",
+          "CHECK_GAME_UPDATE_FAILED_DESC"
+        );
+        return;
+      }
       yield* checkIntegrityProgram({
         aria2,
         gameDir: _gameInstallDir(),
@@ -463,6 +497,14 @@ export async function createBH3ChannelClient({
         downloadKey: storage.namespace,
         storage,
       });
+
+      if (gameCurrentVersion() === "0.0.0") {
+        setGameVersion(
+          readGameVersion(
+            await getGameVersion(join(_gameInstallDir(), server.dataDir))
+          ) ?? "0.0.0"
+        );
+      }
     },
     async changeInstallDir(selection: string) {
       if (!selection) {
@@ -481,8 +523,11 @@ export async function createBH3ChannelClient({
         batch(() => {
           setInstalled("INSTALLED");
           setGameInstallDir(selection);
-          setGameVersion(gameVersion);
+          setGameVersion(readGameVersion(gameVersion) ?? "0.0.0");
         });
+        if (gameCurrentVersion() === "0.0.0") {
+          await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        }
       } catch {
         batch(() => {
           setInstalled("NOT_INSTALLED");

@@ -449,4 +449,7 @@ export const en: typeof zh_CN = {
   CHECK_GAME_UPDATE_FAILED: "Check game update failed",
   CHECK_GAME_UPDATE_FAILED_DESC:
     "Cannot connect to update server. Please check your network and try again.",
+  GAME_VERSION_INVALID: "Game version invalid",
+  GAME_VERSION_UNREADABLE:
+    "Failed to read the installed game version. You may need to repair or update your game files.",
 };

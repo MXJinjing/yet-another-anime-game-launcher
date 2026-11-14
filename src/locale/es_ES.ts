@@ -450,4 +450,7 @@ export const es_ES: typeof zh_CN = {
   CHECK_GAME_UPDATE_FAILED: "No se pudo comprobar la actualización del juego",
   CHECK_GAME_UPDATE_FAILED_DESC:
     "No se puede conectar con el servidor de actualización. Comprueba tu conexión de red e inténtalo de nuevo.",
+  GAME_VERSION_INVALID: "Versión del juego inválida",
+  GAME_VERSION_UNREADABLE:
+    "No se pudo leer la versión del juego instalada. Es posible que deba reparar o actualizar los archivos del juego.",
 };

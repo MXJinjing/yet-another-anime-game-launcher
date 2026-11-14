@@ -16,7 +16,11 @@ import { exec } from "@runtime/command-runner";
 import { getFreeSpace } from "@runtime/macos-filesystem";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
-import { gt, lt } from "semver";
+import {
+  isNewerGameVersion,
+  readGameVersion,
+  requireGameVersion,
+} from "../../game-version";
 import { Config } from "@config";
 import { checkIntegrityProgram } from "../program-check-integrity";
 import {
@@ -130,7 +134,7 @@ export async function createHKRPGChannelClient({
   let versionLoaded = false;
   const loadVersionInfo = async () => {
     const versionInfo = await getLatestVersionInfo(server);
-    GAME_LATEST_VERSION = versionInfo.main.major.version || "0.0.0";
+    GAME_LATEST_VERSION = requireGameVersion(versionInfo.main.major.version);
     game_pkgs = versionInfo.main.major.game_pkgs;
     decompressed_path = versionInfo.main.major.res_list_url;
     patches = versionInfo.main.patches;
@@ -154,6 +158,10 @@ export async function createHKRPGChannelClient({
       pre_download = { major: null, patches: [] };
     }
   const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
+  const initialVersion = readGameVersion(gameVersion) ?? "0.0.0";
+  if (gameInstalled && initialVersion === "0.0.0") {
+    await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+  }
 
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
@@ -165,15 +173,14 @@ export async function createHKRPGChannelClient({
         (await getKeyOrDefault("predownloaded_all", "NOTFOUND")) ==
           "NOTFOUND" && // not downloaded yet
         gameInstalled && // game installed
-        gt(pre_download.major.version || "0.0.0", gameVersion || "0.0.0") // predownload version is greater
+        isNewerGameVersion(pre_download.major.version, initialVersion) // predownload version is greater
     );
   const [_gameInstallDir, setGameInstallDir] = createSignal(
     gameInstallDir ?? ""
   );
-  const [gameCurrentVersion, setGameVersion] = createSignal(
-    gameVersion ?? "0.0.0"
-  );
-  const updateRequired = () => lt(gameCurrentVersion(), GAME_LATEST_VERSION);
+  const [gameCurrentVersion, setGameVersion] = createSignal(initialVersion);
+  const updateRequired = () =>
+    isNewerGameVersion(GAME_LATEST_VERSION, gameCurrentVersion());
   const [uiContent, setUiContent] = createStore<ChannelClient["uiContent"]>({
     background,
     background_video: IS_VIDEO_BG ? video_url : undefined,
@@ -211,7 +218,8 @@ export async function createHKRPGChannelClient({
         setUiContent("launcherContentLoaded", true);
       }
     },
-    predownloadVersion: () => pre_download?.major?.version ?? "",
+    predownloadVersion: () =>
+      readGameVersion(pre_download?.major?.version) ?? "",
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
@@ -291,6 +299,10 @@ export async function createHKRPGChannelClient({
       const gameVersion = await getGameVersion2019(
         join(selection, server.dataDir)
       );
+      if (!readGameVersion(gameVersion)) {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
       // if (gt(gameVersion, CURRENT_SUPPORTED_VERSION)) {
       //   await locale.alert(
       //     "UNSUPPORTED_VERSION",
@@ -299,7 +311,7 @@ export async function createHKRPGChannelClient({
       //   );
       //   return;
       // } else
-      if (lt(gameVersion, GAME_LATEST_VERSION)) {
+      if (isNewerGameVersion(GAME_LATEST_VERSION, gameVersion)) {
         const updateTarget = patches.find(x => x.version == gameVersion);
         if (!updateTarget) {
           await locale.prompt(
@@ -335,7 +347,10 @@ export async function createHKRPGChannelClient({
     },
     async *predownload() {
       setShowPredownloadPrompt(false);
-      if (pre_download?.major == null) return;
+      if (
+        !isNewerGameVersion(pre_download?.major?.version, gameCurrentVersion())
+      )
+        return;
       const updateTarget = pre_download.patches.find(
         x => x.version == gameCurrentVersion()
       );
@@ -377,6 +392,10 @@ export async function createHKRPGChannelClient({
       });
     },
     async *update() {
+      if (gameCurrentVersion() === "0.0.0") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
       if (patches.length === 0) {
         await locale.alert(
           "CHECK_GAME_UPDATE_FAILED",
@@ -442,6 +461,10 @@ export async function createHKRPGChannelClient({
       });
     },
     async *launch(config: Config) {
+      if (gameCurrentVersion() === "0.0.0") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
       // if (
       //   gt(gameCurrentVersion(), CURRENT_SUPPORTED_VERSION) &&
       //   !config.patchOff
@@ -478,6 +501,14 @@ export async function createHKRPGChannelClient({
         downloadKey: storage.namespace,
         storage,
       });
+
+      if (gameCurrentVersion() === "0.0.0") {
+        setGameVersion(
+          readGameVersion(
+            await getGameVersion2019(join(_gameInstallDir(), server.dataDir))
+          ) ?? "0.0.0"
+        );
+      }
     },
     async changeInstallDir(selection: string) {
       if (!selection) {
@@ -496,8 +527,11 @@ export async function createHKRPGChannelClient({
         batch(() => {
           setInstalled("INSTALLED");
           setGameInstallDir(selection);
-          setGameVersion(gameVersion);
+          setGameVersion(readGameVersion(gameVersion) ?? "0.0.0");
         });
+        if (gameCurrentVersion() === "0.0.0") {
+          await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        }
       } catch {
         batch(() => {
           setInstalled("NOT_INSTALLED");

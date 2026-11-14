@@ -441,4 +441,7 @@ export const ko_KR: typeof zh_CN = {
   CHECK_GAME_UPDATE_FAILED: "게임 업데이트 확인 실패",
   CHECK_GAME_UPDATE_FAILED_DESC:
     "업데이트 서버에 연결할 수 없습니다. 네트워크 연결을 확인한 후 다시 시도해 주세요.",
+  GAME_VERSION_INVALID: "잘못된 게임 버전",
+  GAME_VERSION_UNREADABLE:
+    "설치된 게임 버전을 읽지 못했습니다. 게임 파일을 복구하거나 업데이트해야 할 수 있습니다.",
 };

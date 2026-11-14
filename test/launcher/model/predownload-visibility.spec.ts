@@ -7,6 +7,11 @@ describe("predownload after deletion", () => {
       true
     );
   });
+  it("keeps the download entry hidden when the installed version is unknown", () => {
+    expect(showPredownloadAfterDeletion(false, true, "2.0.0", "0.0.0")).toBe(
+      false
+    );
+  });
   it("does not offer an obsolete or unavailable package", () => {
     expect(showPredownloadAfterDeletion(false, true, "2.0.0", "2.0.0")).toBe(
       false

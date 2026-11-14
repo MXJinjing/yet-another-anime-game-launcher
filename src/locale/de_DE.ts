@@ -451,4 +451,7 @@ export const de_DE: typeof zh_CN = {
   CHECK_GAME_UPDATE_FAILED: "Spielupdate-Prüfung fehlgeschlagen",
   CHECK_GAME_UPDATE_FAILED_DESC:
     "Der Updateserver ist nicht erreichbar. Bitte prüfen Sie Ihre Netzwerkverbindung und versuchen Sie es erneut.",
+  GAME_VERSION_INVALID: "Ungültige Spielversion",
+  GAME_VERSION_UNREADABLE:
+    "Die installierte Spielversion konnte nicht gelesen werden. Möglicherweise müssen Sie Ihre Spieldateien reparieren oder aktualisieren.",
 };

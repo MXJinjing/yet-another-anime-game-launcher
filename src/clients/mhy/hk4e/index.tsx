@@ -19,7 +19,11 @@ import { exec, spawn } from "@runtime/command-runner";
 import { getFreeSpace } from "@runtime/macos-filesystem";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
-import { gt, lt, SemVer } from "semver";
+import {
+  isNewerGameVersion,
+  readGameVersion,
+  requireGameVersion,
+} from "../../game-version";
 import { Config } from "@config";
 import { checkIntegrityProgram } from "./program-check-integrity";
 import {
@@ -202,13 +206,11 @@ export async function createHK4EChannelClient({
   if (localGameState.gameInstalled) {
     log(`Game info: ${JSON.stringify(gameInfo)}`);
   }
-  // Fallback to "0.0.0" when the backend could not determine the version.
-  // Without this, `lt(gameCurrentVersion(), "")` / `gt(prev, "")` throw
-  // "Invalid Version" and crash the launcher whenever the sophon backend
-  // returns an empty version (e.g. on network failure or API key parse error).
-  let LATEST_GAME_VERSION: string = gameInfo.version || "0.0.0";
+  let LATEST_GAME_VERSION: string =
+    readGameVersion(gameInfo.version) ?? "0.0.0";
   let UPDATABLE_VERSIONS: string[] = gameInfo.updatable_versions;
-  let PRE_DOWNLOAD_VERSION: string = gameInfo.pre_download_version || "0.0.0";
+  let PRE_DOWNLOAD_VERSION: string =
+    readGameVersion(gameInfo.pre_download_version) ?? "0.0.0";
   // CN pre-download is enabled again so the feature becomes available once
   // the upstream service publishes a pre-download branch. BB remains
   // unsupported by the Sophon manifest endpoint.
@@ -217,6 +219,10 @@ export async function createHK4EChannelClient({
   let INSTALL_SIZE_BYTES: number = gameInfo.install_size;
 
   const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
+  const initialVersion = readGameVersion(gameVersion) ?? "0.0.0";
+  if (gameInstalled && initialVersion === "0.0.0") {
+    await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+  }
 
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
@@ -231,21 +237,20 @@ export async function createHK4EChannelClient({
           getKeyOrDefault("predownloaded_all", "NOTFOUND")
         )) != PRE_DOWNLOAD_VERSION && // this version has not been downloaded yet
         gameInstalled && // game installed
-        gt(PRE_DOWNLOAD_VERSION, gameVersion ?? "0.0.0") // predownload version is greater
+        isNewerGameVersion(PRE_DOWNLOAD_VERSION, initialVersion) // predownload version is greater
     );
   const [_gameInstallDir, setGameInstallDir] = createSignal(
     gameInstallDir ?? ""
   );
-  const [gameCurrentVersion, setGameVersion] = createSignal(
-    gameVersion ?? "0.0.0"
-  );
-  const updateRequired = () => lt(gameCurrentVersion(), LATEST_GAME_VERSION);
+  const [gameCurrentVersion, setGameVersion] = createSignal(initialVersion);
+  const updateRequired = () =>
+    isNewerGameVersion(LATEST_GAME_VERSION, gameCurrentVersion());
 
   async function refreshInstalledGameVersion() {
     const installedVersion = await getGameVersionGI(
       join(_gameInstallDir(), server.dataDir)
     );
-    setGameVersion(installedVersion);
+    setGameVersion(readGameVersion(installedVersion) ?? "0.0.0");
     return installedVersion;
   }
 
@@ -276,7 +281,7 @@ export async function createHK4EChannelClient({
       storage,
     });
     const installedVersion = await refreshInstalledGameVersion();
-    if (lt(installedVersion, LATEST_GAME_VERSION)) {
+    if (isNewerGameVersion(LATEST_GAME_VERSION, installedVersion)) {
       log(
         `Update completed but the installed game version is still ${installedVersion}; expected ${LATEST_GAME_VERSION}`
       );
@@ -322,7 +327,9 @@ export async function createHK4EChannelClient({
       }
     },
     predownloadVersion: () =>
-      PRE_DOWNLOAD_AVAILABLE ? PRE_DOWNLOAD_VERSION : "",
+      PRE_DOWNLOAD_AVAILABLE && PRE_DOWNLOAD_VERSION !== "0.0.0"
+        ? PRE_DOWNLOAD_VERSION
+        : "",
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
@@ -337,14 +344,15 @@ export async function createHK4EChannelClient({
       setRuntimeReady(true);
     },
     async *install(selection: string): TaskProgram {
-      if (!localGameState.gameInstalled && gameInfo.version === "0.0.0") {
+      if (LATEST_GAME_VERSION === "0.0.0") {
         try {
           gameInfo = await measure("sophon-game-info-install", () =>
             sophonClient.getLatestOnlineGameInfo(releaseType, "hk4e")
           );
-          LATEST_GAME_VERSION = gameInfo.version || "0.0.0";
+          LATEST_GAME_VERSION = requireGameVersion(gameInfo.version);
           UPDATABLE_VERSIONS = gameInfo.updatable_versions;
-          PRE_DOWNLOAD_VERSION = gameInfo.pre_download_version || "0.0.0";
+          PRE_DOWNLOAD_VERSION =
+            readGameVersion(gameInfo.pre_download_version) ?? "0.0.0";
           PRE_DOWNLOAD_AVAILABLE =
             releaseType !== "bb" && gameInfo.pre_download;
           INSTALL_SIZE_BYTES = gameInfo.install_size;
@@ -400,7 +408,7 @@ export async function createHK4EChannelClient({
         batch(() => {
           setInstalled("INSTALLED");
           setGameInstallDir(selection);
-          setGameVersion(installedVersion);
+          setGameVersion(readGameVersion(installedVersion) ?? "0.0.0");
         });
         await setKey("game_install_dir", selection);
         return;
@@ -408,6 +416,10 @@ export async function createHK4EChannelClient({
       const gameVersion = await getGameVersionGI(
         join(selection, server.dataDir)
       );
+      if (!readGameVersion(gameVersion)) {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
       // if (gt(gameVersion, CURRENT_SUPPORTED_VERSION)) {
       //   await locale.alert(
       //     "UNSUPPORTED_VERSION",
@@ -416,7 +428,7 @@ export async function createHK4EChannelClient({
       //   );
       //   return;
       // } else
-      if (lt(gameVersion, LATEST_GAME_VERSION)) {
+      if (isNewerGameVersion(LATEST_GAME_VERSION, gameVersion)) {
         const updatable = UPDATABLE_VERSIONS.includes(gameVersion);
         if (!updatable) {
           await locale.prompt(
@@ -451,7 +463,11 @@ export async function createHK4EChannelClient({
     },
     async *predownload() {
       setShowPredownloadPrompt(false);
-      if (!PRE_DOWNLOAD_AVAILABLE) return;
+      if (
+        !PRE_DOWNLOAD_AVAILABLE ||
+        !isNewerGameVersion(PRE_DOWNLOAD_VERSION, gameCurrentVersion())
+      )
+        return;
       yield* predownloadGameProgram({
         sophon,
         gameDir: _gameInstallDir(),
@@ -461,9 +477,17 @@ export async function createHK4EChannelClient({
       });
     },
     async *update() {
+      if (gameCurrentVersion() === "0.0.0") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
       yield* updateToLatest();
     },
     async *launch(config: Config) {
+      if (gameCurrentVersion() === "0.0.0") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
       // if (
       //   gt(gameCurrentVersion(), CURRENT_SUPPORTED_VERSION) &&
       //   !config.patchOff
@@ -517,9 +541,12 @@ export async function createHK4EChannelClient({
         batch(() => {
           setInstalled("INSTALLED");
           setGameInstallDir(selection);
-          setGameVersion(gameVersion);
+          setGameVersion(readGameVersion(gameVersion) ?? "0.0.0");
         });
         await setKey("game_install_dir", selection);
+        if (gameCurrentVersion() === "0.0.0") {
+          await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        }
       } catch {
         // A selected directory is also a valid target for a new install.
         batch(() => {
@@ -603,13 +630,18 @@ function randomSophonPort(): number {
 }
 
 async function getGameVersionGI(gameDataDir: string) {
-  try {
-    const ret = await getGameVersion(gameDataDir, 0xac);
-    await log(String(new SemVer(ret)));
-    return ret;
-  } catch {
-    return await getGameVersion(gameDataDir);
-  }
+  const currentOffset = await getGameVersion(gameDataDir, 0xac).catch(
+    () => undefined
+  );
+  const version = readGameVersion(currentOffset);
+  if (version) return version;
+
+  // The older offset can fail even when the file exists and the current
+  // offset contains an unreadable version.
+  return getGameVersion(gameDataDir).catch(error => {
+    if (currentOffset !== undefined) return currentOffset;
+    throw error;
+  });
 }
 
 async function checkGameState(
