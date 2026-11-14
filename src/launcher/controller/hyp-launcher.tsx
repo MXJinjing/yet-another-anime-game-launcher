@@ -1,11 +1,12 @@
 import { showPredownloadAfterDeletion } from "../model/predownload-visibility";
 import { createGlobalSettings } from "@settings";
+import { createConfigStore } from "@config";
 import { applyRecommendedGameSettings } from "@settings/recommended-settings";
-import { createConfigStore } from "@config/config-store";
 import { TaskFailedError } from "@tasks/task-program";
 import { isAuthorizationCancelledError } from "../../runtime/authorization";
 import { isConnectionError } from "../../services/connection-error";
 import { InitialWineSetupModal } from "../../modals/initial-wine-setup-modal";
+import { applyRecommendedWineProgram } from "@wine/recommended-settings-program";
 import { Locale } from "@locale";
 import { hopeTaskNotifier } from "@tasks/task-notifications";
 import { exec2, fatal, getKeyOrDefault, setKey } from "@runtime";
@@ -19,8 +20,8 @@ import {
 } from "@platform/neutralino";
 import {
   getWineDistributions,
-  resolveRecommendedWineDistro,
   isWineDistroInstalled,
+  resolveRecommendedWineDistro,
   type Wine,
   type WineDistribution,
 } from "@wine";
@@ -269,6 +270,9 @@ export async function createHypLauncher({
 }: HypLauncherOptions) {
   const baseWine = wine;
 
+  const [activeWineDistroId, setActiveWineDistroId] =
+    createSignal(wineDistroId);
+
   let requestWineDistroEnable = (
     _distro: WineDistribution,
     _onDone: (distro: WineDistribution) => void
@@ -283,8 +287,11 @@ export async function createHypLauncher({
     _distro: WineDistribution,
     _onDone: (distro: WineDistribution) => void
   ): void => undefined;
-  let notifyWineDistroInitialized = (_distro: WineDistribution): void =>
-    undefined;
+  let markWineDistroEnabled = (_distro: WineDistribution): void => undefined;
+  function notifyWineDistroInitialized(distro: WineDistribution) {
+    setActiveWineDistroId(distro.id);
+    markWineDistroEnabled(distro);
+  }
   let _actionDisabled = () => false;
 
   const anyInstalled = games.some(
@@ -327,7 +334,7 @@ export async function createHypLauncher({
       onUninstallWineDistro: (distro, onDone) =>
         requestWineDistroUninstall(distro, onDone),
       onWineDistroInitialized: onDone => {
-        notifyWineDistroInitialized = onDone;
+        markWineDistroEnabled = onDone;
       },
       wineDistroUsages: () =>
         games.flatMap(game => {
@@ -1053,6 +1060,76 @@ export async function createHypLauncher({
       const globalBusy = taskQueue.getState(GLOBAL_TASK_KEY).busy();
       setGlobalTaskActive(globalBusy);
     });
+    function usesSharedWine(game: HypGame) {
+      const tag = game.wineTag?.();
+      return !game.recommendedWinePrefix || !tag || tag === SHARED_WINE_TAG;
+    }
+
+    function recommendedSettingsDisabled() {
+      return (
+        !wineInstalled() ||
+        anyGameRunning() ||
+        activeDownloadCount() > 0 ||
+        taskQueue.isBusy(GLOBAL_TASK_KEY) ||
+        games.some(game => taskQueue.isBusy(game.id))
+      );
+    }
+
+    function applyRecommendedSettings(game: HypGame) {
+      if (recommendedSettingsDisabled()) return;
+      const distro = resolveRecommendedWineDistro();
+      const shared = usesSharedWine(game);
+      closeNativeSettings();
+      taskQueue.enqueue({
+        fn: async function* () {
+          try {
+            const tag = game.wineTag?.();
+            const effectiveDistroId =
+              shared || tag === AUTO_WINE_TAG ? activeWineDistroId() : tag;
+            yield* applyRecommendedWineProgram({
+              effectiveDistroId,
+              installed: () => isWineDistroInstalled(distro.id),
+              separatePrefix: shared ? undefined : game.recommendedWinePrefix,
+              download: downloadWineDistro,
+              enable: async function* (distro) {
+                yield* enableWineDistro(distro);
+                notifyWineDistroInitialized(distro);
+              },
+            });
+
+            await applyRecommendedGameSettings(
+              createConfigStore(game.storage),
+              game.clientId,
+              game.config
+            );
+
+            for (const candidate of games) {
+              await candidate.refreshGameWineSelection?.(
+                shared ? distro : undefined
+              );
+              if (
+                candidate === game ||
+                (shared &&
+                  (usesSharedWine(candidate) ||
+                    candidate.wineTag?.() === AUTO_WINE_TAG))
+              ) {
+                await candidate.client.refreshRuntimeReady();
+              }
+            }
+          } catch (error) {
+            if (
+              isDownloadCancelledError(error) ||
+              isDownloadFailedError(error)
+            ) {
+              throw error;
+            }
+            throw new TaskFailedError(String(error));
+          }
+        },
+        name: "SETTING_APPLY_RECOMMENDED_SETTINGS",
+      });
+    }
+
     requestWineDistroEnable = (distro, onDone) => {
       if (actionDisabled()) return;
       closeNativeSettings();
@@ -1061,6 +1138,7 @@ export async function createHypLauncher({
       taskQueue.enqueue({
         fn: async function* () {
           yield* enableWineDistro(distro);
+          setActiveWineDistroId(distro.id);
           onDone(distro);
         },
         name: "SETTING_WINE_ENABLED",
@@ -1343,7 +1421,7 @@ export async function createHypLauncher({
         !selectedTag ||
         selectedTag === SHARED_WINE_TAG ||
         selectedTag === AUTO_WINE_TAG
-          ? wineDistroId
+          ? activeWineDistroId()
           : selectedTag;
       try {
         const distros = await getWineDistributions();
@@ -1993,6 +2071,11 @@ export async function createHypLauncher({
                 opened={nativeSettingsOpen()}
                 onOpenLogs={openLogs}
                 actionDisabled={actionDisabled}
+                onApplyRecommendedSettings={() =>
+                  applyRecommendedSettings(game())
+                }
+                recommendedSettingsDisabled={recommendedSettingsDisabled}
+                recommendedSettingsUsesSharedWine={() => usesSharedWine(game())}
                 onOpenGlobalSettings={() => {
                   closeNativeSettings();
                   setGlobalModalRoute("settings");

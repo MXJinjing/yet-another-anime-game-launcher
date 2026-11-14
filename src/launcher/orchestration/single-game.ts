@@ -85,6 +85,7 @@ export async function createLauncher({
     }));
   const game: HypGame = {
     id: meta.id,
+    clientId: channel,
     title: meta.title,
     serverLabel: locale.get(meta.serverLabel),
     fallbackIcon: meta.fallbackIcon,

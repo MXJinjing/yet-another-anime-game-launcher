@@ -154,6 +154,9 @@ export const ru_RU: typeof zh_CN = {
   SETTING_WINE_VERSION_UPDATE_BUSY:
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "Быстрые действия",
+  SETTING_APPLY_RECOMMENDED_SETTINGS: "Применить рекомендуемые настройки",
+  SETTING_RECOMMENDED_SETTINGS_SHARED_WINE:
+    "Эта игра использует общую среду Wine. Рекомендуемые настройки также выбирают версию Wine для других игр в этой среде.",
   SETTING_GENERAL: "Основные",
   SETTING_DOWNLOAD: "Загрузка",
   SETTING_GAME: "Игра",

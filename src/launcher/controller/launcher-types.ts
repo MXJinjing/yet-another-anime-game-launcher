@@ -23,6 +23,7 @@ export type HypGameWineTaskRequest = {
 
 export type HypGame = {
   id: string;
+  clientId: string;
   namespace?: string;
   storage?: Storage;
   title: string;
@@ -34,6 +35,9 @@ export type HypGame = {
   client: ChannelClient;
   config: Config;
   ConfigurationUI: (props: {
+    onApplyRecommendedSettings?: () => void;
+    recommendedSettingsDisabled?: () => boolean;
+    recommendedSettingsUsesSharedWine?: () => boolean;
     opened: boolean;
     onClose: (action: "check-integrity" | "close") => void;
     onOpenLogs: () => void;
@@ -44,6 +48,11 @@ export type HypGame = {
   wineTag?: Accessor<string>;
   setWineTag?: (value: string) => void;
   wineOptions?: HypGameWineOption[];
+  refreshGameWineSelection?: (sharedDistro?: WineDistribution) => Promise<void>;
+  recommendedWinePrefix?: {
+    ready: () => Promise<boolean>;
+    prepare: (tag: string) => TaskProgram;
+  };
 };
 
 export type HypLauncherOptions = {

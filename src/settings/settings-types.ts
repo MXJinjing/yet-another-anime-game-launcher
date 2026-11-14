@@ -9,6 +9,9 @@ export type AdvancedSettingsComponent = (opts?: {
 }) => JSXElement;
 
 export type SettingsUIProps = {
+  onApplyRecommendedSettings?: () => void;
+  recommendedSettingsDisabled?: () => boolean;
+  recommendedSettingsUsesSharedWine?: () => boolean;
   opened: boolean;
   onClose: (action: "check-integrity" | "close") => void;
   onOpenLogs: () => void;
