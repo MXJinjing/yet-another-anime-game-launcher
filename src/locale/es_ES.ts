@@ -156,6 +156,9 @@ export const es_ES: typeof zh_CN = {
   SETTING_WINE_VERSION_CONFIRM: en.SETTING_WINE_VERSION_CONFIRM,
   SETTING_WINE_VERSION_UPDATE_BUSY: en.SETTING_WINE_VERSION_UPDATE_BUSY,
   SETTING_QUICK_ACTIONS: "Acciones rápidas",
+  SETTING_APPLY_RECOMMENDED_SETTINGS: "Aplicar configuraciones recomendadas",
+  SETTING_RECOMMENDED_SETTINGS_SHARED_WINE:
+    "Este juego usa el entorno compartido de Wine. El ajuste también selecciona la versión de Wine para los demás juegos que lo usan.",
   SETTING_GENERAL: "General",
   SETTING_DOWNLOAD: "Descarga",
   SETTING_GAME: "Juego",

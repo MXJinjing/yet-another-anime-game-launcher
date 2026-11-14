@@ -21,6 +21,7 @@ export function gameProgram(
       aria2,
       baseWine,
       gameId: game.id,
+      prefixId: game.clientId,
       wineTag: wineTag(),
       downloadKey: game.namespace,
     });
