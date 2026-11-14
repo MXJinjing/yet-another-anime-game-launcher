@@ -156,6 +156,9 @@ export const vi_VN: typeof zh_CN = {
   SETTING_WINE_VERSION_UPDATE_BUSY:
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "Cài đặt nhanh",
+  SETTING_APPLY_RECOMMENDED_SETTINGS: "Áp dụng Cài đặt Đề xuất",
+  SETTING_RECOMMENDED_SETTINGS_SHARED_WINE:
+    "Trò chơi này dùng môi trường Wine chung. Áp dụng thiết lập đề xuất cũng sẽ chọn phiên bản Wine cho các trò chơi khác dùng cùng môi trường.",
   SETTING_GENERAL: "Cài đặt chung",
   SETTING_DOWNLOAD: "Tải xuống",
   SETTING_GAME: "Trò chơi",
