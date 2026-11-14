@@ -2,7 +2,6 @@ import { eq } from "semver";
 import { Aria2, Aria2OverallProgress } from "@aria2";
 import type { TaskProgram, TaskProgressCommand } from "@tasks/task-program";
 import {
-  doStreamUnzip,
   exec,
   forceMove,
   formatDownloadSpeed,
@@ -12,11 +11,11 @@ import {
 } from "@runtime";
 import { getKeyOrDefault, setKey } from "@runtime/storage";
 import { downloadPercent } from "@runtime/format";
+import { warn } from "@logging/logger";
 import {
   fileOrDirExists,
-  readBinary,
   removeFile,
-  writeBinary,
+  removeFileIfExists,
   writeFile,
 } from "@platform/neutralino";
 import { resolve } from "@platform/neutralino/path";
@@ -28,6 +27,40 @@ const CURRENT_DXVK_VERSION = "1.10.4-alpha.20230402";
 const CURRENT_JADEITE_VERSION = "4.1.0";
 const CURRENT_DXMT_VERSION = "0.80.0";
 const CURRENT_RESHADE_VERSION = "5.8.0";
+
+// Different games share runtime directories and can start in parallel.
+const pendingArchiveInstalls = new Map<string, Promise<void>>();
+
+async function* installRuntimeArchive(
+  archive: string,
+  program: TaskProgram
+): TaskProgram {
+  const previous = pendingArchiveInstalls.get(archive);
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  pendingArchiveInstalls.set(archive, pending);
+  try {
+    await previous;
+    yield* program;
+  } finally {
+    release();
+    if (pendingArchiveInstalls.get(archive) === pending) {
+      pendingArchiveInstalls.delete(archive);
+    }
+  }
+}
+
+async function removeRuntimeInstaller(path: string) {
+  try {
+    await removeFileIfExists(path);
+  } catch (error) {
+    await warn(
+      `Could not remove runtime installer ${path}: ${String(error)}`
+    ).catch(() => undefined);
+  }
+}
 
 export const DXVK_FILES = [
   "d3d9.dll",
@@ -117,20 +150,27 @@ export async function* checkAndDownloadDXVK(aria2: Aria2): TaskProgram {
   await setKey("installed_dxvk_version", CURRENT_DXVK_VERSION);
 }
 
-export async function* checkAndDownloadJadeite(aria2: Aria2): TaskProgram {
+export function checkAndDownloadJadeite(aria2: Aria2): TaskProgram {
+  const archive = resolve("./jadeite/archive.zip");
+  return installRuntimeArchive(archive, installJadeite(aria2, archive));
+}
+
+async function* installJadeite(aria2: Aria2, archive: string): TaskProgram {
   if (
     eq(
       CURRENT_JADEITE_VERSION,
       await getKeyOrDefault("installed_jadeite_version", "0.0.0")
     )
-  )
+  ) {
+    await removeRuntimeInstaller(archive);
     return;
+  }
   await rmrf_dangerously(resolve("./jadeite"));
   await mkdirp("./jadeite");
   yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
   for await (const progress of aria2.doStreamingDownload({
     uri: "https://codeberg.org/mkrsym1/jadeite/releases/download/v4.1.0/v4.1.0.zip",
-    absDst: resolve("./jadeite/archive.zip"),
+    absDst: archive,
   })) {
     yield [
       "setProgress",
@@ -138,12 +178,16 @@ export async function* checkAndDownloadJadeite(aria2: Aria2): TaskProgram {
     ];
     yield downloadProgress(progress);
   }
-  for await (const [dec, total] of doStreamUnzip(
-    resolve("./jadeite/archive.zip"),
-    resolve("./jadeite")
-  ))
-    yield ["setProgress", (dec / total) * 100];
+  yield ["setStateText", "EXTRACT_ENVIRONMENT"];
+  yield ["setUndeterminedProgress"];
+  try {
+    await exec(["/usr/bin/unzip", "-oq", archive, "-d", resolve("./jadeite")]);
+  } catch (error) {
+    await removeRuntimeInstaller(archive);
+    throw error;
+  }
   await setKey("installed_jadeite_version", CURRENT_JADEITE_VERSION);
+  await removeRuntimeInstaller(archive);
 }
 
 export async function* checkAndDownloadDXMT(
@@ -196,19 +240,37 @@ export async function* checkAndDownloadDXMT(
   await setKey("installed_dxmt_version", CURRENT_DXMT_VERSION);
 }
 
-export async function* checkAndDownloadReshade(
+export function checkAndDownloadReshade(
   aria2: Aria2,
   wine: Wine,
   gameDir: string
 ): TaskProgram {
   const reshaderDir = resolve("./reshade");
+  const installer = join(reshaderDir, "install.exe");
+  return installRuntimeArchive(
+    installer,
+    installReshade(aria2, wine, gameDir, reshaderDir, installer)
+  );
+}
+
+async function* installReshade(
+  aria2: Aria2,
+  wine: Wine,
+  gameDir: string,
+  reshaderDir: string,
+  installer: string
+): TaskProgram {
+  const legacyArchive = join(reshaderDir, "install.zip");
   if (
     eq(
       CURRENT_RESHADE_VERSION,
       await getKeyOrDefault("installed_reshade", "0.0.0")
     )
-  )
+  ) {
+    await removeRuntimeInstaller(legacyArchive);
+    await removeRuntimeInstaller(installer);
     return;
+  }
   await mkdirp(reshaderDir);
   await mkdirp(join(reshaderDir, "Shaders"));
   await mkdirp(join(reshaderDir, "Textures"));
@@ -216,7 +278,7 @@ export async function* checkAndDownloadReshade(
   for (const [uri, absDst] of [
     [
       `https://reshade.me/downloads/ReShade_Setup_${CURRENT_RESHADE_VERSION}_Addon.exe`,
-      join(reshaderDir, "install.exe"),
+      installer,
     ],
     [
       "https://lutris.net/files/tools/dll/d3dcompiler_47.dll",
@@ -233,21 +295,13 @@ export async function* checkAndDownloadReshade(
   }
   yield ["setStateText", "EXTRACT_ENVIRONMENT"];
   yield ["setUndeterminedProgress"];
-  const archive = await readBinary(join(reshaderDir, "install.exe"));
-  const bytes = new Uint8Array(archive);
-  const offset = bytes.findIndex(
-    (value, index, all) =>
-      value === 0x50 &&
-      all[index + 1] === 0x4b &&
-      all[index + 2] === 0x03 &&
-      all[index + 3] === 0x04
-  );
-  await writeBinary(join(reshaderDir, "install.zip"), archive.slice(offset));
-  for await (const [dec, total] of doStreamUnzip(
-    join(reshaderDir, "install.zip"),
-    reshaderDir
-  ))
-    yield ["setProgress", (dec / total) * 100];
+  // macOS tar reads the ZIP payload directly from the self-extracting EXE.
+  try {
+    await exec(["/usr/bin/tar", "-xf", installer, "-C", reshaderDir]);
+  } catch (error) {
+    await removeRuntimeInstaller(installer);
+    throw error;
+  }
   await forceMove(
     join(reshaderDir, "ReShade64.dll"),
     join(reshaderDir, "dxgi.dll")
@@ -259,4 +313,6 @@ export async function* checkAndDownloadReshade(
     )}\nTextureSearchPaths=${wine.toWinePath(resolve("./reshade/Textures"))}`
   );
   await setKey("installed_reshade", CURRENT_RESHADE_VERSION);
+  await removeRuntimeInstaller(legacyArchive);
+  await removeRuntimeInstaller(installer);
 }

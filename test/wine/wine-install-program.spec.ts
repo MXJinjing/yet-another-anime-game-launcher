@@ -29,7 +29,7 @@ vi.mock("@wine/wine", () => ({
 vi.mock("@wine/mf", () => ({ installMediaFoundation: vi.fn() }));
 vi.mock("@wine/cert", () => ({ addCertsToWine: vi.fn() }));
 
-import { removeFileIfExists } from "@platform/neutralino";
+import { removeFile, removeFileIfExists } from "@platform/neutralino";
 import { tar_extract, tar_extract_directory } from "@runtime/archive";
 import { exec } from "@runtime/command-runner";
 import { rmrf_dangerously, xattrRemove } from "@runtime/macos-filesystem";
@@ -85,6 +85,7 @@ describe("Wine environment installation", () => {
       "./wine-test.tar.gz",
       "/wines/test.installing"
     );
+    expect(removeFile).toHaveBeenCalledWith("./wine-test.tar.gz");
     expect(exec).toHaveBeenCalledWith([
       "mv",
       "/wines/test.installing",
@@ -141,6 +142,7 @@ describe("Wine environment installation", () => {
       "bundle/wine",
       true
     );
+    expect(removeFile).toHaveBeenCalledWith("./wine-test.tar.xz");
     expect(setKey).not.toHaveBeenCalled();
     expect(createWine).not.toHaveBeenCalled();
   });
