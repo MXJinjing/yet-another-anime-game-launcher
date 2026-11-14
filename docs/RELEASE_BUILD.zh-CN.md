@@ -9,7 +9,7 @@
 - macOS。
 - Xcode Command Line Tools：提供 `clang`、`codesign`、`shasum` 等工具。
 - Node.js 和 pnpm。
-- Python 3.11 或更高版本，以及 uv。
+- Xcode 和 Swift 6.3 或更新版本。包含 Sophon 的应用需要 macOS 13 或更新版本。
 - 构建所需的磁盘空间。
 
 检查基本工具：
@@ -17,8 +17,7 @@
 ```sh
 node --version
 pnpm --version
-python3 --version
-uv --version
+swift --version
 clang --version
 codesign --version
 ```
@@ -36,7 +35,10 @@ pnpm install
 
 ```sh
 ./build-sophon.sh
+SOPHON_ARCH=x64 ./build-sophon.sh  # Intel 或通用版还需要这一份
 ```
+
+产物按架构放在 `sophon_server/dist/{arm64,x64}/`，包含 CLI、随附许可证和平台所需的 Swift 兼容运行库。
 
 `build-app.js` 会从项目根目录的 `sidecar/` 复制运行时文件，因此以下内容应当已经存在：
 

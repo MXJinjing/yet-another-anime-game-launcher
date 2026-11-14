@@ -12,14 +12,11 @@ jobs:
 
   build:
     needs: tests
-    runs-on: macos-14
+    runs-on: macos-26
     timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

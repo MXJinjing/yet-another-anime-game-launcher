@@ -14,7 +14,7 @@ function evaluate(source: string) {
       [
         "--input-type=module",
         "-e",
-        `import { checkThresholds, sophonSummary } from ${JSON.stringify(
+        `import { checkThresholds, sophonSummary, swiftSummary } from ${JSON.stringify(
           script
         )}; ${source}`,
       ],
@@ -49,6 +49,26 @@ describe("coverage policy", () => {
       "console.log(JSON.stringify(sophonSummary({totals:{covered_lines:8,num_statements:10,covered_branches:1,num_branches:4,percent_covered:64},files:{}})))"
     );
     expect(summary.total).toEqual({ lines: 80, branches: 25 });
+  });
+  it("computes Swift coverage from handwritten package files", () => {
+    const summary = evaluate(`
+      const file = (filename, covered) => ({
+        filename,
+        summary: {lines: {count: 10, covered}, regions: {count: 20, covered}}
+      });
+      console.log(JSON.stringify(swiftSummary({
+        type: "llvm.coverage.json.export",
+        data: [{files: [
+          file("/repo/sophon_server/swift/Sources/Engine.swift", 8),
+          file("/repo/sophon_server/swift/Sources/Generated.pb.swift", 0),
+          file("/repo/sophon_server/swift/Tests/EngineTests.swift", 10),
+        ]}]
+      }, "/repo")));
+    `);
+    expect(summary).toEqual({
+      total: { lines: 80, regions: 40 },
+      files: { "Sources/Engine.swift": { lines: 80, regions: 40 } },
+    });
   });
   it("fails when the coverage report is missing", () => {
     const directory = mkdtempSync(join(tmpdir(), "yaaglm-coverage-policy-"));

@@ -49,3 +49,9 @@ build-all.sh
 /sophon_server/manifest*_pb2.py
 /sophon_server/.coverage*
 **/.pytest_cache/
+
+# Swift Sophon builds
+/sophon_server/swift/.build*/
+/sophon_server/swift/.swiftpm/
+/sophon_server/swift/.testData/
+/sophon_server/swift/*.profraw

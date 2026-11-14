@@ -20,19 +20,20 @@ import {
   DownloadCancelledError,
   endControlledDownload,
 } from "../download/control";
-import type { DownloadFileSnapshot } from "../download/types";
+import { progressEvent, type SophonSnapshot } from "./sophon-progress";
 
-// Client-side record of tasks whose cancellation was requested through the
-// stream scheduler (the per-game cancel path uses a local flag inside
-// streamOperationProgress instead). Kept so a server "job_error(cancelled)"
-// surfaces as DownloadCancelledError instead of a generic failure.
-const cancelledTaskIds = new Set<string>();
+type Region = "os" | "cn" | "bb";
+
+const gameID = (game: string, region: Region) =>
+  region === "bb" && game === "hk4e"
+    ? "T2S0Gz4Dr2"
+    : `${game}_${region === "os" ? "global" : "cn"}`;
 
 interface GameOperationOptions {
   gamedir: string;
   game_type: string; // "hk4e" or "nap"
   tempdir?: string; // sophon manifest and intermediate files
-  download_speed_limit?: number; // bytes/s, 0 = unlimited
+  installedVersion?: string;
 }
 
 export interface SophonInstallOptions extends GameOperationOptions {
@@ -49,16 +50,10 @@ export interface SophonUpdateOptions extends GameOperationOptions {
   predownload: boolean;
 }
 
-interface SophonOperationResponse {
-  task_id: string;
-  status: string;
-  message: string;
-}
-
-interface SophonTaskStatus {
-  task_id: string;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled" | "";
+interface OperationStatus {
+  status: "starting" | "running" | "completed" | "failed" | "cancelled";
   error?: string;
+  progress?: SophonSnapshot;
 }
 
 export interface SophonProgressEvent {
@@ -71,21 +66,30 @@ export interface SophonProgressEvent {
   [key: string]: any;
 }
 
-interface SophonActiveFile {
-  id?: string | number;
-  filename: string;
-  progress_percent?: number;
-  download_speed?: number;
-  downloaded_size?: number;
-  total_size?: number;
+export interface SophonFileQuery {
+  version: string;
+  category?: string;
+  path?: string;
+  pattern?: string;
+  recursive?: boolean;
+  offset?: number;
+  limit?: number;
+  refresh?: boolean;
 }
 
-function isSophonActiveFile(value: unknown): value is SophonActiveFile {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as { filename?: unknown }).filename === "string"
-  );
+export interface SophonFileListing {
+  version: string;
+  category: string;
+  path: string;
+  total: number;
+  offset: number;
+  files: {
+    filename: string;
+    name: string;
+    type: "file" | "directory";
+    size?: number;
+    md5?: string;
+  }[];
 }
 
 export interface SophonOnlineGameInfo {
@@ -101,41 +105,74 @@ export interface SophonOnlineGameInfo {
 
 export class SophonClient {
   private baseUrl: string;
-  private wsUrl: string;
+  private nextID = 0;
+  private cancelled = new Set<string>();
 
-  constructor(host: string, port = 6969) {
-    this.baseUrl = `http://${host}:${port}`;
-    this.wsUrl = this.baseUrl
-      .replace("http://", "ws://")
-      .replace("https://", "wss://");
+  constructor(
+    host: string,
+    port = 6969,
+    private region: Region = "os",
+    private token?: string
+  ) {
+    this.baseUrl = `http://${host}:${port}/rpc`;
+  }
+
+  private async rpc<T>(method: string, params: object = {}): Promise<T> {
+    const id = ++this.nextID;
+    let response: Response;
+    try {
+      response = await fetch(this.baseUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+        signal: AbortSignal.timeout(45_000),
+      });
+    } catch (error) {
+      throw new ConnectionError(`Sophon RPC ${method}: ${error}`);
+    }
+    if (!response.ok) {
+      throw new ConnectionError(
+        `Sophon RPC ${method}: HTTP ${response.status}`
+      );
+    }
+    const reply = (await response.json()) as {
+      id: number;
+      jsonrpc: string;
+      result?: T;
+      error?: { message: string };
+    };
+    if (reply.id !== id || reply.jsonrpc !== "2.0") {
+      throw new ConnectionError(`Invalid Sophon RPC response for ${method}`);
+    }
+    if (reply.error) throw new Error(reply.error.message);
+    if (reply.result === undefined) {
+      throw new ConnectionError(`Missing Sophon RPC result for ${method}`);
+    }
+    return reply.result;
   }
 
   async healthCheck({ logFailures = true } = {}): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/health`);
-      if (!response.ok) {
-        if (logFailures) {
-          log(`Health check failed with status: ${response.status}`);
-        }
-        return false;
-      }
-      await response.json();
-      return true;
+      const { methods } = await this.rpc<{ methods: string[] }>("rpc.discover");
+      return (
+        methods.includes("files.download") && methods.includes("game.online")
+      );
     } catch (error) {
-      if (logFailures) {
-        log(`Health check error: ${error}`);
-      }
+      if (logFailures) void log(`Sophon health check failed: ${error}`);
       return false;
     }
   }
 
-  async startGameOperation(
-    type: "install" | "repair" | "update",
-    options: SophonInstallOptions | SophonRepairOptions | SophonUpdateOptions,
-    downloadKey?: string
+  private async startOperation(
+    method: string,
+    params: object,
+    title: string,
+    downloadKey?: string,
+    verifying = false
   ): Promise<string> {
-    log(`Starting ${type} operation with options: ${JSON.stringify(options)}`);
-
     const enabled =
       (await getKeyOrDefault(DOWNLOAD_SPEED_LIMIT_ENABLED_KEY, "false")) ===
       "true";
@@ -143,40 +180,20 @@ export class SophonClient {
       await getKeyOrDefault(DOWNLOAD_SPEED_LIMIT_VALUE_KEY, "0")
     );
     const unit = await getKeyOrDefault(DOWNLOAD_SPEED_LIMIT_UNIT_KEY, "K");
-    const bps = speedLimitConfigToBps(enabled, value, unit);
-    const body = JSON.stringify({ ...options, download_speed_limit: bps });
-
-    let response: Response;
-    try {
-      response = await fetch(`${this.baseUrl}/api/${type}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body,
-      });
-    } catch (error) {
-      throw new ConnectionError(
-        `Failed to reach the Sophon server while starting ${type}: ${error}`
-      );
-    }
-
-    if (!response.ok) {
-      throw new ConnectionError(
-        `${type} request failed: ${response.statusText}`
-      );
-    }
-
-    const result: SophonOperationResponse = await response.json();
-    const taskId = result.task_id;
-
+    const bytesPerSecond = Math.round(
+      speedLimitConfigToBps(enabled, value, unit)
+    );
+    const { operationID: taskId } = await this.rpc<{ operationID: string }>(
+      method,
+      { ...params, bytesPerSecond }
+    );
     registerStream({
       id: `sophon:${taskId}`,
       kind: "sophon",
       taskId,
       key: downloadKey,
-      title: `${type} (${options.game_type})`,
-      phaseKind: type === "repair" ? "verifying" : "transferring",
+      title,
+      phaseKind: verifying ? "verifying" : "transferring",
       status: "active",
       progress: 0,
       speed: 0,
@@ -186,21 +203,44 @@ export class SophonClient {
       canPause: true,
       canResume: true,
       canCancel: true,
-      pause: async () => {
-        await this.pauseTask(taskId);
-      },
-      resume: async () => {
-        await this.resumeTask(taskId);
-      },
-      cancel: async () => {
-        await this.cancelTask(taskId);
-      },
-      setSpeedLimit: async (bps: number) => {
-        await this.setDownloadSpeedLimit(bps);
-      },
+      pause: () => this.pauseOperation(taskId),
+      resume: () => this.resumeOperation(taskId),
+      cancel: () => this.cancelOperation(taskId),
+      setSpeedLimit: (bps: number) => this.setDownloadSpeedLimit(bps, taskId),
     });
-
     return taskId;
+  }
+
+  async startGameOperation(
+    type: "install" | "repair" | "update",
+    options: SophonInstallOptions | SophonRepairOptions | SophonUpdateOptions,
+    downloadKey?: string
+  ): Promise<string> {
+    const region =
+      "install_reltype" in options
+        ? (options.install_reltype as Region)
+        : this.region;
+    const cacheOnly = "predownload" in options && options.predownload;
+    return this.startOperation(
+      `${type}.start`,
+      {
+        game: gameID(options.game_type, region),
+        region,
+        directory: options.gamedir,
+        predownload: cacheOnly,
+        cacheOnly,
+        sourceVersion: type === "update" ? options.installedVersion : undefined,
+        installedVersion: options.installedVersion,
+        quickVerify:
+          "repair_mode" in options && options.repair_mode === "quick",
+        transfer: options.tempdir
+          ? { predownloadDirectory: `${options.tempdir}/swift` }
+          : undefined,
+      },
+      `${type} (${options.game_type})`,
+      downloadKey,
+      type === "repair"
+    );
   }
 
   async startInstallation(
@@ -227,383 +267,171 @@ export class SophonClient {
   async *streamOperationProgress(
     taskId: string
   ): AsyncGenerator<SophonProgressEvent> {
-    const ws = new WebSocket(`${this.wsUrl}/ws/${taskId}`);
-
-    const messageQueue: SophonProgressEvent[] = [];
-    let isConnected = false;
-    let isCompleted = false;
-    let error: string | null = null;
-    let cancelled = false;
-    let messageResolver: ((value: unknown) => void) | null = null;
-
-    const wakeMessageWaiter = () => {
-      const resolver = messageResolver;
-      messageResolver = null;
-      resolver?.(null);
-    };
-
-    const reconcileTaskStatus = async () => {
-      if (isCompleted) return;
-      try {
-        const response = await fetch(
-          `${this.baseUrl}/api/tasks/${taskId}/status`
-        );
-        if (!response.ok || isCompleted) return;
-        const status = (await response.json()) as SophonTaskStatus;
-        let terminal: SophonProgressEvent | null = null;
-        if (status.status === "completed") {
-          terminal = { type: "job_end", task_id: taskId };
-        } else if (status.status === "failed") {
-          terminal = {
-            type: "error",
-            task_id: taskId,
-            error: status.error || "Operation failed",
-          };
-        } else if (status.status === "cancelled") {
-          terminal = {
-            type: "job_error",
-            task_id: taskId,
-            error: "cancelled",
-          };
-        }
-        if (terminal && !isCompleted) {
-          messageQueue.push(terminal);
-          isCompleted = true;
-          if (terminal.type !== "job_end") {
-            error = terminal.error as string;
-          }
-          wakeMessageWaiter();
-        }
-      } catch {
-        // The WebSocket remains authoritative while it is open. A later
-        // status poll or close event will surface an actual connection loss.
-      }
-    };
-
-    ws.onopen = () => {
-      isConnected = true;
-      void reconcileTaskStatus();
-    };
-
-    ws.onmessage = event => {
-      const message = JSON.parse(event.data) as SophonProgressEvent;
-      messageQueue.push(message);
-
-      wakeMessageWaiter();
-
-      if (
-        message.type === "job_end" ||
-        message.type === "job_error" ||
-        message.type === "error" ||
-        message.type === "completed"
-      ) {
-        isCompleted = true;
-        if (message.type === "job_error" || message.type === "error") {
-          error = message.error || "Unknown error";
-        }
-      }
-    };
-
-    ws.onerror = event => {
-      error = "WebSocket connection error";
-      isCompleted = true;
-      wakeMessageWaiter();
-    };
-
-    ws.onclose = () => {
-      if (!isCompleted) {
-        error = "WebSocket connection closed before the operation completed";
-      }
-      isCompleted = true;
-      wakeMessageWaiter();
-    };
-
-    // Keep the download control active for the whole operation so the UI can
-    // offer cancel consistently (and doesn't flicker between download/install
-    // states) during non-download phases like file allocation, hashing, or
-    // diffing between files. The server checks the cancel event between every
-    // chunk, so cancelling outside the pure download phase still aborts the
-    // operation promptly.
     beginControlledDownload({
-      pause: async () => {
-        await this.pauseOperation(taskId);
-      },
-      resume: async () => {
-        await this.resumeOperation(taskId);
-      },
-      cancel: async () => {
-        cancelled = true;
-        await this.cancelOperation(taskId);
-      },
+      pause: () => this.pauseOperation(taskId),
+      resume: () => this.resumeOperation(taskId),
+      cancel: () => this.cancelOperation(taskId),
     });
     try {
-      // Wait for connection
-      while (!isConnected && !error) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      if (error) {
-        throw new ConnectionError(error);
-      }
-
-      while (!isCompleted || messageQueue.length > 0) {
-        if (messageQueue.length > 0) {
-          // Array is not empty. message is not null.
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const message = messageQueue.shift()!;
-
-          if (
-            message.type === "file_download_start" ||
-            message.type === "ldiff_download_start" ||
-            message.type === "chunk_progress" ||
-            message.type === "ldiff_download_complete"
-          ) {
+      let lastSnapshot = "";
+      yield { type: "job_start", task_id: taskId };
+      while (true) {
+        const status = await this.rpc<OperationStatus>("operation.status", {
+          operationID: taskId,
+        });
+        if (status.progress) {
+          const event = progressEvent(taskId, status.progress);
+          const serialized = JSON.stringify(event);
+          if (event && serialized !== lastSnapshot) {
+            lastSnapshot = serialized;
+            const progress = event.overall_progress;
+            const transferring = event.type === "chunk_progress";
             updateStream(`sophon:${taskId}`, {
-              phaseKind: "transferring",
-            });
-          }
-
-          if (message.type === "processing_progress") {
-            updateStream(`sophon:${taskId}`, {
-              phaseKind: "verifying",
-              progress: Number(message.overall_progress?.overall_percent) || 0,
-              speed: 0,
-              downloaded: 0,
-              total: 0,
-              files: message.filename
-                ? [
-                    {
-                      id: String(message.filename),
-                      name: String(message.filename),
-                      progress:
-                        message.file_bytes > 0
-                          ? Math.min(
-                              100,
-                              (message.current_bytes / message.file_bytes) * 100
-                            )
-                          : 0,
-                      speed: 0,
-                      downloaded: Number(message.current_bytes) || 0,
-                      total: Number(message.file_bytes) || 0,
-                    },
-                  ]
-                : [],
-            });
-          } else if (message.overall_progress) {
-            const op = message.overall_progress;
-            const progressPatch: {
-              progress?: number;
-              speed?: number;
-              downloaded?: number;
-              total?: number;
-              files?: DownloadFileSnapshot[];
-            } = {};
-            const isTransferProgress =
-              typeof op.downloaded_size === "number" ||
-              typeof op.total_size === "number" ||
-              typeof op.download_speed === "number";
-            if (isTransferProgress && typeof op.overall_percent === "number") {
-              progressPatch.progress = op.overall_percent;
-            }
-            if (typeof op.download_speed === "number") {
-              progressPatch.speed = op.download_speed;
-            }
-            if (typeof op.downloaded_size === "number") {
-              progressPatch.downloaded = op.downloaded_size;
-            }
-            if (typeof op.total_size === "number") {
-              progressPatch.total = op.total_size;
-            }
-            if (Array.isArray(message.active_files)) {
-              progressPatch.files = message.active_files
-                .slice(0, 8)
-                .filter(isSophonActiveFile)
-                .map(file => ({
-                  id: String(file.id ?? file.filename),
+              phaseKind: transferring ? "transferring" : "verifying",
+              progress: progress.overall_percent,
+              speed: progress.download_speed ?? 0,
+              downloaded: progress.downloaded_size ?? 0,
+              total: progress.total_size ?? 0,
+              files: (event.active_files ?? []).map((value: unknown) => {
+                const file = value as {
+                  filename: string;
+                  progress_percent: number;
+                  downloaded_size: number;
+                  total_size: number;
+                };
+                return {
+                  id: file.filename,
                   name: file.filename,
-                  progress: Number(file.progress_percent) || 0,
-                  speed: Number(file.download_speed) || 0,
-                  downloaded: Number(file.downloaded_size) || 0,
-                  total: Number(file.total_size) || 0,
-                }));
-            }
-            if (Object.keys(progressPatch).length > 0) {
-              updateStream(`sophon:${taskId}`, {
-                ...progressPatch,
-                canPause: true,
-                canResume: true,
-                canCancel: true,
-              });
-            }
-          } else if (Array.isArray(message.active_files)) {
-            updateStream(`sophon:${taskId}`, {
-              files: message.active_files
-                .slice(0, 8)
-                .filter(isSophonActiveFile)
-                .map(file => ({
-                  id: String(file.id ?? file.filename),
-                  name: String(file.filename ?? ""),
-                  progress: Number(file.progress_percent) || 0,
-                  speed: Number(file.download_speed) || 0,
-                  downloaded: Number(file.downloaded_size) || 0,
-                  total: Number(file.total_size) || 0,
-                })),
+                  progress: file.progress_percent,
+                  speed: 0,
+                  downloaded: file.downloaded_size,
+                  total: file.total_size,
+                };
+              }),
             });
-          }
-
-          yield message;
-
-          if (message.type === "error" || message.type === "job_error") {
-            if (cancelled || cancelledTaskIds.has(taskId)) {
-              throw new DownloadCancelledError();
-            }
-            const messageError = message.error || "Operation failed";
-            throw isConnectionErrorMessage(messageError)
-              ? new ConnectionError(messageError)
-              : new Error(messageError);
-          }
-        } else {
-          await new Promise<void>(resolve => {
-            const timeout = setTimeout(() => {
-              if (messageResolver === resolveMessage) {
-                messageResolver = null;
-              }
-              resolve();
-            }, 1000);
-            const resolveMessage = () => {
-              clearTimeout(timeout);
-              resolve();
-            };
-            messageResolver = resolveMessage;
-          });
-          if (!isCompleted && messageQueue.length === 0) {
-            await reconcileTaskStatus();
+            yield event;
           }
         }
+        if (status.status === "completed") {
+          yield { type: "job_end", task_id: taskId };
+          return;
+        }
+        if (
+          status.status === "cancelled" ||
+          (status.status === "failed" && this.cancelled.has(taskId))
+        ) {
+          throw new DownloadCancelledError();
+        }
+        if (status.status === "failed") {
+          const error = status.error || "Operation failed";
+          yield { type: "error", task_id: taskId, error };
+          throw isConnectionErrorMessage(error)
+            ? new ConnectionError(error)
+            : new Error(error);
+        }
+        await new Promise(resolve => setTimeout(resolve, 250));
       }
     } finally {
-      ws.close();
       endControlledDownload();
       unregisterStream(`sophon:${taskId}`);
-      cancelledTaskIds.delete(taskId);
-    }
-    if (cancelled) {
-      throw new DownloadCancelledError();
-    }
-    if (error) {
-      throw new ConnectionError(error);
+      this.cancelled.delete(taskId);
     }
   }
 
   async cancelOperation(taskId: string): Promise<void> {
-    // Partial support at python server side
-    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to cancel operation: ${response.statusText}`);
+    this.cancelled.add(taskId);
+    try {
+      await this.rpc("operation.cancel", { operationID: taskId });
+    } catch (error) {
+      this.cancelled.delete(taskId);
+      throw error;
     }
   }
 
   async pauseOperation(taskId: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}/pause`, {
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to pause operation: ${response.statusText}`);
-    }
+    await this.rpc("operation.pause", { operationID: taskId });
   }
 
   async resumeOperation(taskId: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}/resume`, {
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to resume operation: ${response.statusText}`);
-    }
+    await this.rpc("operation.resume", { operationID: taskId });
   }
 
-  async pauseTask(taskId: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}/pause`, {
-      method: "POST",
+  async setDownloadSpeedLimit(bps: number, taskId?: string): Promise<void> {
+    await this.rpc("operation.limit", {
+      bytesPerSecond: Math.round(bps),
+      operationID: taskId,
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to pause task: ${response.statusText}`);
-    }
-  }
-
-  async resumeTask(taskId: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}/resume`, {
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to resume task: ${response.statusText}`);
-    }
-  }
-
-  async cancelTask(taskId: string): Promise<void> {
-    cancelledTaskIds.add(taskId);
-    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to cancel task: ${response.statusText}`);
-    }
-  }
-
-  async setDownloadSpeedLimit(bps: number): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/limit`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ download_speed_limit: bps }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to set download speed limit: ${response.statusText}`
-      );
-    }
   }
 
   async getLatestOnlineGameInfo(
-    reltype: "os" | "cn" | "bb",
-    game: string
+    reltype: Region,
+    game: SophonOnlineGameInfo["game_type"]
   ): Promise<SophonOnlineGameInfo> {
-    // Currently only supports "hk4e" for game, "os", "cn", or "bb" for reltype
-    let response: Response;
     try {
-      response = await fetch(
-        `${this.baseUrl}/api/game/online_info?game=${game}&reltype=${reltype}`
-      );
+      const info = await this.rpc<{
+        version: string;
+        installSize: number;
+        updatableVersions: string[];
+        predownloadVersion: string | null;
+      }>("game.online", { game: gameID(game, reltype), region: reltype });
+      return {
+        game_type: game,
+        version: info.version,
+        install_size: info.installSize,
+        updatable_versions: info.updatableVersions,
+        release_type: reltype,
+        pre_download: reltype !== "bb" && Boolean(info.predownloadVersion),
+        pre_download_version: info.predownloadVersion ?? undefined,
+      };
     } catch (error) {
-      throw new ConnectionError(
-        `Failed to reach the Sophon server while fetching game info: ${error}`
-      );
+      return {
+        game_type: "",
+        version: "",
+        install_size: 0,
+        updatable_versions: [],
+        release_type: reltype,
+        pre_download: false,
+        error: String(error),
+      };
     }
+  }
 
-    if (!response.ok) {
-      throw new ConnectionError(
-        `Failed to get game info: ${response.statusText}`
-      );
-    }
+  listFiles(query: SophonFileQuery): Promise<SophonFileListing> {
+    return this.rpc("files.list", {
+      ...query,
+      game: gameID("hk4e", this.region),
+      region: this.region,
+    });
+  }
 
-    return response.json();
+  downloadFiles(
+    directory: string,
+    version: string,
+    files: string[],
+    categories = ["game"]
+  ): Promise<string> {
+    return this.startOperation(
+      "files.download",
+      {
+        directory,
+        version,
+        files,
+        categories,
+        region: this.region,
+        game: gameID("hk4e", this.region),
+      },
+      "Selected files"
+    );
   }
 }
 
 export async function createSophon(
   host: string,
-  port: number
+  port: number,
+  region?: Region,
+  token?: string
 ): Promise<SophonClient> {
-  const client = new SophonClient(host, port);
+  const client = new SophonClient(host, port, region, token);
 
   if (!(await client.healthCheck())) {
     throw new Error(`Failed to connect to Sophon server at ${host}:${port}`);
@@ -615,9 +443,11 @@ export type Sophon = SophonClient;
 
 export async function createSophonRetry(
   host: string,
-  port: number
+  port: number,
+  region?: Region,
+  token?: string
 ): Promise<Sophon> {
-  const client = new SophonClient(host, port);
+  const client = new SophonClient(host, port, region, token);
   let lastError = "";
 
   for (let i = 0; i < 60; i++) {

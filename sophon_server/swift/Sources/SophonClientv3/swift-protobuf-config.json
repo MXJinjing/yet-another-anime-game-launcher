@@ -1,0 +1,9 @@
+{
+  "invocations": [
+    {
+      "protoPath": "../../Proto",
+      "protoFiles": ["manifest.proto", "manifest_ldiff.proto"],
+      "visibility": "internal"
+    }
+  ]
+}

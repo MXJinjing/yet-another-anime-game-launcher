@@ -45,7 +45,7 @@ Yaaglm 是一个面向 macOS 的桌面启动器，用于管理不同区域和发
 - 基于 Neutralinojs 的轻量 macOS 桌面应用。
 - SolidJS、TypeScript 和 Vite 构建的前端界面。
 - 支持游戏库、安装、更新、启动和任务队列管理。
-- Python Sophon sidecar 负责下载、补丁、进度和后台任务。
+- Swift Sophon sidecar 负责下载、补丁、进度和后台任务。
 - 支持多个区域和发行渠道，并通过 channel 在构建时生成对应应用。
 - 支持 Wine、DXMT 及其他运行时组件的配置和管理。
 - 提供多语言界面和可替换的运行时资源。
@@ -73,7 +73,7 @@ Yaaglm 是一个面向 macOS 的桌面启动器，用于管理不同区域和发
 │   ├── locale/        # 多语言资源
 │   ├── assets/        # 界面素材和图片资源
 │   └── icons/         # 图标资源
-├── sophon_server/     # Python sidecar 服务
+├── sophon_server/     # Swift Sophon 源码副本及旧版 API 源码
 ├── sidecar/           # aria2、7z、hpatchz、xdelta 和运行时辅助文件
 ├── external/          # 外部补丁和构建期间使用的资源
 ├── configure.sh       # 初始化配置并准备 Neutralino 运行时
@@ -91,7 +91,7 @@ Yaaglm 是一个面向 macOS 的桌面启动器，用于管理不同区域和发
 
 - macOS。
 - Node.js 和 pnpm。
-- Python 3.11 或更高版本，以及 uv。
+- 构建 Sophon 需要 Xcode 和 Swift 6.3 或更新版本。运行旧版 API 测试需要 Python 和 uv。
 - 构建原生辅助程序所需的 C 编译器；macOS 通常可通过 Xcode Command Line Tools 提供。
 - 足够的磁盘空间，用于前端依赖、sidecar、Wine 运行时和游戏文件。
 
