@@ -157,6 +157,9 @@ export const ja_JP: typeof zh_CN = {
   SETTING_WINE_VERSION_UPDATE_BUSY:
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "クイックアクション",
+  SETTING_APPLY_RECOMMENDED_SETTINGS: "推奨設定を適用",
+  SETTING_RECOMMENDED_SETTINGS_SHARED_WINE:
+    "このゲームは共有 Wine を使用しています。推奨設定を適用すると、同じ環境を使用する他のゲームにも Wine のバージョンが適用されます。",
   SETTING_GENERAL: "全般",
   SETTING_DOWNLOAD: "ダウンロード",
   SETTING_GAME: "ゲーム",

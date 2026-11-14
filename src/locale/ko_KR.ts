@@ -154,6 +154,9 @@ export const ko_KR: typeof zh_CN = {
   SETTING_WINE_VERSION_UPDATE_BUSY:
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "빠른 작업",
+  SETTING_APPLY_RECOMMENDED_SETTINGS: "권장 설정 적용",
+  SETTING_RECOMMENDED_SETTINGS_SHARED_WINE:
+    "이 게임은 공유 Wine 환경을 사용합니다. 권장 설정을 적용하면 같은 환경을 사용하는 다른 게임에도 해당 Wine 버전이 적용됩니다.",
   SETTING_GENERAL: "일반",
   SETTING_DOWNLOAD: "다운로드",
   SETTING_GAME: "게임",

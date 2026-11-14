@@ -154,6 +154,9 @@ export const th_TH: typeof zh_CN = {
   SETTING_WINE_VERSION_UPDATE_BUSY:
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "การทำงานด่วน",
+  SETTING_APPLY_RECOMMENDED_SETTINGS: "ใช้การตั้งค่าที่แนะนำ",
+  SETTING_RECOMMENDED_SETTINGS_SHARED_WINE:
+    "เกมนี้ใช้สภาพแวดล้อม Wine ร่วมกัน การใช้ค่าที่แนะนำจะเลือกเวอร์ชัน Wine ให้เกมอื่นที่ใช้สภาพแวดล้อมเดียวกันด้วย",
   SETTING_GENERAL: "ทั่วไป",
   SETTING_DOWNLOAD: "ดาวน์โหลด",
   SETTING_GAME: "เกม",

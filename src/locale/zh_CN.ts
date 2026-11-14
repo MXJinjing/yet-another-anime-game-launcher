@@ -149,6 +149,9 @@ export const zh_CN = {
   SETTING_WINE_VERSION_UPDATE_BUSY:
     "当前有任务正在运行、下载正在进行或游戏仍在运行，暂时不能更新 Wine 环境。",
   SETTING_QUICK_ACTIONS: "快速操作",
+  SETTING_APPLY_RECOMMENDED_SETTINGS: "应用推荐设置",
+  SETTING_RECOMMENDED_SETTINGS_SHARED_WINE:
+    "此游戏使用全局 Wine。应用推荐设置也会为共用该环境的游戏切换 Wine 版本。",
   SETTING_GENERAL: "通用",
   SETTING_DOWNLOAD: "下载",
   SETTING_GAME: "游戏",

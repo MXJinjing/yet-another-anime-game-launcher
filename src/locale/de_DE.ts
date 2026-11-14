@@ -158,6 +158,9 @@ export const de_DE: typeof zh_CN = {
   SETTING_WINE_VERSION_UPDATE_BUSY:
     "Wine environment updates are unavailable while a task, download, or game is running.",
   SETTING_QUICK_ACTIONS: "Schnellaktionen",
+  SETTING_APPLY_RECOMMENDED_SETTINGS: "Empfohlene Einstellungen anwenden",
+  SETTING_RECOMMENDED_SETTINGS_SHARED_WINE:
+    "Dieses Spiel nutzt die gemeinsame Wine-Umgebung. Die Voreinstellung wählt auch für andere Spiele in dieser Umgebung die Wine-Version aus.",
   SETTING_GENERAL: "Allgemein",
   SETTING_DOWNLOAD: "Download",
   SETTING_GAME: "Spiel",

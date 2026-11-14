@@ -317,10 +317,14 @@ export async function createGameSettings(
     locale: options.locale,
     settings,
     wineTag: options.wineTag,
-    wineOptions: options.wineOptions,
+    get wineOptions() {
+      return options.wineOptions;
+    },
     onWineTagChange: options.onWineTagChange,
     wineEnabled: options.wineEnabled,
-    autoWineLabel: options.autoWineLabel,
+    get autoWineLabel() {
+      return options.autoWineLabel;
+    },
     wineDataSupported: options.wineDataSupported,
     onWineEnabledChange: options.onWineEnabledChange,
     onOpenWineCmd: options.onOpenWineCmd,

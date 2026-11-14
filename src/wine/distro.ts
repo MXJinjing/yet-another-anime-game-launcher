@@ -49,19 +49,28 @@ export interface WineDistribution {
 const GPTK_APP_PATH = "/Applications/Game Porting Toolkit.app";
 const GPTK_WINE_ROOT = `${GPTK_APP_PATH}/Contents/Resources/wine`;
 
-const YAAGL_BUILTIN_WINE: WineDistribution[] = [
-  {
-    id: "11.0-1-crossover-signed-experimental",
-    displayName: "Wine 11.0-1 Crossover (signed, experimental)",
-    remoteUrl:
-      "https://github.com/yaagl/anime-game-wine/releases/download/wine-crossover-11.0-1-signed/wine-crossover-11.0-1-osx64-signed.tar.xz",
-    checksum:
-      "sha-256=89fa7e90fb626523a90d5867a03c6be785d017176739c6320a3b86c7838c3a35",
-    attributes: {
-      renderBackend: "dxmt",
-      winePath: "wine",
-    },
+export const RECOMMENDED_WINE_DISTRO_ID =
+  "11.0-1-crossover-signed-experimental";
+
+const RECOMMENDED_WINE_DISTRO: WineDistribution = {
+  id: RECOMMENDED_WINE_DISTRO_ID,
+  displayName: "Wine 11.0-1 Crossover (signed, experimental)",
+  remoteUrl:
+    "https://github.com/yaagl/anime-game-wine/releases/download/wine-crossover-11.0-1-signed/wine-crossover-11.0-1-osx64-signed.tar.xz",
+  checksum:
+    "sha-256=89fa7e90fb626523a90d5867a03c6be785d017176739c6320a3b86c7838c3a35",
+  attributes: {
+    renderBackend: "dxmt",
+    winePath: "wine",
   },
+};
+
+export function resolveRecommendedWineDistro(): WineDistribution {
+  return RECOMMENDED_WINE_DISTRO;
+}
+
+const YAAGL_BUILTIN_WINE: WineDistribution[] = [
+  RECOMMENDED_WINE_DISTRO,
   {
     id: "11.0-dxmt-signed-with-patches",
     displayName: "Wine 11.0 DXMT (signed, with patches)",
