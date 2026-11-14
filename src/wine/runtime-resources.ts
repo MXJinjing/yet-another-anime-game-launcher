@@ -1,4 +1,3 @@
-import { eq } from "semver";
 import { Aria2, Aria2OverallProgress } from "@aria2";
 import type { TaskProgram, TaskProgressCommand } from "@tasks/task-program";
 import {
@@ -14,8 +13,8 @@ import { downloadPercent } from "@runtime/format";
 import { warn } from "@logging/logger";
 import {
   fileOrDirExists,
-  removeFile,
   removeFileIfExists,
+  stats,
   writeFile,
 } from "@platform/neutralino";
 import { resolve } from "@platform/neutralino/path";
@@ -25,7 +24,10 @@ import { join } from "path-browserify";
 const CURRENT_MVK_VERSION = "1.2.2";
 const CURRENT_DXVK_VERSION = "1.10.4-alpha.20230402";
 const CURRENT_JADEITE_VERSION = "4.1.0";
-const CURRENT_DXMT_VERSION = "0.80.0";
+const CURRENT_DXMT_VERSION = "654f547";
+const DXMT_BUILD = "654f547ffab4e0c395ee368aad52bb4586b04576";
+const DXMT_CHECKSUM =
+  "sha-256=fbc0721fb72ebafd2bad0dbdd3d13a52056fd10c4a9a699cee2689363823255b";
 const CURRENT_RESHADE_VERSION = "5.8.0";
 
 // Different games share runtime directories and can start in parallel.
@@ -70,10 +72,35 @@ export const DXVK_FILES = [
 ];
 export const DXMT_FILES = ["d3d10core.dll", "d3d11.dll", "dxgi.dll"];
 
+const DXMT_WINDOWS_FILES = [
+  ...DXMT_FILES,
+  "nvapi64.dll",
+  "nvngx.dll",
+  "winemetal.dll",
+];
+const DXMT_RUNTIME_FILES = [...DXMT_WINDOWS_FILES, "winemetal.so"];
+
+async function hasRuntimeFile(path: string): Promise<boolean> {
+  try {
+    const info = await stats(path);
+    return info.isFile && info.size > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function hasRuntimeFiles(directory: string, files: string[]) {
+  const present = await Promise.all(
+    files.map(file => hasRuntimeFile(join(directory, file)))
+  );
+  return present.every(Boolean);
+}
+
 export async function isDXMTInstalled(): Promise<boolean> {
-  return eq(
-    CURRENT_DXMT_VERSION,
-    await getKeyOrDefault("installed_dxmt_version", "0.0.0")
+  return (
+    CURRENT_DXMT_VERSION ===
+      (await getKeyOrDefault("installed_dxmt_version", "")) &&
+    (await hasRuntimeFiles("./dxmt", DXMT_RUNTIME_FILES))
   );
 }
 
@@ -94,11 +121,9 @@ function downloadProgress(progress: {
 
 export async function* checkAndDownloadMoltenVK(aria2: Aria2): TaskProgram {
   if (
-    (await fileOrDirExists("./moltenvk/libMoltenVK.dylib")) &&
-    eq(
-      CURRENT_MVK_VERSION,
-      await getKeyOrDefault("installed_moltenvk_version", "0.0.0")
-    )
+    CURRENT_MVK_VERSION ===
+      (await getKeyOrDefault("installed_moltenvk_version", "")) &&
+    (await hasRuntimeFile("./moltenvk/libMoltenVK.dylib"))
   )
     return;
   await mkdirp("./moltenvk");
@@ -118,10 +143,9 @@ export async function* checkAndDownloadMoltenVK(aria2: Aria2): TaskProgram {
 
 export async function* checkAndDownloadDXVK(aria2: Aria2): TaskProgram {
   if (
-    eq(
-      CURRENT_DXVK_VERSION,
-      await getKeyOrDefault("installed_dxvk_version", "0.0.0")
-    )
+    CURRENT_DXVK_VERSION ===
+      (await getKeyOrDefault("installed_dxvk_version", "")) &&
+    (await hasRuntimeFiles("./dxvk", DXVK_FILES))
   )
     return;
   await mkdirp("./dxvk");
@@ -157,10 +181,9 @@ export function checkAndDownloadJadeite(aria2: Aria2): TaskProgram {
 
 async function* installJadeite(aria2: Aria2, archive: string): TaskProgram {
   if (
-    eq(
-      CURRENT_JADEITE_VERSION,
-      await getKeyOrDefault("installed_jadeite_version", "0.0.0")
-    )
+    CURRENT_JADEITE_VERSION ===
+      (await getKeyOrDefault("installed_jadeite_version", "")) &&
+    (await hasRuntimeFile("./jadeite/jadeite.exe"))
   ) {
     await removeRuntimeInstaller(archive);
     return;
@@ -190,54 +213,87 @@ async function* installJadeite(aria2: Aria2, archive: string): TaskProgram {
   await removeRuntimeInstaller(archive);
 }
 
-export async function* checkAndDownloadDXMT(
+export function checkAndDownloadDXMT(
   aria2: Aria2,
   downloadKey?: string
 ): TaskProgram {
-  if (
-    eq(
-      CURRENT_DXMT_VERSION,
-      await getKeyOrDefault("installed_dxmt_version", "0.0.0")
-    )
-  )
-    return;
-  await rmrf_dangerously(resolve("./dxmt"));
-  await mkdirp("./dxmt");
-  yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
-  const archiveName = "dxmt-v0.80-builtin.tar.gz";
-  for await (const progress of aria2.doStreamingDownload({
-    uri: `https://github.com/3Shain/dxmt/releases/download/v0.80/${archiveName}`,
-    absDst: resolve(`./dxmt/${archiveName}`),
-    downloadKey,
-  })) {
-    yield [
-      "setProgress",
-      Number((progress.completedLength * BigInt(100)) / progress.totalLength),
-    ];
-    yield downloadProgress(progress);
+  const directory = resolve("./dxmt");
+  return installRuntimeArchive(
+    directory,
+    installDXMT(aria2, directory, downloadKey)
+  );
+}
+
+async function* installDXMT(
+  aria2: Aria2,
+  directory: string,
+  downloadKey?: string
+): TaskProgram {
+  const staging = resolve("./dxmt-staging");
+  const backup = resolve("./dxmt-backup");
+  const archiveName = `dxmt-${DXMT_BUILD}.zip`;
+  const archive = join(staging, archiveName);
+  const tarName = `dxmt-${DXMT_BUILD}.tar.gz`;
+  const payload = join(staging, "runtime");
+
+  // Recover an interrupted directory swap before deciding whether to download.
+  if ((await fileOrDirExists(backup)) && !(await fileOrDirExists(directory))) {
+    await forceMove(backup, directory);
   }
-  yield ["setStateText", "EXTRACT_ENVIRONMENT"];
-  yield ["setUndeterminedProgress"];
-  await exec([
-    "tar",
-    "-xvf",
-    resolve(`./dxmt/${archiveName}`),
-    "-C",
-    resolve("./dxmt"),
-  ]);
-  await exec([
-    "sh",
-    "-c",
-    `mv "${resolve("./dxmt/v0.80/x86_64-windows/")}"* "${resolve("./dxmt/")}"`,
-  ]);
-  await exec([
-    "sh",
-    "-c",
-    `mv "${resolve("./dxmt/v0.80/x86_64-unix/")}"* "${resolve("./dxmt/")}"`,
-  ]);
-  await rmrf_dangerously(resolve("./dxmt/v0.80"));
-  await removeFile(resolve(`./dxmt/${archiveName}`));
-  await setKey("installed_dxmt_version", CURRENT_DXMT_VERSION);
+  await rmrf_dangerously(staging);
+  if (await isDXMTInstalled()) {
+    await rmrf_dangerously(backup);
+    return;
+  }
+
+  try {
+    await mkdirp(payload);
+    yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
+    for await (const progress of aria2.doStreamingDownload({
+      uri: `https://github.com/yaagl/anime-game-wine/releases/download/dxmt-${CURRENT_DXMT_VERSION}/${archiveName}`,
+      absDst: archive,
+      checksum: DXMT_CHECKSUM,
+      downloadKey,
+    })) {
+      yield [
+        "setProgress",
+        Number((progress.completedLength * BigInt(100)) / progress.totalLength),
+      ];
+      yield downloadProgress(progress);
+    }
+    yield ["setStateText", "EXTRACT_ENVIRONMENT"];
+    yield ["setUndeterminedProgress"];
+    const { stdOut } = await exec(["/usr/bin/shasum", "-a", "256", archive]);
+    if (`sha-256=${stdOut.trim().split(/\s+/)[0]}` !== DXMT_CHECKSUM) {
+      throw new Error("DXMT archive checksum mismatch");
+    }
+    await exec(["/usr/bin/unzip", "-oq", archive, tarName, "-d", staging]);
+    await exec(["/usr/bin/tar", "-xf", join(staging, tarName), "-C", staging]);
+    for (const file of DXMT_RUNTIME_FILES) {
+      const architecture =
+        file === "winemetal.so" ? "x86_64-unix" : "x86_64-windows";
+      await forceMove(
+        join(staging, DXMT_BUILD, architecture, file),
+        join(payload, file)
+      );
+    }
+    if (!(await hasRuntimeFiles(payload, DXMT_RUNTIME_FILES))) {
+      throw new Error("DXMT archive is missing required runtime files");
+    }
+
+    await rmrf_dangerously(backup);
+    if (await fileOrDirExists(directory)) await forceMove(directory, backup);
+    try {
+      await forceMove(payload, directory);
+    } catch (error) {
+      if (await fileOrDirExists(backup)) await forceMove(backup, directory);
+      throw error;
+    }
+    await setKey("installed_dxmt_version", CURRENT_DXMT_VERSION);
+    await rmrf_dangerously(backup);
+  } finally {
+    await rmrf_dangerously(staging);
+  }
 }
 
 export function checkAndDownloadReshade(
@@ -262,10 +318,9 @@ async function* installReshade(
 ): TaskProgram {
   const legacyArchive = join(reshaderDir, "install.zip");
   if (
-    eq(
-      CURRENT_RESHADE_VERSION,
-      await getKeyOrDefault("installed_reshade", "0.0.0")
-    )
+    CURRENT_RESHADE_VERSION ===
+      (await getKeyOrDefault("installed_reshade", "")) &&
+    (await hasRuntimeFiles(reshaderDir, ["dxgi.dll", "d3dcompiler_47.dll"]))
   ) {
     await removeRuntimeInstaller(legacyArchive);
     await removeRuntimeInstaller(installer);
