@@ -1,3 +1,4 @@
+import { bindRecommendedSetting } from "@settings/recommended-settings";
 import { createEffect, createSignal } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined } from "@runtime/assertions";
@@ -30,6 +31,7 @@ export default async function ({
   }
 
   const [value, setValue] = createSignal(config.steamPatch);
+  bindRecommendedSetting(config, "steamPatch", setValue);
 
   async function onSave(apply: boolean) {
     assertValueDefined(config.steamPatch);
