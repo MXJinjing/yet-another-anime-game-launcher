@@ -21,7 +21,7 @@ import { createTransferProgressTracker } from "./download-progress";
 async function* downloadAndPatch(
   sophon: Sophon,
   gameDir: string,
-  installedVersion: string,
+  installedVersion: string | undefined,
   downloadKey?: string
 ): TaskProgram {
   // Predownload downloads diffs without applying,
@@ -162,7 +162,7 @@ export async function* updateGameProgram({
   gameDir: string;
   server: Server;
   updatedGameVersion: string;
-  installedVersion: string;
+  installedVersion?: string;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
   storage?: Storage;
@@ -221,7 +221,7 @@ export async function* updateGameProgram({
 async function* predownload(
   sophon: Sophon,
   gameDir: string,
-  installedVersion: string,
+  installedVersion: string | undefined,
   downloadKey?: string
 ): TaskProgram {
   const downloadTmp = join(gameDir, ".tmp");
@@ -321,7 +321,7 @@ export async function* predownloadGameProgram({
   sophon: Sophon;
   gameDir: string;
   targetVersion: string;
-  installedVersion: string;
+  installedVersion?: string;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
   storage?: Storage;
