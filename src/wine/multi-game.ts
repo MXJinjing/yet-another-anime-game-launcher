@@ -14,6 +14,7 @@ import { resolve } from "@platform/neutralino/path";
 import { dirname, join } from "path-browserify";
 import { log } from "../logging/logger";
 import { getWineDistributions } from "./distro";
+import { D3DMETAL_RUNTIME_ID } from "./d3dmetal";
 import type { WineDistribution } from "./distro";
 import { installWineEnvironmentProgram } from "./wine-install-program";
 import { createWinePrefixInitializationLog } from "./prefix-initialization-log";
@@ -237,16 +238,19 @@ export function setMultiGameGameWineTag(gameId: string, wineTag: string) {
 
 export async function getMultiGameWineOptions(_currentTag: string) {
   const versions = await getWineDistributions();
-  const installedVersions = (
+  const availableVersions = (
     await Promise.all(
       versions.map(async distro =>
-        (await isWineDistroInstalled(distro.id)) ? distro : null
+        distro.id === D3DMETAL_RUNTIME_ID ||
+        (await isWineDistroInstalled(distro.id))
+          ? distro
+          : null
       )
     )
   ).filter((distro): distro is WineDistribution => distro !== null);
   return [
     { tag: SHARED_WINE_TAG, displayName: "Shared launcher Wine", url: "" },
-    ...installedVersions.map(distro => ({
+    ...availableVersions.map(distro => ({
       tag: distro.id,
       displayName: distro.displayName,
       url: distro.remoteUrl,

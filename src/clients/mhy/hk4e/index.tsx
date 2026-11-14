@@ -1,3 +1,4 @@
+import { isWineRuntimeReady } from "@wine/distro";
 import { batch, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Divider } from "@hope-ui/solid";
@@ -333,15 +334,15 @@ export async function createHK4EChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
-    runtimeReady: () => runtimeReady(),
+    runtimeReady: () => isWineRuntimeReady(wine.attributes, runtimeReady()),
     async refreshRuntimeReady() {
       setRuntimeReady(await isDXMTInstalled());
     },
     async *continueInstall(): TaskProgram {
       if (wine.attributes.renderBackend == "dxmt") {
         yield* checkAndDownloadDXMT(aria2, storage.namespace);
+        setRuntimeReady(true);
       }
-      setRuntimeReady(true);
     },
     async *install(selection: string): TaskProgram {
       if (LATEST_GAME_VERSION === "0.0.0") {

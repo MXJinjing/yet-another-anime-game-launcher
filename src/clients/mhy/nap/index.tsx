@@ -1,3 +1,4 @@
+import { isWineRuntimeReady } from "@wine/distro";
 import { batch, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Divider } from "@hope-ui/solid";
@@ -238,15 +239,15 @@ export async function createNAPChannelClient({
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
-    runtimeReady: () => runtimeReady(),
+    runtimeReady: () => isWineRuntimeReady(wine.attributes, runtimeReady()),
     async refreshRuntimeReady() {
       setRuntimeReady(await isDXMTInstalled());
     },
     async *continueInstall(): TaskProgram {
       if (wine.attributes.renderBackend == "dxmt") {
         yield* checkAndDownloadDXMT(aria2, storage.namespace);
+        setRuntimeReady(true);
       }
-      setRuntimeReady(true);
     },
     async *install(selection: string): TaskProgram {
       if (!versionLoaded) {
@@ -614,7 +615,12 @@ export async function createNAPChannelClient({
       });
       const [SP] = await createSteamPatch({ locale, config, storage });
       const [TF] = await createTimeoutFix({ locale, config, storage });
-      const [DX12] = await createDirectX12({ locale, config, storage });
+      const [DX12] = await createDirectX12({
+        locale,
+        config,
+        storage,
+        supported: () => wine.attributes.supportsD3d12 === true,
+      });
       const [MFX] = await createMetalFx({
         locale,
         config,

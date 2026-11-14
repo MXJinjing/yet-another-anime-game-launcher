@@ -133,6 +133,8 @@ export const th_TH: typeof zh_CN = {
   SETTING_USE_D3D12_DESC: "เปิดเกมโดยใช้ DirectX 12",
   SETTING_NAP_METALFX: "เปิดใช้ MetalFX",
   SETTING_NAP_METALFX_DESC: "ใช้ MetalFX แทน DLSS และรองรับเรย์เทรซิง",
+  SETTING_NAP_D3D12_REQUIREMENTS:
+    "DirectX 12 ต้องใช้ Wine ที่รองรับ D3DMetal หรือ Game Porting Toolkit",
   SETTING_NAP_REQUIRES_GPTK3: "ต้องมี Game Porting Toolkit 3 (GPTK3)",
   SETTING_SAVE: "บันทึก",
   SETTING_CANCEL: "ยกเลิก",
@@ -322,6 +324,16 @@ export const th_TH: typeof zh_CN = {
   AHEAD_OF_LATEST_TITLE: "ใหม่กว่าเวอร์ชันล่าสุด",
   AHEAD_OF_LATEST_JOKE:
     "ในขณะที่เวอร์ชันทางการยังทยอยอัปเดต🐌 คุณก็อยู่รุ่นถัดไปแล้ว🚀 เงียบๆ หน่อย อย่าสปอยล์🤫",
+  D3DMETAL_LICENSE_TITLE:
+    "ข้อตกลงสิทธิ์การใช้งาน Game Porting Toolkit 4.0 beta 2",
+  D3DMETAL_LICENSE_LOADING: en.D3DMETAL_LICENSE_LOADING,
+  D3DMETAL_LICENSE_ERROR: en.D3DMETAL_LICENSE_ERROR,
+  D3DMETAL_LICENSE_RETRY: en.D3DMETAL_LICENSE_RETRY,
+  D3DMETAL_LICENSE_ACKNOWLEDGE: en.D3DMETAL_LICENSE_ACKNOWLEDGE,
+  D3DMETAL_LICENSE_ACCEPT: en.D3DMETAL_LICENSE_ACCEPT,
+  D3DMETAL_LICENSE_REQUIREMENTS:
+    "รันไทม์ทดลองสำหรับชิป Apple และ macOS 26 ขึ้นไป",
+
   UPDATE_LAUNCHER: "อัปเดต Launcher",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",
