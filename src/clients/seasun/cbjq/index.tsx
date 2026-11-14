@@ -13,7 +13,11 @@ import { exec } from "@runtime/command-runner";
 import { getFreeSpace } from "@runtime/macos-filesystem";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
-import { gt, lt } from "semver";
+import {
+  isNewerGameVersion,
+  readGameVersion,
+  requireGameVersion,
+} from "../../game-version";
 import { Config } from "@config";
 // import { checkIntegrityProgram } from "../program-check-integrity";
 // import {
@@ -71,7 +75,9 @@ export async function createCBJQChannelClient({
   let isFallback = false;
   let versionLoaded = false;
   const loadVersionInfo = async () => {
-    resourceData = await getLatestVersionInfo(server);
+    const latest = await getLatestVersionInfo(server);
+    requireGameVersion(latest.projectVersion);
+    resourceData = latest;
     versionLoaded = true;
   };
   const localGameState = await checkGameState(locale, server, storage);
@@ -91,6 +97,10 @@ export async function createCBJQChannelClient({
   const fallbackBg = "linear-gradient(135deg, #0ba360 0%, #3cba92 100%)";
 
   const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
+  const initialVersion = readGameVersion(gameVersion) ?? "0.0.0";
+  if (gameInstalled && initialVersion === "0.0.0") {
+    await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+  }
 
   const [installed, setInstalled] = createSignal<ChannelClientInstallState>(
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
@@ -103,10 +113,9 @@ export async function createCBJQChannelClient({
   const [_gameInstallDir, setGameInstallDir] = createSignal(
     gameInstallDir ?? ""
   );
-  const [gameCurrentVersion, setGameVersion] = createSignal(
-    gameVersion ?? "0.0.0"
-  );
-  const updateRequired = () => lt(gameCurrentVersion(), GAME_LATEST_VERSION);
+  const [gameCurrentVersion, setGameVersion] = createSignal(initialVersion);
+  const updateRequired = () =>
+    isNewerGameVersion(GAME_LATEST_VERSION, gameCurrentVersion());
   return {
     installState: installed,
     showPredownloadPrompt,
@@ -183,14 +192,18 @@ export async function createCBJQChannelClient({
         return;
       }
       const gameVersion = await getGameVersion(selection);
-      if (gt(gameVersion, CURRENT_SUPPORTED_VERSION)) {
+      if (!readGameVersion(gameVersion)) {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
+      if (isNewerGameVersion(gameVersion, CURRENT_SUPPORTED_VERSION)) {
         await locale.alert(
           "UNSUPPORTED_VERSION",
           "PLEASE_WAIT_FOR_LAUNCHER_UPDATE",
           [gameVersion]
         );
         return;
-      } else if (lt(gameVersion, GAME_LATEST_VERSION)) {
+      } else if (isNewerGameVersion(GAME_LATEST_VERSION, gameVersion)) {
         batch(() => {
           setInstalled("INSTALLED");
           setGameInstallDir(selection);
@@ -220,6 +233,17 @@ export async function createCBJQChannelClient({
       // IMPLEMENT ME
     },
     async *update() {
+      if (gameCurrentVersion() === "0.0.0") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
+      if (!versionLoaded) {
+        await locale.alert(
+          "CHECK_GAME_UPDATE_FAILED",
+          "CHECK_GAME_UPDATE_FAILED_DESC"
+        );
+        return;
+      }
       yield* updateGameProgram({
         resourceData,
         aria2,
@@ -233,8 +257,12 @@ export async function createCBJQChannelClient({
       });
     },
     async *launch(config: Config) {
+      if (gameCurrentVersion() === "0.0.0") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        return;
+      }
       if (
-        gt(gameCurrentVersion(), CURRENT_SUPPORTED_VERSION) &&
+        isNewerGameVersion(gameCurrentVersion(), CURRENT_SUPPORTED_VERSION) &&
         !config.patchOff
       ) {
         await locale.alert(
@@ -261,6 +289,13 @@ export async function createCBJQChannelClient({
       });
     },
     async *checkIntegrity() {
+      if (!versionLoaded) {
+        await locale.alert(
+          "CHECK_GAME_UPDATE_FAILED",
+          "CHECK_GAME_UPDATE_FAILED_DESC"
+        );
+        return;
+      }
       yield* checkIntegrityProgram({
         resourceData,
         aria2,
@@ -269,6 +304,12 @@ export async function createCBJQChannelClient({
         downloadKey: storage.namespace,
         storage,
       });
+
+      if (gameCurrentVersion() === "0.0.0") {
+        setGameVersion(
+          readGameVersion(await getGameVersion(_gameInstallDir())) ?? "0.0.0"
+        );
+      }
     },
     async changeInstallDir(selection: string) {
       if (!selection) {
@@ -285,8 +326,11 @@ export async function createCBJQChannelClient({
         batch(() => {
           setInstalled("INSTALLED");
           setGameInstallDir(selection);
-          setGameVersion(gameVersion);
+          setGameVersion(readGameVersion(gameVersion) ?? "0.0.0");
         });
+        if (gameCurrentVersion() === "0.0.0") {
+          await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        }
       } catch {
         batch(() => {
           setInstalled("NOT_INSTALLED");

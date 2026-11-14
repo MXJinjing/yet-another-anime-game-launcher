@@ -444,4 +444,7 @@ export const ja_JP: typeof zh_CN = {
   CHECK_GAME_UPDATE_FAILED: "ゲームの更新確認に失敗しました",
   CHECK_GAME_UPDATE_FAILED_DESC:
     "更新サーバーに接続できません。ネットワーク接続を確認して、もう一度お試しください。",
+  GAME_VERSION_INVALID: "無効なゲームバージョン",
+  GAME_VERSION_UNREADABLE:
+    "インストールされているゲームのバージョンを読み取れませんでした。ゲームファイルを修復または更新する必要があるかもしれません。",
 };

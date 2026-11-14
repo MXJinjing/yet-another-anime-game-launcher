@@ -426,4 +426,7 @@ export const zh_CN = {
   CHECK_UPDATE_FAILED_DESC: "无法连接到 GitHub 服务器 ({0})",
   CHECK_GAME_UPDATE_FAILED: "检查游戏更新失败",
   CHECK_GAME_UPDATE_FAILED_DESC: "无法连接到更新服务器，请检查网络连接后重试。",
+  GAME_VERSION_INVALID: "游戏版本无效",
+  GAME_VERSION_UNREADABLE:
+    "无法读取已安装的游戏版本。您可能需要修复或更新游戏文件。",
 };

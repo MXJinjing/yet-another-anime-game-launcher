@@ -1,4 +1,4 @@
-import { gt, valid } from "semver";
+import { isNewerGameVersion } from "../../clients/game-version";
 
 export function showPredownloadAfterDeletion(
   completed: boolean | undefined,
@@ -9,8 +9,6 @@ export function showPredownloadAfterDeletion(
   return (
     completed === false &&
     installed &&
-    !!valid(targetVersion) &&
-    !!valid(gameVersion) &&
-    gt(targetVersion, gameVersion)
+    isNewerGameVersion(targetVersion, gameVersion)
   );
 }
