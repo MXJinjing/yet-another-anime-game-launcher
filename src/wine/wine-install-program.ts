@@ -156,20 +156,18 @@ export async function* installWineEnvironmentProgram({
     } else {
       await tar_extract(wineTarPath, wineBinaryTmpDir);
     }
+    yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
+    yield ["setUndeterminedProgress"];
+    await prepareWineBinaries(wineBinaryTmpDir);
     await removeFile(wineTarPath);
     await rmrf_dangerously(wineBinaryDir);
     await exec(["mv", wineBinaryTmpDir, wineBinaryDir]);
   }
 
-  if (!installedBefore || activate) {
+  if (installedBefore && activate) {
     yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
     yield ["setUndeterminedProgress"];
-    await addCertsToWine(wineBinaryDir);
-    await xattrRemove(
-      "com.apple.quarantine",
-      wineBinaryDir,
-      await getAuthorizationPrompt("AUTHORIZATION_PROMPT_REMOVE_QUARANTINE")
-    );
+    await prepareWineBinaries(wineBinaryDir);
   }
 
   if (!activate) {
@@ -182,14 +180,25 @@ export async function* installWineEnvironmentProgram({
   yield* configureWineEnvironmentProgram({ aria2, wineAbsPrefix, wineDistro });
 }
 
+async function prepareWineBinaries(directory: string) {
+  await addCertsToWine(directory);
+  await xattrRemove(
+    "com.apple.quarantine",
+    directory,
+    await getAuthorizationPrompt("AUTHORIZATION_PROMPT_REMOVE_QUARANTINE")
+  );
+}
+
 export async function* configureWineEnvironmentProgram({
   aria2,
   wineAbsPrefix,
   wineDistro,
+  beforeActivate,
 }: {
   aria2: Aria2;
   wineAbsPrefix: string;
   wineDistro: WineDistribution;
+  beforeActivate?: () => Promise<void>;
 }): TaskProgram {
   yield ["setUndeterminedProgress"];
   await ensureHosts(ENSURE_HOSTS);
@@ -213,12 +222,13 @@ export async function* configureWineEnvironmentProgram({
     yield* installMediaFoundation(aria2, wine);
   }
 
+  await beforeActivate?.();
   await ensureActiveWineCompatLink(wineDistro.id);
-  await setKey("wine_state", "ready");
   await setKey("wine_tag", wineDistro.id);
   await setKey("wine_update_url", null);
   await setKey("wine_update_tag", null);
   const netbiosname = `DESKTOP-${generateRandomString(7)}`; // exactly 15 chars
   await setKey("wine_netbiosname", netbiosname);
+  await setKey("wine_state", "ready");
   yield ["setStateText", "INSTALL_DONE"];
 }

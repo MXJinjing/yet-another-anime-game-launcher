@@ -58,7 +58,10 @@ export type HypLauncherOptions = {
   onGameRunningChange?: (running: boolean) => void;
   gameCloseHandler?: { current?: () => Promise<void> };
   onResetWineEnv: () => Promise<void>;
-  initializeWine: (distro: WineDistribution) => TaskProgram;
+  initializeWine: (
+    distro: WineDistribution,
+    beforeActivate?: () => Promise<void>
+  ) => TaskProgram;
   downloadWineDistro: (
     distro: WineDistribution,
     downloadKey?: string
