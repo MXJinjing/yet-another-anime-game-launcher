@@ -11,7 +11,10 @@ import {
 } from "@runtime/format";
 import { rmrf_dangerously, xattrRemove } from "@runtime/macos-filesystem";
 import { setKey } from "@runtime/storage";
-import { isDownloadCancelledError } from "../download/control";
+import {
+  DownloadFailedError,
+  isDownloadCancelledError,
+} from "../download/control";
 import { ENSURE_HOSTS } from "../system/ensure-hosts";
 import { ensureHosts } from "../system/hosts";
 import { getAuthorizationPrompt } from "../locale/authorization";
@@ -24,6 +27,7 @@ import {
 import { installMediaFoundation } from "./mf";
 import { WineDistribution } from "./distro";
 import { addCertsToWine } from "./cert";
+import { createWinePrefixInitializationLog } from "./prefix-initialization-log";
 
 /**
  * Returns the install task. Rendering it is the composition layer's concern.
@@ -95,6 +99,7 @@ export async function* installWineEnvironmentProgram({
       for await (const progress of aria2.doStreamingDownload({
         uri: wineDistro.remoteUrl,
         absDst: wineTarPath,
+        ...(wineDistro.checksum ? { checksum: wineDistro.checksum } : {}),
         downloadKey,
       })) {
         yield [
@@ -120,6 +125,22 @@ export async function* installWineEnvironmentProgram({
         await rmrf_dangerously(wineBinaryTmpDir);
       }
       throw error;
+    }
+    // aria2 can reuse completed results without rechecking the file on disk.
+    if (wineDistro.checksum) {
+      const { stdOut } = await exec([
+        "/usr/bin/shasum",
+        "-a",
+        "256",
+        wineTarPath,
+      ]);
+      const actualChecksum = stdOut.trim().split(/\s+/, 1)[0];
+      if (`sha-256=${actualChecksum}` !== wineDistro.checksum) {
+        await removeFileIfExists(wineTarPath);
+        throw new DownloadFailedError(
+          `Wine archive checksum mismatch: ${wineDistro.displayName}`
+        );
+      }
     }
     yield ["setStateText", "EXTRACT_ENVIRONMENT"];
     yield ["setUndeterminedProgress"];
@@ -177,8 +198,13 @@ export async function* configureWineEnvironmentProgram({
     prefix: wineAbsPrefix,
     distro: wineDistro,
   });
-  await wine.exec("wineboot", ["-u"], {}, "/dev/null");
-  await wine.exec("winecfg", ["-v", "win10"], {}, "/dev/null");
+  const runInitializationStep = await createWinePrefixInitializationLog();
+  await runInitializationStep("wineboot", logFile =>
+    wine.exec("wineboot", ["-u"], {}, logFile)
+  );
+  await runInitializationStep("winecfg", logFile =>
+    wine.exec("winecfg", ["-v", "win10"], {}, logFile)
+  );
 
   if (
     String(import.meta.env["YAAGL_CHANNEL_CLIENT"]).startsWith("bh3") ||

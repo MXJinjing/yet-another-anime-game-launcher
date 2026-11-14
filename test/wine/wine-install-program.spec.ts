@@ -40,7 +40,7 @@ import {
   createWineInstallProgram,
   installWineEnvironmentProgram,
 } from "@wine/wine-install-program";
-import { DownloadCancelledError } from "@download/control";
+import { DownloadCancelledError, DownloadFailedError } from "@download/control";
 
 const distro = {
   id: "test",
@@ -62,6 +62,12 @@ async function collect(program: AsyncGenerator<unknown>) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(exec).mockResolvedValue({
+    stdOut: "logs/wine-initialization.test\n",
+    stdErr: "",
+    exitCode: 0,
+    pid: 1,
+  });
   vi.mocked(isWineDistroInstalled).mockResolvedValue(false);
   vi.mocked(createWine).mockResolvedValue(wine as never);
   vi.mocked(tar_extract).mockReset();
@@ -91,10 +97,16 @@ describe("Wine environment installation", () => {
       "authorization"
     );
     expect(wine.exec).toHaveBeenCalledWith(
+      "wineboot",
+      ["-u"],
+      {},
+      "logs/wine-initialization.test/1-wineboot.log"
+    );
+    expect(wine.exec).toHaveBeenCalledWith(
       "winecfg",
       ["-v", "win10"],
       {},
-      "/dev/null"
+      "logs/wine-initialization.test/2-winecfg.log"
     );
     expect(setKey).toHaveBeenCalledWith("wine_state", "ready");
     expect(setKey).toHaveBeenCalledWith("wine_netbiosname", "DESKTOP-1234567");
@@ -131,6 +143,57 @@ describe("Wine environment installation", () => {
     );
     expect(setKey).not.toHaveBeenCalled();
     expect(createWine).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])(
+    "verifies a pinned archive when aria2 reuses a completed result: %s",
+    async cached => {
+      if (cached) download.mockImplementation(async function* () {});
+      const hash = "a".repeat(64);
+      const wineDistro = { ...distro, checksum: `sha-256=${hash}` as const };
+      vi.mocked(exec).mockResolvedValueOnce({
+        stdOut: `${hash}  ./wine-test.tar.gz\n`,
+        stdErr: "",
+        exitCode: 0,
+        pid: 1,
+      });
+
+      await collect(createWineInstallProgram({ ...options(), wineDistro }));
+
+      expect(download).toHaveBeenCalledWith(
+        expect.objectContaining({ checksum: wineDistro.checksum })
+      );
+      expect(exec).toHaveBeenNthCalledWith(1, [
+        "/usr/bin/shasum",
+        "-a",
+        "256",
+        "./wine-test.tar.gz",
+      ]);
+      expect(vi.mocked(exec).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(tar_extract).mock.invocationCallOrder[0]
+      );
+    }
+  );
+
+  it("rejects an invalid cached archive and lets a retry download it again", async () => {
+    download.mockImplementation(async function* () {});
+    const wineDistro = {
+      ...distro,
+      checksum: `sha-256=${"a".repeat(64)}` as const,
+    };
+    vi.mocked(exec).mockResolvedValueOnce({
+      stdOut: `${"b".repeat(64)}  ./wine-test.tar.gz\n`,
+      stdErr: "",
+      exitCode: 0,
+      pid: 1,
+    });
+
+    await expect(
+      collect(createWineInstallProgram({ ...options(), wineDistro }))
+    ).rejects.toBeInstanceOf(DownloadFailedError);
+    expect(removeFileIfExists).toHaveBeenCalledWith("./wine-test.tar.gz");
+    expect(tar_extract).not.toHaveBeenCalled();
+    expect(setKey).not.toHaveBeenCalled();
   });
 
   it("cleans partial downloads on cancellation and does not mark the environment ready", async () => {
@@ -171,14 +234,28 @@ describe("Wine environment installation", () => {
     expect(setKey).not.toHaveBeenCalled();
   });
 
-  it("does not persist ready state if prefix configuration fails", async () => {
-    vi.mocked(isWineDistroInstalled).mockResolvedValue(true);
-    wine.exec.mockRejectedValueOnce(new Error("wineboot failed"));
-    await expect(collect(createWineInstallProgram(options()))).rejects.toThrow(
-      "wineboot failed"
-    );
-    expect(setKey).not.toHaveBeenCalled();
-  });
+  it.each([
+    ["wineboot", "1-wineboot.log"],
+    ["winecfg", "2-winecfg.log"],
+  ])(
+    "reports the %s log and leaves ready state unset on failure",
+    async (program, file) => {
+      vi.mocked(isWineDistroInstalled).mockResolvedValue(true);
+      const cause = new Error(`${program} failed`);
+      if (program === "winecfg") wine.exec.mockResolvedValueOnce(undefined);
+      wine.exec.mockRejectedValueOnce(cause);
+      await expect(
+        collect(createWineInstallProgram(options()))
+      ).rejects.toMatchObject({
+        cause,
+        message: expect.stringContaining(
+          `logs/wine-initialization.test/${file}`
+        ),
+      });
+      expect(wine.exec).toHaveBeenCalledTimes(program === "wineboot" ? 1 : 2);
+      expect(setKey).not.toHaveBeenCalled();
+    }
+  );
 
   it("skips all work for an already downloaded inactive environment", async () => {
     vi.mocked(isWineDistroInstalled).mockResolvedValue(true);
