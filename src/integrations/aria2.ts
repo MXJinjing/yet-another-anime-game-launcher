@@ -163,11 +163,17 @@ export async function createAria2({
   async function* doStreamingDownload(options: {
     uri: string;
     absDst: string;
+    checksum?: string;
     /** Associates the download with a per-game download control key. */
     downloadKey?: string;
   }) {
     const requestUri = applyGithubPrefix(options.uri);
-    const gid = await sha256_16(`${requestUri}:${options.absDst}`);
+    const downloadIdentity = `${requestUri}:${options.absDst}`;
+    const gid = await sha256_16(
+      options.checksum
+        ? `${downloadIdentity}:${options.checksum}`
+        : downloadIdentity
+    );
     const downloadOptions = await getDownloadOptions();
     let cancelled = false;
     let shouldAddDownload = false;
@@ -215,6 +221,7 @@ export async function createAria2({
         "max-connection-per-server": 16,
         out: options.absDst,
         continue: false,
+        ...(options.checksum ? { checksum: options.checksum } : {}),
         "allow-overwrite": true, // in case control file broken
         ...downloadOptions,
       });
