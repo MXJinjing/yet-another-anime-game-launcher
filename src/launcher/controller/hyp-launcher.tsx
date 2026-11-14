@@ -1,8 +1,11 @@
 import { showPredownloadAfterDeletion } from "../model/predownload-visibility";
 import { createGlobalSettings } from "@settings";
 import { createConfigStore } from "@config";
-import { TaskFailedError } from "@tasks/task-program";
 import { applyRecommendedGameSettings } from "@settings/recommended-settings";
+import { TaskFailedError } from "@tasks/task-program";
+import { isAuthorizationCancelledError } from "../../runtime/authorization";
+import { isConnectionError } from "../../services/connection-error";
+import { InitialWineSetupModal } from "../../modals/initial-wine-setup-modal";
 import { applyRecommendedWineProgram } from "@wine/recommended-settings-program";
 import { Locale } from "@locale";
 import { hopeTaskNotifier } from "@tasks/task-notifications";
@@ -266,9 +269,6 @@ export async function createHypLauncher({
   gameWineTaskDispatcher,
 }: HypLauncherOptions) {
   const baseWine = wine;
-  const wineDistros = await getWineDistributions();
-  const initialWineDistro =
-    wineDistros.find(distro => distro.id == wineDistroId) ?? wineDistros[0];
 
   const [activeWineDistroId, setActiveWineDistroId] =
     createSignal(wineDistroId);
@@ -444,6 +444,10 @@ export async function createHypLauncher({
 
   return function HypLauncher() {
     const selectedGame = () => games[selectedGameIndex()];
+    const [initialWineSetup, setInitialWineSetup] = createSignal<{
+      game: HypGame;
+      distributions: WineDistribution[];
+    }>();
     onMount(() => {
       const hydrate = (game: HypGame) => {
         void game.client
@@ -1203,21 +1207,59 @@ export async function createHypLauncher({
       });
     }
 
-    function startInitializeWine() {
-      log(`Initialize Wine environment requested: ${initialWineDistro.id}`);
+    function startInitializeWine(
+      distro: WineDistribution,
+      recommendedFor?: HypGame
+    ) {
+      if (actionDisabled() || wineInstalled()) return;
+      setInitialWineSetup(undefined);
+      log(`Initialize Wine environment requested: ${distro.id}`);
       closeNativeSettings();
       setGlobalModalRoute(null);
       taskQueue.enqueue({
         fn: async function* () {
-          yield* initializeWine(initialWineDistro);
-          notifyWineDistroInitialized(initialWineDistro);
+          try {
+            yield* initializeWine(
+              distro,
+              recommendedFor
+                ? () =>
+                    applyRecommendedGameSettings(
+                      createConfigStore(recommendedFor.storage),
+                      recommendedFor.clientId,
+                      recommendedFor.config
+                    )
+                : undefined
+            );
+          } catch (error) {
+            if (
+              isDownloadCancelledError(error) ||
+              isDownloadFailedError(error) ||
+              isAuthorizationCancelledError(error) ||
+              isConnectionError(error)
+            ) {
+              throw error;
+            }
+            throw new TaskFailedError(
+              error instanceof Error ? error.message : String(error)
+            );
+          }
+          notifyWineDistroInitialized(distro);
           // Re-read runtime-component state (e.g. DXMT) now that the Wine
           // environment is installed, so the primary button reflects reality.
           for (const game of games) {
-            await game.client.refreshRuntimeReady();
+            await game.client
+              .refreshRuntimeReady()
+              .catch(error =>
+                log(
+                  `Failed to refresh runtime components for ${
+                    game.id
+                  }: ${String(error)}`
+                )
+              );
           }
         },
         name: "INIT_ENVIRONMENT",
+        downloadTask: { title: distro.displayName },
       });
     }
 
@@ -1241,9 +1283,13 @@ export async function createHypLauncher({
         case "pause-download":
           await pauseControlledDownload(game.namespace);
           return;
-        case "initialize-wine":
-          startInitializeWine();
+        case "initialize-wine": {
+          const distributions = await getWineDistributions();
+          if (!wineInstalled() && !actionDisabled()) {
+            setInitialWineSetup({ game, distributions });
+          }
           return;
+        }
         case "continue-install":
           await log("Runtime installation requested");
           taskQueue.enqueue({
@@ -2166,6 +2212,31 @@ export async function createHypLauncher({
             if (game) void openNativeSettings(game);
           }}
         />
+
+        <Show when={initialWineSetup()} keyed>
+          {setup => {
+            const recommended = resolveRecommendedWineDistro();
+            return (
+              <InitialWineSetupModal
+                locale={locale}
+                recommended={recommended}
+                defaultDistro={
+                  setup.distributions.find(
+                    distro => distro.id === wineDistroId
+                  ) ?? recommended
+                }
+                distributions={setup.distributions}
+                onClose={() => setInitialWineSetup(undefined)}
+                onConfirm={(distro, useRecommended) =>
+                  startInitializeWine(
+                    distro,
+                    useRecommended ? setup.game : undefined
+                  )
+                }
+              />
+            );
+          }}
+        </Show>
 
         <GlobalModals
           route={globalModalRoute}

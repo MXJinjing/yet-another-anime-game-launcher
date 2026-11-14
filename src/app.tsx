@@ -67,7 +67,10 @@ import { ENSURE_HOSTS } from "./system/ensure-hosts";
 import { ensureHosts } from "./system/hosts";
 
 type LauncherWineActions = {
-  initializeWine: (distro: WineDistribution) => TaskProgram;
+  initializeWine: (
+    distro: WineDistribution,
+    beforeActivate?: () => Promise<void>
+  ) => TaskProgram;
   downloadWineDistro: (
     distro: WineDistribution,
     downloadKey?: string
