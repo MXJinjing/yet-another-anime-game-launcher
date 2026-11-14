@@ -16,10 +16,12 @@ const CONFIG_KEY = "config_use_d3d12";
 export default async function ({
   locale,
   config,
+  supported,
   storage = globalStorage,
 }: {
   config: Partial<Config>;
   locale: Locale;
+  supported: () => boolean;
   storage?: Storage;
 }) {
   const { getKey, setKey } = storage;
@@ -56,10 +58,11 @@ export default async function ({
           label={locale.get("SETTING_USE_D3D12")}
           description={locale.get("SETTING_USE_D3D12_DESC")}
           checked={value()}
+          disabled={!supported()}
           onChange={setValue}
         >
           <span class="setting-switch-requirement">
-            {locale.get("SETTING_NAP_REQUIRES_GPTK3")}
+            {locale.get("SETTING_NAP_D3D12_REQUIREMENTS")}
           </span>
         </SettingSwitch>
       );

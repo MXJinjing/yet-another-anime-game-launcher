@@ -135,6 +135,8 @@ export const ja_JP: typeof zh_CN = {
   SETTING_NAP_METALFX: "MetalFX を有効化",
   SETTING_NAP_METALFX_DESC:
     "DLSS の代わりに MetalFX を使用し、レイトレーシングにも対応します。",
+  SETTING_NAP_D3D12_REQUIREMENTS:
+    "DirectX 12 には D3DMetal Wine ランタイムまたは Game Porting Toolkit が必要です。",
   SETTING_NAP_REQUIRES_GPTK3: "Game Porting Toolkit 3（GPTK3）が必要です。",
   SETTING_SAVE: "保存",
   SETTING_CANCEL: "キャンセル",
@@ -327,6 +329,15 @@ export const ja_JP: typeof zh_CN = {
   AHEAD_OF_LATEST_TITLE: "最新版より新しい",
   AHEAD_OF_LATEST_JOKE:
     "公式がまだ少しずつ更新を出している間に🐌、あなたはもう次世代🚀。控えめに、ネタバレ注意🤫。",
+  D3DMETAL_LICENSE_TITLE: "Game Porting Toolkit 4.0 beta 2 使用許諾契約",
+  D3DMETAL_LICENSE_LOADING: en.D3DMETAL_LICENSE_LOADING,
+  D3DMETAL_LICENSE_ERROR: en.D3DMETAL_LICENSE_ERROR,
+  D3DMETAL_LICENSE_RETRY: en.D3DMETAL_LICENSE_RETRY,
+  D3DMETAL_LICENSE_ACKNOWLEDGE: en.D3DMETAL_LICENSE_ACKNOWLEDGE,
+  D3DMETAL_LICENSE_ACCEPT: en.D3DMETAL_LICENSE_ACCEPT,
+  D3DMETAL_LICENSE_REQUIREMENTS:
+    "Apple シリコンと macOS 26 以降向けの実験的なランタイムです。",
+
   UPDATE_LAUNCHER: "ランチャー更新",
   INIT_ENVIRONMENT: "Initialize Environment",
   INIT_ENVIRONMENT_TITLE: "Initialize Runtime Environment",

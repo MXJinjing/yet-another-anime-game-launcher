@@ -1,5 +1,5 @@
 import { Aria2 } from "@aria2";
-import type { TaskProgram } from "@tasks/task-program";
+import { TaskFailedError, type TaskProgram } from "@tasks/task-program";
 import { removeFile, removeFileIfExists, resolve } from "@platform/neutralino";
 import { tar_extract, tar_extract_directory } from "@runtime/archive";
 import { generateRandomString } from "@runtime/binary";
@@ -11,6 +11,7 @@ import {
 } from "@runtime/format";
 import { rmrf_dangerously, xattrRemove } from "@runtime/macos-filesystem";
 import { setKey } from "@runtime/storage";
+import { isAuthorizationCancelledError } from "@runtime/authorization";
 import {
   DownloadFailedError,
   isDownloadCancelledError,
@@ -26,6 +27,14 @@ import {
 } from "./wine";
 import { installMediaFoundation } from "./mf";
 import { WineDistribution } from "./distro";
+import {
+  assertD3DMetalHostSupported,
+  D3DMETAL_RUNTIME_ID,
+  isD3DMetalRuntimePrepared,
+  prepareD3DMetalWine,
+  requireD3DMetalLicense,
+  verifyD3DMetalArchive,
+} from "./d3dmetal";
 import { addCertsToWine } from "./cert";
 import { createWinePrefixInitializationLog } from "./prefix-initialization-log";
 
@@ -49,22 +58,49 @@ export function createWineInstallProgram({
   });
 }
 
-export async function* installWineEnvironmentProgram({
-  aria2,
-  wineAbsPrefix,
-  wineDistro,
-  activate = true,
-  finishMessage = true,
-  downloadKey,
-}: {
+type WineInstallOptions = {
   aria2: Aria2;
   wineAbsPrefix: string;
   wineDistro: WineDistribution;
   activate?: boolean;
   finishMessage?: boolean;
   downloadKey?: string;
-}): TaskProgram {
+};
+
+let d3dMetalInstallationActive = false;
+
+export async function* installWineEnvironmentProgram(
+  options: WineInstallOptions
+): TaskProgram {
+  if (options.wineDistro.id !== D3DMETAL_RUNTIME_ID) {
+    yield* installWineBinariesAndConfigure(options);
+    return;
+  }
+  // A launcher-global task can pause per-game downloads. Reject overlapping
+  // requests instead of waiting on a transfer the scheduler has paused.
+  if (d3dMetalInstallationActive) {
+    throw new TaskFailedError(
+      "D3DMetal Wine installation is already in progress"
+    );
+  }
+  d3dMetalInstallationActive = true;
+  try {
+    yield* installWineBinariesAndConfigure(options);
+  } finally {
+    d3dMetalInstallationActive = false;
+  }
+}
+
+async function* installWineBinariesAndConfigure({
+  aria2,
+  wineAbsPrefix,
+  wineDistro,
+  activate = true,
+  finishMessage = true,
+  downloadKey,
+}: WineInstallOptions): TaskProgram {
   const wineBinaryDir = getWineInstallDir(wineDistro.id);
+  const isD3DMetal = wineDistro.id === D3DMETAL_RUNTIME_ID;
   const wineBinaryTmpDir = `${wineBinaryDir}.installing`;
   const installedBefore = await isWineDistroInstalled(wineDistro.id);
 
@@ -90,6 +126,10 @@ export async function* installWineEnvironmentProgram({
   }
 
   if (!installedBefore) {
+    if (isD3DMetal) {
+      await assertD3DMetalHostSupported();
+      await requireD3DMetalLicense();
+    }
     yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
     const isXZ = wineDistro.remoteUrl.endsWith(".xz");
     const wineTarPath = resolve(
@@ -127,7 +167,14 @@ export async function* installWineEnvironmentProgram({
       throw error;
     }
     // aria2 can reuse completed results without rechecking the file on disk.
-    if (wineDistro.checksum) {
+    if (isD3DMetal) {
+      try {
+        await verifyD3DMetalArchive(wineTarPath);
+      } catch (error) {
+        await removeFileIfExists(wineTarPath);
+        throw new DownloadFailedError(String(error));
+      }
+    } else if (wineDistro.checksum) {
       const { stdOut } = await exec([
         "/usr/bin/shasum",
         "-a",
@@ -146,25 +193,42 @@ export async function* installWineEnvironmentProgram({
     yield ["setUndeterminedProgress"];
     await rmrf_dangerously(wineBinaryTmpDir);
     await exec(["mkdir", "-p", wineBinaryTmpDir]);
-    if (wineDistro.attributes.winePath) {
-      await tar_extract_directory(
-        wineTarPath,
-        wineBinaryTmpDir,
-        wineDistro.attributes.winePath,
-        isXZ
-      );
-    } else {
-      await tar_extract(wineTarPath, wineBinaryTmpDir);
+    try {
+      if (wineDistro.attributes.winePath) {
+        await tar_extract_directory(
+          wineTarPath,
+          wineBinaryTmpDir,
+          wineDistro.attributes.winePath,
+          isXZ
+        );
+      } else {
+        await tar_extract(wineTarPath, wineBinaryTmpDir);
+      }
+      yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
+      yield ["setUndeterminedProgress"];
+      if (isD3DMetal) {
+        await prepareD3DMetalWine(wineBinaryTmpDir);
+        if (!(await isD3DMetalRuntimePrepared(wineBinaryTmpDir))) {
+          throw new TaskFailedError("D3DMetal Wine preparation is incomplete");
+        }
+      }
+      await prepareWineBinaries(wineBinaryTmpDir);
+    } catch (error) {
+      if (!isD3DMetal) throw error;
+      await rmrf_dangerously(wineBinaryTmpDir);
+      if (
+        error instanceof TaskFailedError ||
+        isAuthorizationCancelledError(error)
+      )
+        throw error;
+      throw new TaskFailedError(String(error));
     }
-    yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
-    yield ["setUndeterminedProgress"];
-    await prepareWineBinaries(wineBinaryTmpDir);
     await removeFile(wineTarPath);
     await rmrf_dangerously(wineBinaryDir);
     await exec(["mv", wineBinaryTmpDir, wineBinaryDir]);
   }
 
-  if (installedBefore && activate) {
+  if (!isD3DMetal && installedBefore && activate) {
     yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
     yield ["setUndeterminedProgress"];
     await prepareWineBinaries(wineBinaryDir);

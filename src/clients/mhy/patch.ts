@@ -84,21 +84,23 @@ export async function* patchProgram(
   const patchFileSteps = server.patched.length * 4;
   const removedFileSteps = server.removed.length;
   const addedFileSteps = server.added.length;
-  const dxmtSteps = DXMT_FILES.length * 2;
+  const usesDxmt = wine.attributes.renderBackend == "dxmt";
+  const dxmtSteps = usesDxmt ? DXMT_FILES.length * 2 + 3 : 0;
+  const usesReshade = config.reshade && usesDxmt;
   // NGX is only required by the HSR DX12 path.  ZZZ with DX12/MetalFX
   // disabled must stay on the plain DXMT D3D11 path; installing nvngx.dll
   // changes device detection and can break scene/resource initialization.
-  const needsNvngx = server.id.startsWith("hkrpg");
+  const needsNvngx = usesDxmt && server.id.startsWith("hkrpg");
   const totalSteps = Math.max(
     1,
     patchFileSteps +
       removedFileSteps +
       addedFileSteps +
       dxmtSteps +
-      9 +
+      6 +
       (needsNvngx ? 2 : 0) +
       (server.id.startsWith("hkrpg") ? 0 : 4) +
-      (config.reshade ? 2 : 0)
+      (usesReshade ? 2 : 0)
   );
   let step = 0;
 
@@ -152,7 +154,7 @@ export async function* patchProgram(
   // backends (e.g. Apple's Game Porting Toolkit D3DMetal, which provides its
   // own d3d11/d3d12/dxgi and reads the prefix gpuinfo override) must keep
   // their shipped libraries, otherwise D3D12 and the NVIDIA spoof break.
-  if (wine.attributes.renderBackend == "dxmt") {
+  if (usesDxmt) {
     for (const f of DXMT_FILES) {
       const wineLibPath = wineLibraryPath(wine, `lib/wine/x86_64-windows/${f}`);
       yield* report(++step, totalSteps, `补丁阶段：备份 Wine 运行库 ${f}`);
@@ -205,7 +207,7 @@ export async function* patchProgram(
     await cp(`./dxmt/nvngx.dll`, join(system32Dir, "nvngx.dll"));
   }
 
-  if (config.reshade) {
+  if (usesReshade) {
     yield* report(++step, totalSteps, "补丁阶段：安装 ReShade dxgi.dll");
     await cp(resolve("./reshade/dxgi.dll"), join(gameDir, "dxgi.dll"));
     yield* report(
@@ -263,14 +265,16 @@ export async function* patchRevertProgram(
   const patchFileSteps = server.patched.length;
   const removedFileSteps = server.removed.length;
   const addedFileSteps = server.added.length;
-  const dxmtSteps = DXMT_FILES.length;
+  const usesDxmt = wine.attributes.renderBackend == "dxmt";
+  const dxmtSteps = usesDxmt ? DXMT_FILES.length : 0;
+  const usesReshade = config.reshade && usesDxmt;
   const totalSteps = Math.max(
     1,
     patchFileSteps +
       removedFileSteps +
       addedFileSteps +
       dxmtSteps +
-      (config.reshade ? 1 : 0) +
+      (usesReshade ? 1 : 0) +
       1
   );
   let step = 0;
@@ -310,7 +314,7 @@ export async function* patchRevertProgram(
   }
 
   const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
-  if (wine.attributes.renderBackend == "dxmt") {
+  if (usesDxmt) {
     for (const f of DXMT_FILES) {
       ++step;
       yield* report(`还原阶段：还原 Wine 运行库 ${f}`);
@@ -318,7 +322,7 @@ export async function* patchRevertProgram(
       await forceMove(wineLibPath + ".bak", wineLibPath);
     }
   }
-  if (config.reshade) {
+  if (usesReshade) {
     ++step;
     yield* report("还原阶段：移除 ReShade 文件");
     await removeFileIfExists(join(gameDir, "dxgi.dll"));
