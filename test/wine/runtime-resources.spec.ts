@@ -13,10 +13,8 @@ vi.mock("@runtime/storage", () => ({
 }));
 vi.mock("@platform/neutralino", () => ({
   fileOrDirExists: vi.fn(),
-  readBinary: vi.fn(),
   removeFile: vi.fn(),
   removeFileIfExists: vi.fn(),
-  writeBinary: vi.fn(),
   writeFile: vi.fn(),
 }));
 vi.mock("@logging/logger", () => ({ warn: vi.fn() }));
@@ -25,10 +23,8 @@ import { exec, forceMove } from "@runtime";
 import { warn } from "@logging/logger";
 import {
   fileOrDirExists,
-  readBinary,
   removeFile,
   removeFileIfExists,
-  writeBinary,
   writeFile,
 } from "@platform/neutralino";
 import { getKeyOrDefault, setKey } from "@runtime/storage";
@@ -54,9 +50,6 @@ beforeEach(() => {
   vi.mocked(exec)
     .mockReset()
     .mockResolvedValue({} as never);
-  vi.mocked(readBinary).mockResolvedValue(
-    new Uint8Array([0, 80, 75, 3, 4, 1]).buffer
-  );
   vi.mocked(setKey).mockReset();
   vi.mocked(removeFileIfExists).mockReset();
   download.mockReset().mockImplementation(async function* () {
@@ -111,13 +104,13 @@ describe("Wine runtime resource installation", () => {
       vi.mocked(removeFileIfExists).mock.invocationCallOrder[0]
     );
   });
-  it("skips post-install cleanup if Jadeite extraction fails", async () => {
+  it("discards a Jadeite ZIP that cannot be extracted without saving the version", async () => {
     vi.mocked(exec).mockRejectedValueOnce(new Error("cannot unpack"));
     await expect(collect(checkAndDownloadJadeite(aria2))).rejects.toThrow(
       "cannot unpack"
     );
     expect(setKey).not.toHaveBeenCalled();
-    expect(removeFileIfExists).not.toHaveBeenCalled();
+    expect(removeFileIfExists).toHaveBeenCalledWith("./jadeite/archive.zip");
   });
   it("waits for a shared Jadeite install before checking for a leftover ZIP", async () => {
     const first = checkAndDownloadJadeite(aria2);
@@ -156,7 +149,7 @@ describe("Wine runtime resource installation", () => {
     );
     expect(setKey).not.toHaveBeenCalled();
   });
-  it("unpacks ReShade's embedded zip and writes paths for the selected prefix", async () => {
+  it("extracts the ReShade installer directly and writes paths for the selected prefix", async () => {
     await collect(
       checkAndDownloadReshade(
         aria2,
@@ -164,10 +157,13 @@ describe("Wine runtime resource installation", () => {
         "/game"
       )
     );
-    expect(writeBinary).toHaveBeenCalledWith(
-      "reshade/install.zip",
-      new Uint8Array([80, 75, 3, 4, 1]).buffer
-    );
+    expect(exec).toHaveBeenCalledWith([
+      "/usr/bin/tar",
+      "-xf",
+      "reshade/install.exe",
+      "-C",
+      "./reshade",
+    ]);
     expect(forceMove).toHaveBeenCalledWith(
       "reshade/ReShade64.dll",
       "reshade/dxgi.dll"
@@ -188,12 +184,12 @@ describe("Wine runtime resource installation", () => {
     expect(removeFileIfExists).toHaveBeenCalledWith("reshade/install.exe");
     expect(download).not.toHaveBeenCalled();
   });
-  it("discards a ReShade installer without a ZIP payload so retry can download it", async () => {
-    vi.mocked(readBinary).mockResolvedValue(new ArrayBuffer(0));
+  it("discards a ReShade installer that cannot be extracted so retry can download it", async () => {
+    vi.mocked(exec).mockRejectedValueOnce(new Error("invalid archive"));
     await expect(
       collect(checkAndDownloadReshade(aria2, {} as never, "/game"))
-    ).rejects.toThrow("ReShade installer has no ZIP payload");
-    expect(writeBinary).not.toHaveBeenCalled();
+    ).rejects.toThrow("invalid archive");
+    expect(forceMove).not.toHaveBeenCalled();
     expect(setKey).not.toHaveBeenCalled();
     expect(removeFileIfExists).toHaveBeenCalledWith("reshade/install.exe");
     expect(removeFileIfExists).toHaveBeenCalledTimes(1);

@@ -14,10 +14,8 @@ import { downloadPercent } from "@runtime/format";
 import { warn } from "@logging/logger";
 import {
   fileOrDirExists,
-  readBinary,
   removeFile,
   removeFileIfExists,
-  writeBinary,
   writeFile,
 } from "@platform/neutralino";
 import { resolve } from "@platform/neutralino/path";
@@ -182,7 +180,12 @@ async function* installJadeite(aria2: Aria2, archive: string): TaskProgram {
   }
   yield ["setStateText", "EXTRACT_ENVIRONMENT"];
   yield ["setUndeterminedProgress"];
-  await exec(["/usr/bin/unzip", "-oq", archive, "-d", resolve("./jadeite")]);
+  try {
+    await exec(["/usr/bin/unzip", "-oq", archive, "-d", resolve("./jadeite")]);
+  } catch (error) {
+    await removeRuntimeInstaller(archive);
+    throw error;
+  }
   await setKey("installed_jadeite_version", CURRENT_JADEITE_VERSION);
   await removeRuntimeInstaller(archive);
 }
@@ -243,10 +246,10 @@ export function checkAndDownloadReshade(
   gameDir: string
 ): TaskProgram {
   const reshaderDir = resolve("./reshade");
-  const archive = join(reshaderDir, "install.zip");
+  const installer = join(reshaderDir, "install.exe");
   return installRuntimeArchive(
-    archive,
-    installReshade(aria2, wine, gameDir, reshaderDir, archive)
+    installer,
+    installReshade(aria2, wine, gameDir, reshaderDir, installer)
   );
 }
 
@@ -255,16 +258,16 @@ async function* installReshade(
   wine: Wine,
   gameDir: string,
   reshaderDir: string,
-  archive: string
+  installer: string
 ): TaskProgram {
-  const installer = join(reshaderDir, "install.exe");
+  const legacyArchive = join(reshaderDir, "install.zip");
   if (
     eq(
       CURRENT_RESHADE_VERSION,
       await getKeyOrDefault("installed_reshade", "0.0.0")
     )
   ) {
-    await removeRuntimeInstaller(archive);
+    await removeRuntimeInstaller(legacyArchive);
     await removeRuntimeInstaller(installer);
     return;
   }
@@ -292,21 +295,13 @@ async function* installReshade(
   }
   yield ["setStateText", "EXTRACT_ENVIRONMENT"];
   yield ["setUndeterminedProgress"];
-  const installerData = await readBinary(installer);
-  const bytes = new Uint8Array(installerData);
-  const offset = bytes.findIndex(
-    (value, index, all) =>
-      value === 0x50 &&
-      all[index + 1] === 0x4b &&
-      all[index + 2] === 0x03 &&
-      all[index + 3] === 0x04
-  );
-  if (offset < 0) {
+  // macOS tar reads the ZIP payload directly from the self-extracting EXE.
+  try {
+    await exec(["/usr/bin/tar", "-xf", installer, "-C", reshaderDir]);
+  } catch (error) {
     await removeRuntimeInstaller(installer);
-    throw new Error("ReShade installer has no ZIP payload");
+    throw error;
   }
-  await writeBinary(archive, installerData.slice(offset));
-  await exec(["/usr/bin/unzip", "-oq", archive, "-d", reshaderDir]);
   await forceMove(
     join(reshaderDir, "ReShade64.dll"),
     join(reshaderDir, "dxgi.dll")
@@ -318,6 +313,6 @@ async function* installReshade(
     )}\nTextureSearchPaths=${wine.toWinePath(resolve("./reshade/Textures"))}`
   );
   await setKey("installed_reshade", CURRENT_RESHADE_VERSION);
-  await removeRuntimeInstaller(archive);
+  await removeRuntimeInstaller(legacyArchive);
   await removeRuntimeInstaller(installer);
 }
