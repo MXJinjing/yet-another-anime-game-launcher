@@ -39,7 +39,8 @@ export async function applyRecommendedGameSettings(
 ) {
   const preset = getRecommendedGameSettings(channelId);
   for (const setting of Object.keys(preset) as Setting[]) {
-    const value = preset[setting]!;
+    const value = preset[setting];
+    if (value === undefined) continue;
     const entry = entries[setting];
     if ((await store.read(entry)) !== value) await store.write(entry, value);
     if (config) {
