@@ -40,7 +40,7 @@ import {
   createWineInstallProgram,
   installWineEnvironmentProgram,
 } from "@wine/wine-install-program";
-import { DownloadCancelledError } from "@download/control";
+import { DownloadCancelledError, DownloadFailedError } from "@download/control";
 
 const distro = {
   id: "test",
@@ -131,6 +131,57 @@ describe("Wine environment installation", () => {
     );
     expect(setKey).not.toHaveBeenCalled();
     expect(createWine).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])(
+    "verifies a pinned archive when aria2 reuses a completed result: %s",
+    async cached => {
+      if (cached) download.mockImplementation(async function* () {});
+      const hash = "a".repeat(64);
+      const wineDistro = { ...distro, checksum: `sha-256=${hash}` as const };
+      vi.mocked(exec).mockResolvedValueOnce({
+        stdOut: `${hash}  ./wine-test.tar.gz\n`,
+        stdErr: "",
+        exitCode: 0,
+        pid: 1,
+      });
+
+      await collect(createWineInstallProgram({ ...options(), wineDistro }));
+
+      expect(download).toHaveBeenCalledWith(
+        expect.objectContaining({ checksum: wineDistro.checksum })
+      );
+      expect(exec).toHaveBeenNthCalledWith(1, [
+        "/usr/bin/shasum",
+        "-a",
+        "256",
+        "./wine-test.tar.gz",
+      ]);
+      expect(vi.mocked(exec).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(tar_extract).mock.invocationCallOrder[0]
+      );
+    }
+  );
+
+  it("rejects an invalid cached archive and lets a retry download it again", async () => {
+    download.mockImplementation(async function* () {});
+    const wineDistro = {
+      ...distro,
+      checksum: `sha-256=${"a".repeat(64)}` as const,
+    };
+    vi.mocked(exec).mockResolvedValueOnce({
+      stdOut: `${"b".repeat(64)}  ./wine-test.tar.gz\n`,
+      stdErr: "",
+      exitCode: 0,
+      pid: 1,
+    });
+
+    await expect(
+      collect(createWineInstallProgram({ ...options(), wineDistro }))
+    ).rejects.toBeInstanceOf(DownloadFailedError);
+    expect(removeFileIfExists).toHaveBeenCalledWith("./wine-test.tar.gz");
+    expect(tar_extract).not.toHaveBeenCalled();
+    expect(setKey).not.toHaveBeenCalled();
   });
 
   it("cleans partial downloads on cancellation and does not mark the environment ready", async () => {
