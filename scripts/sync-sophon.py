@@ -34,6 +34,17 @@ def shared_files(component: Path) -> dict[str, Path]:
             if path.is_symlink() or not path.is_file():
                 raise ValueError(f"Shared source must be a regular file: {path}")
             result[path.relative_to(component).as_posix()] = path
+    swift = component / "swift"
+    for path in sorted(swift.rglob("*")):
+        relative = path.relative_to(swift)
+        if any(part.startswith(".") for part in relative.parts) or path.is_dir():
+            continue
+        if len(relative.parts) == 1 and path.name == "default.profraw":
+            continue
+        safe_relative(("swift" / relative).as_posix())
+        if path.is_symlink() or not path.is_file():
+            raise ValueError(f"Shared Swift source must be a regular file: {path}")
+        result[path.relative_to(component).as_posix()] = path
     return result
 
 
@@ -41,11 +52,12 @@ def source_snapshot(source: Path) -> tuple[str, dict[str, Path]]:
     component = source / "sophon-server"
     if not (component / "src/server.py").is_file():
         raise ValueError("--source must point to the standalone Sophon repository")
+    swift = source / "sophon-swift"
     # Copy the committed tree, not uncommitted work accidentally described by
     # an unrelated revision. Untracked source files are checked as well.
     status = subprocess.check_output(
         ["git", "-C", str(source), "status", "--porcelain", "--untracked-files=all", "--",
-         "sophon-server/src", "sophon-server/proto", "sophon-server/tests", "LICENSE"], text=True,
+         "sophon-server/src", "sophon-server/proto", "sophon-server/tests", "sophon-swift", "LICENSE"], text=True,
     )
     if status.strip():
         raise ValueError("Commit shared Sophon changes before synchronizing")
@@ -53,6 +65,21 @@ def source_snapshot(source: Path) -> tuple[str, dict[str, Path]]:
         ["git", "-C", str(source), "rev-parse", "HEAD"], text=True,
     ).strip()
     files = shared_files(component)
+    swift_paths = subprocess.check_output(
+        ["git", "-C", str(source), "ls-tree", "-r", "--name-only", "-z", revision, "sophon-swift/"],
+        text=True,
+    )
+    for name in swift_paths.split("\0"):
+        if not name:
+            continue
+        relative = Path(name).relative_to("sophon-swift")
+        if any(part.startswith(".") for part in relative.parts):
+            continue
+        key = safe_relative(("swift" / relative).as_posix()).as_posix()
+        path = swift / relative
+        if not path.is_file() or path.is_symlink():
+            raise ValueError(f"Invalid shared Swift source: {path}")
+        files[key] = path
     files["LICENSE"] = source / "LICENSE"
     if files["LICENSE"].is_symlink():
         raise ValueError("Source license must be a regular file")
@@ -68,6 +95,16 @@ def safe_relative(name: str) -> Path:
         and not path.name.startswith("test_launcher_")
         and path.suffix in {".py", ".proto"}
     )
+    if path.parts[0] == "swift" and len(path.parts) >= 2:
+        allowed = (
+            len(path.parts) == 2 and path.name in {
+                "Package.swift", "Package.resolved", "LICENSE", "README.md", "UPSTREAM.md", "YAAGLM_RPC.md",
+            }
+        ) or (
+            len(path.parts) >= 3 and path.parts[1] in {"Sources", "Tests", "Proto"}
+            and not any(part.startswith(".") for part in path.parts)
+            and path.suffix in {".swift", ".proto", ".json", ".bin", ".txt"}
+        )
     if not allowed:
         raise ValueError(f"Unmanaged path in revision lock: {name}")
     return path
@@ -77,6 +114,8 @@ def synchronize(source: Path, destination: Path, lock_path: Path, apply: bool = 
     revision, upstream = source_snapshot(source)
     old = json.loads(lock_path.read_text()) if lock_path.exists() else None
     previous = old["files"] if old is not None else {}
+    if any(name.startswith("swift/") for name in previous) and "swift/Package.swift" not in upstream:
+        raise ValueError("The standalone Sophon checkout predates the Swift migration")
     for name in previous:
         safe_relative(name)
     local = shared_files(destination)
@@ -86,7 +125,7 @@ def synchronize(source: Path, destination: Path, lock_path: Path, apply: bool = 
     for name in set(local) | set(previous):
         path = local.get(name)
         if path is None:
-            if name in upstream:
+            if name in previous and name in upstream:
                 conflicts.append(name)  # A local deletion needs backporting too.
         elif name in previous:
             current = digest(path)

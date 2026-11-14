@@ -38,13 +38,13 @@ omit = [
 precision = 2
 
 [tool.coverage.html]
-directory = "../coverage/sophon/html"
+directory = "../coverage/sophon-python/html"
 
 [tool.coverage.json]
-output = "../coverage/sophon/coverage.json"
+output = "../coverage/sophon-python/coverage.json"
 
 [tool.coverage.xml]
-output = "../coverage/sophon/cobertura.xml"
+output = "../coverage/sophon-python/cobertura.xml"
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]

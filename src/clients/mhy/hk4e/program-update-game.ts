@@ -21,6 +21,7 @@ import { createTransferProgressTracker } from "./download-progress";
 async function* downloadAndPatch(
   sophon: Sophon,
   gameDir: string,
+  installedVersion: string,
   downloadKey?: string
 ): TaskProgram {
   // Predownload downloads diffs without applying,
@@ -34,6 +35,7 @@ async function* downloadAndPatch(
       gamedir: gameDir,
       game_type: "hk4e",
       tempdir: downloadTmp,
+      installedVersion,
       predownload: false,
     },
     downloadKey
@@ -152,6 +154,7 @@ export async function* updateGameProgram({
   gameDir,
   server,
   updatedGameVersion,
+  installedVersion,
   downloadKey,
   storage = globalStorage,
 }: {
@@ -159,6 +162,7 @@ export async function* updateGameProgram({
   gameDir: string;
   server: Server;
   updatedGameVersion: string;
+  installedVersion: string;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
   storage?: Storage;
@@ -210,14 +214,14 @@ export async function* updateGameProgram({
     }
   }
 
-  yield* downloadAndPatch(sophon, gameDir, downloadKey);
+  yield* downloadAndPatch(sophon, gameDir, installedVersion, downloadKey);
   await storage.setKey(`predownloaded_all`, null);
-  // Writing config.ini is done in python script
 }
 
 async function* predownload(
   sophon: Sophon,
   gameDir: string,
+  installedVersion: string,
   downloadKey?: string
 ): TaskProgram {
   const downloadTmp = join(gameDir, ".tmp");
@@ -226,6 +230,7 @@ async function* predownload(
       gamedir: gameDir,
       game_type: "hk4e",
       tempdir: downloadTmp,
+      installedVersion,
       predownload: true,
     },
     downloadKey
@@ -309,16 +314,18 @@ export async function* predownloadGameProgram({
   sophon,
   gameDir,
   targetVersion,
+  installedVersion,
   downloadKey,
   storage = globalStorage,
 }: {
   sophon: Sophon;
   gameDir: string;
   targetVersion: string;
+  installedVersion: string;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
   storage?: Storage;
 }) {
-  yield* predownload(sophon, gameDir, downloadKey);
+  yield* predownload(sophon, gameDir, installedVersion, downloadKey);
   await storage.setKey(`predownloaded_all`, targetVersion);
 }

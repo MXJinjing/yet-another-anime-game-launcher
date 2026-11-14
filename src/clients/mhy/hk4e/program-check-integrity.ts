@@ -16,10 +16,12 @@ import { createTransferProgressTracker } from "./download-progress";
 export async function* checkIntegrityProgram({
   sophon,
   gameDir,
+  installedVersion,
   downloadKey,
   storage = globalStorage,
 }: {
   gameDir: string;
+  installedVersion?: string;
   sophon: Sophon;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
@@ -30,6 +32,7 @@ export async function* checkIntegrityProgram({
       gamedir: gameDir,
       game_type: "hk4e",
       repair_mode: "reliable",
+      installedVersion,
     },
     downloadKey
   );

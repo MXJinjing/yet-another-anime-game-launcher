@@ -1,11 +1,11 @@
 # Repository Guidelines
 
 ## Project Overview
-Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher built with Neutralinojs, a SolidJS + TypeScript (Vite) UI, and a Python "Sophon" sidecar server. Each supported game/region is a channel selected at build time via the `YAAGL_CHANNEL_CLIENT` environment variable.
+Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher built with Neutralinojs, a SolidJS + TypeScript (Vite) UI, and a Swift "Sophon" JSON-RPC sidecar. Each supported game/region is a channel selected at build time via the `YAAGL_CHANNEL_CLIENT` environment variable.
 
 ## Project Structure & Module Organization
 - `src/` — Frontend source (TS/TSX): `clients/` per-channel game configs; `config/` launcher settings; `launcher/` game library, launch, and task-queue logic; `utils/` helpers with co-located tests; `locale/`, `icons/`, `assets/` for i18n, icons, and static assets.
-- `sophon_server/` — Python sidecar (uv-managed; `pyproject.toml`, `uv.lock`).
+- `sophon_server/` — Swift sidecar source copy in `swift/` and legacy Python API source.
 - `sidecar/` — bundled binaries (aria2, 7z, hpatchz, xdelta, built Sophon server).
 - `bin/`, `external/`, `dist/`, `dev/` — generated artifacts; gitignored, never commit them.
 - Root scripts: `configure.sh`, `build-app.js`, `build-all.sh`, `build-sophon.sh`.
@@ -29,7 +29,7 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 ## Commit & Pull Request Guidelines
 - Use Conventional Commits: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, `ci:`, `style:`; scope game-specific fixes (e.g., `fix(hk4e):`).
 - Never mention real game or company names in commits, issues, or PRs — use "The Anime Game" / "The Anime Company".
-- PRs to `main` must pass CI (`ci-pr.yaml` / `tests.yaml`: type check, lint, format, frontend tests, Python tests, and coverage policies), including the required `check` status. Link the related issue, describe the change, and add screenshots for UI changes.
+- PRs to `main` must pass CI (`ci-pr.yaml` / `tests.yaml`: type check, lint, format, frontend tests, Swift and legacy Python tests, and coverage policies), including the required `check` status. Link the related issue, describe the change, and add screenshots for UI changes.
 - Support questions belong on Discord; file issues only for technical problems with logs and system info.
 
 ## Required Branch and PR Workflow (IMPORTANT)
@@ -54,7 +54,7 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 ## Shared Sophon source maintenance
 
 - Keep source-copy integration; do not convert Sophon to a Git submodule.
-- The canonical shared server lives in the sibling `sophon` repository (`MXJinjing/sophon`). Implement shared fixes there first, commit them, then run `python3 scripts/sync-sophon.py --source ../sophon --apply` here.
+- The canonical shared server lives in the sibling `sophon` repository (`MXJinjing/sophon`). Implement shared fixes there first, commit them, then run `python3 scripts/sync-sophon.py --source ../sophon --apply` here. The shared Swift package is `sophon-swift/` in the canonical repository.
 - `sophon_server/upstream-lock.json` pins the source commit and SHA-256 hashes. Use `--check` to verify synchronization; `--apply` refuses divergent local shared edits that have not been backported.
 - Copy only shared server source, protobuf schemas, license and server tests. Keep launcher UI, build adapters, dependency/test configuration, README and `test_launcher_*.py` local. Generated protobuf, environments, caches, build outputs and the standalone release packaging test are excluded.
 - Update the API references in both repositories for shared protocol changes. Commit the refreshed revision lock with each source synchronization.

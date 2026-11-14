@@ -10,12 +10,12 @@ import {
 import { Server } from "@constants";
 import { Locale } from "@locale";
 import { log } from "@logging/logger";
-import { stats } from "@platform/neutralino";
+import { spawnProcess, stats } from "@platform/neutralino";
 import { resolveSidecarPath } from "@platform/neutralino/sidecar";
-import { rawString } from "@platform/shell";
+import { build, rawString } from "@platform/shell";
 import { assertValueDefined } from "@runtime/assertions";
 import { timeout } from "@runtime/async";
-import { exec, spawn } from "@runtime/command-runner";
+import { exec } from "@runtime/command-runner";
 import { getFreeSpace } from "@runtime/macos-filesystem";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
@@ -141,6 +141,10 @@ export async function createHK4EChannelClient({
 
   const sophon_host = "127.0.0.1";
   const sophonDeadline = Date.now() + 30000;
+  const sophonToken = Array.from(
+    crypto.getRandomValues(new Uint8Array(24)),
+    byte => byte.toString(16).padStart(2, "0")
+  ).join("");
   let sophon: Sophon | undefined;
   let lastSophonError: unknown;
   while (!sophon && Date.now() < sophonDeadline) {
@@ -148,18 +152,26 @@ export async function createHK4EChannelClient({
     const pid = (await exec(["echo", rawString("$PPID")])).stdOut.split(
       "\n"
     )[0];
-    const { pid: spid } = await spawn(
-      [await resolveSidecarPath("sophon_server/sophon-server")],
-      {
-        TERMINATE_WITH_PID: pid,
-        SOPHON_PORT: sophonPort.toString(),
-        SOPHON_HOST: sophon_host,
-      }
+    const { pid: spid } = await spawnProcess(
+      build([
+        await resolveSidecarPath("sophon-swift/SophonCLI"),
+        "rpc",
+        "--transport",
+        "http",
+        "--port",
+        String(sophonPort),
+        "--token",
+        sophonToken,
+        "--allow-origin",
+        window.location.origin,
+        "--parent-pid",
+        pid,
+      ])
     );
     try {
       const connectedSophon = await measure("sophon-connect", () =>
         Promise.race([
-          createSophonRetry(sophon_host, sophonPort),
+          createSophonRetry(sophon_host, sophonPort, releaseType, sophonToken),
           timeout(Math.max(500, sophonDeadline - Date.now())),
         ])
       );
@@ -277,6 +289,7 @@ export async function createHK4EChannelClient({
       gameDir: _gameInstallDir(),
       server,
       updatedGameVersion: LATEST_GAME_VERSION,
+      installedVersion: currentVersion,
       downloadKey: storage.namespace,
       storage,
     });
@@ -449,6 +462,7 @@ export async function createHK4EChannelClient({
         yield* checkIntegrityProgram({
           sophon,
           gameDir: selection,
+          installedVersion: gameVersion,
           downloadKey: storage.namespace,
           storage,
         });
@@ -472,6 +486,7 @@ export async function createHK4EChannelClient({
         sophon,
         gameDir: _gameInstallDir(),
         targetVersion: PRE_DOWNLOAD_VERSION,
+        installedVersion: gameCurrentVersion(),
         downloadKey: storage.namespace,
         storage,
       });
@@ -519,6 +534,7 @@ export async function createHK4EChannelClient({
       yield* checkIntegrityProgram({
         sophon,
         gameDir: _gameInstallDir(),
+        installedVersion: gameCurrentVersion(),
         downloadKey: storage.namespace,
         storage,
       });
@@ -576,6 +592,7 @@ export async function createHK4EChannelClient({
         yield* checkIntegrityProgram({
           sophon,
           gameDir: _gameInstallDir(),
+          installedVersion: gameCurrentVersion(),
           downloadKey: storage.namespace,
           storage,
         });

@@ -47,7 +47,7 @@ The target channel is selected at build time through `YAAGL_CHANNEL_CLIENT`. A c
 - Lightweight macOS desktop application based on Neutralinojs.
 - Frontend built with SolidJS, TypeScript, and Vite.
 - Game library, installation, update, launch, and task queue management.
-- Python Sophon sidecar for downloads, patching, progress reporting, and background tasks.
+- Swift Sophon sidecar for downloads, patching, progress reporting, and background tasks.
 - Multiple regions and distribution channels selected at build time.
 - Wine, DXMT, and other runtime components can be configured and managed.
 - Localized interface and replaceable runtime resources.
@@ -75,7 +75,7 @@ The target channel is selected at build time through `YAAGL_CHANNEL_CLIENT`. A c
 │   ├── locale/        # Localization resources
 │   ├── assets/        # Interface assets and images
 │   └── icons/         # Icon resources
-├── sophon_server/     # Modular Sophon sidecar (src/, proto/, tests/)
+├── sophon_server/     # Swift Sophon source copy and legacy API source
 ├── sidecar/           # aria2, 7z, hpatchz, xdelta, and runtime helpers
 ├── external/          # External patches and build-time resources
 ├── configure.sh       # Initialize configuration and Neutralino runtime
@@ -93,7 +93,7 @@ The target channel is selected at build time through `YAAGL_CHANNEL_CLIENT`. A c
 
 - macOS.
 - Node.js and pnpm.
-- Python 3.11 or later, plus uv.
+- Swift 6.3 or later with Xcode for the Sophon sidecar. Python and uv are used when running the legacy API tests.
 - A C compiler for native helper programs; on macOS this is typically provided by Xcode Command Line Tools.
 - Enough disk space for frontend dependencies, sidecars, Wine runtimes, and game files.
 

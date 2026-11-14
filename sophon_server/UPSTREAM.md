@@ -1,8 +1,11 @@
 # Sophon source copy
 
-Canonical shared server: [MXJinjing/sophon](https://github.com/MXJinjing/sophon).
+Canonical shared source: [MXJinjing/sophon](https://github.com/MXJinjing/sophon).
 The launcher keeps a source copy, not a Git submodule. `upstream-lock.json`
 records the imported commit and SHA-256 checksums for all shared files.
+The production sidecar builds from `swift/`. Its external baseline and
+launcher extensions are documented in [swift/UPSTREAM.md](swift/UPSTREAM.md).
+The Python source remains available for legacy standalone API users.
 
 ## Maintenance
 

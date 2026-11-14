@@ -120,5 +120,41 @@
         "branches": 40
       }
     }
+  },
+  "swift": {
+    "global": {
+      "lines": 68,
+      "regions": 58
+    },
+    "files": {
+      "Sources/SophonClientv3/SelectedFiles.swift": {
+        "lines": 95,
+        "regions": 90
+      },
+      "Sources/SophonClientv3/Core/Transfer/TransferControl.swift": {
+        "lines": 80,
+        "regions": 75
+      },
+      "Sources/SophonClientv3/Core/Logic/Installer.swift": {
+        "lines": 85,
+        "regions": 70
+      },
+      "Sources/SophonClientv3/Core/Logic/Updater.swift": {
+        "lines": 90,
+        "regions": 80
+      },
+      "Sources/SophonClientv3/Core/Logic/UpdaterExecution.swift": {
+        "lines": 85,
+        "regions": 75
+      },
+      "Sources/SophonClientv3/Core/Transfer/DownloadCache.swift": {
+        "lines": 90,
+        "regions": 80
+      },
+      "Sources/SophonCLI/Core/RPC/RPC.swift": {
+        "lines": 84,
+        "regions": 70
+      }
+    }
   }
 }

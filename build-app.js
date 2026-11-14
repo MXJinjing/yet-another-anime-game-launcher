@@ -300,31 +300,22 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
       output,
     ]);
   }
-  const sophonDistFor = arch =>
-    path.resolve(
-      process.cwd(),
-      `sophon_server`,
-      arch == "x64" ? `build-x64` : `build`,
-      `server.dist`
-    );
-  // Remove potentially existing dev sophon_server from sidecar
-  await fs.remove(path.resolve(process.cwd(), `sidecar`, `sophon_server`));
   for (const entry of await fs.readdir(sidecarSrc)) {
-    if (entry == "arm64" || entry == "x64") continue;
+    if (["arm64", "x64", "sophon_server"].includes(entry)) continue;
     await fs.copy(path.resolve(sidecarSrc, entry), path.resolve(sidecarDst, entry), {
       preserveTimestamps: true,
     });
   }
   for (const arch of buildArchs) {
-    await fs.copy(
-      path.resolve(sidecarSrc, arch),
-      path.resolve(sidecarDst, arch),
-      { preserveTimestamps: true }
-    );
+    const destination = path.resolve(sidecarDst, arch);
+    await fs.copy(path.resolve(sidecarSrc, arch), destination, {
+      preserveTimestamps: true,
+      filter: source => !["sophon_server", "sophon-swift"].includes(path.basename(source)),
+    });
     if (includeSophon) {
       await fs.copy(
-        sophonDistFor(arch),
-        path.resolve(sidecarDst, arch, `sophon_server`),
+        path.resolve(process.cwd(), "sophon_server", "dist", arch),
+        path.resolve(destination, "sophon-swift"),
         { preserveTimestamps: true }
       );
     }
@@ -389,7 +380,7 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
         <key>NSHumanReadableCopyright</key>
         <string>Copyright © 2023 3Shain.</string>
         <key>LSMinimumSystemVersion</key>
-        <string>10.15.0</string>
+        <string>${includeSophon ? "13.0.0" : "10.15.0"}</string>
         <key>NSAppTransportSecurity</key>
         <dict>
             <key>NSAllowsArbitraryLoads</key>

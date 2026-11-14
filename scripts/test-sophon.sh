@@ -1,14 +1,25 @@
 #!/bin/bash
-# Run all Python test styles from a clean checkout without building the app.
+# Run the Swift sidecar tests and export LLVM coverage without building the app.
 set -euo pipefail
-ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT_DIR/sophon_server"
-python3 "$ROOT_DIR/scripts/sync-sophon.py" --verify-lock
-uv sync --locked
-uv run --locked python -m grpc_tools.protoc -I proto --python_out=src proto/manifest.proto proto/manifest_ldiff.proto
-mkdir -p ../coverage/sophon
-uv run --locked coverage run -m pytest -q --junitxml=../coverage/sophon/junit.xml tests
-uv run --locked coverage html
-uv run --locked coverage json
-uv run --locked coverage xml
-uv run --locked coverage report
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCE="$ROOT/sophon_server/swift"
+REPORT="$ROOT/coverage/sophon"
+SCRATCH="${SOPHON_TEST_SCRATCH:-$SOURCE/.build-tests}"
+mkdir -p "$REPORT"
+python3 "$ROOT/scripts/sync-sophon.py" --verify-lock
+ARGS=(--package-path "$SOURCE" --scratch-path "$SCRATCH")
+SOPHON_TEST_PRODUCTS="$(swift build "${ARGS[@]}" --show-bin-path)"
+export SOPHON_TEST_PRODUCTS
+# The CLI transport tests also contribute subprocess coverage.
+swift test "${ARGS[@]}" --force-resolved-versions --enable-code-coverage | tee "$REPORT/tests.log"
+PROFILE="$SOPHON_TEST_PRODUCTS/codecov/default.profdata"
+COVERAGE_ARGS=()
+for target in SophonClientv3Tests HYPAPIClientTests SophonClientv3PackageTests; do
+  binary="$SOPHON_TEST_PRODUCTS/$target.xctest/Contents/MacOS/$target"
+  if [ -x "$binary" ]; then COVERAGE_ARGS+=(-object "$binary"); fi
+done
+if [ "${#COVERAGE_ARGS[@]}" -eq 0 ]; then
+  echo "Cannot locate Swift coverage test binaries" >&2
+  exit 1
+fi
+xcrun llvm-cov export -summary-only -instr-profile "$PROFILE"   "${COVERAGE_ARGS[@]}" > "$REPORT/coverage.json"

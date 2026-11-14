@@ -34,7 +34,7 @@ jobs:
           if-no-files-found: warn
 
   sophon:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -48,11 +48,17 @@ jobs:
       - name: Sophon tests and coverage policy
         run: |
           bash scripts/test-sophon.sh
+          node scripts/check-coverage.mjs swift
+      - name: Legacy Sophon API tests and coverage policy
+        run: |
+          bash scripts/test-sophon-python.sh
           node scripts/check-coverage.mjs sophon
       - name: Upload Sophon coverage and test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sophon-coverage
-          path: coverage/sophon
+          path: |
+            coverage/sophon
+            coverage/sophon-python
           if-no-files-found: warn
