@@ -125,6 +125,12 @@ export class GameSettings extends SettingsController<GameLoadedSettings> {
           configStore={settings.configStore}
         />
         <LaunchTab
+          locale={this.locale}
+          onApplyRecommendedSettings={props.onApplyRecommendedSettings}
+          recommendedSettingsDisabled={props.recommendedSettingsDisabled}
+          recommendedSettingsUsesSharedWine={
+            props.recommendedSettingsUsesSharedWine
+          }
           ChannelClientConfig={settings.channelClientGame}
           onOpenGlobalSettings={props.onOpenGlobalSettings}
           DebugModeConfig={settings.debugMode}

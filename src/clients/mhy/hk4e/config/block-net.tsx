@@ -1,3 +1,4 @@
+import { bindRecommendedSetting } from "@settings/recommended-settings";
 import { Box, Button, Input, Text } from "@hope-ui/solid";
 import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "@locale";
@@ -80,6 +81,7 @@ export default async function ({
   config.blockNetHostsText = storedHostsText;
 
   const [on, setOn] = createSignal(config.blockNet);
+  bindRecommendedSetting(config, "blockNet", setOn);
   const [duration, setDuration] = createSignal(storedDuration);
   const [entries, setEntries] = createSignal(storedEntries);
   const [hostsHelperStatus, setHostsHelperStatus] =
