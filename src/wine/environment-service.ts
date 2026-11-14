@@ -69,7 +69,10 @@ export function createWineEnvironmentService({
     setWineInstalled(false);
   }
 
-  async function* initialize(wineDistro: WineDistribution): TaskProgram {
+  async function* initialize(
+    wineDistro: WineDistribution,
+    beforeActivate?: () => Promise<void>
+  ): TaskProgram {
     yield* dependencies.installWineEnvironmentProgram({
       aria2,
       wineAbsPrefix,
@@ -83,6 +86,7 @@ export function createWineEnvironmentService({
       aria2,
       wineAbsPrefix,
       wineDistro,
+      beforeActivate,
     });
     await wine.setDistribution(wineDistro);
     setWineInstalled(true);

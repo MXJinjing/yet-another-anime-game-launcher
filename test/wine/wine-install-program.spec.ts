@@ -37,6 +37,7 @@ import { setKey } from "@runtime/storage";
 import { createWine, isWineDistroInstalled } from "@wine/wine";
 import { addCertsToWine } from "@wine/cert";
 import {
+  configureWineEnvironmentProgram,
   createWineInstallProgram,
   installWineEnvironmentProgram,
 } from "@wine/wine-install-program";
@@ -91,10 +92,10 @@ describe("Wine environment installation", () => {
       "/wines/test.installing",
       "/wines/test",
     ]);
-    expect(addCertsToWine).toHaveBeenCalledWith("/wines/test");
+    expect(addCertsToWine).toHaveBeenCalledWith("/wines/test.installing");
     expect(xattrRemove).toHaveBeenCalledWith(
       "com.apple.quarantine",
-      "/wines/test",
+      "/wines/test.installing",
       "authorization"
     );
     expect(wine.exec).toHaveBeenCalledWith(
@@ -258,6 +259,39 @@ describe("Wine environment installation", () => {
       expect(setKey).not.toHaveBeenCalled();
     }
   );
+
+  it("does not publish a bundled distribution when preparing its files fails", async () => {
+    vi.mocked(xattrRemove).mockRejectedValueOnce(
+      new Error("authorization cancelled")
+    );
+    await expect(
+      collect(installWineEnvironmentProgram({ ...options(), activate: false }))
+    ).rejects.toThrow("authorization cancelled");
+    expect(exec).not.toHaveBeenCalledWith([
+      "mv",
+      "/wines/test.installing",
+      "/wines/test",
+    ]);
+    expect(setKey).not.toHaveBeenCalled();
+  });
+
+  it("lets setup retry when applying settings fails before activation", async () => {
+    const beforeActivate = vi
+      .fn<[], Promise<void>>()
+      .mockRejectedValueOnce(new Error("settings write failed"))
+      .mockResolvedValue(undefined);
+    const configure = () =>
+      collect(
+        configureWineEnvironmentProgram({ ...options(), beforeActivate })
+      );
+    await expect(configure()).rejects.toThrow("settings write failed");
+    expect(setKey).not.toHaveBeenCalled();
+    await expect(configure()).resolves.toContainEqual([
+      "setStateText",
+      "INSTALL_DONE",
+    ]);
+    expect(setKey).toHaveBeenLastCalledWith("wine_state", "ready");
+  });
 
   it("skips all work for an already downloaded inactive environment", async () => {
     vi.mocked(isWineDistroInstalled).mockResolvedValue(true);

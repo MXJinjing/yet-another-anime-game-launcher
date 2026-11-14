@@ -33,7 +33,10 @@ export async function createLauncher({
   wine: Wine;
   wineDistroId: string;
   wineInstalled: () => boolean;
-  initializeWine: (distro: WineDistribution) => TaskProgram;
+  initializeWine: (
+    distro: WineDistribution,
+    beforeActivate?: () => Promise<void>
+  ) => TaskProgram;
   downloadWineDistro: (
     distro: WineDistribution,
     downloadKey?: string
