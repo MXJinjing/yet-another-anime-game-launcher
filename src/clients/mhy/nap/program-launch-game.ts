@@ -42,6 +42,18 @@ async function logInternalProgress(program: TaskProgram) {
   }
 }
 
+// Wine may have populated system32 with symlinks into its installation.
+async function installPrefixLibrary(source: string, destination: string) {
+  const temporary = `${destination}.yaagl-runtime.tmp`;
+  await removeFileIfExists(temporary);
+  try {
+    await cp(source, temporary);
+    await forceMove(temporary, destination);
+  } finally {
+    await removeFileIfExists(temporary);
+  }
+}
+
 export async function* launchGameProgram({
   gameDir,
   gameExecutable,
@@ -146,18 +158,6 @@ cd /d "${wine.toWinePath(gameDir)}"
     const gptkWindowsDir = join(wine.wineRoot, "lib/wine/x86_64-windows");
     const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
     const metalfxBridge = join(gptkWindowsDir, "nvngx-on-metalfx.dll");
-    // Replace the directory entry in the prefix. Wine may have populated
-    // system32 with symlinks into its own installation.
-    async function installPrefixLibrary(source: string, destination: string) {
-      const temporary = `${destination}.yaagl-runtime.tmp`;
-      await removeFileIfExists(temporary);
-      try {
-        await cp(source, temporary);
-        await forceMove(temporary, destination);
-      } finally {
-        await removeFileIfExists(temporary);
-      }
-    }
     try {
       if (await fileOrDirExists(metalfxBridge)) {
         await installPrefixLibrary(
