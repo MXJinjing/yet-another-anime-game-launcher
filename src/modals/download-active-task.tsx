@@ -8,7 +8,6 @@ import type { Locale } from "../locale";
 import { downloadManagerText } from "../locale/download-manager";
 import { sophonDownloaderText } from "../locale/sophon-downloader";
 import { formatDownloadSpeed, humanFileSize } from "../runtime/format";
-import pauseIcon from "../assets/icons/pause.svg";
 import { SophonDownloadDetails } from "./sophon-download-details";
 
 const network = (sample: ActivitySample) => sample.values["common.network"];
@@ -107,7 +106,7 @@ function TransferProgress(props: {
         aria-label={props.label}
         classList={{
           "download-manager-meter": true,
-          "download-manager-meter--install": props.install,
+          "download-manager-meter--install": props.install ?? false,
         }}
         value={Math.min(100, Math.max(0, props.value ?? 0))}
         indeterminate={props.value === undefined}
@@ -169,46 +168,50 @@ export function DownloadActiveTask(props: {
   return (
     <>
       <section class="download-manager-active" aria-label={props.task.title}>
-        <Show when={props.artwork} keyed>
-          {url => (
-            <img
-              class="download-manager-art"
-              src={url}
-              alt=""
-              onError={event => (event.currentTarget.hidden = true)}
-            />
-          )}
-        </Show>
-        <div class="download-manager-active-identity">
-          <Show when={props.tasks.length > 1}>
-            <div
-              class="download-manager-task-switcher"
-              role="group"
-              aria-label={
-                sophonDownloaderText(props.locale.currentLanguage).activityTitle
-              }
-            >
-              <For each={props.tasks}>
-                {task => (
-                  <button
-                    type="button"
-                    aria-label={task.title}
-                    aria-pressed={task.id === props.task.id}
-                    title={task.title}
-                    onClick={() => props.onSelect(task.id)}
-                  >
+        <Show when={props.tasks.length > 1}>
+          <div
+            class="download-manager-task-switcher"
+            role="group"
+            aria-label={
+              sophonDownloaderText(props.locale.currentLanguage).activityTitle
+            }
+          >
+            <For each={props.tasks}>
+              {task => (
+                <button
+                  type="button"
+                  aria-pressed={task.id === props.task.id}
+                  title={task.title}
+                  onClick={() => props.onSelect(task.id)}
+                >
+                  <span class="download-manager-task-icon">
                     {props.renderTaskIcon(task)}
-                  </button>
-                )}
-              </For>
-            </div>
-          </Show>
-          <h2>{props.task.title}</h2>
-          <p>{props.status}</p>
-        </div>
-        <Show when={history().length > 1}>
-          <TransferChart history={history()} />
+                  </span>
+                  <span class="download-manager-task-name">{task.title}</span>
+                </button>
+              )}
+            </For>
+          </div>
         </Show>
+        <div class="download-manager-cover">
+          <Show when={props.artwork} keyed>
+            {url => (
+              <img
+                class="download-manager-art"
+                src={url}
+                alt=""
+                onError={event => (event.currentTarget.hidden = true)}
+              />
+            )}
+          </Show>
+          <div class="download-manager-active-identity">
+            <h2>{props.task.title}</h2>
+            <p>
+              <span aria-hidden="true" />
+              {props.status}
+            </p>
+          </div>
+        </div>
         <div class="download-manager-telemetry">
           <dl class="download-manager-rates">
             <div>
@@ -228,6 +231,9 @@ export function DownloadActiveTask(props: {
               </div>
             </Show>
           </dl>
+          <Show when={history().length > 1}>
+            <TransferChart history={history()} />
+          </Show>
           <TransferProgress
             label={text().download}
             text={`${humanFileSize(downloaded())} / ${
@@ -262,9 +268,7 @@ export function DownloadActiveTask(props: {
                 title={props.locale.get("DOWNLOAD_PAUSE")}
                 aria-label={props.locale.get("DOWNLOAD_PAUSE")}
                 onClick={() => props.onPause?.()}
-              >
-                <img src={pauseIcon} alt="" />
-              </button>
+              />
             </Show>
           </div>
         </div>
@@ -278,7 +282,7 @@ export function DownloadActiveTask(props: {
             <summary>{props.locale.get("DOWNLOAD_TASK_EXPAND")}</summary>
             <Show when={detailsOpen()}>
               <Show when={selected().id} keyed>
-                {() => (
+                {_activityId => (
                   <SophonDownloadDetails
                     activity={selected()}
                     locale={props.locale}

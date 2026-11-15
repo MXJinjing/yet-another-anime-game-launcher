@@ -2330,6 +2330,8 @@ export async function createHypLauncher({
 
         <DownloadQueueModal
           opened={downloadModalOpen()}
+          accentColor={themeHex()}
+          accentText={themeText()}
           onClose={() => setDownloadModalOpen(false)}
           locale={locale}
           onOpenSettings={() => {
