@@ -9,8 +9,8 @@
 ## Current Supported Game Version:
 
 ### GI: 5.3.0+ OS/CN **
-### HSR: 4.3.0 OS/CN
-### ZZZ: 3.0.0 OS/CN
+### HSR: 4.3.0+ OS/CN
+### ZZZ: 3.0.0+ OS/CN
 
 #### **: Starting from release 0.3.12 using DXMT 0.74, you need to update to Sequoia or later. Sonoma is getting old and is lacking technical features to improve the translation.
 
@@ -236,9 +236,10 @@ YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
 ## Uninstall (completely)
 
 1. If Hosts-Helper is enabled, open the in-app settings to uninstall it.
-2. Drag app to the bin
-3. Delete folder `~/Library/Application Support/Yaaglm GI CN` or `~/Library/Application Support/Yaaglm OS` if you are using oversea version. (For HSR and ZZZ the name of folder is slightly different)
-4. If you used another channel, also check `~/Library/Application Support/` for the corresponding application-support directory.
+2. In **Global Settings → General → Launcher Data**, choose **Clear Launcher Data** and confirm. Yaaglm moves the current channel's settings, logs, caches, and local Wine environment to the Trash, then quits.
+3. Move the app to the Trash.
+
+To locate the folder manually, open Finder, choose **Go → Go to Folder…** (Shift–Command–G), enter `~/Library/Application Support/`, and press Return. Find the folder for your channel, such as `Yaaglm GI CN`, `Yaaglm OS`, or `com.3shain.yaaglm` for the all-channel build. You can also choose **Open in Finder** under **Launcher Data** while Yaaglm is running. Quit Yaaglm before moving the folder to the Trash.
 
 ## Related projects
 

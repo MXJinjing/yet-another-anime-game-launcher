@@ -41,6 +41,8 @@ export type GlobalSettingsOptions = {
   wineDistroId: string;
   wineInstalled: () => boolean;
   actionDisabled?: () => boolean;
+  launcherDataBusy: () => boolean;
+  gameDirectories: () => readonly string[];
   configStore?: ConfigStore;
   onEnableWineDistro?: (
     distro: WineDistribution,
@@ -296,6 +298,8 @@ export async function createGlobalSettings(
     wine: options.wine,
     wineInstalled: options.wineInstalled,
     actionDisabled: options.actionDisabled ?? (() => false),
+    launcherDataBusy: options.launcherDataBusy,
+    gameDirectories: options.gameDirectories,
     onResetWineEnv: options.onResetWineEnv ?? (async () => undefined),
     modalTitle: options.modalTitle,
   });

@@ -253,7 +253,8 @@ mkdir -p "$APST_DIR"
 CONTENTS_DIR="$(dirname "$SCRIPT_DIR")"
 # Keep the working directory for user data and temporary files only. Published
 # resources are loaded directly from the app bundle below.
-cd "$APST_DIR"
+cd "$APST_DIR" || exit 1
+export YAAGL_APP_SUPPORT_DIR="$APST_DIR"
 export YAAGL_BUNDLE_PATH="$(dirname "$CONTENTS_DIR")"
 PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$CONTENTS_DIR/Resources"`
   );

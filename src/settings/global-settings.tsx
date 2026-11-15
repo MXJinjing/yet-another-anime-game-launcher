@@ -6,6 +6,7 @@ import { DownloadTab } from "./tabs/download-tab";
 import { GeneralTab } from "./tabs/general-tab";
 import { WineTab } from "./tabs/wine-tab";
 import { HostsHelperControl } from "./controls/general/hosts-helper";
+import { LauncherDataControl } from "./controls/general/launcher-data";
 import { GlobalLoadedSettings, SettingsUIProps } from "./settings-types";
 import { SettingsController } from "./settings-controller";
 
@@ -15,6 +16,8 @@ export type GlobalSettingsOptions = {
   wine: Wine;
   wineInstalled: () => boolean;
   actionDisabled: () => boolean;
+  launcherDataBusy: () => boolean;
+  gameDirectories: () => readonly string[];
   onResetWineEnv: () => Promise<void>;
   modalTitle?: () => string;
 };
@@ -73,6 +76,13 @@ export class GlobalSettings extends SettingsController<GlobalLoadedSettings> {
           LocaleConfig={settings.locale}
           ThemeColorConfig={settings.themeColor}
           HostsHelperConfig={() => <HostsHelperControl locale={this.locale} />}
+          LauncherDataConfig={() => (
+            <LauncherDataControl
+              locale={this.locale}
+              isBusy={this.options.launcherDataBusy}
+              gameDirectories={this.options.gameDirectories}
+            />
+          )}
         />
         <DownloadTab
           DownloadServerConfig={settings.downloadServer}

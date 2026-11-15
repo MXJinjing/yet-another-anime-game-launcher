@@ -7,6 +7,7 @@ const buildScript = readFileSync(resolve(__dirname, "../build-app.js"), "utf8");
 describe("parameterized launcher resource sync", () => {
   it("runs from Application Support but loads resources from the app", () => {
     expect(buildScript).toContain('cd "$APST_DIR"');
+    expect(buildScript).toContain('export YAAGL_APP_SUPPORT_DIR="$APST_DIR"');
     expect(buildScript).toContain('--path="$CONTENTS_DIR/Resources"');
     expect(buildScript).toContain("export YAAGL_BUNDLE_PATH=");
   });

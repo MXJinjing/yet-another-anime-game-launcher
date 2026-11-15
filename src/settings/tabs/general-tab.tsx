@@ -9,6 +9,7 @@ export function GeneralTab(props: {
   LocaleConfig: () => JSXElement;
   ThemeColorConfig: () => JSXElement;
   HostsHelperConfig: () => JSXElement;
+  LauncherDataConfig: () => JSXElement;
 }) {
   return (
     <SettingsTabPanel>
@@ -18,6 +19,8 @@ export function GeneralTab(props: {
         <props.DisableVideoBackgroundConfig />
         <Divider />
         <props.LocaleConfig />
+        <Divider />
+        <props.LauncherDataConfig />
         <Divider />
         <props.AutoUpdateConfig />
         <Divider />
