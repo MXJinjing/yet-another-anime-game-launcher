@@ -441,7 +441,6 @@ export const ru_RU: typeof zh_CN = {
   DOWNLOAD_TASK_COLLAPSE: "Скрыть подробности",
   DOWNLOAD_TASK_ENGINE: "Механизм загрузки",
   DOWNLOAD_TASK_UNKNOWN_SIZE: "Неизвестно",
-  SETTING_MAX_CONCURRENT_DOWNLOADS: "Ограничить параллельные загрузки",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   NOTIFICATION_TASK_COMPLETED: "Задача успешно выполнена",
   NOTIFICATION_TASK_CANCELLED: "Задача отменена",

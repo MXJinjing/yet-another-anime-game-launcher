@@ -3,6 +3,7 @@ import { createSignal, JSXElement } from "solid-js";
 import { AppModal } from "../components/app-modal";
 import { Locale } from "../locale";
 import { Config } from "@config";
+import "./settings-controls.css";
 import {
   BaseLoadedSettings,
   SettingsUI,
@@ -39,6 +40,7 @@ export abstract class SettingsController<T extends BaseLoadedSettings> {
     };
     const content = (
       <Tabs
+        class="app-settings-controls"
         index={tabIndex()}
         onChange={(index: number) => {
           if (index === tabIndex()) return;

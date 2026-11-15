@@ -2,8 +2,7 @@ import type { Locale } from "./index";
 
 const english = {
   title: "Sophon downloader",
-  intro:
-    "These settings apply to each Sophon operation. Task concurrency and speed limits are configured separately.",
+  intro: "These settings apply to each Sophon operation.",
   directory: "Predownload directory",
   gameDirectory: "Game directory",
   chooseDirectory: "Choose predownload directory",
@@ -60,7 +59,7 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
   en: english,
   zh_cn: {
     title: "Sophon 下载器",
-    intro: "这些设置对每项 Sophon 操作生效。任务并发数和限速可单独设置。",
+    intro: "这些设置对每项 Sophon 操作生效。",
     directory: "预下载目录",
     gameDirectory: "游戏目录",
     chooseDirectory: "选择预下载目录",
@@ -107,8 +106,7 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
   },
   ja_jp: {
     title: "Sophon ダウンローダー",
-    intro:
-      "設定は Sophon の操作ごとに適用されます。タスクの同時実行数と速度制限は別に設定します。",
+    intro: "設定は Sophon の操作ごとに適用されます。",
     directory: "事前ダウンロード先",
     gameDirectory: "ゲームフォルダー",
     chooseDirectory: "事前ダウンロード先を選択",
@@ -162,8 +160,7 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
   },
   ko_kr: {
     title: "Sophon 다운로더",
-    intro:
-      "이 설정은 각 Sophon 작업에 적용됩니다. 동시 작업 수와 속도 제한은 따로 설정합니다.",
+    intro: "이 설정은 각 Sophon 작업에 적용됩니다.",
     directory: "사전 다운로드 폴더",
     gameDirectory: "게임 폴더",
     chooseDirectory: "사전 다운로드 폴더 선택",
@@ -213,8 +210,7 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
   },
   de_de: {
     title: "Sophon-Downloader",
-    intro:
-      "Diese Einstellungen gelten pro Sophon-Vorgang. Gleichzeitige Aufgaben und das Tempolimit werden getrennt festgelegt.",
+    intro: "Diese Einstellungen gelten pro Sophon-Vorgang.",
     directory: "Ordner für Vorabdownloads",
     gameDirectory: "Spielordner",
     chooseDirectory: "Ordner für Vorabdownloads wählen",
@@ -267,8 +263,7 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
   },
   fr_fr: {
     title: "Téléchargeur Sophon",
-    intro:
-      "Ces réglages s’appliquent à chaque opération Sophon. Le nombre de tâches simultanées et la limite de débit se règlent séparément.",
+    intro: "Ces réglages s’appliquent à chaque opération Sophon.",
     directory: "Dossier de prétéléchargement",
     gameDirectory: "Dossier du jeu",
     chooseDirectory: "Choisir le dossier de prétéléchargement",
@@ -324,8 +319,7 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
   },
   es_es: {
     title: "Descargador de Sophon",
-    intro:
-      "Estos ajustes se aplican a cada operación de Sophon. La concurrencia de tareas y los límites de velocidad se configuran por separado.",
+    intro: "Estos ajustes se aplican a cada operación de Sophon.",
     directory: "Carpeta de predescarga",
     gameDirectory: "Carpeta del juego",
     chooseDirectory: "Elegir la carpeta de predescarga",
@@ -381,8 +375,7 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
   },
   ru_ru: {
     title: "Загрузчик Sophon",
-    intro:
-      "Настройки применяются к каждой операции Sophon. Число одновременных задач и ограничение скорости задаются отдельно.",
+    intro: "Настройки применяются к каждой операции Sophon.",
     directory: "Папка предварительной загрузки",
     gameDirectory: "Папка игры",
     chooseDirectory: "Выбрать папку предварительной загрузки",
@@ -436,8 +429,7 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
   },
   vi_vn: {
     title: "Trình tải Sophon",
-    intro:
-      "Các cài đặt này áp dụng cho từng thao tác Sophon. Số tác vụ chạy đồng thời và giới hạn tốc độ được thiết lập riêng.",
+    intro: "Các cài đặt này áp dụng cho từng thao tác Sophon.",
     directory: "Thư mục tải trước",
     gameDirectory: "Thư mục trò chơi",
     chooseDirectory: "Chọn thư mục tải trước",
@@ -488,8 +480,7 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
   },
   th_th: {
     title: "ตัวดาวน์โหลด Sophon",
-    intro:
-      "การตั้งค่าเหล่านี้ใช้กับแต่ละการทำงานของ Sophon จำนวนงานพร้อมกันและการจำกัดความเร็วตั้งค่าแยกกัน",
+    intro: "การตั้งค่าเหล่านี้ใช้กับแต่ละการทำงานของ Sophon",
     directory: "โฟลเดอร์ดาวน์โหลดล่วงหน้า",
     gameDirectory: "โฟลเดอร์เกม",
     chooseDirectory: "เลือกโฟลเดอร์ดาวน์โหลดล่วงหน้า",

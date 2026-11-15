@@ -137,6 +137,36 @@ describe("multi-game launcher orchestration", () => {
     expect(launcher.showLibrary).toBe(true);
     expect(launcher.games[0].storage?.namespace).toBe("ns-first");
   });
+  it("passes each Sophon game's own storage to its predownload directory control", async () => {
+    const first = spec("first");
+    const second = spec("second");
+    const legacy = spec("legacy");
+    for (const game of [first, second]) {
+      vi.mocked(game.createClient).mockResolvedValue({
+        ...client,
+        installOptions: vi.fn(),
+      } as never);
+    }
+
+    await createMultiGameLauncher(options([first, second, legacy]));
+
+    const calls = vi.mocked(createGameSettings).mock.calls;
+    for (const game of [first, second]) {
+      const settings = calls.find(
+        ([settings]) => settings.storage?.namespace === game.namespace
+      )?.[0];
+      expect(settings?.sophonPredownloadStorage).toBe(settings?.storage);
+      expect(settings?.sophonPredownloadStorage?.namespace).toBe(
+        game.namespace
+      );
+    }
+    const legacySettings = calls.find(
+      ([settings]) => settings.storage?.namespace === legacy.namespace
+    )?.[0];
+    expect(legacySettings).toBeDefined();
+    expect(legacySettings?.sophonPredownloadStorage).toBeUndefined();
+  });
+
   it("uses official display assets for the correct region and business", async () => {
     vi.mocked(getLatestGameDisplays).mockResolvedValue(
       new Map([

@@ -1,6 +1,6 @@
 import { removeExternalSophonPredownload } from "@download/sophon-predownload";
 import {
-  readSophonSettings,
+  readSophonPredownloadDirectory,
   SOPHON_PREDOWNLOAD_ROOT_KEY,
 } from "../../../integrations/sophon-settings";
 import { processingProgressCommands } from "./processing-progress";
@@ -230,7 +230,9 @@ export async function* updateGameProgram({
     ""
   );
   const predownloadRoot =
-    savedTarget === updatedGameVersion ? savedRoot : undefined;
+    savedTarget === updatedGameVersion
+      ? savedRoot
+      : await readSophonPredownloadDirectory(storage);
   yield* downloadAndPatch(
     sophon,
     gameDir,
@@ -363,7 +365,7 @@ export async function* predownloadGameProgram({
   downloadKey?: string;
   storage?: Storage;
 }) {
-  const { predownloadDirectory } = await readSophonSettings();
+  const predownloadDirectory = await readSophonPredownloadDirectory(storage);
   const savedRoot = await storage.getKeyOrDefault(
     SOPHON_PREDOWNLOAD_ROOT_KEY,
     ""

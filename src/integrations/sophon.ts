@@ -53,6 +53,7 @@ interface GameOperationOptions {
   game_type: SophonGameType;
   tempdir?: string; // sophon manifest and intermediate files
   installedVersion?: string;
+  predownloadRoot?: string;
 }
 
 export interface SophonInstallOptions extends GameOperationOptions {
@@ -69,7 +70,6 @@ export interface SophonRepairOptions extends GameOperationOptions {
 export interface SophonUpdateOptions extends GameOperationOptions {
   predownload: boolean;
   targetVersion?: string;
-  predownloadRoot?: string;
 }
 
 interface OperationStatus {
@@ -277,11 +277,10 @@ export class SophonClient {
     const cacheOnly = "predownload" in options && options.predownload;
     const settings = await readSophonSettings();
     const rpcSettings = sophonOperationSettings(settings);
-    const root =
-      "predownloadRoot" in options
-        ? options.predownloadRoot ?? settings.predownloadDirectory
-        : settings.predownloadDirectory;
-    const directory = await sophonPredownloadPath(root, options.gamedir);
+    const directory = await sophonPredownloadPath(
+      options.predownloadRoot ?? "",
+      options.gamedir
+    );
     return this.startOperation(
       `${type}.start`,
       {

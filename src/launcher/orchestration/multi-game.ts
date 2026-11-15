@@ -290,6 +290,7 @@ export async function createMultiGameLauncher({
       createGameSettings({
         locale,
         storage,
+        sophonPredownloadStorage: client.installOptions ? storage : undefined,
         gameInstallDir: client.installDir,
         gameVersion: client.gameVersion,
         onGameInstallDirChange: client.changeInstallDir,

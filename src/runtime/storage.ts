@@ -22,6 +22,7 @@ function shouldNamespaceStorageKey(key: string) {
     key == "patched" ||
     key == "predownloaded_all" ||
     key == "sophon_predownload_root" ||
+    key == "sophon_predownload_directory" ||
     key.startsWith("predownloaded_") ||
     key == "left_cmd" ||
     key == "config_retina" ||
@@ -147,7 +148,12 @@ async function setOldYaaglStorageValue(
 }
 
 function getOldYaaglStorageRoute(key: string, namespace?: string) {
-  if (!namespace || !shouldNamespaceStorageKey(key)) return undefined;
+  if (
+    !namespace ||
+    !shouldNamespaceStorageKey(key) ||
+    key === "sophon_predownload_directory"
+  )
+    return undefined;
   const oldApps = oldYaaglmStorageAppsForNamespace(namespace);
   // Keep new DXMT preferences in the current game's scope; the old FPS
   // key still follows the compatibility route for migration.

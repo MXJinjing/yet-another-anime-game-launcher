@@ -4,7 +4,6 @@ import {
   DOWNLOAD_SPEED_LIMIT_ENABLED_KEY,
   DOWNLOAD_SPEED_LIMIT_UNIT_KEY,
   DOWNLOAD_SPEED_LIMIT_VALUE_KEY,
-  MAX_CONCURRENT_DOWNLOADS_KEY,
   speedLimitConfigToBps,
 } from "./config";
 import {
@@ -25,22 +24,23 @@ const lastLimitByStream = new Map<string, number>();
 const controlActionByStream = new Map<string, Promise<void>>();
 const listeners = new Set<(streams: readonly DownloadStream[]) => void>();
 let budgetBps = 0;
-let maxConcurrent = 0;
 let recomputing = false;
 let globalTaskActive = false;
 
 const getStreamSnapshot = () => [...streams.values()];
 const countActiveStreams = () =>
   [...streams.values()].filter(stream => stream.status === "active").length;
-function findFirstQueuedStream() {
-  return [...streams.values()].find(
-    stream => stream.status === "queued" && !(globalTaskActive && stream.key)
-  );
+function usesAria2Slot(stream: DownloadStream) {
+  // Local verification can start its own aria2 transfer to repair a file.
+  return stream.kind === "aria2" && stream.phaseKind !== "verifying";
 }
-function findLastActiveStream() {
-  return [...streams.values()]
-    .filter(stream => stream.status === "active")
-    .pop();
+function hasDownloadSlot(stream: DownloadStream) {
+  return (
+    !usesAria2Slot(stream) ||
+    !getStreamSnapshot().some(
+      other => other.status === "active" && usesAria2Slot(other)
+    )
+  );
 }
 async function runStreamAction(
   stream: DownloadStream,
@@ -79,18 +79,15 @@ function pushSpeedLimit(stream: DownloadStream, bps: number) {
   void runStreamAction(stream, () => stream.setSpeedLimit(bps), "limit");
 }
 function recomputeSlots() {
-  if (maxConcurrent > 0)
-    while (countActiveStreams() > maxConcurrent) {
-      const overflow = findLastActiveStream();
-      if (!overflow) break;
-      overflow.status = "queued";
-      void runStreamControlAction(overflow, () => overflow.pause(), "pause");
+  for (const stream of streams.values()) {
+    if (
+      stream.status === "queued" &&
+      !(globalTaskActive && stream.key) &&
+      hasDownloadSlot(stream)
+    ) {
+      stream.status = "active";
+      void runStreamControlAction(stream, () => stream.resume(), "resume");
     }
-  while (maxConcurrent === 0 || countActiveStreams() < maxConcurrent) {
-    const next = findFirstQueuedStream();
-    if (!next) break;
-    next.status = "active";
-    void runStreamControlAction(next, () => next.resume(), "resume");
   }
 }
 function recomputeBudget() {
@@ -123,10 +120,7 @@ function recompute() {
 }
 
 export function registerStream(stream: DownloadStream) {
-  if (
-    (globalTaskActive && Boolean(stream.key)) ||
-    (maxConcurrent > 0 && countActiveStreams() >= maxConcurrent)
-  ) {
+  if ((globalTaskActive && Boolean(stream.key)) || !hasDownloadSlot(stream)) {
     stream.status = "queued";
     void runStreamControlAction(stream, () => stream.pause(), "pause");
   } else stream.status = "active";
@@ -183,15 +177,6 @@ export async function reloadConfig() {
   const rawValue = await getKeyOrDefault(DOWNLOAD_SPEED_LIMIT_VALUE_KEY, "0");
   const unit = await getKeyOrDefault(DOWNLOAD_SPEED_LIMIT_UNIT_KEY, "K");
   budgetBps = speedLimitConfigToBps(enabled, Number(rawValue), unit);
-  const rawConcurrent = await getKeyOrDefault(
-    MAX_CONCURRENT_DOWNLOADS_KEY,
-    "0"
-  );
-  const parsedConcurrent = Number(rawConcurrent);
-  maxConcurrent =
-    Number.isFinite(parsedConcurrent) && parsedConcurrent > 0
-      ? Math.min(10, Math.max(1, Math.floor(parsedConcurrent)))
-      : 0;
   recompute();
 }
 export async function pauseStream(id: string) {
@@ -214,7 +199,7 @@ export async function resumeStream(id: string) {
     log(`stream-scheduler: resume refused for ${id} while a global task runs`);
     return;
   }
-  if (maxConcurrent > 0 && countActiveStreams() >= maxConcurrent) {
+  if (!hasDownloadSlot(stream)) {
     stream.status = "queued";
     emit();
     return;

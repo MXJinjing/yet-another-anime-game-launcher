@@ -1,5 +1,5 @@
 import { join, normalize } from "path-browserify";
-import { getKeyOrDefault, setKey } from "@runtime/storage";
+import { getKeyOrDefault, setKey, type Storage } from "@runtime/storage";
 import { formatString } from "@runtime/format";
 import { sophonDownloaderText } from "../locale/sophon-downloader";
 
@@ -18,7 +18,6 @@ export interface SophonSettings {
   ioPolicy: "parallel" | "serialized";
   writeMode: "temporary" | "in-place";
   preserveState: boolean;
-  predownloadDirectory: string;
   debugLogging: boolean;
 }
 
@@ -37,7 +36,6 @@ export const sophonDefaults: SophonSettings = {
   ioPolicy: "parallel",
   writeMode: "temporary",
   preserveState: true,
-  predownloadDirectory: "",
   debugLogging: false,
 };
 
@@ -92,23 +90,63 @@ export function sophonSettingsError(
     return text.diskRequired;
   if (!settings.diskCacheEnabled && settings.memoryMiB === 0)
     return text.memoryError;
-  if (
-    typeof settings.predownloadDirectory !== "string" ||
-    (settings.predownloadDirectory !== "" &&
-      !settings.predownloadDirectory.startsWith("/")) ||
-    settings.predownloadDirectory.includes("\0")
-  )
-    return text.pathError;
   return "";
+}
+
+const SOPHON_SETTINGS_KEY = "config_sophon";
+export const SOPHON_PREDOWNLOAD_DIRECTORY_KEY = "sophon_predownload_directory";
+// Records the location of a predownload already started, independently of the preference.
+export const SOPHON_PREDOWNLOAD_ROOT_KEY = "sophon_predownload_root";
+
+async function readStoredSettings(): Promise<
+  Partial<SophonSettings> & { predownloadDirectory?: unknown }
+> {
+  try {
+    const stored: unknown = JSON.parse(
+      await getKeyOrDefault(SOPHON_SETTINGS_KEY, "{}")
+    );
+    if (stored && typeof stored === "object" && !Array.isArray(stored))
+      return stored;
+  } catch {
+    // Defaults also apply to unreadable settings.
+  }
+  return {};
+}
+
+function isAbsolutePredownloadDirectory(value: unknown): value is string {
+  return (
+    typeof value === "string" && value.startsWith("/") && !value.includes("\0")
+  );
+}
+
+export async function readSophonPredownloadDirectory(storage: Storage) {
+  try {
+    const configured = await storage.getKey(SOPHON_PREDOWNLOAD_DIRECTORY_KEY);
+    return isAbsolutePredownloadDirectory(configured) ? configured : "";
+  } catch {
+    const { predownloadDirectory } = await readStoredSettings();
+    return isAbsolutePredownloadDirectory(predownloadDirectory)
+      ? predownloadDirectory
+      : "";
+  }
+}
+
+export async function saveSophonPredownloadDirectory(
+  storage: Storage,
+  directory: string
+) {
+  if (directory !== "" && !isAbsolutePredownloadDirectory(directory))
+    throw new Error(sophonDownloaderText("en").pathError);
+  // An empty preference overrides an inherited directory from older versions.
+  await storage.setKey(SOPHON_PREDOWNLOAD_DIRECTORY_KEY, directory);
 }
 
 export async function readSophonSettings(): Promise<SophonSettings> {
   let initial = { ...sophonDefaults };
   try {
-    const stored = {
-      ...sophonDefaults,
-      ...JSON.parse(await getKeyOrDefault("config_sophon", "{}")),
-    };
+    const { predownloadDirectory: _legacyDirectory, ...saved } =
+      await readStoredSettings();
+    const stored = { ...sophonDefaults, ...saved };
     for (const field of sophonNumberSettings) {
       const value = stored[field.key];
       stored[field.key] = Number.isFinite(value)
@@ -129,16 +167,23 @@ export async function readSophonSettings(): Promise<SophonSettings> {
 export async function saveSophonSettings(value: SophonSettings) {
   const error = sophonSettingsError(value);
   if (error) throw new Error(error);
-  await setKey("config_sophon", JSON.stringify(value));
+  // Preserve the old preference as a fallback for games without a saved choice.
+  const { predownloadDirectory } = await readStoredSettings();
+  await setKey(
+    SOPHON_SETTINGS_KEY,
+    JSON.stringify(
+      isAbsolutePredownloadDirectory(predownloadDirectory)
+        ? { ...value, predownloadDirectory }
+        : value
+    )
+  );
 }
-
-export const SOPHON_PREDOWNLOAD_ROOT_KEY = "sophon_predownload_root";
 
 export async function sophonPredownloadPath(
   root: string,
   gameDirectory: string
 ) {
-  if (!root.startsWith("/") || root.includes("\0")) return undefined;
+  if (!isAbsolutePredownloadDirectory(root)) return undefined;
   const path = normalize(gameDirectory).replace(/\/+$/, "");
   const hash = await crypto.subtle.digest(
     "SHA-256",

@@ -436,7 +436,6 @@ export const ja_JP: typeof zh_CN = {
   DOWNLOAD_TASK_COLLAPSE: "詳細を隠す",
   DOWNLOAD_TASK_ENGINE: "ダウンロードエンジン",
   DOWNLOAD_TASK_UNKNOWN_SIZE: "不明",
-  SETTING_MAX_CONCURRENT_DOWNLOADS: "並列ダウンロードを制限",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   NOTIFICATION_TASK_COMPLETED: "タスクが正常に完了しました",
   NOTIFICATION_TASK_CANCELLED: "タスクをキャンセルしました",

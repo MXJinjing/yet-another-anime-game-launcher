@@ -1,12 +1,15 @@
 import { Divider, VStack } from "@hope-ui/solid";
 import { JSXElement, Show } from "solid-js";
 import { Locale } from "../../locale";
+import type { Storage } from "@runtime/storage";
+import { SophonPredownloadDirectory } from "../controls/game/sophon-predownload-directory";
 import { SettingsTabPanel } from "./settings-tab-panel";
 
 export function GameTab(props: {
   locale: Locale;
   gameProxyEnabled: () => boolean;
   GameInstallDirConfig: () => JSXElement;
+  sophonPredownloadStorage?: Storage;
   ProxyEnabledConfig: () => JSXElement;
   ProxyHostConfig: () => JSXElement;
   MetalHUDConfig: () => JSXElement;
@@ -17,6 +20,17 @@ export function GameTab(props: {
       <>
         <props.GameInstallDirConfig />
         <Divider />
+        <Show when={props.sophonPredownloadStorage}>
+          {storage => (
+            <>
+              <SophonPredownloadDirectory
+                locale={props.locale}
+                storage={storage()}
+              />
+              <Divider />
+            </>
+          )}
+        </Show>
         <VStack spacing={0} w="100%" alignItems="stretch">
           <props.ProxyEnabledConfig />
           <Show when={props.gameProxyEnabled()}>

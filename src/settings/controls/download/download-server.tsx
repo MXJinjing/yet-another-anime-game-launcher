@@ -15,7 +15,6 @@ declare module "../../../config/config-def" {
     downloadSpeedLimitEnabled: boolean;
     downloadSpeedLimitValue: number;
     downloadSpeedLimitUnit: DownloadSpeedLimitUnit;
-    downloadMaxConcurrent: number;
   }
 }
 
@@ -71,17 +70,6 @@ export async function createDownloadServerConfig({
     config.downloadSpeedLimitUnit = "K";
   }
 
-  try {
-    const concurrent =
-      (await store.read(configEntries.downloadMaxConcurrent)) ?? 0;
-    config.downloadMaxConcurrent =
-      Number.isFinite(concurrent) && concurrent > 0
-        ? Math.min(10, Math.max(1, Math.floor(concurrent)))
-        : 0;
-  } catch {
-    config.downloadMaxConcurrent = 0;
-  }
-
   const [proxyEnabled, setProxyEnabled] = createSignal(
     config.downloadProxyEnabled
   );
@@ -96,30 +84,18 @@ export async function createDownloadServerConfig({
     config.downloadSpeedLimitUnit
   );
 
-  const [maxConcurrentEnabled, setMaxConcurrentEnabled] = createSignal(
-    config.downloadMaxConcurrent > 0
-  );
-  const [maxConcurrentValue, setMaxConcurrentValue] = createSignal(
-    config.downloadMaxConcurrent > 0 ? config.downloadMaxConcurrent : 1
-  );
-
   async function onSave(apply: boolean) {
     assertValueDefined(config.downloadProxyEnabled);
     assertValueDefined(config.downloadProxyHost);
     assertValueDefined(config.downloadSpeedLimitEnabled);
     assertValueDefined(config.downloadSpeedLimitValue);
     assertValueDefined(config.downloadSpeedLimitUnit);
-    assertValueDefined(config.downloadMaxConcurrent);
     if (!apply) {
       setProxyEnabled(config.downloadProxyEnabled);
       setProxyHost(config.downloadProxyHost);
       setSpeedLimitEnabled(config.downloadSpeedLimitEnabled);
       setSpeedLimitValue(config.downloadSpeedLimitValue);
       setSpeedLimitUnit(config.downloadSpeedLimitUnit);
-      setMaxConcurrentEnabled(config.downloadMaxConcurrent > 0);
-      setMaxConcurrentValue(
-        config.downloadMaxConcurrent > 0 ? config.downloadMaxConcurrent : 1
-      );
       return NOOP;
     }
 
@@ -165,17 +141,7 @@ export async function createDownloadServerConfig({
       );
       downloadConfigChanged = true;
     }
-    const nextMaxConcurrent = maxConcurrentEnabled() ? maxConcurrentValue() : 0;
-    if (config.downloadMaxConcurrent != nextMaxConcurrent) {
-      config.downloadMaxConcurrent = nextMaxConcurrent;
-      await store.write(
-        configEntries.downloadMaxConcurrent,
-        config.downloadMaxConcurrent
-      );
-      downloadConfigChanged = true;
-    }
     if (downloadConfigChanged) {
-      // Apply speed limit / concurrency changes to active downloads.
       await reloadConfig();
     }
     return NOOP;
@@ -187,8 +153,6 @@ export async function createDownloadServerConfig({
     speedLimitEnabled();
     speedLimitValue();
     speedLimitUnit();
-    maxConcurrentEnabled();
-    maxConcurrentValue();
     onSave(true);
   });
 
@@ -249,35 +213,6 @@ export async function createDownloadServerConfig({
                   { value: "M", label: "MiB/s" },
                   { value: "G", label: "GiB/s" },
                 ]}
-              />
-            </Box>
-          </Show>
-        </SettingSwitch>,
-        <SettingSwitch
-          id="downloadMaxConcurrent"
-          label={locale.get("SETTING_MAX_CONCURRENT_DOWNLOADS")}
-          checked={maxConcurrentEnabled()}
-          onChange={setMaxConcurrentEnabled}
-        >
-          <Show when={maxConcurrentEnabled()}>
-            <Box mt={"$2"} display="flex" alignItems="center" gap={"$2"}>
-              <Input
-                id="downloadMaxConcurrentValue"
-                type="number"
-                min={1}
-                max={10}
-                step={1}
-                value={String(maxConcurrentValue())}
-                width="120px"
-                onChange={e => {
-                  const rawValue = e.currentTarget.value;
-                  const value = Number(rawValue);
-                  if (rawValue !== "" && Number.isFinite(value)) {
-                    setMaxConcurrentValue(
-                      Math.min(10, Math.max(1, Math.floor(value)))
-                    );
-                  }
-                }}
               />
             </Box>
           </Show>

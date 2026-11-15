@@ -7,11 +7,13 @@ import { VideoTab } from "./tabs/video-tab";
 import { GameWineTab } from "./tabs/game-wine-tab";
 import { GameLoadedSettings, SettingsUIProps } from "./settings-types";
 import type { Wine } from "../wine";
+import type { Storage } from "@runtime/storage";
 import { SettingsController } from "./settings-controller";
 
 export type GameSettingsOptions = {
   locale: Locale;
   settings: GameLoadedSettings;
+  sophonPredownloadStorage?: Storage;
   wineTag?: () => string;
   wineOptions?: { tag: string; displayName: string }[];
   onWineTagChange?: (
@@ -111,6 +113,7 @@ export class GameSettings extends SettingsController<GameLoadedSettings> {
           ProxyHostConfig={settings.proxyHost}
           MetalHUDConfig={settings.metalHUD}
           ExitOnWindowCloseConfig={settings.exitOnWindowClose}
+          sophonPredownloadStorage={this.options.sophonPredownloadStorage}
         />
         <VideoTab
           locale={this.locale}

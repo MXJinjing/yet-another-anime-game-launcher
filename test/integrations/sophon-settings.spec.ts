@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getKeyOrDefault, setKey } from "@runtime/storage";
+import { getKeyOrDefault, setKey, type Storage } from "@runtime/storage";
 import { sophonDownloaderText } from "@locale/sophon-downloader";
 import {
+  readSophonPredownloadDirectory,
+  saveSophonPredownloadDirectory,
+  SOPHON_PREDOWNLOAD_DIRECTORY_KEY,
   readSophonSettings,
   saveSophonSettings,
   sophonDefaults,
@@ -60,12 +63,6 @@ describe("Sophon downloader settings", () => {
         memoryMiB: 0,
       })
     ).toContain("greater than zero");
-    expect(
-      sophonSettingsError({
-        ...sophonDefaults,
-        predownloadDirectory: "relative",
-      })
-    ).toContain("absolute path");
     expect(sophonSettingsError({ ...sophonDefaults, writes: 1.5 })).toContain(
       "whole number"
     );
@@ -111,6 +108,46 @@ describe("Sophon downloader settings", () => {
         preserveState: false,
       },
     });
+  });
+
+  it("keeps old directories available to unconfigured games after saving global settings", async () => {
+    vi.mocked(getKeyOrDefault).mockResolvedValue(
+      '{"predownloadDirectory":"/Volumes/Legacy","writes":4}'
+    );
+    const storage: Storage = {
+      getKey: vi.fn().mockRejectedValue(new Error("missing preference")),
+      getKeyOrDefault: vi.fn(),
+      setKey: vi.fn(),
+    };
+    await expect(readSophonSettings()).resolves.not.toHaveProperty(
+      "predownloadDirectory"
+    );
+    await saveSophonSettings({ ...sophonDefaults, writes: 5 });
+    const stored = vi.mocked(setKey).mock.calls[0][1];
+    expect(JSON.parse(stored ?? "{}")).toMatchObject({
+      predownloadDirectory: "/Volumes/Legacy",
+      writes: 5,
+    });
+    vi.mocked(getKeyOrDefault).mockResolvedValue(stored ?? "{}");
+    await expect(readSophonPredownloadDirectory(storage)).resolves.toBe(
+      "/Volumes/Legacy"
+    );
+
+    vi.mocked(storage.getKey).mockResolvedValueOnce("/Volumes/Game");
+    await expect(readSophonPredownloadDirectory(storage)).resolves.toBe(
+      "/Volumes/Game"
+    );
+    await saveSophonPredownloadDirectory(storage, "");
+    expect(storage.setKey).toHaveBeenCalledWith(
+      SOPHON_PREDOWNLOAD_DIRECTORY_KEY,
+      ""
+    );
+    vi.mocked(storage.getKey).mockResolvedValueOnce("");
+    await expect(readSophonPredownloadDirectory(storage)).resolves.toBe("");
+    await expect(
+      saveSophonPredownloadDirectory(storage, "relative")
+    ).rejects.toThrow("absolute path");
+    expect(storage.setKey).toHaveBeenCalledTimes(1);
   });
 
   it("scopes predownload storage by normalized game directory", async () => {

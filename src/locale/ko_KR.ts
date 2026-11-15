@@ -436,7 +436,6 @@ export const ko_KR: typeof zh_CN = {
   DOWNLOAD_TASK_COLLAPSE: "세부 정보 숨기기",
   DOWNLOAD_TASK_ENGINE: "다운로드 엔진",
   DOWNLOAD_TASK_UNKNOWN_SIZE: "알 수 없음",
-  SETTING_MAX_CONCURRENT_DOWNLOADS: "병렬 다운로드 제한",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   NOTIFICATION_TASK_COMPLETED: "작업이 성공적으로 완료되었습니다",
   NOTIFICATION_TASK_CANCELLED: "작업이 취소되었습니다",

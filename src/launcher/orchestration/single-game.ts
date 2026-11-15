@@ -65,6 +65,9 @@ export async function createLauncher({
       createGameSettings({
         locale,
         storage: globalStorage,
+        sophonPredownloadStorage: channelClient.installOptions
+          ? globalStorage
+          : undefined,
         gameInstallDir: channelClient.installDir,
         gameVersion: channelClient.gameVersion,
         onGameInstallDirChange: channelClient.changeInstallDir,
@@ -77,6 +80,9 @@ export async function createLauncher({
     createGameSettings({
       locale,
       storage: globalStorage,
+      sophonPredownloadStorage: channelClient.installOptions
+        ? globalStorage
+        : undefined,
       gameInstallDir: channelClient.installDir,
       gameVersion: channelClient.gameVersion,
       onGameInstallDirChange: channelClient.changeInstallDir,

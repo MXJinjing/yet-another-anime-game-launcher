@@ -21,7 +21,6 @@ import {
   VStack,
 } from "@hope-ui/solid";
 import { createResource, createSignal, For, Show } from "solid-js";
-import { openDir } from "@platform/neutralino";
 import type { Locale } from "@locale";
 import { sophonDownloaderText } from "../../locale/sophon-downloader";
 import {
@@ -47,13 +46,7 @@ function Choice<T extends string>(props: {
           <SelectValue />
           <SelectIcon />
         </SelectTrigger>
-        <SelectContent
-          bg="#202328"
-          color="white"
-          css={{
-            "& .hope-select__option:hover": { bg: "rgba(255, 255, 255, 0.1)" },
-          }}
-        >
+        <SelectContent class="app-settings-select">
           <SelectListbox>
             <For each={props.options}>
               {option => (
@@ -183,40 +176,6 @@ function SophonSettingsForm(props: {
           <Text size="sm" color="rgba(255, 255, 255, 0.7)">
             {text().intro}
           </Text>
-          <FormControl>
-            <FormLabel>{text().directory}</FormLabel>
-            <Input
-              readOnly
-              value={value().predownloadDirectory}
-              placeholder={text().gameDirectory}
-            />
-            <HStack spacing="$2" mt="$2">
-              <Button
-                type="button"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const directory = await openDir(text().chooseDirectory);
-                    if (directory) update({ predownloadDirectory: directory });
-                  } catch (error) {
-                    setError(String(error));
-                  }
-                }}
-              >
-                {text().browse}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="subtle"
-                disabled={!value().predownloadDirectory}
-                onClick={() => update({ predownloadDirectory: "" })}
-              >
-                {text().useDefault}
-              </Button>
-            </HStack>
-            <FormHelperText>{text().directoryHelp}</FormHelperText>
-          </FormControl>
           <For
             each={sophonNumberSettings.filter(
               field => field.key === "downloads"

@@ -3,7 +3,6 @@ import {
   DOWNLOAD_SPEED_LIMIT_ENABLED_KEY,
   DOWNLOAD_SPEED_LIMIT_VALUE_KEY,
   DOWNLOAD_SPEED_LIMIT_UNIT_KEY,
-  MAX_CONCURRENT_DOWNLOADS_KEY,
 } from "@download/config";
 import type { DownloadStream } from "@download/types";
 import * as queue from "@download/stream-scheduler";
@@ -67,7 +66,6 @@ async function setConfig(
     enabled?: string;
     value?: string;
     unit?: string;
-    maxConcurrent?: string;
   } = {}
 ) {
   vi.mocked(getKeyOrDefault).mockImplementation(
@@ -79,8 +77,6 @@ async function setConfig(
           return options.value ?? "0";
         case DOWNLOAD_SPEED_LIMIT_UNIT_KEY:
           return options.unit ?? "K";
-        case MAX_CONCURRENT_DOWNLOADS_KEY:
-          return options.maxConcurrent ?? "0";
         default:
           return defaultValue;
       }
@@ -110,7 +106,6 @@ afterEach(() => {
 
 describe("download queue concurrency", () => {
   it("pauses every active or queued stream owned by one launcher task", async () => {
-    await setConfig({ maxConcurrent: "1" });
     const first = createStream({ ownerTaskId: "download-task:1" });
     const second = createStream({ ownerTaskId: "download-task:1" });
     queue.registerStream(first.stream);
@@ -122,13 +117,22 @@ describe("download queue concurrency", () => {
     expect(second.stream.status).toBe("paused");
   });
 
-  it("queues the second stream at the limit and promotes it after unregister", async () => {
-    await setConfig({ maxConcurrent: "1" });
+  it("queues aria2 transfers independently of Sophon tasks and verification", async () => {
     const first = createStream();
     const second = createStream();
+    const check = createStream({ phaseKind: "verifying" });
+    const sophon = createStream({ kind: "sophon" });
+    const otherSophon = createStream({ kind: "sophon" });
 
+    queue.registerStream(check.stream);
+    queue.registerStream(sophon.stream);
     queue.registerStream(first.stream);
     queue.registerStream(second.stream);
+    queue.registerStream(otherSophon.stream);
+
+    expect(check.stream.status).toBe("active");
+    expect(sophon.stream.status).toBe("active");
+    expect(otherSophon.stream.status).toBe("active");
 
     expect(first.stream.status).toBe("active");
     expect(second.stream.status).toBe("queued");
@@ -144,7 +148,6 @@ describe("download queue concurrency", () => {
   });
 
   it("pauseStream releases a slot and promotes a queued stream", async () => {
-    await setConfig({ maxConcurrent: "1" });
     const first = createStream();
     const second = createStream();
     queue.registerStream(first.stream);
@@ -161,7 +164,6 @@ describe("download queue concurrency", () => {
   });
 
   it("resumeStream queues when the slot is full and auto-promotes when a slot frees", async () => {
-    await setConfig({ maxConcurrent: "1" });
     const first = createStream();
     const second = createStream();
     queue.registerStream(first.stream);
@@ -185,7 +187,6 @@ describe("download queue concurrency", () => {
   });
 
   it("releases the slot on a terminal status reported by the adapter", async () => {
-    await setConfig({ maxConcurrent: "1" });
     const first = createStream();
     const second = createStream();
     queue.registerStream(first.stream);
@@ -203,13 +204,12 @@ describe("download queue concurrency", () => {
 describe("download queue bandwidth budget", () => {
   it("splits the budget evenly among active streams and resets to 0 when disabled", async () => {
     await setConfig({
-      maxConcurrent: "2",
       enabled: "true",
       value: "100",
       unit: "K",
     });
     const first = createStream();
-    const second = createStream();
+    const second = createStream({ kind: "sophon" });
     const third = createStream();
 
     queue.registerStream(first.stream);
@@ -225,7 +225,6 @@ describe("download queue bandwidth budget", () => {
     expect(third.stats.setSpeedLimit).toBe(0);
 
     await setConfig({
-      maxConcurrent: "2",
       enabled: "false",
       value: "100",
       unit: "K",
@@ -238,13 +237,12 @@ describe("download queue bandwidth budget", () => {
 
   it("only pushes setSpeedLimit when the share changes", async () => {
     await setConfig({
-      maxConcurrent: "2",
       enabled: "true",
       value: "100",
       unit: "K",
     });
     const first = createStream();
-    const second = createStream();
+    const second = createStream({ kind: "sophon" });
     queue.registerStream(first.stream);
     queue.registerStream(second.stream);
 
@@ -258,7 +256,6 @@ describe("download queue bandwidth budget", () => {
 
     // Reloading the same config does not re-push limits.
     await setConfig({
-      maxConcurrent: "2",
       enabled: "true",
       value: "100",
       unit: "K",
@@ -268,7 +265,6 @@ describe("download queue bandwidth budget", () => {
 
     // A smaller budget changes the share for both active streams.
     await setConfig({
-      maxConcurrent: "2",
       enabled: "true",
       value: "50",
       unit: "K",
@@ -278,7 +274,6 @@ describe("download queue bandwidth budget", () => {
 
     // Disabling the limit resets active streams to unlimited (0).
     await setConfig({
-      maxConcurrent: "2",
       enabled: "false",
       value: "50",
       unit: "K",
@@ -290,7 +285,6 @@ describe("download queue bandwidth budget", () => {
 
 describe("download queue notifications", () => {
   it("unregisters streams and notifies subscribers with a fresh snapshot", async () => {
-    await setConfig({ maxConcurrent: "1" });
     const first = createStream();
     const second = createStream();
     queue.registerStream(first.stream);
@@ -332,7 +326,6 @@ describe("download queue notifications", () => {
 
 describe("global task priority", () => {
   it("queues per-game streams registered during a global task", async () => {
-    await setConfig({ maxConcurrent: "0" });
     queue.setGlobalTaskActive(true);
     const game = createStream({ key: "game1" });
     const global = createStream({ key: "" });
@@ -345,6 +338,9 @@ describe("global task priority", () => {
     expect(global.stream.status).toBe("active");
     expect(global.stats.pause).toBe(0);
 
+    queue.unregisterStream(global.stream.id);
+    expect(game.stream.status).toBe("queued");
+
     queue.setGlobalTaskActive(false);
     expect(game.stream.status).toBe("active");
     await flushAsyncActions();
@@ -352,7 +348,6 @@ describe("global task priority", () => {
   });
 
   it("keeps user-paused streams paused when the global task ends", async () => {
-    await setConfig({ maxConcurrent: "0" });
     const game = createStream({ key: "game1" });
     queue.registerStream(game.stream);
     await queue.pauseStream(game.stream.id);
@@ -365,9 +360,8 @@ describe("global task priority", () => {
   });
 
   it("only restores scheduler-queued streams sharing a game key", async () => {
-    await setConfig({ maxConcurrent: "0" });
     const userPaused = createStream({ key: "game1" });
-    const running = createStream({ key: "game1" });
+    const running = createStream({ key: "game1", kind: "sophon" });
     queue.registerStream(userPaused.stream);
     queue.registerStream(running.stream);
     await queue.pauseStream(userPaused.stream.id);
@@ -385,7 +379,6 @@ describe("global task priority", () => {
   });
 
   it("serializes global pause and resume for the same stream", async () => {
-    await setConfig({ maxConcurrent: "0" });
     const actions: string[] = [];
     let finishPause: (() => void) | undefined;
     const pauseFinished = new Promise<void>(resolve => {
@@ -414,8 +407,7 @@ describe("global task priority", () => {
   });
 
   it("refuses resume/cancel for per-game streams while a global task runs", async () => {
-    await setConfig({ maxConcurrent: "0" });
-    const game = createStream({ key: "game1" });
+    const game = createStream({ key: "game1", kind: "sophon" });
     const global = createStream({ key: "" });
     queue.registerStream(game.stream);
     queue.registerStream(global.stream);
@@ -444,7 +436,6 @@ describe("global task priority", () => {
   });
 
   it("allows a queued stream to be marked as user-paused during a global task", async () => {
-    await setConfig({ maxConcurrent: "0" });
     const game = createStream({ key: "game1" });
     queue.registerStream(game.stream);
 
@@ -459,7 +450,6 @@ describe("global task priority", () => {
   });
 
   it("does not auto-promote per-game queued streams during a global task", async () => {
-    await setConfig({ maxConcurrent: "1" });
     const global1 = createStream({ key: "" });
     const game = createStream({ key: "game1" });
     queue.registerStream(global1.stream);

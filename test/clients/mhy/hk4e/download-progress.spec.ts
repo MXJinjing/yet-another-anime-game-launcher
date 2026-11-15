@@ -12,6 +12,7 @@ vi.mock("@logging/logger", () => ({
 }));
 
 vi.mock("@runtime/storage", () => ({
+  getKeyOrDefault: vi.fn(async (_key: string, fallback: string) => fallback),
   setKey: vi.fn(async () => undefined),
   globalStorage: {
     namespace: undefined,
@@ -209,6 +210,62 @@ describe("hk4e download progress across file boundaries", () => {
     );
 
     expect(transferArgs(commands[1])).toEqual(transferArgs(commands[0]));
+  });
+});
+
+describe("predownload directories", () => {
+  it("uses the game's selected directory for a new predownload", async () => {
+    const sophon = createSophon([]);
+    const storage = {
+      getKey: vi.fn(async () => "/Volumes/Game"),
+      getKeyOrDefault: vi.fn(async () => ""),
+      setKey: vi.fn(async () => undefined),
+    };
+    await collect(
+      predownloadGameProgram({
+        sophon: sophon as unknown as Sophon,
+        gameDir: "/game",
+        gameType: "nap",
+        targetVersion: "2.0.0",
+        storage,
+      })
+    );
+    expect(sophon.startUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        game_type: "nap",
+        predownload: true,
+        predownloadRoot: "/Volumes/Game",
+      }),
+      undefined
+    );
+  });
+
+  it("uses the recorded directory when applying an existing predownload", async () => {
+    const sophon = createSophon([]);
+    const storage = {
+      getKey: vi.fn(async () => "/Volumes/Next"),
+      getKeyOrDefault: vi.fn(async (key: string) =>
+        key === "predownloaded_all" ? "2.0.0" : "/Volumes/Previous"
+      ),
+      setKey: vi.fn(async () => undefined),
+    };
+    await collect(
+      updateGameProgram({
+        sophon: sophon as unknown as Sophon,
+        gameDir: "/game",
+        gameType: "nap",
+        server: { dataDir: "Data" } as never,
+        updatedGameVersion: "2.0.0",
+        storage,
+      })
+    );
+    expect(sophon.startUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        predownload: false,
+        predownloadRoot: "/Volumes/Previous",
+      }),
+      undefined
+    );
   });
 });
 

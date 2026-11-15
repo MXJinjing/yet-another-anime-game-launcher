@@ -12,6 +12,7 @@ import {
 import { md5 } from "@runtime/patching";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { createTransferProgressTracker } from "./download-progress";
+import { readSophonPredownloadDirectory } from "../../../integrations/sophon-settings";
 
 export async function* checkIntegrityProgram({
   sophon,
@@ -35,6 +36,7 @@ export async function* checkIntegrityProgram({
       game_type: gameType,
       repair_mode: "reliable",
       installedVersion,
+      predownloadRoot: await readSophonPredownloadDirectory(storage),
     },
     downloadKey
   );

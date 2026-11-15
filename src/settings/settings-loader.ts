@@ -77,6 +77,7 @@ export type GameSettingsOptions = {
   ) => Promise<ChannelClientConfigUI>;
   configStore?: ConfigStore;
   storage?: Storage;
+  sophonPredownloadStorage?: Storage;
   wineTag?: () => string;
   wineOptions?: { tag: string; displayName: string }[];
   onWineTagChange?: (
@@ -320,6 +321,7 @@ export async function createGameSettings(
   const controller = new GameSettings({
     locale: options.locale,
     settings,
+    sophonPredownloadStorage: options.sophonPredownloadStorage,
     wineTag: options.wineTag,
     get wineOptions() {
       return options.wineOptions;
