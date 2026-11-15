@@ -186,13 +186,15 @@
 }
 
 .download-manager-header {
+  /* Match the native drag height in neutralino.config.json. */
+  --title-bar-height: 38px;
   display: flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
-  min-height: 64px;
+  min-height: calc(64px + var(--title-bar-height));
   gap: 12px;
-  padding: 12px var(--download-gutter);
+  padding: calc(var(--title-bar-height) + 12px) var(--download-gutter) 12px;
   border-bottom: 1px solid #2c2b35;
   background: #15141c;
 }
