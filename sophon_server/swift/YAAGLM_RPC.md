@@ -16,6 +16,13 @@ The launcher also passes its process ID in `--parent-pid`.
 | `operation.pause`, `operation.resume` | `operationID` |
 | `operation.limit` | `bytesPerSecond` (0 is unlimited), optional `operationID` |
 
+Version and build queries, manifest requests, and operations that fetch file
+data accept an optional `httpProxy` string. Use `host:port` or
+`http://host:port`, with optional user information. This uses the same HTTP
+proxy transport for HTTP and HTTPS destinations as the launcher's Aria2
+downloads. Proxy authentication uses HTTP CONNECT and requires macOS 14 or
+later. Each request or queued operation keeps its supplied proxy settings.
+
 `files.list` returns `version`, `category`, `path`, `total`, `offset`, and
 `files`. Each entry includes `filename`, `name`, and `type`. File entries also
 include `size` and `md5`. An exact file path returns one entry, a directory

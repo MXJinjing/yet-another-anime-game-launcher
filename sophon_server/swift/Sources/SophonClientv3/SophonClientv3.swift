@@ -24,11 +24,13 @@ public final class SophonClientv3: @unchecked Sendable {
 
   public convenience init(
     _ settings: SophonClientSettings,
-    baseGameDir: URL, logger: Logger? = nil, control: TransferControl? = nil
+    baseGameDir: URL, logger: Logger? = nil, control: TransferControl? = nil,
+    proxy: DownloadProxy? = nil, metadataSession: URLSession? = nil
   ) async throws {
     try await self.init(
       settings, baseGameDir: baseGameDir, logger: logger, control: control,
-      metadataSession: .shared, payloadConfiguration: .ephemeral)
+      metadataSession: metadataSession ?? proxy?.makeMetadataSession() ?? .shared,
+      payloadConfiguration: proxy?.configuration() ?? .ephemeral)
   }
 
   internal init(
@@ -103,7 +105,7 @@ public final class SophonClientv3: @unchecked Sendable {
       maxCocurrentDownloads: settings.maxCocurrentDownloads,
       maxCocurrentPostProcessors: settings.maxCocurrentPostProcessors,
       maxCocurrentWrites: settings.transfer.ioPolicy == .serialized
-        ? 1 : settings.maxCocurrentWrites,
+        ? 1 : settings.maxCocurrentWrites, session: metadataSession,
       maxRetries: settings.maxRetries,
       retryInterval: settings.retryInterval, maxCachedFileHandles: settings.maxCachedFileHandles,
       downloadCache: self.downloadCache, transferSettings: transferSettings, control: control)

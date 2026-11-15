@@ -2,6 +2,8 @@
 
 启动器使用 Swift Sophon 的 JSON-RPC 接口。接口说明见 [Swift RPC 文档](../sophon_server/swift/YAAGLM_RPC.md)，包括指定版本的文件列表、选定文件下载、进度查询和任务控制。下文记录独立 Python 服务的旧版 HTTP/WebSocket API，供已有调用方继续使用。
 
+Swift Sophon 与 Aria2 共用启动器的 HTTP 下载代理。启用后，Swift RPC 为版本查询、清单请求和文件下载传入 `httpProxy`。修改设置后，新请求和新任务使用更新后的代理。带用户名的代理认证需要 macOS 14 或更新版本。
+
 本文档描述项目内置 Sophon sidecar 对启动器提供的本地 API。该服务负责执行游戏安装、更新、预下载、修复和在线版本查询；官方 Sophon/HYP API 由服务端内部访问，不属于本文档的调用范围。
 
 ## 1. 服务概览

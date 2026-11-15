@@ -240,13 +240,14 @@ func makeOperationClient(
   downloads: Int = 8, writes: Int = 4, checks: Int = 8, postProcessors: Int = 4,
   maxRetries: Int = 10, retryInterval: Int = 5, maxCachedFileHandles: Int = 512,
   manifestCacheDir: String? = nil, logger: Logger? = nil, control: TransferControl? = nil,
-  launcherID: String? = nil
+  launcherID: String? = nil, proxy: DownloadProxy? = nil
 ) async throws -> SophonClientv3 {
+  let session = proxy?.makeMetadataSession() ?? .shared
   let api = try HYPAPIClient(
     baseURL: cn ? HYPAPI_CN_BASE_URL : HYPAPI_OS_BASE_URL,
     sophonBaseURL: cn ? SOPHON_API_CN_BASE_URL : SOPHON_API_OS_BASE_URL,
     launcherID: launcherID ?? (cn ? HYPAPI_CN_LAUNCHER_ID : HYPAPI_OS_LAUNCHER_ID),
-    maxRetries: maxRetries, retryInterval: retryInterval)
+    maxRetries: maxRetries, retryInterval: retryInterval, session: session)
   let config = try resolveHYPGame(game, in: await api.getGameConfigs())
   let manifests =
     FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
@@ -264,7 +265,8 @@ func makeOperationClient(
     maxCachedFileHandles: maxCachedFileHandles,
     transfer: transfer)
   return try await SophonClientv3(
-    settings, baseGameDir: URL(fileURLWithPath: directory), logger: logger, control: control)
+    settings, baseGameDir: URL(fileURLWithPath: directory), logger: logger, control: control,
+    proxy: proxy, metadataSession: session)
 }
 
 private actor UpdateDashboard {

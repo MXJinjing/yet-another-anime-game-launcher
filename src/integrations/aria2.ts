@@ -29,7 +29,7 @@ import { sha256_16 } from "../runtime/binary";
 import { timeout, wait } from "../runtime/async";
 import { basename } from "path-browserify";
 import { fileOrDirExists } from "@platform/neutralino";
-import { normalizeHttpProxy } from "../config/proxy";
+import { getDownloadProxy } from "../download/proxy";
 import { applyGithubPrefix } from "./github";
 
 type Aria2ErrorStatus = {
@@ -38,11 +38,7 @@ type Aria2ErrorStatus = {
 };
 
 async function getDownloadOptions() {
-  const downloadProxyEnabled =
-    (await getKeyOrDefault("config_downloadProxyEnabled", "false")) == "true";
-  const downloadProxyHost = normalizeHttpProxy(
-    await getKeyOrDefault("config_downloadProxyHost", "")
-  );
+  const downloadProxy = await getDownloadProxy();
   const downloadSpeedLimitEnabled =
     (await getKeyOrDefault("config_downloadSpeedLimitEnabled", "false")) ==
     "true";
@@ -55,8 +51,8 @@ async function getDownloadOptions() {
   );
 
   const opts: { [key: string]: string | number | boolean } = {};
-  if (downloadProxyEnabled && downloadProxyHost) {
-    opts["all-proxy"] = downloadProxyHost;
+  if (downloadProxy) {
+    opts["all-proxy"] = downloadProxy;
   }
   if (
     downloadSpeedLimitEnabled &&
@@ -227,7 +223,7 @@ export async function createAria2({
       });
     }
     if (downloadOptions["all-proxy"]) {
-      await log(`下载代理已启用：${downloadOptions["all-proxy"]}`);
+      await log("下载代理已启用");
     }
     if (downloadOptions["max-download-limit"]) {
       await log(`下载限速已启用：${downloadOptions["max-download-limit"]}`);
