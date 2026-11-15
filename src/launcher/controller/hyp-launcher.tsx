@@ -81,6 +81,7 @@ import {
 } from "@download/control";
 import { reloadConfig, setGlobalTaskActive } from "@download/stream-scheduler";
 import {
+  type DownloadTaskSnapshot,
   getDownloadTaskCount,
   subscribeDownloadTasks,
 } from "@download/task-registry";
@@ -819,6 +820,9 @@ export async function createHypLauncher({
     // here (inside a memo) rather than in the Show child, which SolidJS runs
     // inside untrack and therefore never re-runs while the download is in
     // progress. Reading them here lets the panel update as progress arrives.
+    const gameForDownloadTask = (task: DownloadTaskSnapshot) =>
+      games.find(game => task.key && game.namespace === task.key);
+
     const downloadControlKey = (game: HypGame) => game.namespace ?? "";
     const [downloadControlByKey, setDownloadControlByKey] = createSignal<
       Record<string, DownloadControlState>
@@ -2328,9 +2332,21 @@ export async function createHypLauncher({
           opened={downloadModalOpen()}
           onClose={() => setDownloadModalOpen(false)}
           locale={locale}
+          onOpenSettings={() => {
+            setDownloadModalOpen(false);
+            setGlobalSettingsInitialTab(1);
+            setGlobalModalRoute("settings");
+          }}
+          getTaskArtwork={task => {
+            const game = gameForDownloadTask(task);
+            return game
+              ? game.bannerImage ||
+                  GAME_BANNER_URLS[game.id] ||
+                  game.client.uiContent.background
+              : undefined;
+          }}
           renderTaskIcon={task => {
-            const game =
-              task.key && games.find(game => game.namespace === task.key);
+            const game = gameForDownloadTask(task);
             return (
               <GameIcon
                 src={
