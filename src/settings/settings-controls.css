@@ -1,0 +1,103 @@
+body {
+  --app-settings-accent: var(--hope-colors-primary9, #ffb224);
+}
+
+/* Settings sit on dark surfaces even when Hope's document theme is light.
+   Select popups are rendered in a portal, so they need the same neutral colors. */
+.app-settings-controls,
+.app-settings-select {
+  color-scheme: dark;
+  --hope-colors-loContrast: #191b22;
+  --hope-colors-hiContrast: #f4f5f8;
+  --hope-colors-neutral1: #13151b;
+  --hope-colors-neutral2: #191b22;
+  --hope-colors-neutral3: #20232c;
+  --hope-colors-neutral4: #292d38;
+  --hope-colors-neutral5: #323745;
+  --hope-colors-neutral6: #3c4252;
+  --hope-colors-neutral7: #464c5c;
+  --hope-colors-neutral8: #808797;
+  --hope-colors-neutral9: #565c6d;
+  --hope-colors-neutral10: #696f80;
+  --hope-colors-neutral11: #b7bdcb;
+  --hope-colors-neutral12: #f4f5f8;
+}
+
+.app-settings-controls {
+  --hope-colors-primary4: #292d38;
+  --hope-colors-primary5: #323745;
+  --hope-colors-primary6: #3c4252;
+  --hope-colors-primary9: #424653;
+  --hope-colors-primary10: #4a4e5d;
+  --hope-colors-primary11: #ffe0a3;
+  --hope-colors-primary12: #fff1cc;
+  --hope-colors-danger9: #ff8992;
+  --hope-colors-danger10: #ff9fa8;
+  --hope-colors-danger11: #ffb4bc;
+}
+
+@supports (color: color-mix(in srgb, black, white)) {
+  .app-settings-controls {
+    --hope-colors-primary4: color-mix(
+      in srgb,
+      var(--app-settings-accent) 15%,
+      #181920
+    );
+    --hope-colors-primary5: color-mix(
+      in srgb,
+      var(--app-settings-accent) 20%,
+      #181920
+    );
+    --hope-colors-primary6: color-mix(
+      in srgb,
+      var(--app-settings-accent) 24%,
+      #181920
+    );
+    --hope-colors-primary9: color-mix(
+      in srgb,
+      var(--app-settings-accent) 34%,
+      #181920
+    );
+    --hope-colors-primary10: color-mix(
+      in srgb,
+      var(--app-settings-accent) 39%,
+      #181920
+    );
+    --hope-colors-primary11: color-mix(
+      in srgb,
+      var(--app-settings-accent) 34%,
+      #fff
+    );
+    --hope-colors-primary12: color-mix(
+      in srgb,
+      var(--app-settings-accent) 17%,
+      #fff
+    );
+  }
+}
+
+.app-settings-controls .hope-button:disabled,
+.app-settings-controls .hope-button[aria-disabled="true"],
+.app-settings-controls fieldset:disabled .hope-button {
+  background: var(--hope-colors-neutral3);
+  color: var(--hope-colors-neutral11);
+  opacity: 1;
+}
+
+.app-settings-controls .hope-input:disabled {
+  opacity: 1;
+}
+
+.app-settings-controls .app-select-option--selected {
+  color: var(--hope-colors-primary11);
+}
+
+.app-settings-select .hope-select__option[aria-selected="true"],
+.app-settings-select .hope-select__option[data-active]:not([data-disabled]) {
+  background-color: var(--hope-colors-neutral5);
+  color: var(--hope-colors-neutral12);
+}
+
+.app-settings-select .hope-select__option-indicator {
+  color: #ffcf79;
+}

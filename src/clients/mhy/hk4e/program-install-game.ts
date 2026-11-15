@@ -11,6 +11,8 @@ import {
   humanFileSize,
 } from "@runtime/format";
 import { createTransferProgressTracker } from "./download-progress";
+import { readSophonPredownloadDirectory } from "../../../integrations/sophon-settings";
+import { globalStorage, type Storage } from "@runtime/storage";
 
 export async function* downloadAndInstallGameProgram({
   sophonClient,
@@ -19,6 +21,7 @@ export async function* downloadAndInstallGameProgram({
   selection,
   gameType = "hk4e",
   downloadKey,
+  storage = globalStorage,
 }: {
   sophonClient: SophonClient;
   gameDir: string;
@@ -27,6 +30,7 @@ export async function* downloadAndInstallGameProgram({
   gameType?: SophonGameType;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
+  storage?: Storage;
 }): TaskProgram {
   yield ["setUndeterminedProgress"];
   log("Starting game installation process...");
@@ -37,6 +41,7 @@ export async function* downloadAndInstallGameProgram({
       game_type: gameType,
       install_reltype: installReltype,
       selection,
+      predownloadRoot: await readSophonPredownloadDirectory(storage),
     },
     downloadKey
   );

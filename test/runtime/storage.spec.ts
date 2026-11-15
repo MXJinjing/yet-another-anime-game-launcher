@@ -103,6 +103,34 @@ describe("instance storage", () => {
     );
   });
 
+  it("keeps predownload preferences separate across game regions", async () => {
+    const key = "sophon_predownload_directory";
+    const overseas = createStorage("hphsr");
+    const china = createStorage("hpcnhsr");
+
+    await overseas.setKey(key, "/Volumes/OS");
+    await china.setKey(key, "");
+    expect(writeFile).toHaveBeenNthCalledWith(
+      1,
+      ".storage/hphsr_sophon_predownload_directory.neustorage",
+      "/Volumes/OS"
+    );
+    expect(writeFile).toHaveBeenNthCalledWith(
+      2,
+      ".storage/hpcnhsr_sophon_predownload_directory.neustorage",
+      ""
+    );
+
+    readFile.mockRejectedValueOnce(new Error("missing overseas directory"));
+    await expect(overseas.getKey(key)).rejects.toThrow(
+      "missing overseas directory"
+    );
+    expect(readFile).toHaveBeenCalledTimes(1);
+    expect(readFile).toHaveBeenCalledWith(
+      ".storage/hphsr_sophon_predownload_directory.neustorage"
+    );
+  });
+
   it("leaves launcher-wide keys in the default storage scope", async () => {
     await globalStorage.setKey("hyp_last_view", "hk4e");
     expect(writeFile).toHaveBeenCalledWith(
