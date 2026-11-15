@@ -1,13 +1,13 @@
 import { Progress, ProgressIndicator } from "@hope-ui/solid";
 import { createMemo, For, Show } from "solid-js";
 import type { JSX } from "solid-js";
-import type { DownloadTaskSnapshot } from "../download/types";
-import type { ActivitySample } from "../integrations/sophon-activity";
-import type { SophonMetric } from "../integrations/sophon-progress";
-import type { Locale } from "../locale";
-import { downloadManagerText } from "../locale/download-manager";
-import { sophonDownloaderText } from "../locale/sophon-downloader";
-import { formatDownloadSpeed, humanFileSize } from "../runtime/format";
+import type { DownloadTaskSnapshot } from "../../download/types";
+import type { ActivitySample } from "../../integrations/sophon-activity";
+import type { SophonMetric } from "../../integrations/sophon-progress";
+import type { Locale } from "../../locale";
+import { downloadManagerText } from "../../locale/download-manager";
+import { sophonDownloaderText } from "../../locale/sophon-downloader";
+import { formatDownloadSpeed, humanFileSize } from "../../runtime/format";
 
 const network = (sample: ActivitySample) => sample.values["common.network"];
 const disk = (sample: ActivitySample) =>

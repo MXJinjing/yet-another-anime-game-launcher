@@ -85,7 +85,7 @@ import {
   getDownloadTaskCount,
   subscribeDownloadTasks,
 } from "@download/task-registry";
-import { DownloadQueueModal } from "../../modals/download-queue-modal";
+import { DownloadManager } from "../views/download-manager";
 import { GameUpdatePromptModal } from "../../modals/game-update-prompt-modal";
 import { GameCrashModal } from "../../modals/game-crash-modal";
 import {
@@ -597,7 +597,7 @@ export async function createHypLauncher({
     // Download manager: rail button badge keeps the active download count in
     // sync with the shared queue, and persisted speed-limit / concurrency
     // settings are applied at startup.
-    const [downloadModalOpen, setDownloadModalOpen] = createSignal(false);
+    const [downloadManagerOpen, setDownloadManagerOpen] = createSignal(false);
     const [activeDownloadCount, setActiveDownloadCount] = createSignal(
       getDownloadTaskCount()
     );
@@ -1526,6 +1526,7 @@ export async function createHypLauncher({
 
     function selectGame(index: number) {
       const game = games[index];
+      setDownloadManagerOpen(false);
       setSelectedGameIndex(index);
       setVideoLoaded(false);
       closeLibrary();
@@ -1708,7 +1709,7 @@ export async function createHypLauncher({
 
         <div class="hyp-vignette" aria-hidden="true" />
 
-        <Show when={currentBackgrounds().length > 1}>
+        <Show when={!downloadManagerOpen() && currentBackgrounds().length > 1}>
           <div class="hyp-bg-switcher" role="group" aria-label="Backgrounds">
             <For each={currentBackgrounds()}>
               {(_, index) => (
@@ -1745,7 +1746,9 @@ export async function createHypLauncher({
                     "hyp-game-icon": true,
                     // 必须在 classList 内直接读取 selectedGameIndex()：
                     // 若先求值到非响应式局部变量，切换游戏后高亮不会移动。
-                    active: selectedGameIndex() === entry.index,
+                    active:
+                      !downloadManagerOpen() &&
+                      selectedGameIndex() === entry.index,
                   }}
                   aria-label={entry.game.title}
                   onClick={() => selectGame(entry.index)}
@@ -1768,13 +1771,16 @@ export async function createHypLauncher({
               classList={{
                 "hyp-rail-button": true,
                 "hyp-library-button": true,
-                active: libraryOpen(),
+                active: !downloadManagerOpen() && libraryOpen(),
               }}
               aria-label="游戏库"
               title="游戏库"
               onClick={() => {
-                const next = !libraryOpen();
-                toggleLibrary();
+                const wasViewingDownloads = downloadManagerOpen();
+                const next = wasViewingDownloads || !libraryOpen();
+                setDownloadManagerOpen(false);
+                if (wasViewingDownloads) openLibrary();
+                else toggleLibrary();
                 if (next) {
                   void setKey("hyp_last_view", "library");
                 } else {
@@ -1786,10 +1792,15 @@ export async function createHypLauncher({
             </button>
           </Show>
           <button
-            class="hyp-rail-button hyp-download-queue-button"
+            classList={{
+              "hyp-rail-button": true,
+              "hyp-download-queue-button": true,
+              active: downloadManagerOpen(),
+            }}
             aria-label={locale.get("DOWNLOAD_MANAGER")}
+            aria-current={downloadManagerOpen() ? "page" : undefined}
             title={locale.get("DOWNLOAD_MANAGER")}
-            onClick={() => setDownloadModalOpen(true)}
+            onClick={() => setDownloadManagerOpen(true)}
           >
             <span class="hyp-download-queue-icon" aria-hidden="true" />
             <Show when={activeDownloadCount() > 0}>
@@ -1816,6 +1827,7 @@ export async function createHypLauncher({
             "library-open": libraryMounted(),
           }}
           aria-label={selectedGame().title}
+          hidden={downloadManagerOpen()}
         >
           <MhyClientView
             client={selectedGame().client}
@@ -1840,7 +1852,45 @@ export async function createHypLauncher({
           </Show>
         </main>
 
-        <section class="hyp-action-area">
+        <Show when={downloadManagerOpen()}>
+          <main
+            class="hyp-stage downloads-open"
+            aria-label={locale.get("DOWNLOAD_MANAGER")}
+          >
+            <DownloadManager
+              locale={locale}
+              onOpenSettings={() => {
+                setGlobalSettingsInitialTab(1);
+                setGlobalModalRoute("settings");
+              }}
+              getTaskArtwork={task => {
+                const game = gameForDownloadTask(task);
+                return game
+                  ? game.bannerImage ||
+                      GAME_BANNER_URLS[game.id] ||
+                      game.client.uiContent.background
+                  : undefined;
+              }}
+              renderTaskIcon={task => {
+                const game = gameForDownloadTask(task);
+                return (
+                  <GameIcon
+                    src={
+                      (game &&
+                        (game.client.uiContent.iconImage ||
+                          game.fallbackIcon)) ||
+                      ""
+                    }
+                    title={task.title}
+                    channel={task.key ?? task.id}
+                  />
+                );
+              }}
+            />
+          </main>
+        </Show>
+
+        <section class="hyp-action-area" hidden={downloadManagerOpen()}>
           <div class="hyp-action-group">
             <Show when={globalProgressPanel()}>
               <ProgressPanel panel={globalProgressPanel} locale={locale} />
@@ -2328,40 +2378,6 @@ export async function createHypLauncher({
           onCheckUpdate={onCheckUpdate}
         />
 
-        <DownloadQueueModal
-          opened={downloadModalOpen()}
-          accentColor={themeHex()}
-          accentText={themeText()}
-          onClose={() => setDownloadModalOpen(false)}
-          locale={locale}
-          onOpenSettings={() => {
-            setDownloadModalOpen(false);
-            setGlobalSettingsInitialTab(1);
-            setGlobalModalRoute("settings");
-          }}
-          getTaskArtwork={task => {
-            const game = gameForDownloadTask(task);
-            return game
-              ? game.bannerImage ||
-                  GAME_BANNER_URLS[game.id] ||
-                  game.client.uiContent.background
-              : undefined;
-          }}
-          renderTaskIcon={task => {
-            const game = gameForDownloadTask(task);
-            return (
-              <GameIcon
-                src={
-                  (game &&
-                    (game.client.uiContent.iconImage || game.fallbackIcon)) ||
-                  ""
-                }
-                title={task.title}
-                channel={task.key ?? task.id}
-              />
-            );
-          }}
-        />
         <GameUninstallDialog />
         <LogViewer />
       </div>

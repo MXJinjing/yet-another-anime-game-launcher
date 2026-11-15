@@ -51,7 +51,6 @@ export function AppModal(props: {
   height?: number | string;
   bodyClass?: string;
   contentClass?: string;
-  contentStyle?: JSX.CSSProperties;
   overlayClass?: string;
 }) {
   // NOTE: keep all reads through `props.*`. Destructuring a reactive prop
@@ -86,7 +85,6 @@ export function AppModal(props: {
               typeof props.height === "number"
                 ? `${props.height}px`
                 : props.height ?? "auto",
-            ...props.contentStyle,
           } as JSX.CSSProperties
         }
       >
