@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@runtime/storage", () => ({
   getActiveStorageNamespace: () => "test",
-  getKeyOrDefault: async (_key: string, fallback: string) => fallback,
+  getKeyOrDefault: vi.fn(async (_key: string, fallback: string) => fallback),
 }));
 
 vi.mock("@logging/logger", () => ({ log: vi.fn() }));
@@ -18,6 +18,7 @@ vi.mock("@download/control", () => ({
 }));
 
 import { SophonClient } from "@sophon";
+import { getKeyOrDefault } from "@runtime/storage";
 import { ConnectionError } from "../../src/services/connection-error";
 import {
   registerStream,
@@ -46,6 +47,9 @@ describe("Swift Sophon RPC", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+    vi.mocked(getKeyOrDefault).mockImplementation(
+      async (_key, fallback) => fallback
+    );
   });
 
   it("passes the exact origin token and version for predownload and update", async () => {
@@ -193,6 +197,67 @@ describe("Swift Sophon RPC", () => {
       expect(registerStream).toHaveBeenCalledTimes(4);
     }
   );
+
+  it("uses the shared proxy for remote operations and reloads the setting for new requests", async () => {
+    const settings: Record<string, string> = {
+      config_downloadProxyEnabled: "true",
+      config_downloadProxyHost: "  proxy.example:8080  ",
+    };
+    vi.mocked(getKeyOrDefault).mockImplementation(
+      async (key, fallback) => settings[key] ?? fallback
+    );
+    const requests = mockRPC({
+      "game.online": {
+        version: "1.2.3",
+        installSize: 42,
+        updatableVersions: [],
+      },
+      "files.list": { files: [] },
+      "install.start": { operationID: "install" },
+      "repair.start": { operationID: "repair" },
+      "update.start": { operationID: "update" },
+      "files.download": { operationID: "download" },
+      "operation.pause": true,
+      "rpc.discover": { methods: ["files.download", "game.online"] },
+    });
+    const client = new SophonClient("127.0.0.1", 6969, "cn");
+    const options = { gamedir: "/games/test", game_type: "hk4e" as const };
+    await client.getLatestOnlineGameInfo("cn", "hk4e");
+    await client.listFiles({ version: "1.2.3" });
+    await client.startInstallation({ ...options, install_reltype: "cn" });
+    await client.startRepair({ ...options, repair_mode: "reliable" });
+    await client.startUpdate({ ...options, predownload: true });
+    await client.downloadFiles(options.gamedir, "1.2.3", ["file"]);
+    await client.pauseOperation("install");
+    await client.healthCheck();
+    settings.config_downloadProxyHost = "http://other.example:6789";
+    await client.listFiles({ version: "1.2.3" });
+    settings.config_downloadProxyEnabled = "false";
+    await client.getLatestOnlineGameInfo("cn", "hk4e");
+    settings.config_downloadProxyEnabled = "true";
+    settings.config_downloadProxyHost = "  ";
+    await client.listFiles({ version: "1.2.3" });
+
+    expect(
+      requests.mock.calls.map(([url, init]) => {
+        expect(url).toBe("http://127.0.0.1:6969/rpc");
+        const { method, params } = JSON.parse(String(init.body));
+        return [method, params.httpProxy];
+      })
+    ).toEqual([
+      ["game.online", "http://proxy.example:8080"],
+      ["files.list", "http://proxy.example:8080"],
+      ["install.start", "http://proxy.example:8080"],
+      ["repair.start", "http://proxy.example:8080"],
+      ["update.start", "http://proxy.example:8080"],
+      ["files.download", "http://proxy.example:8080"],
+      ["operation.pause", undefined],
+      ["rpc.discover", undefined],
+      ["files.list", "http://other.example:6789"],
+      ["game.online", undefined],
+      ["files.list", undefined],
+    ]);
+  });
 
   it("maps Swift verification and payload progress before resolving completion", async () => {
     let count = 0;

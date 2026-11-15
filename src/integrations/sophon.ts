@@ -21,6 +21,7 @@ import {
   endControlledDownload,
 } from "../download/control";
 import { progressEvent, type SophonSnapshot } from "./sophon-progress";
+import { getDownloadProxy } from "../download/proxy";
 
 export type SophonRegion = "os" | "cn" | "bb";
 export type SophonGameType = "hk4e" | "hkrpg" | "nap";
@@ -162,6 +163,13 @@ export class SophonClient {
     return reply.result;
   }
 
+  private async remoteRPC<T>(method: string, params: object): Promise<T> {
+    return this.rpc<T>(method, {
+      ...params,
+      httpProxy: await getDownloadProxy(),
+    });
+  }
+
   async healthCheck({
     logFailures = true,
     timeoutMs = 45_000,
@@ -198,10 +206,9 @@ export class SophonClient {
     const bytesPerSecond = Math.round(
       speedLimitConfigToBps(enabled, value, unit)
     );
-    const { operationID: taskId } = await this.rpc<{ operationID: string }>(
-      method,
-      { ...params, bytesPerSecond }
-    );
+    const { operationID: taskId } = await this.remoteRPC<{
+      operationID: string;
+    }>(method, { ...params, bytesPerSecond });
     registerStream({
       id: `sophon:${taskId}`,
       kind: "sophon",
@@ -389,7 +396,7 @@ export class SophonClient {
     directory?: string
   ): Promise<SophonOnlineGameInfo> {
     try {
-      const info = await this.rpc<{
+      const info = await this.remoteRPC<{
         version: string;
         installSize: number;
         updatableVersions: string[];
@@ -426,7 +433,7 @@ export class SophonClient {
   }
 
   listFiles(query: SophonFileQuery): Promise<SophonFileListing> {
-    return this.rpc("files.list", {
+    return this.remoteRPC("files.list", {
       ...query,
       game: gameID("hk4e", this.region),
       region: this.region,
