@@ -72,6 +72,15 @@ private struct RPCFailure: Error {
   let message: String
 }
 
+private func downloadProxy(_ address: String?) throws -> DownloadProxy? {
+  guard let address else { return nil }
+  do {
+    return try DownloadProxy(address)
+  } catch {
+    throw RPCFailure(code: -32602, message: error.localizedDescription)
+  }
+}
+
 struct RPCOperationParameters: Decodable, Sendable {
   let game: String
   let directory: String
@@ -97,6 +106,7 @@ struct RPCOperationParameters: Decodable, Sendable {
   let quickVerify: Bool
   let resolveAction: Bool
   let targetVersion: String?
+  let proxy: DownloadProxy?
   let transfer: TransferSettings
 
   enum CodingKeys: String, CodingKey {
@@ -104,7 +114,7 @@ struct RPCOperationParameters: Decodable, Sendable {
       writes, checks, postProcessors, maxRetries, retryInterval, maxCachedFileHandles,
       region, files, categories, version, bytesPerSecond, installedVersion, quickVerify,
       resolveAction, transfer
-    case targetVersion
+    case targetVersion, httpProxy
   }
 
   init(from decoder: any Decoder) throws {
@@ -134,6 +144,7 @@ struct RPCOperationParameters: Decodable, Sendable {
     quickVerify = try values.decodeIfPresent(Bool.self, forKey: .quickVerify) ?? false
     resolveAction = try values.decodeIfPresent(Bool.self, forKey: .resolveAction) ?? false
     targetVersion = try values.decodeIfPresent(String.self, forKey: .targetVersion)
+    proxy = try downloadProxy(values.decodeIfPresent(String.self, forKey: .httpProxy))
     transfer =
       try values.decodeIfPresent(TransferSettings.self, forKey: .transfer) ?? TransferSettings()
     guard ["full", "base"].contains(mode), downloads > 0, writes > 0,
@@ -154,6 +165,7 @@ private struct RPCRateParameters: Decodable {
 }
 
 private struct RPCManifestParameters: Decodable {
+  let httpProxy: String?
   let game: String
   let directory: String?
   let region: String?
@@ -555,7 +567,7 @@ actor RPCDispatcher {
       maxRetries: params.maxRetries, retryInterval: params.retryInterval,
       maxCachedFileHandles: params.maxCachedFileHandles,
       manifestCacheDir: settings.manifestCacheDir, logger: settings.logger, control: control,
-      launcherID: params.region == "bb" ? "umfgRO5gh5" : nil)
+      launcherID: params.region == "bb" ? "umfgRO5gh5" : nil, proxy: params.proxy)
   }
 
   private func manifestRPC(_ method: String, params: JSONValue) async throws -> JSONValue {
@@ -575,7 +587,8 @@ actor RPCDispatcher {
       directory: request.directory ?? FileManager.default.temporaryDirectory.path,
       cn: region != "os", transfer: TransferSettings(),
       maxRetries: 2, retryInterval: 1, manifestCacheDir: settings.manifestCacheDir,
-      logger: settings.logger, launcherID: region == "bb" ? "umfgRO5gh5" : nil)
+      logger: settings.logger, launcherID: region == "bb" ? "umfgRO5gh5" : nil,
+      proxy: downloadProxy(request.httpProxy))
     switch method {
     case "game.online":
       let info = try await client.onlineBuild()
@@ -618,7 +631,22 @@ actor RPCDispatcher {
       throw RPCFailure(code: -32602, message: "Expected named parameters")
     }
     let cn = values["cn"]?.bool ?? false
-    let api = HYPAPIClientManager.shared.getClient(isCN: cn)
+    let proxyAddress: String?
+    switch values["httpProxy"] {
+    case .none, .some(.null): proxyAddress = nil
+    case .some(.string(let address)): proxyAddress = address
+    default: throw RPCFailure(code: -32602, message: "httpProxy must be a string")
+    }
+    let api: HYPAPIClient
+    if let proxy = try downloadProxy(proxyAddress) {
+      api = try HYPAPIClient(
+        baseURL: cn ? HYPAPI_CN_BASE_URL : HYPAPI_OS_BASE_URL,
+        sophonBaseURL: cn ? SOPHON_API_CN_BASE_URL : SOPHON_API_OS_BASE_URL,
+        launcherID: cn ? HYPAPI_CN_LAUNCHER_ID : HYPAPI_OS_LAUNCHER_ID,
+        session: proxy.makeMetadataSession())
+    } else {
+      api = HYPAPIClientManager.shared.getClient(isCN: cn)
+    }
     let language = values["language"]?.string ?? (cn ? "zh-cn" : "en-us")
     switch method {
     case "api.games", "api.resolveGame":
