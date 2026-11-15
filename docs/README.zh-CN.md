@@ -10,9 +10,9 @@
 
 ### GI: 5.3.0+ OS/CN \*\*
 
-### HSR: 4.3.0 OS/CN
+### HSR: 4.3.0+ OS/CN
 
-### ZZZ: 3.0.0 OS/CN
+### ZZZ: 3.0.0+ OS/CN
 
 #### **注意：** 从 0.3.12 版本开始，使用 DXMT 0.74 时需要升级到 macOS Sequoia 或更高版本。Sonoma 缺少改进图形转换所需的部分系统能力。
 
@@ -240,13 +240,11 @@ YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
 
 ## Uninstall
 
-1. 如果启用了Hosts-Helper，打开应用内设置将其卸载。
-2. 将应用移到废纸篓。
-3. 删除对应的应用支持目录：
-   - `~/Library/Application Support/Yaaglm GI CN`
-   - `~/Library/Application Support/Yaaglm OS`
-4. 如果使用了其他 channel，请同时检查 `~/Library/Application Support/` 下以 Yaaglm GI CN、Yaaglm 或对应应用名称开头的目录。
-5. 如需保留下载缓存、Wine 前缀或日志，请在删除前先备份相关目录。
+1. 如果启用了 Hosts-Helper，打开应用内设置将其卸载。
+2. 在 **全局设置 → 通用 → 启动器数据** 中选择 **清理启动器数据** 并确认。Yaaglm 会把当前渠道的设置、日志、缓存和本地 Wine 环境移到废纸篓，然后退出。
+3. 将应用移到废纸篓。
+
+如需手动查找目录，在访达中选择 **前往 → 前往文件夹…**（Shift–Command–G），输入 `~/Library/Application Support/` 并按回车。找到当前渠道的目录，例如 `Yaaglm GI CN`、`Yaaglm OS`，或全渠道版的 `com.3shain.yaaglm`。Yaaglm 运行时，也可以通过 **启动器数据** 下的 **在 Finder 中打开** 直接进入。将该目录移到废纸篓前，请先退出 Yaaglm。
 
 ## Related projects
 

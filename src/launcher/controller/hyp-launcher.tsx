@@ -65,6 +65,7 @@ import {
   cancelControlledDownload,
   DownloadControlState,
   getDownloadControlState,
+  hasActiveDownloads,
   isDownloadCancelledError,
   isDownloadFailedError,
   pauseControlledDownload,
@@ -293,6 +294,7 @@ export async function createHypLauncher({
     markWineDistroEnabled(distro);
   }
   let _actionDisabled = () => false;
+  let _launcherDataBusy = () => true;
 
   const anyInstalled = games.some(
     game => game.client.installState() === "INSTALLED"
@@ -327,6 +329,8 @@ export async function createHypLauncher({
       wineInstalled,
       locale,
       actionDisabled: () => _actionDisabled(),
+      launcherDataBusy: () => _launcherDataBusy(),
+      gameDirectories: () => games.map(game => game.client.installDir()),
       onEnableWineDistro: (distro, onDone) =>
         requestWineDistroEnable(distro, onDone),
       onDownloadWineDistro: (distro, onDone, onProgress, onFinished) =>
@@ -1065,14 +1069,18 @@ export async function createHypLauncher({
       return !game.recommendedWinePrefix || !tag || tag === SHARED_WINE_TAG;
     }
 
-    function recommendedSettingsDisabled() {
+    function launcherTasksBusy() {
       return (
-        !wineInstalled() ||
         anyGameRunning() ||
         activeDownloadCount() > 0 ||
         taskQueue.isBusy(GLOBAL_TASK_KEY) ||
         games.some(game => taskQueue.isBusy(game.id))
       );
+    }
+    _launcherDataBusy = () => launcherTasksBusy() || hasActiveDownloads();
+
+    function recommendedSettingsDisabled() {
+      return !wineInstalled() || launcherTasksBusy();
     }
 
     function applyRecommendedSettings(game: HypGame) {

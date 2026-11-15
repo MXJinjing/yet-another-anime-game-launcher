@@ -234,6 +234,12 @@ export const zh_CN = {
   SETTING_BLOCK_NET_DELETE: "删除",
   SETTING_BLOCK_NET_ADD: "添加行",
   SETTING_BLOCK_NET_DURATION: "阻断持续时间（秒）",
+  SETTING_LAUNCHER_DATA: "启动器数据",
+  SETTING_LAUNCHER_DATA_UNAVAILABLE: "无法识别此启动器的应用支持目录。",
+  SETTING_OPEN_LAUNCHER_DATA_IN_FINDER: "在 Finder 中打开",
+  SETTING_CLEAR_LAUNCHER_DATA: "清理启动器数据",
+  SETTING_CLEAR_LAUNCHER_DATA_CONFIRM:
+    "要将此目录移到废纸篓吗？\n\n{0}\n\n当前渠道的设置、日志、缓存和本地 Wine 环境将一并移走，启动器随后退出。重新打开后可能需要重新选择游戏目录。",
   SETTING_HOSTS_HELPER: "hosts 权限助手",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "状态：已安装并运行中",
   SETTING_HOSTS_HELPER_STATUS_STOPPED: "状态：已安装但未运行",

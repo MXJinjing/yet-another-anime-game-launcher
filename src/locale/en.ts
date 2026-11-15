@@ -244,6 +244,13 @@ export const en: typeof zh_CN = {
   SETTING_BLOCK_NET_DELETE: "Delete",
   SETTING_BLOCK_NET_ADD: "Add row",
   SETTING_BLOCK_NET_DURATION: "Block duration (seconds)",
+  SETTING_LAUNCHER_DATA: "Launcher Data",
+  SETTING_LAUNCHER_DATA_UNAVAILABLE:
+    "The launcher could not identify its Application Support folder.",
+  SETTING_OPEN_LAUNCHER_DATA_IN_FINDER: "Open in Finder",
+  SETTING_CLEAR_LAUNCHER_DATA: "Clear Launcher Data",
+  SETTING_CLEAR_LAUNCHER_DATA_CONFIRM:
+    "Move this folder to the Trash?\n\n{0}\n\nThis moves the current channel’s settings, logs, caches, and local Wine environment to the Trash. The launcher will quit. You may need to locate your games again when you reopen it.",
   SETTING_HOSTS_HELPER: "Hosts permission helper",
   SETTING_HOSTS_HELPER_STATUS_RUNNING: "Status: installed and running",
   SETTING_HOSTS_HELPER_STATUS_STOPPED: "Status: installed but not running",
