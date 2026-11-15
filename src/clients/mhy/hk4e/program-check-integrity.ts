@@ -1,6 +1,6 @@
 import { processingProgressCommands } from "./processing-progress";
 import { basename, join } from "path-browserify";
-import { Sophon } from "@sophon";
+import { Sophon, type SophonGameType } from "@sophon";
 import type { TaskProgram } from "@tasks/task-program";
 import { log } from "@logging/logger";
 import { readAllLines, stats } from "@platform/neutralino";
@@ -17,11 +17,13 @@ export async function* checkIntegrityProgram({
   sophon,
   gameDir,
   installedVersion,
+  gameType = "hk4e",
   downloadKey,
   storage = globalStorage,
 }: {
   gameDir: string;
   installedVersion?: string;
+  gameType?: SophonGameType;
   sophon: Sophon;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
@@ -30,7 +32,7 @@ export async function* checkIntegrityProgram({
   const taskId = await sophon.startRepair(
     {
       gamedir: gameDir,
-      game_type: "hk4e",
+      game_type: gameType,
       repair_mode: "reliable",
       installedVersion,
     },

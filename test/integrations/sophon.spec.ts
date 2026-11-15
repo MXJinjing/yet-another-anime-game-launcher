@@ -108,6 +108,92 @@ describe("Swift Sophon RPC", () => {
     );
   });
 
+  it.each([
+    ["hk4e", "cn", "hk4e_cn"],
+    ["hk4e", "os", "hk4e_global"],
+    ["hkrpg", "cn", "hkrpg_cn"],
+    ["hkrpg", "os", "hkrpg_global"],
+    ["nap", "cn", "nap_cn"],
+    ["nap", "os", "nap_global"],
+  ] as const)(
+    "routes %s %s through the same Swift operation API",
+    async (game, region, biz) => {
+      const requests = mockRPC({
+        "install.start": { operationID: "install" },
+        "update.start": { operationID: "update" },
+        "repair.start": { operationID: "repair" },
+        "game.online": {
+          version: "1.2.3",
+          installSize: 100,
+          updatableVersions: ["1.2.2"],
+          predownloadVersion: "1.2.4",
+          predownloadFrom: null,
+          needsResume: true,
+        },
+      });
+      const client = new SophonClient("127.0.0.1", 6969, region);
+      const options = {
+        gamedir: "/games/example",
+        game_type: game,
+        installedVersion: "1.2.3",
+      };
+      await expect(
+        client.getLatestOnlineGameInfo(region, game, options.gamedir)
+      ).resolves.toMatchObject({
+        pre_download: true,
+        pre_download_version: "1.2.4",
+        needs_resume: true,
+      });
+      await client.startInstallation(
+        { ...options, install_reltype: region },
+        "game-key"
+      );
+      await client.startUpdate({ ...options, predownload: false }, "game-key");
+      await client.startUpdate(
+        { ...options, predownload: true, targetVersion: "1.2.4" },
+        "game-key"
+      );
+      await client.startRepair(
+        { ...options, repair_mode: "reliable" },
+        "game-key"
+      );
+      const requestsSent = requests.mock.calls.map(([, init]) =>
+        JSON.parse(String(init.body))
+      );
+      expect(requestsSent.map(r => r.method)).toEqual([
+        "game.online",
+        "install.start",
+        "update.start",
+        "update.start",
+        "repair.start",
+      ]);
+      for (const request of requestsSent) {
+        expect(request.params).toMatchObject({
+          game: biz,
+          region,
+          directory: options.gamedir,
+        });
+      }
+      for (const request of requestsSent.slice(1)) {
+        expect(request.params).toMatchObject({
+          resolveAction: true,
+          transfer: { predownloadDirectory: "/games/example/.tmp/swift" },
+        });
+      }
+      expect(requestsSent[2].params).toMatchObject({
+        predownload: false,
+        cacheOnly: false,
+        sourceVersion: "1.2.3",
+      });
+      expect(requestsSent[3].params).toMatchObject({
+        predownload: true,
+        cacheOnly: true,
+        targetVersion: "1.2.4",
+      });
+      expect(registerStream).toHaveBeenCalledTimes(4);
+    }
+  );
+
   it("maps Swift verification and payload progress before resolving completion", async () => {
     let count = 0;
     mockRPC({

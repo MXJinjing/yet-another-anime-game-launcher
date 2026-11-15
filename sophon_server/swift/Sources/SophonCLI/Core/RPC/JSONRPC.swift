@@ -95,12 +95,16 @@ struct RPCOperationParameters: Decodable, Sendable {
   let bytesPerSecond: UInt64
   let installedVersion: String?
   let quickVerify: Bool
+  let resolveAction: Bool
+  let targetVersion: String?
   let transfer: TransferSettings
 
   enum CodingKeys: String, CodingKey {
     case game, directory, sourceVersion, cn, mode, predownload, cacheOnly, voicePacks, downloads,
       writes, checks, postProcessors, maxRetries, retryInterval, maxCachedFileHandles,
-      region, files, categories, version, bytesPerSecond, installedVersion, quickVerify, transfer
+      region, files, categories, version, bytesPerSecond, installedVersion, quickVerify,
+      resolveAction, transfer
+    case targetVersion
   }
 
   init(from decoder: any Decoder) throws {
@@ -128,6 +132,8 @@ struct RPCOperationParameters: Decodable, Sendable {
     bytesPerSecond = try values.decodeIfPresent(UInt64.self, forKey: .bytesPerSecond) ?? 0
     installedVersion = try values.decodeIfPresent(String.self, forKey: .installedVersion)
     quickVerify = try values.decodeIfPresent(Bool.self, forKey: .quickVerify) ?? false
+    resolveAction = try values.decodeIfPresent(Bool.self, forKey: .resolveAction) ?? false
+    targetVersion = try values.decodeIfPresent(String.self, forKey: .targetVersion)
     transfer =
       try values.decodeIfPresent(TransferSettings.self, forKey: .transfer) ?? TransferSettings()
     guard ["full", "base"].contains(mode), downloads > 0, writes > 0,
@@ -149,6 +155,7 @@ private struct RPCRateParameters: Decodable {
 
 private struct RPCManifestParameters: Decodable {
   let game: String
+  let directory: String?
   let region: String?
   let version: String?
   let category: String?
@@ -364,6 +371,9 @@ actor RPCDispatcher {
       status[id] = .object(["operationID": .string(id), "status": .string("running")])
       let mode: GameBranchCategoryScenario = params.mode == "base" ? .base : .full
       switch method {
+      case "update.start" where params.resolveAction, "repair.start" where params.resolveAction:
+        try await runGameAction(
+          id, method: method, params: params, client: operationClient, mode: mode)
       case "files.download":
         let reporter = operationClient.makeInstallationReporter(id: id)
         await subscribe(id, kind: "install", reporter: reporter)
@@ -412,6 +422,52 @@ actor RPCDispatcher {
     directories.removeValue(forKey: id)
     operations.removeValue(forKey: id)
     transferControls.removeValue(forKey: id)
+  }
+
+  private func runGameAction(
+    _ id: String, method: String, params: RPCOperationParameters,
+    client: SophonClientv3, mode: GameBranchCategoryScenario
+  ) async throws {
+    let hint = params.sourceVersion ?? params.installedVersion
+    if params.cacheOnly && params.predownload {
+      if try await client.usesDiffUpdate(from: hint, predownload: true) {
+        let reporter = client.makeUpdateReporter(id: id)
+        await subscribe(id, kind: "update", reporter: reporter)
+        try await client.update(
+          sourceVersion: hint, mode: mode, predownload: true, cacheOnly: true, reporter: reporter,
+          expectedVersion: params.targetVersion)
+      } else {
+        let reporter = client.makeInstallationReporter(id: id)
+        await subscribe(id, kind: "install", reporter: reporter)
+        try await client.cacheInstallation(
+          mode: mode, reporter: reporter, expectedVersion: params.targetVersion)
+      }
+      return
+    }
+
+    let next = try await client.nextAction(installedVersionHint: hint)
+    let selectedMode = next.mode
+    if (next.action == .update || next.action == .resumeUpdate) && !next.cacheOnly {
+      let reporter = client.makeUpdateReporter(id: id)
+      if method == "update.start" {
+        await subscribe(id, kind: "update", reporter: reporter)
+      } else {
+        progressSources[id] = { .encoded(await reporter.snapshot()) }
+      }
+      try await client.update(
+        sourceVersion: next.sourceVersion, mode: selectedMode, reporter: reporter)
+      if method == "update.start" { return }
+    }
+    if method == "repair.start" || next.action == .install || next.action == .resumeInstall {
+      let reporter = client.makeInstallationReporter(id: id)
+      await subscribe(id, kind: "install", reporter: reporter)
+      try await client.install(
+        mode: selectedMode, additionalVoicePackMatchingFields: Set(next.voicePacks),
+        reporter: reporter,
+        quickVerify: method == "repair.start" && params.quickVerify
+          && next.sourceVersion == next.targetVersion,
+        expectedVersion: next.targetVersion)
+    }
   }
 
   private func subscribe<Reporter: OperationReporting>(
@@ -515,17 +571,21 @@ actor RPCDispatcher {
       throw RPCFailure(code: -32602, message: "Unsupported region")
     }
     let client = try await makeOperationClient(
-      game: request.game, directory: FileManager.default.temporaryDirectory.path,
+      game: request.game,
+      directory: request.directory ?? FileManager.default.temporaryDirectory.path,
       cn: region != "os", transfer: TransferSettings(),
       maxRetries: 2, retryInterval: 1, manifestCacheDir: settings.manifestCacheDir,
       logger: settings.logger, launcherID: region == "bb" ? "umfgRO5gh5" : nil)
     switch method {
     case "game.online":
       let info = try await client.onlineBuild()
+      let needsResume = request.directory == nil ? false : try await client.hasUnfinishedWrite()
       return .object([
         "version": .string(info.version), "installSize": .integer(info.installSize),
+        "needsResume": .bool(needsResume),
         "updatableVersions": .array(info.updatableVersions.map(JSONValue.string)),
         "predownloadVersion": info.predownloadVersion.map(JSONValue.string) ?? .null,
+        "predownloadFrom": info.predownloadFrom.map { .array($0.map(JSONValue.string)) } ?? .null,
       ])
     case "files.build":
       let build = try await client.versionBuild(request.version)

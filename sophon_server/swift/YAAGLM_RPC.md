@@ -32,3 +32,15 @@ untouched. Existing files survive a failed download or checksum.
 `bytesPerSecond` in their initial parameters. Pause takes effect at file or
 payload checkpoints. Cancelling resumes any blocked connection solely to
 terminate it. Install and update use upstream checkpoints.
+
+The launcher passes `resolveAction: true` to `update.start` and `repair.start`.
+The server uses saved transfer state first, then the version hint and the live
+manifest. It resumes an interrupted write, applies an advertised LDiff
+update, or verifies against the full installation manifest. Cache-only
+predownloads use the future branch and leave the installation untouched.
+Titles without LDiff prefetch only the missing installation chunks.
+An optional `targetVersion` pins a cache-only request to the advertised version.
+
+With a `directory` parameter, `game.online` also returns `needsResume`.
+When the future branch uses LDiff, `predownloadFrom` lists the eligible
+installed versions.

@@ -45,7 +45,7 @@ Yaaglm 是一个面向 macOS 的桌面启动器，用于管理不同区域和发
 - 基于 Neutralinojs 的轻量 macOS 桌面应用。
 - SolidJS、TypeScript 和 Vite 构建的前端界面。
 - 支持游戏库、安装、更新、启动和任务队列管理。
-- Swift Sophon sidecar 负责下载、补丁、进度和后台任务。
+- HK4E、HKRPG、NAP 的安装、更新、预下载和校验统一使用 Swift Sophon，BH3 和 CBJQ 使用 Aria2。
 - 支持多个区域和发行渠道，并通过 channel 在构建时生成对应应用。
 - 支持 Wine、DXMT 及其他运行时组件的配置和管理。
 - 提供多语言界面和可替换的运行时资源。

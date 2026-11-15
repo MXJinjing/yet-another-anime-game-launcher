@@ -169,12 +169,16 @@ public final class SophonClientv3: @unchecked Sendable {
 
   public func update(
     sourceVersion: String? = nil, mode: GameBranchCategoryScenario = .full,
-    predownload: Bool = false, cacheOnly: Bool = false, reporter: UpdateReporter? = nil
+    predownload: Bool = false, cacheOnly: Bool = false, reporter: UpdateReporter? = nil,
+    expectedVersion: String? = nil
   ) async throws {
     let reporter = reporter ?? makeUpdateReporter()
     do {
       await reporter.record(.phaseChanged(.metadata))
       let branch = try await selectedBranch(predownload: predownload)
+      if let expectedVersion, expectedVersion != branch.tag {
+        throw SelectionError.version(expectedVersion, branch.tag)
+      }
       let ignoredFiles = try getIgnoredFiles()
       let saved =
         transferSettings.preserveState
@@ -263,7 +267,7 @@ public final class SophonClientv3: @unchecked Sendable {
       manifestExecutable: (version: branch.tag, md5: file.md5))
   }
 
-  public func nextAction() async throws -> GameAction {
+  public func nextAction(installedVersionHint: String? = nil) async throws -> GameAction {
     let branches = try await manifestManager.apiClient.getGameBranches()
     guard let live = branches.getGameSubBranch(id: gameID, predownload: false) else {
       throw SophonClientError.UnknownError("The live branch is unavailable")
@@ -278,10 +282,14 @@ public final class SophonClientv3: @unchecked Sendable {
     let pendingWrite =
       ownInstall?.finished == false
       || (ownUpdate?.finished == false && ownUpdate?.cacheOnly == false)
-    let installed =
-      pendingWrite
-      ? InstalledVersion(version: nil, executableMD5: nil, candidates: [])
-      : try await detectInstalledVersion()
+    let installed: InstalledVersion
+    if pendingWrite {
+      installed = InstalledVersion(version: nil, executableMD5: nil, candidates: [])
+    } else if let hint = installedVersionHint, !hint.isEmpty, hint != "0.0.0" {
+      installed = InstalledVersion(version: hint, executableMD5: nil, candidates: [])
+    } else {
+      installed = try await detectInstalledVersion()
+    }
     let futureCached: Bool
     if let state = ownUpdate, state.cacheOnly, state.finished,
       state.plan.sourceVersion == installed.version, state.plan.targetVersion == future?.tag
@@ -293,7 +301,7 @@ public final class SophonClientv3: @unchecked Sendable {
     return decideGameAction(
       installed: installed, live: live, future: future,
       installation: ownInstall, update: ownUpdate, futureCached: futureCached,
-      voicePacks: try getInstalledVoicePacks().sorted())
+      voicePacks: try getInstalledVoicePacks().sorted(), enableLdiff: gameLaunchConfig.enableLdiff)
   }
 
   private func cachedUpdateAvailable(_ state: SavedUpdateState) async throws -> Bool {
@@ -306,6 +314,14 @@ public final class SophonClientv3: @unchecked Sendable {
       }
     }
     return true
+  }
+
+  public func hasUnfinishedWrite() async throws -> Bool {
+    let installation = try await Self.savedInstallationState(
+      at: baseGameDir, settings: transferSettings)
+    let update = try await Self.savedUpdateState(at: baseGameDir, settings: transferSettings)
+    return (installation?.gameID == gameID && installation?.finished == false)
+      || (update?.gameID == gameID && update?.finished == false && update?.cacheOnly == false)
   }
 
   public static func savedUpdateState(
@@ -333,26 +349,31 @@ public final class SophonClientv3: @unchecked Sendable {
   }
 
   private func getInstalledVoicePacks() throws -> Set<String> {
+    guard !gameLaunchConfig.audioPkgScanDir.isEmpty else { return [] }
     let audioPkgFile = baseGameDir.appendingPathComponent(gameLaunchConfig.audioPkgScanDir)
 
-    var isDirectory: ObjCBool = false
-    guard
-      FileManager.default.fileExists(atPath: audioPkgFile.path, isDirectory: &isDirectory)
-        && !isDirectory.boolValue
-    else {
-      return []
-    }
-
     var codes: Set<String> = []
-    let contents = try String(contentsOf: audioPkgFile, encoding: .utf8)
-    for line in contents.split(whereSeparator: \.isNewline) {
-      let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !trimmedLine.isEmpty else { continue }
-
-      guard let langCode = AUDIO_LANG_TO_CODE[trimmedLine] else {
-        throw SophonClientError.UnknownError("Audio language \(trimmedLine) is not suported")
+    if FileManager.default.fileExists(atPath: audioPkgFile.path) {
+      let contents = try String(contentsOf: audioPkgFile, encoding: .utf8)
+      for line in contents.split(whereSeparator: \.isNewline) {
+        let name = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { continue }
+        if let code = AUDIO_LANG_TO_CODE[name] {
+          codes.insert(code)
+        } else if AUDIO_LANG_TO_CODE.values.contains(name.lowercased()) {
+          codes.insert(name.lowercased())
+        } else {
+          throw SophonClientError.UnknownError("Audio language \(name) is not supported")
+        }
       }
-      codes.insert(langCode)
+    }
+    if gameBiz.hasPrefix("hkrpg_") || gameBiz.hasPrefix("nap_") {
+      for (name, code) in AUDIO_LANG_TO_CODE
+      where FileManager.default.fileExists(
+        atPath: baseGameDir.appendingPathComponent("Audio_\(name)_pkg_version").path)
+      {
+        codes.insert(code)
+      }
     }
     return codes
   }
@@ -641,19 +662,52 @@ public final class SophonClientv3: @unchecked Sendable {
 
 extension SophonClientv3 {
   public func onlineBuild() async throws -> (
-    version: String, installSize: Int64, updatableVersions: [String], predownloadVersion: String?
+    version: String, installSize: Int64, updatableVersions: [String], predownloadVersion: String?,
+    predownloadFrom: [String]?
   ) {
     let main = try manifestManager.getGameSubbranch()
     let resources = main.getGameBranchCategories(categoryScenario: .full, categoryType: .resource)
     let build = try? await manifestManager.exactBuild(version: nil)
     let installSize = resources.reduce(Int64(0)) { total, category in
-      let amount = max(0, build?.find(category.matchingField)?.stats.compressedSize ?? 0)
+      let stats = build?.find(category.matchingField)?.stats
+      let amount = max(0, stats?.uncompressedSize ?? 0, stats?.compressedSize ?? 0)
       return total.addingReportingOverflow(amount).overflow ? Int64.max : total + amount
     }
+    let future = try? manifestManager.getGameSubbranch(predownload: true)
     return (
-      main.tag, installSize, main.diffTags,
-      (try? manifestManager.getGameSubbranch(predownload: true))?.tag
+      main.tag, installSize, main.diffTags, future?.tag,
+      gameLaunchConfig.enableLdiff ? future?.diffTags : nil
     )
+  }
+
+  public func usesDiffUpdate(from source: String?, predownload: Bool) async throws -> Bool {
+    let branch = try await selectedBranch(predownload: predownload)
+    guard gameLaunchConfig.enableLdiff else { return false }
+    return try await branch.diffTags.contains(updateSourceVersion(source))
+  }
+
+  public func cacheInstallation(
+    mode: GameBranchCategoryScenario, reporter: InstallationReporter, expectedVersion: String? = nil
+  ) async throws {
+    do {
+      let branch = try await selectedBranch(predownload: true)
+      if let expectedVersion, expectedVersion != branch.tag {
+        throw SelectionError.version(expectedVersion, branch.tag)
+      }
+      let operationLock = try await runTransferIO { [baseGameDir] in
+        try TransferFileLock(baseGameDir.appendingPathComponent(".sophon-operation.lock"))
+      }
+      defer { withExtendedLifetime(operationLock) {} }
+      let plan = try await makeInstallationPlan(
+        mode: mode, voicePacks: [], predownload: true, branch: branch,
+        ignoredFiles: getIgnoredFiles(), reporter: reporter, quickVerify: false)
+      try await installer.cacheChunks(plan, cache: predownloadCache, reporter: reporter)
+      await reporter.record(.finished(.completed))
+    } catch {
+      await reporter.record(
+        .finished(Task.isCancelled ? .cancelled : .failed(reason: error.localizedDescription)))
+      throw error
+    }
   }
 
   public func verifyLive(
