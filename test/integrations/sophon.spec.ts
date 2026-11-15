@@ -198,6 +198,142 @@ describe("Swift Sophon RPC", () => {
     }
   );
 
+  it("loads the regional catalog, resumes a saved selection, and sends it to the queue", async () => {
+    const catalog = {
+      game: { id: "regional-game" },
+      tag: "1.2.3",
+    };
+    const metadataRPC = {
+      "api.configs": {
+        launch_configs: [{ game: catalog.game, enable_scenario_pkg: true }],
+      },
+      "api.branches": {
+        game_branches: [
+          {
+            game: catalog.game,
+            main: {
+              tag: catalog.tag,
+              categories: [
+                {
+                  type: "CATEGORY_TYPE_RESOURCE",
+                  matching_field: "game",
+                  scenarios: [
+                    "CATEGORY_SCENARIO_FULL",
+                    "CATEGORY_SCENARIO_BASE",
+                  ],
+                },
+                {
+                  type: "CATEGORY_TYPE_AUDIO",
+                  matching_field: "ja-jp",
+                  scenarios: [],
+                },
+              ],
+            },
+          },
+        ],
+      },
+      "api.sophonBuild": {
+        tag: catalog.tag,
+        manifests: [
+          {
+            matching_field: "game",
+            stats: { compressed_size: 100, uncompressed_size: 200 },
+          },
+          {
+            matching_field: "ja-jp",
+            stats: { compressed_size: 5, uncompressed_size: 20 },
+          },
+        ],
+      },
+      "game.nextAction": {
+        action: "resumeInstall",
+        targetVersion: catalog.tag,
+        mode: "CATEGORY_SCENARIO_BASE",
+        voicePacks: ["ja-jp"],
+      },
+    };
+    const requests = mockRPC({
+      ...metadataRPC,
+      "install.start": { operationID: "catalog-install" },
+    });
+    const client = new SophonClient("127.0.0.1", 6969, "bb");
+    const options = await client.getInstallOptions("hk4e", "/games/bb");
+    expect(options.resume).toEqual({
+      mode: "base",
+      version: "1.2.3",
+      voicePacks: ["ja-jp"],
+    });
+    for (const [, init] of requests.mock.calls) {
+      expect(JSON.parse(String(init.body)).params).toMatchObject({
+        game: "T2S0Gz4Dr2",
+        region: "bb",
+        cn: true,
+      });
+    }
+    await client.startInstallation(
+      {
+        game_type: "hk4e",
+        gamedir: "/games/bb",
+        install_reltype: "bb",
+        selection: options.resume,
+      },
+      "game"
+    );
+    const request = requests.mock.calls.at(-1);
+    expect(JSON.parse(String(request?.[1].body))).toMatchObject({
+      method: "install.start",
+      params: { mode: "base", voicePacks: ["ja-jp"], targetVersion: "1.2.3" },
+    });
+    expect(registerStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: "game",
+        sophonActivity: expect.objectContaining({
+          id: "catalog-install",
+          targetVersion: "1.2.3",
+        }),
+      })
+    );
+  });
+
+  it("snapshots transfer settings at each start without changing the shared speed limit", async () => {
+    let writes = 5;
+    vi.mocked(getKeyOrDefault).mockImplementation(async (key, fallback) => {
+      if (key === "config_sophon")
+        return JSON.stringify({
+          writes,
+          checks: 2,
+          postProcessors: 3,
+          memoryMiB: 64,
+        });
+      return fallback;
+    });
+    const rpc = vi.fn(() => ({ operationID: "repair" }));
+    mockRPC({ "repair.start": rpc });
+    const client = new SophonClient("127.0.0.1");
+    const options = {
+      gamedir: "/game",
+      game_type: "nap",
+      repair_mode: "quick",
+    } as const;
+    await client.startRepair(options);
+    writes = 2;
+    await client.startRepair(options);
+    expect(rpc).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        writes: 5,
+        checks: 2,
+        postProcessors: 3,
+        bytesPerSecond: 0,
+        transfer: expect.objectContaining({ memoryLimit: 64 * 1024 ** 2 }),
+      })
+    );
+    expect(rpc).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ writes: 2 })
+    );
+  });
+
   it("uses the shared proxy for remote operations and reloads the setting for new requests", async () => {
     const settings: Record<string, string> = {
       config_downloadProxyEnabled: "true",

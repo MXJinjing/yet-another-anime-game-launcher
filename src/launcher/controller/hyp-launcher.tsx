@@ -1,3 +1,10 @@
+import {
+  sophonPredownloadPath,
+  SOPHON_PREDOWNLOAD_ROOT_KEY,
+} from "../../integrations/sophon-settings";
+import { removeExternalSophonPredownload } from "@download/sophon-predownload";
+import { SophonInstallModal } from "../../modals/sophon-install-modal";
+import type { SophonInstallSelection } from "../../integrations/sophon-install-options";
 import { showPredownloadAfterDeletion } from "../model/predownload-visibility";
 import { createGlobalSettings } from "@settings";
 import { createConfigStore } from "@config";
@@ -411,6 +418,26 @@ export async function createHypLauncher({
     }
   }
 
+  const externalPredownloadRoot = (game: HypGame) =>
+    game.storage?.getKeyOrDefault(SOPHON_PREDOWNLOAD_ROOT_KEY, "") ??
+    Promise.resolve("");
+
+  async function externalPredownloadDirectory(game: HypGame) {
+    return sophonPredownloadPath(
+      await externalPredownloadRoot(game),
+      game.client.installDir()
+    );
+  }
+
+  async function predownloadDirectories(game: HypGame) {
+    const paths = PREDOWNLOAD_STAGING_DIRECTORIES.map(directory =>
+      join(game.client.installDir(), directory)
+    );
+    const external = await externalPredownloadDirectory(game);
+    if (external) paths.push(external);
+    return paths;
+  }
+
   async function detectCompletedPredownload(game: HypGame) {
     if (game.client.installState() !== "INSTALLED") return false;
     const targetVersion = game.client.predownloadVersion();
@@ -426,9 +453,7 @@ export async function createHypLauncher({
 
     // Aria2 and Sophon keep completed pre-download payloads in these
     // installation-directory staging folders until the game update runs.
-    const installDir = game.client.installDir();
-    for (const stagingDir of PREDOWNLOAD_STAGING_DIRECTORIES) {
-      const path = join(installDir, stagingDir);
+    for (const path of await predownloadDirectories(game)) {
       if (!(await fileOrDirExists(path))) continue;
       try {
         if ((await readDirectory(path)).length > 0) return true;
@@ -448,6 +473,25 @@ export async function createHypLauncher({
 
   return function HypLauncher() {
     const selectedGame = () => games[selectedGameIndex()];
+    const [installPrompt, setInstallPrompt] = createSignal<{
+      game: HypGame;
+      directory: string;
+    }>();
+    async function enqueueInstall(
+      game: HypGame,
+      directory: string,
+      selection?: SophonInstallSelection
+    ) {
+      await log(`Game installation requested: ${directory}`);
+      taskQueue.enqueue({
+        key: game.id,
+        fn: gameProgram(aria2, baseWine, game, () =>
+          game.client.install(directory, selection)
+        ),
+        name: "INSTALL",
+        downloadTask: gameDownloadTaskMetadata(game, locale, "release"),
+      });
+    }
     const [initialWineSetup, setInitialWineSetup] = createSignal<{
       game: HypGame;
       distributions: WineDistribution[];
@@ -1324,15 +1368,11 @@ export async function createHypLauncher({
         case "install": {
           const selection = await selectPath();
           if (!selection) return;
-          await log(`Game installation requested: ${selection}`);
-          taskQueue.enqueue({
-            key: game.id,
-            fn: gameProgram(aria2, baseWine, game, () =>
-              game.client.install(selection)
-            ),
-            name: "INSTALL",
-            downloadTask: gameDownloadTaskMetadata(game, locale, "release"),
-          });
+          if (game.client.installOptions) {
+            setInstallPrompt({ game, directory: selection });
+          } else {
+            await enqueueInstall(game, selection);
+          }
           return;
         }
       }
@@ -1516,11 +1556,8 @@ export async function createHypLauncher({
         [game.id]: undefined,
       }));
       let size = 0;
-      const installDir = game.client.installDir();
-      for (const directory of PREDOWNLOAD_STAGING_DIRECTORIES) {
-        const directorySize = await getDirectorySize(
-          join(installDir, directory)
-        );
+      for (const path of await predownloadDirectories(game)) {
+        const directorySize = await getDirectorySize(path);
         if (directorySize != null) size += directorySize;
       }
       setPredownloadSizeByGame(previous => ({ ...previous, [game.id]: size }));
@@ -1534,6 +1571,11 @@ export async function createHypLauncher({
         } catch {
           // The directory may be absent or already removed.
         }
+      }
+      const external = await externalPredownloadRoot(game);
+      if (external) {
+        await removeExternalSophonPredownload(external, installDir);
+        await game.storage?.setKey(SOPHON_PREDOWNLOAD_ROOT_KEY, null);
       }
       await (game.storage?.setKey("predownloaded_all", null) ??
         setKey("predownloaded_all", null));
@@ -2098,6 +2140,26 @@ export async function createHypLauncher({
               />
             );
           }}
+        </Show>
+
+        <Show when={installPrompt()} keyed>
+          {prompt => (
+            <SophonInstallModal
+              locale={locale}
+              title={prompt.game.title}
+              directory={prompt.directory}
+              load={() => prompt.game.client.installOptions!(prompt.directory)}
+              onClose={() => setInstallPrompt()}
+              onConfirm={selection => {
+                setInstallPrompt();
+                void enqueueInstall(
+                  prompt.game,
+                  prompt.directory,
+                  selection
+                ).catch(fatal);
+              }}
+            />
+          )}
         </Show>
 
         <GameUpdatePromptModal

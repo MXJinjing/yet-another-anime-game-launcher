@@ -100,6 +100,14 @@ function taskFiles(record: DownloadTaskRecord): DownloadFileSnapshot[] {
 function toSnapshot(record: DownloadTaskRecord): DownloadTaskSnapshot {
   const streams = [...record.streams.values()];
   const fallback = aria2Overall(record);
+  const sophonActivities = new Map<
+    string,
+    NonNullable<DownloadStream["sophonActivity"]>
+  >();
+  for (const stream of streams) {
+    if (stream.sophonActivity)
+      sophonActivities.set(stream.id, stream.sophonActivity);
+  }
   const downloaded = record.explicitOverall
     ? record.downloaded
     : fallback.downloaded;
@@ -127,6 +135,7 @@ function toSnapshot(record: DownloadTaskRecord): DownloadTaskSnapshot {
     fileCount: record.fileCount,
     engines: [...record.engines],
     files: taskFiles(record),
+    ...(sophonActivities.size ? { sophonActivities } : {}),
     canPause: streams.some(
       stream =>
         (stream.status === "active" || stream.status === "queued") &&

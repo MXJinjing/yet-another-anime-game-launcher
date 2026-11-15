@@ -1,3 +1,4 @@
+import { SophonDownloadDetails } from "./sophon-download-details";
 import { Progress, ProgressIndicator } from "@hope-ui/solid";
 import { For, Show, createSignal, onCleanup } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -178,6 +179,17 @@ export function DownloadQueueModal(props: {
                         )
                         .join(" + ")}
                     </div>
+                    <For each={Array.from(task.sophonActivities?.keys() ?? [])}>
+                      {id => (
+                        <SophonDownloadDetails
+                          activity={task.sophonActivities!.get(id)!}
+                          locale={props.locale}
+                          paused={
+                            task.status === "paused" || task.status === "queued"
+                          }
+                        />
+                      )}
+                    </For>
                     <Show when={task.files.length > 0}>
                       <div class="download-queue-files">
                         <For each={task.files.slice(0, 8)}>

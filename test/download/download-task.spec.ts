@@ -115,6 +115,50 @@ describe("download task snapshots", () => {
     expect(task.files[7].name).toBe("file-7.bin");
   });
 
+  it("keeps mixed-engine files and associates activity with its Sophon operation", () => {
+    const id = createTask();
+    const aria = makeStream(id);
+    const sophon = makeStream(id, {
+      id: "sophon:swift-operation",
+      kind: "sophon",
+      files: [
+        {
+          id: "bundle",
+          name: "bundle-1",
+          progress: 50,
+          speed: 500,
+          downloaded: 50,
+          total: 100,
+        },
+      ],
+      sophonActivity: {
+        id: "swift-operation",
+        kind: "repair",
+        predownload: false,
+        status: "running",
+        history: [{ time: 1, values: { "common.network": 500 } }],
+      },
+    });
+    attachDownloadStream(aria);
+    attachDownloadStream(sophon);
+    const [task] = getDownloadTasks();
+    expect(task.engines).toEqual(["aria2", "sophon"]);
+    expect(task.files.map(file => file.name)).toEqual([
+      "part-1.zip",
+      "bundle-1",
+    ]);
+    expect(task.sophonActivities?.get(sophon.id)?.history).toEqual(
+      sophon.sophonActivity?.history
+    );
+    expect(task).toMatchObject({ canPause: true, canCancel: true });
+
+    detachDownloadStream(sophon);
+    expect(getDownloadTasks()[0].sophonActivities).toBeUndefined();
+    expect(getDownloadTasks()[0].files.map(file => file.name)).toEqual([
+      "part-1.zip",
+    ]);
+  });
+
   it("uses stream state for the badge and never turns zero speed into pause", () => {
     const taskId = createTask();
     const stream = makeStream(taskId, { speed: 0, status: "active" });

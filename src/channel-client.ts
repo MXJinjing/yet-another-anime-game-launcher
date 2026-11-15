@@ -1,3 +1,7 @@
+import type {
+  SophonInstallOptionsMetadata,
+  SophonInstallSelection,
+} from "./integrations/sophon-install-options";
 import { JSXElement } from "solid-js";
 import type { TaskProgram } from "@tasks/task-program";
 import { Config } from "./config";
@@ -92,7 +96,8 @@ export interface ChannelClient {
   dismissPredownload(): void;
 
   update(): TaskProgram;
-  install(path: string): TaskProgram;
+  installOptions?(path: string): Promise<SophonInstallOptionsMetadata | null>;
+  install(path: string, options?: SophonInstallSelection): TaskProgram;
   predownload(): TaskProgram;
   launch(config: Config): TaskProgram;
   checkIntegrity(): TaskProgram;

@@ -242,7 +242,7 @@ describe("local processing progress", () => {
         gameDir: "/game",
         server: { dataDir: "Data" } as never,
         updatedGameVersion: "7.2.0",
-        storage: { setKey: vi.fn() } as never,
+        storage: { setKey: vi.fn(), getKeyOrDefault: vi.fn() } as never,
       })
     );
     expect(commands).toContainEqual([

@@ -1,3 +1,4 @@
+import type { SophonInstallSelection } from "../../../integrations/sophon-install-options";
 import { isWineRuntimeReady } from "@wine/distro";
 import { batch, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -235,10 +236,14 @@ export async function createHK4EChannelClient({
         setRuntimeReady(true);
       }
     },
-    async *install(selection: string): TaskProgram {
+    installOptions: sophon.installOptions,
+    async *install(
+      selection: string,
+      options?: SophonInstallSelection
+    ): TaskProgram {
       const info = await loadVersionInfo(selection);
       if (!info) return;
-      yield* sophon.install(selection, info);
+      yield* sophon.install(selection, info, options);
       await refreshInstalledVersion(selection);
       batch(() => {
         setInstalled("INSTALLED");

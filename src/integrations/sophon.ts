@@ -23,6 +23,23 @@ import {
 import { progressEvent, type SophonSnapshot } from "./sophon-progress";
 import { getDownloadProxy } from "../download/proxy";
 
+import {
+  resolveSophonInstallOptions,
+  sophonInstallSize,
+  type SophonConfigMetadata,
+  type SophonBranchMetadata,
+  type SophonBuildMetadata,
+  type SophonInstallSelection,
+} from "./sophon-install-options";
+
+import {
+  readSophonSettings,
+  sophonOperationSettings,
+  sophonPredownloadPath,
+} from "./sophon-settings";
+
+import { recordSophonActivity, type SophonActivity } from "./sophon-activity";
+
 export type SophonRegion = "os" | "cn" | "bb";
 export type SophonGameType = "hk4e" | "hkrpg" | "nap";
 
@@ -39,6 +56,7 @@ interface GameOperationOptions {
 }
 
 export interface SophonInstallOptions extends GameOperationOptions {
+  selection?: SophonInstallSelection;
   install_reltype: string; // "os", "cn", or "bb"
 }
 
@@ -51,6 +69,7 @@ export interface SophonRepairOptions extends GameOperationOptions {
 export interface SophonUpdateOptions extends GameOperationOptions {
   predownload: boolean;
   targetVersion?: string;
+  predownloadRoot?: string;
 }
 
 interface OperationStatus {
@@ -112,6 +131,7 @@ export class SophonClient {
   private baseUrl: string;
   private nextID = 0;
   private cancelled = new Set<string>();
+  private activity = new Map<string, SophonActivity>();
 
   constructor(
     host: string,
@@ -193,8 +213,11 @@ export class SophonClient {
     method: string,
     params: object,
     title: string,
-    downloadKey?: string,
-    verifying = false
+    downloadKey: string | undefined,
+    activity: Pick<
+      SophonActivity,
+      "kind" | "predownload" | "sourceVersion" | "targetVersion"
+    >
   ): Promise<string> {
     const enabled =
       (await getKeyOrDefault(DOWNLOAD_SPEED_LIMIT_ENABLED_KEY, "false")) ===
@@ -209,19 +232,27 @@ export class SophonClient {
     const { operationID: taskId } = await this.remoteRPC<{
       operationID: string;
     }>(method, { ...params, bytesPerSecond });
+    const sophonActivity: SophonActivity = {
+      ...activity,
+      id: taskId,
+      status: "starting",
+      history: [],
+    };
+    this.activity.set(taskId, sophonActivity);
     registerStream({
       id: `sophon:${taskId}`,
       kind: "sophon",
       taskId,
       key: downloadKey,
       title,
-      phaseKind: verifying ? "verifying" : "transferring",
+      phaseKind: activity.kind === "repair" ? "verifying" : "transferring",
       status: "active",
       progress: 0,
       speed: 0,
       downloaded: 0,
       total: 0,
       files: [],
+      sophonActivity,
       canPause: true,
       canResume: true,
       canCancel: true,
@@ -242,7 +273,15 @@ export class SophonClient {
       "install_reltype" in options
         ? (options.install_reltype as SophonRegion)
         : this.region;
+    const selection = "selection" in options ? options.selection : undefined;
     const cacheOnly = "predownload" in options && options.predownload;
+    const settings = await readSophonSettings();
+    const rpcSettings = sophonOperationSettings(settings);
+    const root =
+      "predownloadRoot" in options
+        ? options.predownloadRoot ?? settings.predownloadDirectory
+        : settings.predownloadDirectory;
+    const directory = await sophonPredownloadPath(root, options.gamedir);
     return this.startOperation(
       `${type}.start`,
       {
@@ -251,22 +290,36 @@ export class SophonClient {
         directory: options.gamedir,
         predownload: cacheOnly,
         cacheOnly,
+        mode: selection?.mode,
+        voicePacks: selection?.voicePacks,
         targetVersion:
-          "targetVersion" in options ? options.targetVersion : undefined,
+          "targetVersion" in options
+            ? options.targetVersion
+            : selection?.version,
         sourceVersion: type === "update" ? options.installedVersion : undefined,
         installedVersion: options.installedVersion,
         resolveAction: true,
         quickVerify:
           "repair_mode" in options && options.repair_mode === "quick",
+        ...rpcSettings,
         transfer: {
-          predownloadDirectory: `${
-            options.tempdir ?? `${options.gamedir}/.tmp`
-          }/swift`,
+          ...rpcSettings.transfer,
+          predownloadDirectory:
+            directory ??
+            `${options.tempdir ?? `${options.gamedir}/.tmp`}/swift`,
         },
       },
       `${type} (${options.game_type})`,
       downloadKey,
-      type === "repair"
+      {
+        kind: type,
+        predownload: cacheOnly,
+        sourceVersion: options.installedVersion,
+        targetVersion:
+          "targetVersion" in options
+            ? options.targetVersion
+            : selection?.version,
+      }
     );
   }
 
@@ -306,6 +359,9 @@ export class SophonClient {
         const status = await this.rpc<OperationStatus>("operation.status", {
           operationID: taskId,
         });
+        const previous = this.activity.get(taskId);
+        const activity = previous && recordSophonActivity(previous, status);
+        if (activity) this.activity.set(taskId, activity);
         if (status.progress) {
           const event = progressEvent(taskId, status.progress);
           const serialized = JSON.stringify(event);
@@ -314,6 +370,7 @@ export class SophonClient {
             const progress = event.overall_progress;
             const transferring = event.type === "chunk_progress";
             updateStream(`sophon:${taskId}`, {
+              sophonActivity: activity,
               phaseKind: transferring ? "transferring" : "verifying",
               progress: progress.overall_percent,
               speed: progress.download_speed ?? 0,
@@ -337,6 +394,8 @@ export class SophonClient {
               }),
             });
             yield event;
+          } else if (activity) {
+            updateStream(`sophon:${taskId}`, { sophonActivity: activity });
           }
         }
         if (status.status === "completed") {
@@ -362,6 +421,7 @@ export class SophonClient {
       endControlledDownload();
       unregisterStream(`sophon:${taskId}`);
       this.cancelled.delete(taskId);
+      this.activity.delete(taskId);
     }
   }
 
@@ -388,6 +448,33 @@ export class SophonClient {
       bytesPerSecond: Math.round(bps),
       operationID: taskId,
     });
+  }
+
+  async getInstallOptions(game: SophonGameType, directory: string) {
+    const region = this.region;
+    const params = { game: gameID(game, region), region, cn: region !== "os" };
+    const [config, branches, build, next] = await Promise.all([
+      this.remoteRPC<SophonConfigMetadata>("api.configs", params),
+      this.remoteRPC<SophonBranchMetadata>("api.branches", params),
+      this.remoteRPC<SophonBuildMetadata>("api.sophonBuild", params),
+      this.remoteRPC<{
+        action: string;
+        targetVersion: string;
+        mode: "CATEGORY_SCENARIO_BASE" | "CATEGORY_SCENARIO_FULL";
+        voicePacks: string[];
+      }>("game.nextAction", { ...params, directory }),
+    ]);
+    const options = resolveSophonInstallOptions(config, branches, build);
+    if (next.action === "resumeInstall") {
+      const resume: SophonInstallSelection = {
+        mode: next.mode === "CATEGORY_SCENARIO_BASE" ? "base" : "full",
+        voicePacks: next.voicePacks,
+        version: next.targetVersion,
+      };
+      sophonInstallSize(options, resume);
+      return { ...options, resume };
+    }
+    return options;
   }
 
   async getLatestOnlineGameInfo(
@@ -440,7 +527,7 @@ export class SophonClient {
     });
   }
 
-  downloadFiles(
+  async downloadFiles(
     directory: string,
     version: string,
     files: string[],
@@ -453,10 +540,13 @@ export class SophonClient {
         version,
         files,
         categories,
+        ...sophonOperationSettings(await readSophonSettings()),
         region: this.region,
         game: gameID("hk4e", this.region),
       },
-      "Selected files"
+      "Selected files",
+      undefined,
+      { kind: "install", predownload: false, targetVersion: version }
     );
   }
 }

@@ -3,12 +3,15 @@ import { spawnProcess } from "../platform/neutralino";
 import { resolveSidecarPath } from "../platform/neutralino/sidecar";
 import { build, rawString } from "../platform/shell";
 import { exec } from "../runtime/command-runner";
+import { resolve } from "../platform/neutralino/path";
+import { readSophonSettings } from "./sophon-settings";
 import { SophonClient, type SophonRegion } from "./sophon";
 
 const host = "127.0.0.1";
 let sidecar: Promise<{ port: number; token: string }> | undefined;
 
 async function startSidecar() {
+  const { debugLogging } = await readSophonSettings();
   const binary = await resolveSidecarPath("sophon-swift/SophonCLI");
   const parent = (await exec(["echo", rawString("$PPID")])).stdOut.trim();
   const token = Array.from(crypto.getRandomValues(new Uint8Array(24)), byte =>
@@ -30,6 +33,9 @@ async function startSidecar() {
         token,
         "--allow-origin",
         window.location.origin,
+        ...(debugLogging
+          ? ["--log-file", resolve("sophon.log"), "--log-level", "debug"]
+          : []),
         "--parent-pid",
         parent,
       ])
