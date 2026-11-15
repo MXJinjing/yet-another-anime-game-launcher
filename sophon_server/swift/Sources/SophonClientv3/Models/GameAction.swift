@@ -66,7 +66,7 @@ internal func resolveInstalledVersion(
 internal func decideGameAction(
   installed: InstalledVersion, live: GameSubBranch, future: GameSubBranch?,
   installation: SavedInstallationState?, update: SavedUpdateState?, futureCached: Bool,
-  voicePacks: [String] = []
+  voicePacks: [String] = [], enableLdiff: Bool = true
 ) -> GameAction {
   if let installation, !installation.finished {
     if installation.version == live.tag {
@@ -107,12 +107,12 @@ internal func decideGameAction(
       reason: "Resume the saved cache-only update")
   }
   if source != live.tag {
-    if source == future?.tag {
+    if source == future?.tag || source.compare(live.tag, options: .numeric) == .orderedDescending {
       return GameAction(
         .none, source: source, target: source, voicePacks: voicePacks,
-        reason: "The future version is already installed")
+        reason: "A newer version is already installed")
     }
-    if live.diffTags.contains(source) {
+    if enableLdiff && live.diffTags.contains(source) {
       return GameAction(
         .update, source: source, target: live.tag, voicePacks: voicePacks,
         reason: "A direct update to the live version is available")
@@ -121,7 +121,7 @@ internal func decideGameAction(
       .install, source: source, target: live.tag, voicePacks: voicePacks,
       reason: "No direct update is advertised; use the installation manifest")
   }
-  if let future, future.tag != live.tag, future.diffTags.contains(source),
+  if let future, future.tag != live.tag, !enableLdiff || future.diffTags.contains(source),
     !futureCached
   {
     return GameAction(

@@ -22,16 +22,17 @@ import {
 } from "../download/control";
 import { progressEvent, type SophonSnapshot } from "./sophon-progress";
 
-type Region = "os" | "cn" | "bb";
+export type SophonRegion = "os" | "cn" | "bb";
+export type SophonGameType = "hk4e" | "hkrpg" | "nap";
 
-const gameID = (game: string, region: Region) =>
+const gameID = (game: string, region: SophonRegion) =>
   region === "bb" && game === "hk4e"
     ? "T2S0Gz4Dr2"
     : `${game}_${region === "os" ? "global" : "cn"}`;
 
 interface GameOperationOptions {
   gamedir: string;
-  game_type: string; // "hk4e" or "nap"
+  game_type: SophonGameType;
   tempdir?: string; // sophon manifest and intermediate files
   installedVersion?: string;
 }
@@ -48,6 +49,7 @@ export interface SophonRepairOptions extends GameOperationOptions {
 
 export interface SophonUpdateOptions extends GameOperationOptions {
   predownload: boolean;
+  targetVersion?: string;
 }
 
 interface OperationStatus {
@@ -93,13 +95,15 @@ export interface SophonFileListing {
 }
 
 export interface SophonOnlineGameInfo {
-  game_type: "hk4e" | "nap" | "";
+  game_type: SophonGameType | "";
   version: string;
   install_size: number;
   updatable_versions: string[];
   release_type: "os" | "cn" | "bb";
   pre_download: boolean;
   pre_download_version?: string;
+  pre_download_from?: string[];
+  needs_resume?: boolean;
   error?: string;
 }
 
@@ -111,13 +115,17 @@ export class SophonClient {
   constructor(
     host: string,
     port = 6969,
-    private region: Region = "os",
+    private region: SophonRegion = "os",
     private token?: string
   ) {
     this.baseUrl = `http://${host}:${port}/rpc`;
   }
 
-  private async rpc<T>(method: string, params: object = {}): Promise<T> {
+  private async rpc<T>(
+    method: string,
+    params: object = {},
+    timeoutMs = 45_000
+  ): Promise<T> {
     const id = ++this.nextID;
     let response: Response;
     try {
@@ -128,7 +136,7 @@ export class SophonClient {
           ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
         },
         body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
       throw new ConnectionError(`Sophon RPC ${method}: ${error}`);
@@ -154,9 +162,16 @@ export class SophonClient {
     return reply.result;
   }
 
-  async healthCheck({ logFailures = true } = {}): Promise<boolean> {
+  async healthCheck({
+    logFailures = true,
+    timeoutMs = 45_000,
+  } = {}): Promise<boolean> {
     try {
-      const { methods } = await this.rpc<{ methods: string[] }>("rpc.discover");
+      const { methods } = await this.rpc<{ methods: string[] }>(
+        "rpc.discover",
+        {},
+        timeoutMs
+      );
       return (
         methods.includes("files.download") && methods.includes("game.online")
       );
@@ -218,7 +233,7 @@ export class SophonClient {
   ): Promise<string> {
     const region =
       "install_reltype" in options
-        ? (options.install_reltype as Region)
+        ? (options.install_reltype as SophonRegion)
         : this.region;
     const cacheOnly = "predownload" in options && options.predownload;
     return this.startOperation(
@@ -229,13 +244,18 @@ export class SophonClient {
         directory: options.gamedir,
         predownload: cacheOnly,
         cacheOnly,
+        targetVersion:
+          "targetVersion" in options ? options.targetVersion : undefined,
         sourceVersion: type === "update" ? options.installedVersion : undefined,
         installedVersion: options.installedVersion,
+        resolveAction: true,
         quickVerify:
           "repair_mode" in options && options.repair_mode === "quick",
-        transfer: options.tempdir
-          ? { predownloadDirectory: `${options.tempdir}/swift` }
-          : undefined,
+        transfer: {
+          predownloadDirectory: `${
+            options.tempdir ?? `${options.gamedir}/.tmp`
+          }/swift`,
+        },
       },
       `${type} (${options.game_type})`,
       downloadKey,
@@ -364,8 +384,9 @@ export class SophonClient {
   }
 
   async getLatestOnlineGameInfo(
-    reltype: Region,
-    game: SophonOnlineGameInfo["game_type"]
+    reltype: SophonRegion,
+    game: SophonOnlineGameInfo["game_type"],
+    directory?: string
   ): Promise<SophonOnlineGameInfo> {
     try {
       const info = await this.rpc<{
@@ -373,7 +394,13 @@ export class SophonClient {
         installSize: number;
         updatableVersions: string[];
         predownloadVersion: string | null;
-      }>("game.online", { game: gameID(game, reltype), region: reltype });
+        predownloadFrom?: string[] | null;
+        needsResume?: boolean;
+      }>("game.online", {
+        game: gameID(game, reltype),
+        region: reltype,
+        directory,
+      });
       return {
         game_type: game,
         version: info.version,
@@ -382,6 +409,8 @@ export class SophonClient {
         release_type: reltype,
         pre_download: reltype !== "bb" && Boolean(info.predownloadVersion),
         pre_download_version: info.predownloadVersion ?? undefined,
+        pre_download_from: info.predownloadFrom ?? undefined,
+        needs_resume: info.needsResume,
       };
     } catch (error) {
       return {
@@ -428,7 +457,7 @@ export class SophonClient {
 export async function createSophon(
   host: string,
   port: number,
-  region?: Region,
+  region?: SophonRegion,
   token?: string
 ): Promise<SophonClient> {
   const client = new SophonClient(host, port, region, token);
@@ -444,7 +473,7 @@ export type Sophon = SophonClient;
 export async function createSophonRetry(
   host: string,
   port: number,
-  region?: Region,
+  region?: SophonRegion,
   token?: string
 ): Promise<Sophon> {
   const client = new SophonClient(host, port, region, token);

@@ -1,6 +1,6 @@
 import { processingProgressCommands } from "./processing-progress";
 import { join, basename } from "path-browserify";
-import { SophonClient } from "@sophon";
+import { SophonClient, type SophonGameType } from "@sophon";
 import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "@constants";
 import { log } from "@logging/logger";
@@ -15,11 +15,13 @@ export async function* downloadAndInstallGameProgram({
   sophonClient,
   gameDir,
   installReltype,
+  gameType = "hk4e",
   downloadKey,
 }: {
   sophonClient: SophonClient;
   gameDir: string;
   installReltype: string;
+  gameType?: SophonGameType;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
 }): TaskProgram {
@@ -29,7 +31,7 @@ export async function* downloadAndInstallGameProgram({
   const taskId = await sophonClient.startInstallation(
     {
       gamedir: gameDir,
-      game_type: "hk4e",
+      game_type: gameType,
       install_reltype: installReltype,
     },
     downloadKey

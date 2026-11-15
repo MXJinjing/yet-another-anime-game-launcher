@@ -9,7 +9,7 @@
 - macOS。
 - Xcode Command Line Tools：提供 `clang`、`codesign`、`shasum` 等工具。
 - Node.js 和 pnpm。
-- Xcode 和 Swift 6.3 或更新版本。包含 Sophon 的应用需要 macOS 13 或更新版本。
+- Xcode 和 Swift 6.3 或更新版本。包含 HK4E、HKRPG 或 NAP 的应用需要 macOS 13 或更新版本。
 - 构建所需的磁盘空间。
 
 检查基本工具：

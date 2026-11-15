@@ -63,11 +63,13 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
       bundleId = config.applicationId + ".hkrpg.cn";
       appDistributionName = config.cli.binaryName + " HSR";
       config.modes.window.icon = "/src/assets/March7th.cr.png";
+      includeSophon = true;
       break;
     case "hkrpgos":
       bundleId = config.applicationId + ".hkrpg.os";
       appDistributionName = config.cli.binaryName + " HSR OS";
       config.modes.window.icon = "/src/assets/March7th.cr.png";
+      includeSophon = true;
       break;
     case "bh3glb":
       bundleId = config.applicationId + ".bh3.glb";
@@ -86,11 +88,13 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
       bundleId = config.applicationId + ".nap.os";
       appDistributionName = config.cli.binaryName + " ZZZ OS";
       config.modes.window.icon = "/src/assets/ZZZ_Bang.cr.png";
+      includeSophon = true;
       break;
     case "napcn":
       bundleId = config.applicationId + ".nap.cn";
       appDistributionName = config.cli.binaryName + " ZZZ";
       config.modes.window.icon = "/src/assets/ZZZ_Bang.cr.png";
+      includeSophon = true;
       break;
     default:
       throw new Error(`Unknown YAAGL_CHANNEL_CLIENT: ${channel}`);

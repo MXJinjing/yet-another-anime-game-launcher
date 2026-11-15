@@ -1,6 +1,6 @@
 import { processingProgressCommands } from "./processing-progress";
 import { join, basename } from "path-browserify";
-import { Sophon } from "@sophon";
+import { Sophon, type SophonGameType } from "@sophon";
 import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "@constants";
 import { log } from "@logging/logger";
@@ -22,6 +22,7 @@ async function* downloadAndPatch(
   sophon: Sophon,
   gameDir: string,
   installedVersion: string | undefined,
+  gameType: SophonGameType,
   downloadKey?: string
 ): TaskProgram {
   // Predownload downloads diffs without applying,
@@ -33,7 +34,7 @@ async function* downloadAndPatch(
   const taskId = await sophon.startUpdate(
     {
       gamedir: gameDir,
-      game_type: "hk4e",
+      game_type: gameType,
       tempdir: downloadTmp,
       installedVersion,
       predownload: false,
@@ -155,6 +156,7 @@ export async function* updateGameProgram({
   server,
   updatedGameVersion,
   installedVersion,
+  gameType = "hk4e",
   downloadKey,
   storage = globalStorage,
 }: {
@@ -163,13 +165,14 @@ export async function* updateGameProgram({
   server: Server;
   updatedGameVersion: string;
   installedVersion?: string;
+  gameType?: SophonGameType;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
   storage?: Storage;
 }): TaskProgram {
   yield ["setStateText", "UPDATING"];
   // 3.6.0
-  if (gte(updatedGameVersion, "3.6.0")) {
+  if (gameType === "hk4e" && gte(updatedGameVersion, "3.6.0")) {
     if (
       await fileOrDirExists(
         join(
@@ -214,7 +217,13 @@ export async function* updateGameProgram({
     }
   }
 
-  yield* downloadAndPatch(sophon, gameDir, installedVersion, downloadKey);
+  yield* downloadAndPatch(
+    sophon,
+    gameDir,
+    installedVersion,
+    gameType,
+    downloadKey
+  );
   await storage.setKey(`predownloaded_all`, null);
 }
 
@@ -222,16 +231,19 @@ async function* predownload(
   sophon: Sophon,
   gameDir: string,
   installedVersion: string | undefined,
+  gameType: SophonGameType,
+  targetVersion: string,
   downloadKey?: string
 ): TaskProgram {
   const downloadTmp = join(gameDir, ".tmp");
   const taskId = await sophon.startUpdate(
     {
       gamedir: gameDir,
-      game_type: "hk4e",
+      game_type: gameType,
       tempdir: downloadTmp,
       installedVersion,
       predownload: true,
+      targetVersion,
     },
     downloadKey
   );
@@ -315,6 +327,7 @@ export async function* predownloadGameProgram({
   gameDir,
   targetVersion,
   installedVersion,
+  gameType = "hk4e",
   downloadKey,
   storage = globalStorage,
 }: {
@@ -322,10 +335,18 @@ export async function* predownloadGameProgram({
   gameDir: string;
   targetVersion: string;
   installedVersion?: string;
+  gameType?: SophonGameType;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
   storage?: Storage;
 }) {
-  yield* predownload(sophon, gameDir, installedVersion, downloadKey);
+  yield* predownload(
+    sophon,
+    gameDir,
+    installedVersion,
+    gameType,
+    targetVersion,
+    downloadKey
+  );
   await storage.setKey(`predownloaded_all`, targetVersion);
 }

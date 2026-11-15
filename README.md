@@ -47,7 +47,7 @@ The target channel is selected at build time through `YAAGL_CHANNEL_CLIENT`. A c
 - Lightweight macOS desktop application based on Neutralinojs.
 - Frontend built with SolidJS, TypeScript, and Vite.
 - Game library, installation, update, launch, and task queue management.
-- Swift Sophon sidecar for downloads, patching, progress reporting, and background tasks.
+- HK4E, HKRPG, and NAP use Swift Sophon for install, update, predownload, and integrity checks. BH3 and CBJQ use Aria2.
 - Multiple regions and distribution channels selected at build time.
 - Wine, DXMT, and other runtime components can be configured and managed.
 - Localized interface and replaceable runtime resources.

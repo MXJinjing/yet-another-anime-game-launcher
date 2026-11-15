@@ -2,7 +2,7 @@ import { isWineRuntimeReady } from "@wine/distro";
 import { batch, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Divider } from "@hope-ui/solid";
-import { TaskFailedError, type TaskProgram } from "@tasks/task-program";
+import { type TaskProgram } from "@tasks/task-program";
 import {
   ChannelClient,
   ChannelClientBackground,
@@ -11,31 +11,15 @@ import {
 import { Server } from "@constants";
 import { Locale } from "@locale";
 import { log } from "@logging/logger";
-import { spawnProcess, stats } from "@platform/neutralino";
-import { resolveSidecarPath } from "@platform/neutralino/sidecar";
-import { build, rawString } from "@platform/shell";
-import { assertValueDefined } from "@runtime/assertions";
-import { timeout } from "@runtime/async";
-import { exec } from "@runtime/command-runner";
-import { getFreeSpace } from "@runtime/macos-filesystem";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
-import {
-  isNewerGameVersion,
-  readGameVersion,
-  requireGameVersion,
-} from "../../game-version";
+import { isNewerGameVersion, readGameVersion } from "../../game-version";
 import { Config } from "@config";
-import { checkIntegrityProgram } from "./program-check-integrity";
-import {
-  predownloadGameProgram,
-  updateGameProgram,
-} from "./program-update-game";
-import { downloadAndInstallGameProgram } from "./program-install-game";
 import { launchGameProgram } from "./program-launch-game";
 import { patchRevertProgram } from "../patch";
+import type { SophonOnlineGameInfo } from "@sophon";
+import { createSophonGame, sophonPredownloadVersion } from "../sophon-game";
 import { Aria2 } from "@aria2";
-import { Sophon, createSophonRetry } from "@sophon";
 import { Wine } from "@wine";
 import {
   checkAndDownloadDXMT,
@@ -53,13 +37,9 @@ import createResolution from "./config/resolution";
 import createTimeoutFix from "./config/timeout-fix";
 import { createEnableHDRConfig } from "./config/enable-hdr";
 import { getGameVersion } from "../unity";
-import {
-  VoicePackNames,
-  HoyoConnectGameBackgroundType,
-} from "../launcher-info";
+import { HoyoConnectGameBackgroundType } from "../launcher-info";
 import {
   getLatestLauncherContent,
-  getLatestVersionInfo,
   mapBackgroundsToUiContent,
 } from "../hyp-connect";
 import { HK4E_GAME_LOG_LOCATIONS } from "../../game-log-paths";
@@ -140,96 +120,34 @@ export async function createHK4EChannelClient({
     bg_type === HoyoConnectGameBackgroundType.BACKGROUND_TYPE_VIDEO;
   const fallbackBg = "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)";
 
-  const sophon_host = "127.0.0.1";
-  const sophonDeadline = Date.now() + 30000;
-  const sophonToken = Array.from(
-    crypto.getRandomValues(new Uint8Array(24)),
-    byte => byte.toString(16).padStart(2, "0")
-  ).join("");
-  let sophon: Sophon | undefined;
-  let lastSophonError: unknown;
-  while (!sophon && Date.now() < sophonDeadline) {
-    const sophonPort = randomSophonPort();
-    const pid = (await exec(["echo", rawString("$PPID")])).stdOut.split(
-      "\n"
-    )[0];
-    const { pid: spid } = await spawnProcess(
-      build([
-        await resolveSidecarPath("sophon-swift/SophonCLI"),
-        "rpc",
-        "--transport",
-        "http",
-        "--port",
-        String(sophonPort),
-        "--token",
-        sophonToken,
-        "--allow-origin",
-        window.location.origin,
-        "--parent-pid",
-        pid,
-      ])
-    );
+  const sophon = createSophonGame(server, locale, storage, "hk4e", releaseType);
+  const readInstalledVersion = (directory: string) =>
+    getGameVersionGI(join(directory, server.dataDir));
+  const [gameInfo, setGameInfo] = createSignal<SophonOnlineGameInfo>();
+  const latestVersion = () => gameInfo()?.version ?? "0.0.0";
+
+  async function loadVersionInfo(directory?: string) {
     try {
-      const connectedSophon = await measure("sophon-connect", () =>
-        Promise.race([
-          createSophonRetry(sophon_host, sophonPort, releaseType, sophonToken),
-          timeout(Math.max(500, sophonDeadline - Date.now())),
-        ])
+      const info = await sophon.online(directory);
+      setGameInfo(info);
+      return info;
+    } catch {
+      await locale.alert(
+        "CHECK_GAME_UPDATE_FAILED",
+        "CHECK_GAME_UPDATE_FAILED_DESC"
       );
-      if (connectedSophon) sophon = connectedSophon;
-    } catch (error) {
-      lastSophonError = error;
-      await log(`Sophon startup failed (${String(error)}); retrying`);
-      try {
-        await exec(["kill", String(spid)]);
-      } catch {
-        // The process already exited, usually because the port was busy.
-      }
+      return undefined;
     }
   }
-  if (!sophon) {
-    throw new Error(
-      `Fail to launch sophon.${
-        lastSophonError ? ` ${String(lastSophonError)}` : ""
-      }`
-    );
-  }
-  assertValueDefined(sophon);
-  const sophonClient = sophon;
 
-  // Determine local installation state before the expensive online manifest
-  // query. An uninstalled game has no current version to compare and does not
-  // need online version metadata during launcher startup.
   const localGameState = await measure("check-game-state", () =>
     checkGameState(locale, server, storage)
   );
-  let gameInfo = localGameState.gameInstalled
-    ? await measure("sophon-game-info", () =>
-        sophonClient.getLatestOnlineGameInfo(releaseType, "hk4e")
-      )
-    : {
-        game_type: "hk4e" as const,
-        version: "0.0.0",
-        install_size: 0,
-        updatable_versions: [],
-        release_type: releaseType,
-        pre_download: false,
-        pre_download_version: "0.0.0",
-      };
   if (localGameState.gameInstalled) {
-    log(`Game info: ${JSON.stringify(gameInfo)}`);
+    await measure("sophon-game-info", () =>
+      loadVersionInfo(localGameState.gameInstallDir)
+    );
   }
-  let LATEST_GAME_VERSION: string =
-    readGameVersion(gameInfo.version) ?? "0.0.0";
-  let UPDATABLE_VERSIONS: string[] = gameInfo.updatable_versions;
-  let PRE_DOWNLOAD_VERSION: string =
-    readGameVersion(gameInfo.pre_download_version) ?? "0.0.0";
-  // CN pre-download is enabled again so the feature becomes available once
-  // the upstream service publishes a pre-download branch. BB remains
-  // unsupported by the Sophon manifest endpoint.
-  let PRE_DOWNLOAD_AVAILABLE: boolean =
-    releaseType !== "bb" && gameInfo.pre_download;
-  let INSTALL_SIZE_BYTES: number = gameInfo.install_size;
 
   const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
   const initialVersion = readGameVersion(gameVersion) ?? "0.0.0";
@@ -243,64 +161,27 @@ export async function createHK4EChannelClient({
   const [runtimeReady, setRuntimeReady] = createSignal(
     await measure("dxmt-installed-check", isDXMTInstalled)
   );
-  const [showPredownloadPrompt, setShowPredownloadPrompt] =
-    createSignal<boolean>(
-      PRE_DOWNLOAD_AVAILABLE &&
-        (await measure("predownload-storage", () =>
-          getKeyOrDefault("predownloaded_all", "NOTFOUND")
-        )) != PRE_DOWNLOAD_VERSION && // this version has not been downloaded yet
-        gameInstalled && // game installed
-        isNewerGameVersion(PRE_DOWNLOAD_VERSION, initialVersion) // predownload version is greater
-    );
   const [_gameInstallDir, setGameInstallDir] = createSignal(
     gameInstallDir ?? ""
   );
   const [gameCurrentVersion, setGameVersion] = createSignal(initialVersion);
   const updateRequired = () =>
-    isNewerGameVersion(LATEST_GAME_VERSION, gameCurrentVersion());
+    Boolean(gameInfo()?.needs_resume) ||
+    isNewerGameVersion(latestVersion(), gameCurrentVersion());
+  const predownloadVersion = () =>
+    sophonPredownloadVersion(gameInfo(), gameCurrentVersion());
+  const [showPredownloadPrompt, setShowPredownloadPrompt] = createSignal(
+    gameInstalled &&
+      Boolean(predownloadVersion()) &&
+      (await getKeyOrDefault("predownloaded_all", "NOTFOUND")) !==
+        predownloadVersion()
+  );
 
-  async function refreshInstalledGameVersion() {
-    const installedVersion = await getGameVersionGI(
-      join(_gameInstallDir(), server.dataDir)
-    );
-    setGameVersion(readGameVersion(installedVersion) ?? "0.0.0");
-    return installedVersion;
-  }
-
-  async function* updateToLatest(): TaskProgram<boolean> {
-    if (!updateRequired()) return true;
-
-    const currentVersion = gameCurrentVersion();
-    const updatable = UPDATABLE_VERSIONS.includes(currentVersion);
-    if (!updatable) {
-      await locale.prompt("UNSUPPORTED_VERSION", "GAME_VERSION_TOO_OLD_DESC", [
-        currentVersion,
-      ]);
-      batch(() => {
-        setInstalled("NOT_INSTALLED");
-        setGameInstallDir("");
-        setGameVersion("0.0.0");
-      });
-      await setKey("game_install_dir", null);
-      return false;
-    }
-
-    yield* updateGameProgram({
-      sophon: sophonClient,
-      gameDir: _gameInstallDir(),
-      server,
-      updatedGameVersion: LATEST_GAME_VERSION,
-      installedVersion: currentVersion,
-      downloadKey: storage.namespace,
-      storage,
-    });
-    const installedVersion = await refreshInstalledGameVersion();
-    if (isNewerGameVersion(LATEST_GAME_VERSION, installedVersion)) {
-      log(
-        `Update completed but the installed game version is still ${installedVersion}; expected ${LATEST_GAME_VERSION}`
-      );
-    }
-    return true;
+  async function refreshInstalledVersion(directory = _gameInstallDir()) {
+    const version =
+      readGameVersion(await readInstalledVersion(directory)) ?? "0.0.0";
+    setGameVersion(version);
+    setGameInfo(info => info && { ...info, needs_resume: false });
   }
 
   const [uiContent, setUiContent] = createStore<ChannelClient["uiContent"]>({
@@ -324,7 +205,7 @@ export async function createHK4EChannelClient({
     gameExecutable: () => server.executable,
     gameLogLocations: HK4E_GAME_LOG_LOCATIONS,
     gameVersion: gameCurrentVersion,
-    latestVersion: () => LATEST_GAME_VERSION,
+    latestVersion,
     updateRequired,
     uiContent,
     async hydrateUiContent() {
@@ -340,10 +221,7 @@ export async function createHK4EChannelClient({
         setUiContent("launcherContentLoaded", true);
       }
     },
-    predownloadVersion: () =>
-      PRE_DOWNLOAD_AVAILABLE && PRE_DOWNLOAD_VERSION !== "0.0.0"
-        ? PRE_DOWNLOAD_VERSION
-        : "",
+    predownloadVersion,
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
@@ -358,146 +236,40 @@ export async function createHK4EChannelClient({
       }
     },
     async *install(selection: string): TaskProgram {
-      if (LATEST_GAME_VERSION === "0.0.0") {
-        try {
-          gameInfo = await measure("sophon-game-info-install", () =>
-            sophonClient.getLatestOnlineGameInfo(releaseType, "hk4e")
-          );
-          LATEST_GAME_VERSION = requireGameVersion(gameInfo.version);
-          UPDATABLE_VERSIONS = gameInfo.updatable_versions;
-          PRE_DOWNLOAD_VERSION =
-            readGameVersion(gameInfo.pre_download_version) ?? "0.0.0";
-          PRE_DOWNLOAD_AVAILABLE =
-            releaseType !== "bb" && gameInfo.pre_download;
-          INSTALL_SIZE_BYTES = gameInfo.install_size;
-        } catch {
-          await locale.alert(
-            "CHECK_GAME_UPDATE_FAILED",
-            "CHECK_GAME_UPDATE_FAILED_DESC"
-          );
-          return;
-        }
+      const info = await loadVersionInfo(selection);
+      if (!info) return;
+      yield* sophon.install(selection, info);
+      await refreshInstalledVersion(selection);
+      batch(() => {
+        setInstalled("INSTALLED");
+        setGameInstallDir(selection);
+      });
+      await setKey("game_install_dir", selection);
+      if (wine.attributes.renderBackend === "dxmt") {
+        yield* checkAndDownloadDXMT(aria2, storage.namespace);
       }
-      try {
-        await stats(join(selection, "pkg_version"));
-      } catch {
-        const freeSpaceGB = await getFreeSpace(selection, "g");
-        const requiredSpaceGB =
-          Math.ceil(INSTALL_SIZE_BYTES / Math.pow(1024, 3)) * 1.2;
-        // Only enforce the disk-space requirement when the backend actually
-        // returned a valid install size. When the manifest load failed the
-        // backend returns install_size=0, which would make requiredSpaceGB=0
-        // and silently bypass the check; the explicit INSTALL_SIZE_BYTES > 0
-        // guard makes that intent clear so a future change to the formula
-        // can't accidentally turn "unknown size" into a hard block.
-        if (INSTALL_SIZE_BYTES > 0 && freeSpaceGB < requiredSpaceGB) {
-          await locale.alert(
-            "NO_ENOUGH_DISKSPACE",
-            "NO_ENOUGH_DISKSPACE_DESC",
-            [requiredSpaceGB + "", (requiredSpaceGB * 1.074).toFixed(1)]
-          );
-          throw new TaskFailedError(locale.get("NO_ENOUGH_DISKSPACE"));
-        }
-        if (INSTALL_SIZE_BYTES <= 0) {
-          log(
-            "install_size unknown (sophon manifest load failed); skipping disk-space check"
-          );
-        }
-
-        yield* downloadAndInstallGameProgram({
-          sophonClient: sophon,
-          gameDir: selection,
-          installReltype: releaseType,
-          downloadKey: storage.namespace,
-        });
-        if (wine.attributes.renderBackend == "dxmt") {
-          yield* checkAndDownloadDXMT(aria2, storage.namespace);
-        }
-        setRuntimeReady(true);
-
-        // setGameInstalled
-        const installedVersion = await getGameVersionGI(
-          join(selection, server.dataDir)
-        );
-        batch(() => {
-          setInstalled("INSTALLED");
-          setGameInstallDir(selection);
-          setGameVersion(readGameVersion(installedVersion) ?? "0.0.0");
-        });
-        await setKey("game_install_dir", selection);
-        return;
-      }
-      const gameVersion = await getGameVersionGI(
-        join(selection, server.dataDir)
-      );
-      if (!readGameVersion(gameVersion)) {
-        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
-        return;
-      }
-      // if (gt(gameVersion, CURRENT_SUPPORTED_VERSION)) {
-      //   await locale.alert(
-      //     "UNSUPPORTED_VERSION",
-      //     "PLEASE_WAIT_FOR_LAUNCHER_UPDATE",
-      //     [gameVersion]
-      //   );
-      //   return;
-      // } else
-      if (isNewerGameVersion(LATEST_GAME_VERSION, gameVersion)) {
-        const updatable = UPDATABLE_VERSIONS.includes(gameVersion);
-        if (!updatable) {
-          await locale.prompt(
-            "UNSUPPORTED_VERSION",
-            "GAME_VERSION_TOO_OLD_DESC",
-            [gameVersion]
-          );
-          return;
-        }
-        batch(() => {
-          setInstalled("INSTALLED");
-          setGameInstallDir(selection);
-          setGameVersion(gameVersion);
-        });
-        await setKey("game_install_dir", selection);
-        // FIXME: perform a integrity check?
-      } else {
-        yield* checkIntegrityProgram({
-          sophon,
-          gameDir: selection,
-          installedVersion: gameVersion,
-          downloadKey: storage.namespace,
-          storage,
-        });
-        // setGameInstalled
-        batch(() => {
-          setInstalled("INSTALLED");
-          setGameInstallDir(selection);
-          setGameVersion(gameVersion);
-        });
-        await setKey("game_install_dir", selection);
-      }
+      setRuntimeReady(true);
     },
     async *predownload() {
       setShowPredownloadPrompt(false);
-      if (
-        !PRE_DOWNLOAD_AVAILABLE ||
-        !isNewerGameVersion(PRE_DOWNLOAD_VERSION, gameCurrentVersion())
-      )
-        return;
-      yield* predownloadGameProgram({
-        sophon,
-        gameDir: _gameInstallDir(),
-        targetVersion: PRE_DOWNLOAD_VERSION,
-        installedVersion: gameCurrentVersion(),
-        downloadKey: storage.namespace,
-        storage,
-      });
+      if (!(await loadVersionInfo(_gameInstallDir()))) return;
+      const target = predownloadVersion();
+      if (!target) return;
+      yield* sophon.predownload(
+        _gameInstallDir(),
+        gameCurrentVersion(),
+        target
+      );
     },
     async *update() {
-      if (gameCurrentVersion() === "0.0.0") {
-        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
-        return;
-      }
-      yield* updateToLatest();
+      const info = await loadVersionInfo(_gameInstallDir());
+      if (!info) return;
+      yield* sophon.update(
+        _gameInstallDir(),
+        gameCurrentVersion(),
+        info.version
+      );
+      await refreshInstalledVersion();
     },
     async *launch(config: Config) {
       if (gameCurrentVersion() === "0.0.0") {
@@ -531,17 +303,11 @@ export async function createHK4EChannelClient({
       });
     },
     async *checkIntegrity() {
-      if (!(yield* updateToLatest())) return;
-      yield* checkIntegrityProgram({
-        sophon,
-        gameDir: _gameInstallDir(),
-        installedVersion: gameCurrentVersion(),
-        downloadKey: storage.namespace,
-        storage,
-      });
-      await refreshInstalledGameVersion();
+      yield* sophon.repair(_gameInstallDir(), gameCurrentVersion());
+      await refreshInstalledVersion();
     },
     async changeInstallDir(selection: string) {
+      setGameInfo(info => info && { ...info, needs_resume: false });
       if (!selection) {
         batch(() => {
           setInstalled("NOT_INSTALLED");
@@ -572,6 +338,7 @@ export async function createHK4EChannelClient({
           setGameVersion("0.0.0");
         });
         await setKey("game_install_dir", selection);
+        if (installed() === "INSTALLED") await loadVersionInfo(selection);
       }
     },
     async *init(config: Config) {
@@ -590,13 +357,8 @@ export async function createHK4EChannelClient({
           storage
         );
       } catch {
-        yield* checkIntegrityProgram({
-          sophon,
-          gameDir: _gameInstallDir(),
-          installedVersion: gameCurrentVersion(),
-          downloadKey: storage.namespace,
-          storage,
-        });
+        yield* sophon.repair(_gameInstallDir(), gameCurrentVersion());
+        await refreshInstalledVersion();
       }
     },
     async createConfig(locale: Locale, config: Partial<Config>) {
@@ -641,10 +403,6 @@ export async function createHK4EChannelClient({
       };
     },
   };
-}
-
-function randomSophonPort(): number {
-  return Math.floor(Math.random() * (65535 - 50000)) + 50000;
 }
 
 async function getGameVersionGI(gameDataDir: string) {

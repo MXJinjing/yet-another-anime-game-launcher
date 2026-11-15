@@ -2,7 +2,7 @@ import { isWineRuntimeReady } from "@wine/distro";
 import { batch, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Divider } from "@hope-ui/solid";
-import { TaskFailedError, type TaskProgram } from "@tasks/task-program";
+import { type TaskProgram } from "@tasks/task-program";
 import {
   ChannelClient,
   ChannelClientBackground,
@@ -10,28 +10,15 @@ import {
 } from "../../../channel-client";
 import { Server } from "../../../constants";
 import { Locale } from "../../../locale";
-import { stats } from "@platform/neutralino";
-import { assertValueDefined } from "@runtime/assertions";
-import { exec } from "@runtime/command-runner";
-import { getFreeSpace } from "@runtime/macos-filesystem";
-import { log } from "@logging/logger";
 import { md5 } from "@runtime/patching";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
-import {
-  isNewerGameVersion,
-  readGameVersion,
-  requireGameVersion,
-} from "../../game-version";
+import { isNewerGameVersion, readGameVersion } from "../../game-version";
 import { Config } from "@config";
-import { checkIntegrityProgram } from "../program-check-integrity";
-import {
-  predownloadGameProgram,
-  updateGameProgram,
-} from "./program-update-game";
-import { downloadAndInstallGameProgram } from "./program-install-game";
 import { launchGameProgram } from "./program-launch-game";
 import { patchRevertProgram } from "../patch";
+import type { SophonOnlineGameInfo } from "@sophon";
+import { createSophonGame, sophonPredownloadVersion } from "../sophon-game";
 import { Aria2 } from "@aria2";
 import { Wine } from "@wine";
 import {
@@ -51,14 +38,9 @@ import createMetalFx from "./config/metalfx";
 import createDirectX12 from "./config/directx12";
 import createMhypBaseReplacement from "../hk4e/config/runtime-replacement";
 import { getGameVersion as _getGameVersion } from "../unity";
-import {
-  HoyoConnectGameBackgroundType,
-  HoyoConnectGamePackages,
-  VoicePackNames,
-} from "../launcher-info";
+import { HoyoConnectGameBackgroundType } from "../launcher-info";
 import {
   getLatestLauncherContent,
-  getLatestVersionInfo,
   mapBackgroundsToUiContent,
 } from "../hyp-connect";
 import { NAP_GAME_LOG_LOCATIONS } from "../../game-log-paths";
@@ -136,41 +118,30 @@ export async function createNAPChannelClient({
     !isAdvFallback &&
     bg_type === HoyoConnectGameBackgroundType.BACKGROUND_TYPE_VIDEO;
   const fallbackBg = "linear-gradient(135deg, #fa709a 0%, #fee140 100%)";
-  // Uninstalled games skip the online version request during startup. Keep a
-  // valid semver value so updateRequired() remains safe before installation.
-  let GAME_LATEST_VERSION = "0.0.0";
-  let game_pkgs: { url: string; size: string }[];
-  let decompressed_path: string;
-  let patches: HoyoConnectGamePackages[];
-  let pre_download: {
-    major: HoyoConnectGamePackages | null;
-    patches: HoyoConnectGamePackages[];
-  } = { major: null, patches: [] };
-  let versionLoaded = false;
-  const loadVersionInfo = async () => {
-    const versionInfo = await getLatestVersionInfo(server);
-    GAME_LATEST_VERSION = requireGameVersion(versionInfo.main.major.version);
-    game_pkgs = versionInfo.main.major.game_pkgs;
-    decompressed_path = versionInfo.main.major.res_list_url;
-    patches = versionInfo.main.patches;
-    pre_download = versionInfo.pre_download;
-    versionLoaded = true;
-  };
-  const localGameState = await checkGameState(locale, server, storage);
-  if (localGameState.gameInstalled)
+  const sophon = createSophonGame(server, locale, storage, "nap");
+  const readInstalledVersion = (directory: string) =>
+    getGameVersion(join(directory, server.dataDir), 0xc4);
+  const [gameInfo, setGameInfo] = createSignal<SophonOnlineGameInfo>();
+  const latestVersion = () => gameInfo()?.version ?? "0.0.0";
+
+  async function loadVersionInfo(directory?: string) {
     try {
-      await loadVersionInfo();
+      const info = await sophon.online(directory);
+      setGameInfo(info);
+      return info;
     } catch {
       await locale.alert(
         "CHECK_GAME_UPDATE_FAILED",
         "CHECK_GAME_UPDATE_FAILED_DESC"
       );
-      GAME_LATEST_VERSION = "0.0.0";
-      game_pkgs = [];
-      decompressed_path = "";
-      patches = [];
-      pre_download = { major: null, patches: [] };
+      return undefined;
     }
+  }
+
+  const localGameState = await checkGameState(locale, server, storage);
+  if (localGameState.gameInstalled) {
+    await loadVersionInfo(localGameState.gameInstallDir);
+  }
 
   const { gameInstalled, gameInstallDir, gameVersion } = localGameState;
   const initialVersion = readGameVersion(gameVersion) ?? "0.0.0";
@@ -182,20 +153,29 @@ export async function createNAPChannelClient({
     gameInstalled ? "INSTALLED" : "NOT_INSTALLED"
   );
   const [runtimeReady, setRuntimeReady] = createSignal(await isDXMTInstalled());
-  const [showPredownloadPrompt, setShowPredownloadPrompt] =
-    createSignal<boolean>(
-      pre_download?.major != null && //exist pre_download_game data in server response
-        (await getKeyOrDefault("predownloaded_all", "NOTFOUND")) ==
-          "NOTFOUND" && // not downloaded yet
-        gameInstalled && // game installed
-        isNewerGameVersion(pre_download.major.version, initialVersion) // predownload version is greater
-    );
   const [_gameInstallDir, setGameInstallDir] = createSignal(
     gameInstallDir ?? ""
   );
   const [gameCurrentVersion, setGameVersion] = createSignal(initialVersion);
   const updateRequired = () =>
-    isNewerGameVersion(GAME_LATEST_VERSION, gameCurrentVersion());
+    Boolean(gameInfo()?.needs_resume) ||
+    isNewerGameVersion(latestVersion(), gameCurrentVersion());
+  const predownloadVersion = () =>
+    sophonPredownloadVersion(gameInfo(), gameCurrentVersion());
+  const [showPredownloadPrompt, setShowPredownloadPrompt] = createSignal(
+    gameInstalled &&
+      Boolean(predownloadVersion()) &&
+      (await getKeyOrDefault("predownloaded_all", "NOTFOUND")) !==
+        predownloadVersion()
+  );
+
+  async function refreshInstalledVersion(directory = _gameInstallDir()) {
+    const version =
+      readGameVersion(await readInstalledVersion(directory)) ?? "0.0.0";
+    setGameVersion(version);
+    setGameInfo(info => info && { ...info, needs_resume: false });
+  }
+
   const [uiContent, setUiContent] = createStore<ChannelClient["uiContent"]>({
     background,
     background_video: IS_VIDEO_BG ? video_url : undefined,
@@ -218,7 +198,7 @@ export async function createNAPChannelClient({
     gameExecutable: () => server.executable,
     gameLogLocations: NAP_GAME_LOG_LOCATIONS,
     gameVersion: gameCurrentVersion,
-    latestVersion: () => GAME_LATEST_VERSION,
+    latestVersion,
     updateRequired,
     uiContent,
     async hydrateUiContent() {
@@ -234,8 +214,7 @@ export async function createNAPChannelClient({
         setUiContent("launcherContentLoaded", true);
       }
     },
-    predownloadVersion: () =>
-      readGameVersion(pre_download?.major?.version) ?? "",
+    predownloadVersion,
     dismissPredownload() {
       setShowPredownloadPrompt(false);
     },
@@ -250,232 +229,40 @@ export async function createNAPChannelClient({
       }
     },
     async *install(selection: string): TaskProgram {
-      if (!versionLoaded) {
-        try {
-          await loadVersionInfo();
-        } catch {
-          await locale.alert(
-            "CHECK_GAME_UPDATE_FAILED",
-            "CHECK_GAME_UPDATE_FAILED_DESC"
-          );
-          return;
-        }
+      const info = await loadVersionInfo(selection);
+      if (!info) return;
+      yield* sophon.install(selection, info);
+      await refreshInstalledVersion(selection);
+      batch(() => {
+        setInstalled("INSTALLED");
+        setGameInstallDir(selection);
+      });
+      await setKey("game_install_dir", selection);
+      if (wine.attributes.renderBackend === "dxmt") {
+        yield* checkAndDownloadDXMT(aria2, storage.namespace);
       }
-      if (game_pkgs.length === 0) {
-        await locale.alert(
-          "CHECK_GAME_UPDATE_FAILED",
-          "CHECK_GAME_UPDATE_FAILED_DESC"
-        );
-        return;
-      }
-      try {
-        await stats(join(selection, "pkg_version"));
-      } catch {
-        const freeSpaceGB = await getFreeSpace(selection, "g");
-        // `Array#map(parseInt)` would pass the index as the radix and yield
-        // NaN, so parse with an explicit base 10 and coerce failures to 0.
-        const totalSize = game_pkgs.reduce(
-          (a, x) => a + (Number.parseInt(x.size, 10) || 0),
-          0
-        );
-        const requiredSpaceGB = Math.ceil(totalSize / Math.pow(1024, 3)) * 1.2;
-        if (freeSpaceGB < requiredSpaceGB) {
-          await locale.alert(
-            "NO_ENOUGH_DISKSPACE",
-            "NO_ENOUGH_DISKSPACE_DESC",
-            [requiredSpaceGB + "", (requiredSpaceGB * 1.074).toFixed(1)]
-          );
-          throw new TaskFailedError(locale.get("NO_ENOUGH_DISKSPACE"));
-        }
-
-        yield* downloadAndInstallGameProgram({
-          aria2,
-          gameDir: selection,
-          gameSegmentZips: game_pkgs.map(x => x.url),
-          // gameAudioZip: voice_packs.find((x) => x.language == "zh-cn")!
-          //   .path,
-          gameVersion: GAME_LATEST_VERSION,
-          server,
-          totalBytes: BigInt(totalSize),
-          downloadKey: storage.namespace,
-          storage,
-        });
-        if (wine.attributes.renderBackend == "dxmt") {
-          yield* checkAndDownloadDXMT(aria2, storage.namespace);
-        }
-        setRuntimeReady(true);
-
-        // setGameInstalled
-        batch(() => {
-          setInstalled("INSTALLED");
-          setGameInstallDir(selection);
-          setGameVersion(GAME_LATEST_VERSION);
-        });
-        await setKey("game_install_dir", selection);
-        return;
-      }
-      const gameVersion = await getGameVersion(
-        join(selection, server.dataDir),
-        0xc4
-      );
-      if (!readGameVersion(gameVersion)) {
-        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
-        return;
-      }
-      // if (gt(gameVersion, CURRENT_SUPPORTED_VERSION)) {
-      //   await locale.alert(
-      //     "UNSUPPORTED_VERSION",
-      //     "PLEASE_WAIT_FOR_LAUNCHER_UPDATE",
-      //     [gameVersion]
-      //   );
-      //   return;
-      // } else
-      if (isNewerGameVersion(GAME_LATEST_VERSION, gameVersion)) {
-        const updateTarget = patches.find(x => x.version == gameVersion);
-        if (!updateTarget) {
-          await locale.prompt(
-            "UNSUPPORTED_VERSION",
-            "GAME_VERSION_TOO_OLD_DESC",
-            [gameVersion]
-          );
-          return;
-        }
-        batch(() => {
-          setInstalled("INSTALLED");
-          setGameInstallDir(selection);
-          setGameVersion(gameVersion);
-        });
-        await setKey("game_install_dir", selection);
-        // FIXME: perform a integrity check?
-      } else {
-        // yield* checkIntegrityProgram({
-        //   aria2,
-        //   gameDir: selection,
-        //   remoteDir: decompressed_path,
-        // });
-        // setGameInstalled
-        batch(() => {
-          setInstalled("INSTALLED");
-          setGameInstallDir(selection);
-          setGameVersion(gameVersion);
-        });
-        await setKey("game_install_dir", selection);
-      }
+      setRuntimeReady(true);
     },
     async *predownload() {
       setShowPredownloadPrompt(false);
-      if (
-        !isNewerGameVersion(pre_download?.major?.version, gameCurrentVersion())
-      )
-        return;
-      const updateTarget = pre_download.patches.find(
-        x => x.version == gameCurrentVersion()
+      if (!(await loadVersionInfo(_gameInstallDir()))) return;
+      const target = predownloadVersion();
+      if (!target) return;
+      yield* sophon.predownload(
+        _gameInstallDir(),
+        gameCurrentVersion(),
+        target
       );
-      if (updateTarget == null) return;
-      const voicePacks = (
-        await Promise.all(
-          updateTarget.audio_pkgs.map(async x => {
-            try {
-              await stats(
-                join(
-                  _gameInstallDir(),
-                  `Audio_${VoicePackNames[x.language]}_pkg_version`
-                )
-              );
-              return x;
-            } catch {
-              return null;
-            }
-          })
-        )
-      )
-        .filter(x => x != null)
-        .map(x => {
-          assertValueDefined(x);
-          return x;
-        });
-      if (updateTarget.game_pkgs.length != 1) {
-        throw new Error(
-          "assertation failed (game_pkgs.length!= 1)! please file an issue."
-        );
-      }
-      yield* predownloadGameProgram({
-        aria2,
-        updateFileZip: updateTarget.game_pkgs[0].url,
-        gameDir: _gameInstallDir(),
-        updateVoicePackZips: voicePacks.map(x => x.url),
-        downloadKey: storage.namespace,
-        storage,
-      });
     },
     async *update() {
-      if (gameCurrentVersion() === "0.0.0") {
-        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
-        return;
-      }
-      if (patches.length === 0) {
-        await locale.alert(
-          "CHECK_GAME_UPDATE_FAILED",
-          "CHECK_GAME_UPDATE_FAILED_DESC"
-        );
-        return;
-      }
-      const updateTarget = patches.find(x => x.version == gameCurrentVersion());
-      if (!updateTarget) {
-        await locale.prompt(
-          "UNSUPPORTED_VERSION",
-          "GAME_VERSION_TOO_OLD_DESC",
-          [gameCurrentVersion()]
-        );
-        batch(() => {
-          setInstalled("NOT_INSTALLED");
-          setGameInstallDir("");
-          setGameVersion("0.0.0");
-        });
-        await setKey("game_install_dir", null);
-        return;
-      }
-      const voicePacks = (
-        await Promise.all(
-          updateTarget.audio_pkgs.map(async x => {
-            try {
-              await stats(
-                join(
-                  _gameInstallDir(),
-                  `Audio_${VoicePackNames[x.language]}_pkg_version`
-                )
-              );
-              return x;
-            } catch {
-              return null;
-            }
-          })
-        )
-      )
-        .filter(x => x != null)
-        .map(x => {
-          assertValueDefined(x);
-          return x;
-        });
-      if (updateTarget.game_pkgs.length != 1) {
-        throw new Error(
-          "assertation failed (game_pkgs.length!= 1)! please file an issue."
-        );
-      }
-      yield* updateGameProgram({
-        aria2,
-        server,
-        currentGameVersion: gameCurrentVersion(),
-        updatedGameVersion: GAME_LATEST_VERSION,
-        updateFileZip: updateTarget.game_pkgs[0].url,
-        gameDir: _gameInstallDir(),
-        updateVoicePackZips: voicePacks.map(x => x.url),
-        downloadKey: storage.namespace,
-        storage,
-      });
-      batch(() => {
-        setGameVersion(GAME_LATEST_VERSION);
-      });
+      const info = await loadVersionInfo(_gameInstallDir());
+      if (!info) return;
+      yield* sophon.update(
+        _gameInstallDir(),
+        gameCurrentVersion(),
+        info.version
+      );
+      await refreshInstalledVersion();
     },
     async *launch(config: Config) {
       if (gameCurrentVersion() === "0.0.0") {
@@ -509,30 +296,11 @@ export async function createNAPChannelClient({
       });
     },
     async *checkIntegrity() {
-      if (!versionLoaded) {
-        await locale.alert(
-          "CHECK_GAME_UPDATE_FAILED",
-          "CHECK_GAME_UPDATE_FAILED_DESC"
-        );
-        return;
-      }
-      yield* checkIntegrityProgram({
-        aria2,
-        gameDir: _gameInstallDir(),
-        remoteDir: decompressed_path,
-        downloadKey: storage.namespace,
-        storage,
-      });
-
-      if (gameCurrentVersion() === "0.0.0") {
-        setGameVersion(
-          readGameVersion(
-            await getGameVersion(join(_gameInstallDir(), server.dataDir), 0xc4)
-          ) ?? "0.0.0"
-        );
-      }
+      yield* sophon.repair(_gameInstallDir(), gameCurrentVersion());
+      await refreshInstalledVersion();
     },
     async changeInstallDir(selection: string) {
+      setGameInfo(info => info && { ...info, needs_resume: false });
       if (!selection) {
         batch(() => {
           setInstalled("NOT_INSTALLED");
@@ -563,6 +331,7 @@ export async function createNAPChannelClient({
         });
       }
       await setKey("game_install_dir", selection);
+      if (installed() === "INSTALLED") await loadVersionInfo(selection);
     },
     async *init(config: Config) {
       setRuntimeReady(await isDXMTInstalled());
@@ -580,13 +349,8 @@ export async function createNAPChannelClient({
           storage
         );
       } catch {
-        yield* checkIntegrityProgram({
-          aria2,
-          gameDir: _gameInstallDir(),
-          remoteDir: decompressed_path,
-          downloadKey: storage.namespace,
-          storage,
-        });
+        yield* sophon.repair(_gameInstallDir(), gameCurrentVersion());
+        await refreshInstalledVersion();
       }
     },
     async createConfig(locale: Locale, config: Partial<Config>) {
