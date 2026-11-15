@@ -743,6 +743,32 @@ textarea,
   text-overflow: ellipsis;
 }
 
+.hyp-download-details-link {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ece6f2;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.hyp-download-details-link:hover {
+  color: var(--hyp-accent, #ffd834);
+}
+
+.hyp-download-summary-metrics {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 .hyp-download-cancel-icon {
   width: 14px;
   height: 14px;

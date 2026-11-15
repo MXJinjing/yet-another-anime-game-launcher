@@ -9,6 +9,7 @@ const english = {
   download: "Download progress",
   install: "Installation progress",
   remaining: "Time remaining",
+  viewDetails: "View details",
 };
 
 const translations: Record<Locale["currentLanguage"], typeof english> = {
@@ -22,6 +23,7 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     download: "下载进度",
     install: "安装进度",
     remaining: "预计剩余时间",
+    viewDetails: "查看详情",
   },
   ja_jp: {
     queue: "ダウンロードキュー",
@@ -32,6 +34,7 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     download: "ダウンロード進捗",
     install: "インストール進捗",
     remaining: "残り時間",
+    viewDetails: "詳細を表示",
   },
   ko_kr: {
     queue: "다운로드 대기열",
@@ -42,6 +45,7 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     download: "다운로드 진행률",
     install: "설치 진행률",
     remaining: "남은 시간",
+    viewDetails: "자세히 보기",
   },
   de_de: {
     queue: "Download-Warteschlange",
@@ -52,6 +56,7 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     download: "Downloadfortschritt",
     install: "Installationsfortschritt",
     remaining: "Verbleibende Zeit",
+    viewDetails: "Details anzeigen",
   },
   fr_fr: {
     queue: "File de téléchargement",
@@ -62,6 +67,7 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     download: "Progression du téléchargement",
     install: "Progression de l’installation",
     remaining: "Temps restant",
+    viewDetails: "Voir les détails",
   },
   es_es: {
     queue: "Cola de descargas",
@@ -72,6 +78,7 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     download: "Progreso de descarga",
     install: "Progreso de instalación",
     remaining: "Tiempo restante",
+    viewDetails: "Ver detalles",
   },
   ru_ru: {
     queue: "Очередь загрузок",
@@ -82,6 +89,7 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     download: "Ход загрузки",
     install: "Ход установки",
     remaining: "Оставшееся время",
+    viewDetails: "Подробнее",
   },
   vi_vn: {
     queue: "Hàng đợi tải xuống",
@@ -92,6 +100,7 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     download: "Tiến độ tải xuống",
     install: "Tiến độ cài đặt",
     remaining: "Thời gian còn lại",
+    viewDetails: "Xem chi tiết",
   },
   th_th: {
     queue: "คิวดาวน์โหลด",
@@ -102,6 +111,7 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     download: "ความคืบหน้าการดาวน์โหลด",
     install: "ความคืบหน้าการติดตั้ง",
     remaining: "เวลาที่เหลือ",
+    viewDetails: "ดูรายละเอียด",
   },
 };
 

@@ -15,6 +15,7 @@ import { isConnectionError } from "../../services/connection-error";
 import { InitialWineSetupModal } from "../../modals/initial-wine-setup-modal";
 import { applyRecommendedWineProgram } from "@wine/recommended-settings-program";
 import { Locale } from "@locale";
+import { downloadManagerText } from "../../locale/download-manager";
 import { hopeTaskNotifier } from "@tasks/task-notifications";
 import { exec2, fatal, getKeyOrDefault, setKey } from "@runtime";
 import { log } from "@logging/logger";
@@ -82,7 +83,7 @@ import {
 import { reloadConfig, setGlobalTaskActive } from "@download/stream-scheduler";
 import {
   type DownloadTaskSnapshot,
-  getDownloadTaskCount,
+  getDownloadTasks,
   subscribeDownloadTasks,
 } from "@download/task-registry";
 import { DownloadManager } from "../views/download-manager";
@@ -133,15 +134,17 @@ async function removeDirectoryRecursively(path: string): Promise<void> {
   await removeDirectory(path);
 }
 
-type ProgressPanelData = {
+type ProgressSummaryData = {
   title: string;
-  file?: string;
   speed?: string;
-  downloaded?: string;
-  total?: string;
-  percent?: string;
   progress?: number;
   progressMode?: "determinate" | "indeterminate";
+};
+
+type ProgressPanelData = ProgressSummaryData & {
+  file?: string;
+  downloaded?: string;
+  total?: string;
   fileIndex?: string;
   fileCount?: string;
   showFileRow: boolean;
@@ -153,6 +156,75 @@ type ProgressPanelData = {
   namespace?: string;
 };
 
+function roundedProgress(progress = 0) {
+  return Math.round(Math.min(100, Math.max(0, progress)));
+}
+
+function LauncherProgressBar(props: { panel: ProgressSummaryData }) {
+  const determinate = () => props.panel.progressMode === "determinate";
+  const percent = () => roundedProgress(props.panel.progress);
+  return (
+    <Show when={props.panel.progressMode !== undefined}>
+      <div
+        class="hyp-download-progress"
+        role="progressbar"
+        aria-label={props.panel.title}
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow={determinate() ? percent() : undefined}
+      >
+        <div
+          classList={{
+            "hyp-download-progress-fill": true,
+            indeterminate: !determinate(),
+          }}
+          style={{ width: determinate() ? `${percent()}%` : undefined }}
+        />
+      </div>
+    </Show>
+  );
+}
+
+function GameProgressSummary(props: {
+  panel: ProgressSummaryData;
+  locale: Locale;
+  onViewDetails?: () => void;
+}) {
+  return (
+    <div class="hyp-progress-div hyp-game-progress-summary">
+      <div class="hyp-download-header">
+        <span class="hyp-download-title" title={props.panel.title}>
+          {props.panel.title}
+        </span>
+        <Show when={props.onViewDetails}>
+          <button
+            class="hyp-download-details-link"
+            type="button"
+            onClick={() => props.onViewDetails?.()}
+          >
+            {downloadManagerText(props.locale.currentLanguage).viewDetails}
+          </button>
+        </Show>
+      </div>
+      <LauncherProgressBar panel={props.panel} />
+      <Show
+        when={props.panel.progressMode === "determinate" || props.panel.speed}
+      >
+        <div class="hyp-download-summary-metrics">
+          <span>
+            <Show when={props.panel.progressMode === "determinate"}>
+              {roundedProgress(props.panel.progress)}%
+            </Show>
+          </span>
+          <Show when={props.panel.speed}>
+            <span>{props.panel.speed}</span>
+          </Show>
+        </div>
+      </Show>
+    </div>
+  );
+}
+
 function ProgressPanel({
   panel,
   locale,
@@ -163,9 +235,6 @@ function ProgressPanel({
   // Show guarantees this panel is only mounted while the memo is non-null;
   // reading through a memo keeps every update in place (no DOM recreation).
   const current = createMemo(() => panel()!);
-  const progressPercent = createMemo(() =>
-    Math.round(Math.min(100, Math.max(0, current().progress ?? 0)))
-  );
   return (
     <div class="hyp-progress-div">
       <div class="hyp-download-header">
@@ -189,33 +258,7 @@ function ProgressPanel({
           </button>
         </Show>
       </div>
-      <Show when={current().progressMode !== undefined}>
-        <div
-          class="hyp-download-progress"
-          role="progressbar"
-          aria-label={current().title}
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-valuenow={
-            current().progressMode === "determinate"
-              ? progressPercent()
-              : undefined
-          }
-        >
-          <div
-            classList={{
-              "hyp-download-progress-fill": true,
-              indeterminate: current().progressMode === "indeterminate",
-            }}
-            style={{
-              width:
-                current().progressMode === "determinate"
-                  ? `${progressPercent()}%`
-                  : undefined,
-            }}
-          />
-        </div>
-      </Show>
+      <LauncherProgressBar panel={current()} />
       <div class="hyp-download-rows">
         <Show when={current().showFileRow}>
           <div class="hyp-download-row">
@@ -598,14 +641,24 @@ export async function createHypLauncher({
     // sync with the shared queue, and persisted speed-limit / concurrency
     // settings are applied at startup.
     const [downloadManagerOpen, setDownloadManagerOpen] = createSignal(false);
-    const [activeDownloadCount, setActiveDownloadCount] = createSignal(
-      getDownloadTaskCount()
-    );
-    onCleanup(
-      subscribeDownloadTasks(() => {
-        setActiveDownloadCount(getDownloadTaskCount());
-      })
-    );
+    const [downloadManagerTaskId, setDownloadManagerTaskId] =
+      createSignal<string>();
+    const [downloadTasks, setDownloadTasks] = createSignal(getDownloadTasks());
+    const activeDownloadCount = createMemo(() => downloadTasks().length);
+    const selectedGameDownloadTaskId = createMemo(() => {
+      const game = selectedGame();
+      const key = game.namespace ?? game.id;
+      const matching = downloadTasks().filter(task => task.key === key);
+      return (matching.find(task => task.status === "active") ?? matching[0])
+        ?.id;
+    });
+    onCleanup(subscribeDownloadTasks(setDownloadTasks));
+
+    function openDownloadManager(taskId?: string) {
+      setDownloadManagerTaskId(taskId);
+      setDownloadManagerOpen(true);
+    }
+
     void reloadConfig();
     const [globalModalRoute, setGlobalModalRoute] =
       createSignal<GlobalModalRoute | null>(null);
@@ -821,7 +874,7 @@ export async function createHypLauncher({
     // inside untrack and therefore never re-runs while the download is in
     // progress. Reading them here lets the panel update as progress arrives.
     const gameForDownloadTask = (task: DownloadTaskSnapshot) =>
-      games.find(game => task.key && game.namespace === task.key);
+      games.find(game => (game.namespace ?? game.id) === task.key);
 
     const downloadControlKey = (game: HypGame) => game.namespace ?? "";
     const [downloadControlByKey, setDownloadControlByKey] = createSignal<
@@ -923,7 +976,7 @@ export async function createHypLauncher({
     // Reactive snapshot of the selected game's progress panel. Reads the
     // selected game's task signals directly (the global task now has its own
     // dedicated panel) so the panel updates as progress arrives.
-    const activeProgressPanel = createMemo<ProgressPanelData | null>(() => {
+    const activeProgressPanel = createMemo<ProgressSummaryData | null>(() => {
       const taskState = taskQueue.getState(selectedGame().id);
       const download = selectedDownloadControl();
       if (selectedGameRunning() || (!taskState.busy() && !download.active)) {
@@ -956,44 +1009,21 @@ export async function createHypLauncher({
       const isRestorePhase =
         args?.key === "REVERT_PATCHING" ||
         taskStatusText.startsWith("还原阶段");
-      // The pre-download integrity scan reports a file counter instead of a
-      // transfer; render it as the same "file progress" row as downloads,
-      // with a fixed title (the per-file "scanning file N of M" detail lives
-      // in the small text row below, not in the title).
       const isScanning = args?.key === "SCANNING_FILES";
-      const title = isScanning
+      const title = download.paused
+        ? locale.get("DOWNLOAD_STATUS_PAUSED")
+        : isScanning
         ? locale.get("CHECKING_GAME_INTEGRITY")
         : isDownloadStatus
         ? isEnvSpeed
           ? locale.get("DOWNLOADING_ENVIRONMENT")
           : locale.get("DOWNLOAD_PROGRESS")
         : taskStatusText;
-      const downloadArgs = isDownloadStatus || isScanning ? args : null;
-      const [file, speed, downloaded, total, percent, fileIndex, fileCount] =
-        downloadArgs
-          ? isEnvSpeed
-            ? [
-                undefined,
-                downloadArgs.args[0],
-                downloadArgs.args[1],
-                downloadArgs.args[2],
-                downloadArgs.args[3],
-                downloadArgs.args[4],
-                downloadArgs.args[5],
-              ]
-            : isScanning
-            ? [
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                downloadArgs.args[0],
-                downloadArgs.args[1],
-              ]
-            : downloadArgs.args
-          : [];
-      const progressMode: ProgressPanelData["progressMode"] =
+      const speed =
+        download.paused || !isDownloadStatus
+          ? undefined
+          : args?.args[isEnvSpeed ? 0 : 1];
+      const progressMode: ProgressSummaryData["progressMode"] =
         isEnvironmentExtract || isEnvironmentConfiguring
           ? "indeterminate"
           : isEnvironmentDownload
@@ -1002,33 +1032,17 @@ export async function createHypLauncher({
             : "indeterminate"
           : isGameRunning
           ? "indeterminate"
-          : isLaunchPhase || isRestorePhase || taskState.progress() > 0
+          : isScanning
+          ? Number(args?.args[1]) > 0
+            ? "determinate"
+            : "indeterminate"
+          : isDownloadStatus ||
+            isLaunchPhase ||
+            isRestorePhase ||
+            taskState.progress() > 0
           ? "determinate"
           : undefined;
-      return {
-        title,
-        file,
-        speed,
-        downloaded,
-        total,
-        percent,
-        progress: taskState.progress(),
-        progressMode,
-        fileIndex,
-        fileCount,
-        ...getProgressPanelVisibility({
-          isDownloadStatus,
-          file,
-          speed,
-          downloaded,
-          total,
-          fileIndex,
-          fileCount,
-        }),
-        canCancel: download.active && download.canCancel,
-        cancelDisabled: download.actionPending,
-        namespace: selectedGame().namespace,
-      };
+      return { title, speed, progress: taskState.progress(), progressMode };
     });
     // Dedicated panel for launcher-global tasks (e.g. Wine environment init).
     // Always rendered on top while the global task runs, regardless of which
@@ -1059,7 +1073,7 @@ export async function createHypLauncher({
           : locale.get("DOWNLOAD_PROGRESS")
         : taskStatusText;
       const downloadArgs = isDownloadStatus ? args : null;
-      const [file, speed, downloaded, total, percent, fileIndex, fileCount] =
+      const [file, speed, downloaded, total, , fileIndex, fileCount] =
         downloadArgs
           ? isEnvSpeed
             ? [
@@ -1085,7 +1099,6 @@ export async function createHypLauncher({
         speed,
         downloaded,
         total,
-        percent,
         progress: globalState.progress(),
         // The global task is used for installing the launcher's Wine
         // environment, so show its real download progress instead of the
@@ -1800,7 +1813,7 @@ export async function createHypLauncher({
             aria-label={locale.get("DOWNLOAD_MANAGER")}
             aria-current={downloadManagerOpen() ? "page" : undefined}
             title={locale.get("DOWNLOAD_MANAGER")}
-            onClick={() => setDownloadManagerOpen(true)}
+            onClick={() => openDownloadManager()}
           >
             <span class="hyp-download-queue-icon" aria-hidden="true" />
             <Show when={activeDownloadCount() > 0}>
@@ -1859,6 +1872,7 @@ export async function createHypLauncher({
           >
             <DownloadManager
               locale={locale}
+              initialTaskId={downloadManagerTaskId()}
               onOpenSettings={() => {
                 setGlobalSettingsInitialTab(1);
                 setGlobalModalRoute("settings");
@@ -1896,7 +1910,17 @@ export async function createHypLauncher({
               <ProgressPanel panel={globalProgressPanel} locale={locale} />
             </Show>
             <Show when={activeProgressPanel()}>
-              <ProgressPanel panel={activeProgressPanel} locale={locale} />
+              {panel => (
+                <GameProgressSummary
+                  panel={panel()}
+                  locale={locale}
+                  onViewDetails={
+                    selectedGameDownloadTaskId()
+                      ? () => openDownloadManager(selectedGameDownloadTaskId())
+                      : undefined
+                  }
+                />
+              )}
             </Show>
             <Show
               when={

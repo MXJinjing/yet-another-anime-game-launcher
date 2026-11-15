@@ -58,6 +58,7 @@ function taskStatusText(task: DownloadTaskSnapshot, locale: Locale): string {
 
 export function DownloadManager(props: {
   locale: Locale;
+  initialTaskId?: string;
   renderTaskIcon: (task: DownloadTaskSnapshot) => JSX.Element;
   getTaskArtwork: (task: DownloadTaskSnapshot) => string | undefined;
   onOpenSettings: () => void;
@@ -71,7 +72,7 @@ export function DownloadManager(props: {
   );
   const [detailTaskId, setDetailTaskId] = createSignal<string>();
   const detailTask = () => tasks.find(task => task.id === detailTaskId());
-  const [selectedTaskId, setSelectedTaskId] = createSignal<string>();
+  const [selectedTaskId, setSelectedTaskId] = createSignal(props.initialTaskId);
   const queueHeadingId = createUniqueId();
   const text = () => downloadManagerText(props.locale.currentLanguage);
   const selectedTask = createMemo(
