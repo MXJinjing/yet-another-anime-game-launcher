@@ -218,7 +218,7 @@ public final class SophonClientv3: @unchecked Sendable {
         downloadCache: cacheOnly ? predownloadCache : downloadCache, installer: installer,
         reporter: reporter, cacheOnly: cacheOnly, gameID: gameID, mode: mode,
         predownload: predownload, ignoredFiles: ignoredFiles,
-        finalize: { [self] in try writeGameConfig(version: plan.targetVersion) })
+        finalize: { [self] in try writeGameConfig(version: plan.targetVersion, mode: mode) })
     } catch {
       await reporter.record(
         .finished(Task.isCancelled ? .cancelled : .failed(reason: error.localizedDescription)))
@@ -300,10 +300,13 @@ public final class SophonClientv3: @unchecked Sendable {
     } else {
       futureCached = false
     }
+    let installedMode = try installModeFromGameConfig()
+      ?? ownInstall.flatMap { $0.finished ? $0.mode : nil } ?? .full
     return decideGameAction(
       installed: installed, live: live, future: future,
       installation: ownInstall, update: ownUpdate, futureCached: futureCached,
-      voicePacks: try getInstalledVoicePacks().sorted(), enableLdiff: gameLaunchConfig.enableLdiff)
+      voicePacks: try getInstalledVoicePacks().sorted(), enableLdiff: gameLaunchConfig.enableLdiff,
+      installedMode: installedMode)
   }
 
   private func cachedUpdateAvailable(_ state: SavedUpdateState) async throws -> Bool {
@@ -395,15 +398,46 @@ public final class SophonClientv3: @unchecked Sendable {
       to: file, atomically: true, encoding: .utf8)
   }
 
-  private func writeGameConfig(version: String) throws {
+  private func readGameConfig() throws -> String {
     let file = baseGameDir.appendingPathComponent("config.ini")
-    let contents: String
     do {
-      contents = try String(contentsOf: file, encoding: .utf8)
+      let data = try Data(contentsOf: file)
+      guard let contents = String(data: data, encoding: .utf8) else {
+        throw CocoaError(.fileReadInapplicableStringEncoding)
+      }
+      if data.starts(with: [0xEF, 0xBB, 0xBF]), !contents.hasPrefix("\u{feff}") {
+        return "\u{feff}" + contents
+      }
+      return contents
     } catch {
       if !isMissingFile(error) { throw error }
-      contents = ""
+      return ""
     }
+  }
+
+  private func installModeFromGameConfig() throws -> GameBranchCategoryScenario? {
+    var inGeneral = false
+    let contents = try readGameConfig().drop(while: { $0 == "\u{feff}" })
+    for line in contents.split(whereSeparator: \.isNewline) {
+      let trimmed = line.trimmingCharacters(in: .whitespaces)
+      if trimmed.hasPrefix("[") {
+        inGeneral = trimmed.lowercased().hasPrefix("[general]")
+      } else if inGeneral {
+        let pair = trimmed.split(separator: "=", maxSplits: 1)
+        if pair.count == 2,
+          pair[0].trimmingCharacters(in: .whitespaces).lowercased() == "sophon_install_mode"
+        {
+          return GameBranchCategoryScenario(rawValue: pair[1].trimmingCharacters(in: .whitespaces))
+        }
+      }
+    }
+    return nil
+  }
+
+  private func writeGameConfig(version: String, mode: GameBranchCategoryScenario) throws {
+    let file = baseGameDir.appendingPathComponent("config.ini")
+    let contents = try readGameConfig()
+    let fields = [("game_version", version), ("sophon_install_mode", mode.rawValue)]
     let newline = contents.contains("\r\n") ? "\r\n" : "\n"
     let bom = contents.hasPrefix("\u{feff}") ? "\u{feff}" : ""
     var lines = String(contents.dropFirst(bom.count))
@@ -415,18 +449,22 @@ public final class SophonClientv3: @unchecked Sendable {
         lines.indices.dropFirst(start + 1).first {
           lines[$0].trimmingCharacters(in: .whitespaces).hasPrefix("[")
         } ?? lines.count
-      var found = false
-      for index in (start + 1)..<end {
-        guard let equal = lines[index].firstIndex(of: "="),
-          lines[index][..<equal].trimmingCharacters(in: .whitespaces).lowercased() == "game_version"
-        else { continue }
-        lines[index] = String(lines[index][...equal]) + version
-        found = true
+      var missing: [String] = []
+      for (key, value) in fields {
+        var found = false
+        for index in (start + 1)..<end {
+          guard let equal = lines[index].firstIndex(of: "="),
+            lines[index][..<equal].trimmingCharacters(in: .whitespaces).lowercased() == key
+          else { continue }
+          lines[index] = String(lines[index][...equal]) + value
+          found = true
+        }
+        if !found { missing.append("\(key)=\(value)") }
       }
-      if !found { lines.insert("game_version=\(version)", at: start + 1) }
+      lines.insert(contentsOf: missing, at: start + 1)
     } else {
       if lines.last == "" { lines.removeLast() }
-      lines += ["[General]", "game_version=\(version)", ""]
+      lines += ["[General]"] + fields.map { "\($0.0)=\($0.1)" } + [""]
     }
     let updated = bom + lines.joined(separator: newline)
     if updated != contents {
@@ -625,7 +663,7 @@ public final class SophonClientv3: @unchecked Sendable {
         plan, reporter: reporter, journal: journal, finishReport: false)
       try writeInstalledVoicePacks(additionalVoicePackMatchingFields)
       try await runTransferIO(checkCancellation: false) { [self] in
-        try writeGameConfig(version: liveTarget)
+        try writeGameConfig(version: liveTarget, mode: mode)
         try journal?.complete()
       }
       await reporter.record(.finished(.completed))

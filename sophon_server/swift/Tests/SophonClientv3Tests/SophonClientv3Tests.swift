@@ -2383,6 +2383,7 @@ func testCNDiffManifestParse() async throws {
 
 @Test(arguments: [
   "success", "missing", "wrong-version", "corrupt", "cancelled", "repair", "cache-install",
+  "base-install",
 ])
 func testSelectedFilesDownloadFixture(scenario: String) async throws {
   let base = URL(string: "https://transfer.invalid/\(UUID().uuidString)/")!
@@ -2412,13 +2413,18 @@ func testSelectedFilesDownloadFixture(scenario: String) async throws {
   manifest.files = [file, unrelated]
   let manifestBytes = try manifest.serializedData()
   let identity = #"{"id":"fixture","biz":"fixture"}"#
+  let scenarios = scenario == "base-install"
+    ? #""CATEGORY_SCENARIO_FULL","CATEGORY_SCENARIO_BASE""# : #""CATEGORY_SCENARIO_FULL""#
   let branch = """
     {"package_id":"1","branch":"main","password":"","tag":"1.2.3","diff_tags":["1.2.2"],
     "categories":[{"category_id":"1","matching_field":"game","type":"CATEGORY_TYPE_RESOURCE",
-    "scenarios":["CATEGORY_SCENARIO_FULL"]}]}
+    "scenarios":[\(scenarios)]}]}
     """
-  let future = branch.replacingOccurrences(of: "main", with: "future")
+  var future = branch.replacingOccurrences(of: "main", with: "future")
     .replacingOccurrences(of: "1.2.3", with: "1.2.4")
+  if scenario == "base-install" {
+    future = future.replacingOccurrences(of: "1.2.2", with: "1.2.3")
+  }
   let branches = """
     {"game_branches":[{"game":\(identity),"main":\(branch),"pre_download":\(future),
     "enable_base_pkg_predownload":false}]}
@@ -2426,7 +2432,7 @@ func testSelectedFilesDownloadFixture(scenario: String) async throws {
   let configs = """
     {"launch_configs":[{"game":\(identity),"installation_dir":"game","exe_file_name":"game.exe",
     "audio_pkg_scan_dir":"","res_category_dir":"","wpf_exe_dir":"","wpf_pkg_version_dir":"",
-    "enable_ldiff":\(scenario != "cache-install"),"enable_scenario_pkg":false,"enable_write_verify_result":false,
+    "enable_ldiff":\(scenario != "cache-install"),"enable_scenario_pkg":\(scenario == "base-install"),"enable_write_verify_result":false,
     "write_verify_result_path":""}]}
     """
   let stats = #"{"compressed_size":"1","uncompressed_size":"1","file_count":"2","chunk_count":"1"}"#
@@ -2478,6 +2484,7 @@ func testSelectedFilesDownloadFixture(scenario: String) async throws {
   configuration.protocolClasses = [TransferURLProtocol.self]
   var transfer = TransferSettings()
   transfer.cacheDirectory = root.appendingPathComponent("cache").path
+  if scenario == "base-install" { transfer.preserveState = false }
   let client = try await SophonClientv3(
     SophonClientSettings(
       baseURL: base.absoluteString, sophonBaseURL: base.absoluteString,
@@ -2485,6 +2492,28 @@ func testSelectedFilesDownloadFixture(scenario: String) async throws {
       manifestCacheDir: root.appendingPathComponent("manifests").path, logStdout: false,
       transfer: transfer), baseGameDir: destination, logger: nil, control: nil,
     metadataSession: URLSession(configuration: configuration), payloadConfiguration: configuration)
+  if scenario == "base-install" {
+    let config = destination.appendingPathComponent("config.ini")
+    let original = "\u{feff}[General]\r\nchannel=1\r\n"
+    try original.write(to: config, atomically: true, encoding: .utf8)
+    await #expect(throws: SelectionError.self) {
+      try await client.install(mode: .base, expectedVersion: "1.2.2")
+    }
+    #expect(try Data(contentsOf: destination.appendingPathComponent("selected.bin")) == previous)
+    #expect(try Data(contentsOf: config) == Data(original.utf8))
+
+    try await client.install(mode: .base, expectedVersion: "1.2.3")
+    #expect(try await SophonClientv3.savedInstallationState(at: destination, settings: transfer) == nil)
+    let updatedConfig = String(decoding: try Data(contentsOf: config), as: UTF8.self)
+    #expect(updatedConfig.hasPrefix("\u{feff}[General]\r\n"))
+    #expect(updatedConfig.contains("sophon_install_mode=CATEGORY_SCENARIO_BASE\r\n"))
+    #expect(updatedConfig.contains("channel=1\r\n"))
+    let update = try await client.nextAction(installedVersionHint: "1.2.2")
+    #expect(update.action == .update && update.mode == .base)
+    let predownload = try await client.nextAction(installedVersionHint: "1.2.3")
+    #expect(predownload.action == .cacheUpdate && predownload.mode == .base)
+    return
+  }
   if scenario == "cache-install" {
     let info = try await client.onlineBuild()
     #expect(info.predownloadVersion == "1.2.4" && info.predownloadFrom == nil)

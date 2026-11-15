@@ -9,9 +9,11 @@ The launcher also passes its process ID in `--parent-pid`.
 | Method | Named parameters |
 | --- | --- |
 | `game.online` | `game` (ID or biz), `region` (`os`, `cn`, or `bb`) |
+| `api.configs`, `api.branches`, `api.sophonBuild` | Game/build query parameters and optional `region` to select the same launcher channel as a transfer |
 | `files.build` | `game`, `region`, optional `version` |
 | `files.list` | `game`, `region`, `version`, `category` (default `game`), `path` (default `.`), optional `pattern`, `recursive`, `offset`, `limit` (1–1000), `refresh` |
 | `files.download` | `game`, `region`, `directory`, `version`, `categories` (default `["game"]`), nonempty `files` of exact manifest-relative paths |
+| `install.start` | `game`, `region`, `directory`, optional `mode` (`full` or `base`), `voicePacks` and `targetVersion` |
 | `repair.start` | Install parameters plus optional `installedVersion` to apply an advertised update before verification |
 | `operation.pause`, `operation.resume` | `operationID` |
 | `operation.limit` | `bytesPerSecond` (0 is unlimited), optional `operationID` |
@@ -43,10 +45,13 @@ terminate it. Install and update use upstream checkpoints.
 The launcher passes `resolveAction: true` to `update.start` and `repair.start`.
 The server uses saved transfer state first, then the version hint and the live
 manifest. It resumes an interrupted write, applies an advertised LDiff
-update, or verifies against the full installation manifest. Cache-only
-predownloads use the future branch and leave the installation untouched.
+update, or verifies against the selected installation mode. A successful
+install or update records the mode in the game directory's `config.ini`,
+so later operations retain the selection even with transfer journals disabled.
+Cache-only predownloads use the future branch and leave the installation untouched.
 Titles without LDiff prefetch only the missing installation chunks.
-An optional `targetVersion` pins a cache-only request to the advertised version.
+An optional `targetVersion` pins an installation or cache-only request to the
+advertised version.
 
 With a `directory` parameter, `game.online` also returns `needsResume`.
 When the future branch uses LDiff, `predownloadFrom` lists the eligible
