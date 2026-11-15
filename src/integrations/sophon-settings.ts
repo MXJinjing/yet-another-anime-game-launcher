@@ -1,5 +1,7 @@
 import { join, normalize } from "path-browserify";
 import { getKeyOrDefault, setKey } from "@runtime/storage";
+import { formatString } from "@runtime/format";
+import { sophonDownloaderText } from "../locale/sophon-downloader";
 
 export interface SophonSettings {
   downloads: number;
@@ -40,24 +42,22 @@ export const sophonDefaults: SophonSettings = {
 };
 
 export const sophonNumberSettings = [
-  { key: "downloads", label: "Concurrent downloads", min: 1, max: 16 },
-  { key: "checks", label: "Verification workers", min: 1, max: 16 },
-  { key: "postProcessors", label: "Post-processing workers", min: 1, max: 16 },
-  { key: "writes", label: "Write workers", min: 1, max: 16 },
-  { key: "memoryMiB", label: "Memory cache (MiB)", min: 0, max: 16384 },
-  { key: "diskGiB", label: "Disk cache (GiB)", min: 1, max: 1024 },
-  { key: "entryLimit", label: "Cache entry limit", min: 2, max: 4096 },
-  {
-    key: "maxCachedFileHandles",
-    label: "Cached file handles",
-    min: 1,
-    max: 4096,
-  },
-  { key: "maxRetries", label: "Additional retries", min: 0, max: 20 },
-  { key: "retryInterval", label: "Retry delay (seconds)", min: 0, max: 60 },
+  { key: "downloads", min: 1, max: 16 },
+  { key: "checks", min: 1, max: 16 },
+  { key: "postProcessors", min: 1, max: 16 },
+  { key: "writes", min: 1, max: 16 },
+  { key: "memoryMiB", min: 0, max: 16384 },
+  { key: "diskGiB", min: 1, max: 1024 },
+  { key: "entryLimit", min: 2, max: 4096 },
+  { key: "maxCachedFileHandles", min: 1, max: 4096 },
+  { key: "maxRetries", min: 0, max: 20 },
+  { key: "retryInterval", min: 0, max: 60 },
 ] as const;
 
-export function sophonSettingsError(settings: SophonSettings): string {
+export function sophonSettingsError(
+  settings: SophonSettings,
+  text = sophonDownloaderText("en")
+): string {
   for (const field of sophonNumberSettings) {
     const value = settings[field.key];
     if (
@@ -65,37 +65,40 @@ export function sophonSettingsError(settings: SophonSettings): string {
       value < field.min ||
       value > field.max
     ) {
-      return `${field.label} must be a whole number between ${field.min} and ${field.max}.`;
+      return formatString(text.rangeError, [
+        text[field.key],
+        String(field.min),
+        String(field.max),
+      ]);
     }
   }
   if (!["parallel", "serialized"].includes(settings.ioPolicy))
-    return "Choose parallel or serialized I/O.";
+    return text.ioError;
   if (!["temporary", "in-place"].includes(settings.writeMode))
-    return "Choose a valid update write mode.";
+    return text.writeModeError;
   if (
     settings.maxCachedFileHandles <
     (settings.ioPolicy === "serialized" ? 1 : settings.writes)
   )
-    return "Cached file handles must allow at least one handle per write worker.";
+    return text.handlesError;
   for (const key of [
     "diskCacheEnabled",
     "preserveState",
     "debugLogging",
   ] as const) {
-    if (typeof settings[key] !== "boolean")
-      return "Invalid downloader setting.";
+    if (typeof settings[key] !== "boolean") return text.invalidError;
   }
   if (!settings.diskCacheEnabled && settings.writeMode === "in-place")
-    return "In-place updates require disk caching.";
+    return text.diskRequired;
   if (!settings.diskCacheEnabled && settings.memoryMiB === 0)
-    return "Memory cache must be greater than zero when disk caching is disabled.";
+    return text.memoryError;
   if (
     typeof settings.predownloadDirectory !== "string" ||
     (settings.predownloadDirectory !== "" &&
       !settings.predownloadDirectory.startsWith("/")) ||
     settings.predownloadDirectory.includes("\0")
   )
-    return "Choose an absolute path for predownloads.";
+    return text.pathError;
   return "";
 }
 

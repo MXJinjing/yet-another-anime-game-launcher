@@ -22,6 +22,8 @@ import {
 } from "@hope-ui/solid";
 import { createResource, createSignal, For, Show } from "solid-js";
 import { openDir } from "@platform/neutralino";
+import type { Locale } from "@locale";
+import { sophonDownloaderText } from "../../locale/sophon-downloader";
 import {
   SophonSettings,
   sophonDefaults,
@@ -45,7 +47,13 @@ function Choice<T extends string>(props: {
           <SelectValue />
           <SelectIcon />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent
+          bg="#202328"
+          color="white"
+          css={{
+            "& .hope-select__option:hover": { bg: "rgba(255, 255, 255, 0.1)" },
+          }}
+        >
           <SelectListbox>
             <For each={props.options}>
               {option => (
@@ -62,23 +70,29 @@ function Choice<T extends string>(props: {
   );
 }
 
-export function SophonSettingsPanel() {
+export function SophonSettingsPanel(props: { locale: Locale }) {
   const [settings] = createResource(readSophonSettings);
   return (
     <Show when={settings()} keyed>
-      {initial => <SophonSettingsForm initial={initial} />}
+      {initial => (
+        <SophonSettingsForm initial={initial} locale={props.locale} />
+      )}
     </Show>
   );
 }
 
-function SophonSettingsForm(props: { initial: SophonSettings }) {
+function SophonSettingsForm(props: {
+  initial: SophonSettings;
+  locale: Locale;
+}) {
   const [committed, setCommitted] = createSignal(props.initial);
   const [value, setValue] = createSignal<SophonSettings>({ ...props.initial });
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal("");
   const [saved, setSaved] = createSignal(false);
   const disabled = saving;
-  const invalid = () => sophonSettingsError(value());
+  const text = () => sophonDownloaderText(props.locale.currentLanguage);
+  const invalid = () => sophonSettingsError(value(), text());
   const dirty = () => JSON.stringify(value()) !== JSON.stringify(committed());
 
   function update(settings: Partial<SophonSettings>) {
@@ -118,7 +132,7 @@ function SophonSettingsForm(props: { initial: SophonSettings }) {
           (field.key === "diskGiB" && !value().diskCacheEnabled)
         }
       >
-        <FormLabel>{field.label}</FormLabel>
+        <FormLabel>{text()[field.key]}</FormLabel>
         <Input
           type="number"
           required
@@ -133,25 +147,18 @@ function SophonSettingsForm(props: { initial: SophonSettings }) {
         <Show when={field.key === "writes"}>
           <FormHelperText>
             {value().ioPolicy === "serialized"
-              ? "Serialized I/O uses one write worker."
-              : "Applies to installation writes and update patching."}
+              ? text().singleWriter
+              : text().writeHelp}
           </FormHelperText>
         </Show>
         <Show when={field.key === "checks"}>
-          <FormHelperText>
-            Reading and hashing files, with either I/O policy.
-          </FormHelperText>
+          <FormHelperText>{text().checkHelp}</FormHelperText>
         </Show>
         <Show when={field.key === "memoryMiB"}>
-          <FormHelperText>
-            Working cache budget; total memory use can be higher.
-          </FormHelperText>
+          <FormHelperText>{text().memoryHelp}</FormHelperText>
         </Show>
         <Show when={field.key === "diskGiB"}>
-          <FormHelperText>
-            Working cache budget; excludes predownloads and temporary game
-            output.
-          </FormHelperText>
+          <FormHelperText>{text().diskHelp}</FormHelperText>
         </Show>
       </FormControl>
     );
@@ -159,6 +166,7 @@ function SophonSettingsForm(props: { initial: SophonSettings }) {
 
   return (
     <form
+      class="sophon-downloader-settings"
       onSubmit={event => {
         event.preventDefault();
         void save();
@@ -170,18 +178,17 @@ function SophonSettingsForm(props: { initial: SophonSettings }) {
       >
         <VStack spacing="$5" alignItems="stretch">
           <Text fontSize="$lg" fontWeight={600}>
-            Sophon downloader
+            {text().title}
           </Text>
-          <Text size="sm" color="$neutral11">
-            These settings apply per Sophon operation. Task concurrency and
-            speed limits are configured separately.
+          <Text size="sm" color="rgba(255, 255, 255, 0.7)">
+            {text().intro}
           </Text>
           <FormControl>
-            <FormLabel>Predownload directory</FormLabel>
+            <FormLabel>{text().directory}</FormLabel>
             <Input
               readOnly
               value={value().predownloadDirectory}
-              placeholder="Game directory"
+              placeholder={text().gameDirectory}
             />
             <HStack spacing="$2" mt="$2">
               <Button
@@ -189,16 +196,14 @@ function SophonSettingsForm(props: { initial: SophonSettings }) {
                 size="sm"
                 onClick={async () => {
                   try {
-                    const directory = await openDir(
-                      "Choose predownload directory"
-                    );
+                    const directory = await openDir(text().chooseDirectory);
                     if (directory) update({ predownloadDirectory: directory });
                   } catch (error) {
                     setError(String(error));
                   }
                 }}
               >
-                Browse…
+                {text().browse}
               </Button>
               <Button
                 type="button"
@@ -207,12 +212,10 @@ function SophonSettingsForm(props: { initial: SophonSettings }) {
                 disabled={!value().predownloadDirectory}
                 onClick={() => update({ predownloadDirectory: "" })}
               >
-                Use default
+                {text().useDefault}
               </Button>
             </HStack>
-            <FormHelperText>
-              Existing predownloads stay in their current folder.
-            </FormHelperText>
+            <FormHelperText>{text().directoryHelp}</FormHelperText>
           </FormControl>
           <For
             each={sophonNumberSettings.filter(
@@ -226,24 +229,24 @@ function SophonSettingsForm(props: { initial: SophonSettings }) {
             aria-labelledby="sophon-advanced-heading"
             spacing="$5"
             alignItems="stretch"
-            bg="$neutral2"
+            bg="rgba(255, 255, 255, 0.045)"
             borderWidth="1px"
-            borderColor="$neutral6"
+            borderColor="rgba(255, 255, 255, 0.13)"
             borderRadius={12}
             p="$5"
           >
-            <Box color="$neutral12">
+            <Box color="rgba(255, 255, 255, 0.92)">
               <Text as="h3" id="sophon-advanced-heading" fontWeight={600}>
-                Advanced settings
+                {props.locale.get("SETTING_ADVANCED")}
               </Text>
             </Box>
             <Choice
-              label="I/O policy"
+              label={text().ioPolicy}
               value={value().ioPolicy}
               onChange={ioPolicy => update({ ioPolicy })}
               options={[
-                { value: "parallel", label: "Parallel" },
-                { value: "serialized", label: "Serialized" },
+                { value: "parallel", label: text().parallel },
+                { value: "serialized", label: text().serialized },
               ]}
             />
             <Box
@@ -267,22 +270,22 @@ function SophonSettingsForm(props: { initial: SophonSettings }) {
                   update({ diskCacheEnabled: !value().diskCacheEnabled })
                 }
               >
-                Disk caching
+                {text().diskCache}
               </Switch>
               <Show when={value().writeMode === "in-place"}>
-                <FormHelperText>Required for in-place updates.</FormHelperText>
+                <FormHelperText>{text().diskRequired}</FormHelperText>
               </Show>
             </FormControl>
-            <Divider borderColor="$neutral6" />
+            <Divider borderColor="rgba(255, 255, 255, 0.12)" />
             <Choice
-              label="Update write mode"
+              label={text().writeMode}
               value={value().writeMode}
               onChange={writeMode => update({ writeMode })}
               options={[
-                { value: "temporary", label: "Temporary replacement" },
+                { value: "temporary", label: text().temporary },
                 {
                   value: "in-place",
-                  label: "In-place",
+                  label: text().inPlace,
                   disabled: !value().diskCacheEnabled,
                 },
               ]}
@@ -294,23 +297,19 @@ function SophonSettingsForm(props: { initial: SophonSettings }) {
                   update({ preserveState: !value().preserveState })
                 }
               >
-                Preserve resume state
+                {text().preserveState}
               </Switch>
-              <FormHelperText>
-                Turning this off discards checkpoints and working cache on the
-                next operation.
-              </FormHelperText>
+              <FormHelperText>{text().preserveHelp}</FormHelperText>
             </FormControl>
-            <Divider borderColor="$neutral6" />
+            <Divider borderColor="rgba(255, 255, 255, 0.12)" />
             <Switch
               checked={value().debugLogging}
               onChange={() => update({ debugLogging: !value().debugLogging })}
             >
-              Debug logging
+              {text().debugLogging}
             </Switch>
-            <Text size="sm" color="$neutral11">
-              Restart the launcher to apply. Debug logs are written to
-              sophon.log.
+            <Text size="sm" color="rgba(255, 255, 255, 0.7)">
+              {text().debugHelp}
             </Text>
           </VStack>
           <Show when={invalid() || error()}>
@@ -320,19 +319,19 @@ function SophonSettingsForm(props: { initial: SophonSettings }) {
           </Show>
           <HStack spacing="$3">
             <Button type="submit" disabled={!dirty() || Boolean(invalid())}>
-              {saving() ? "Saving…" : "Save changes"}
+              {saving() ? text().saving : props.locale.get("SETTING_SAVE")}
             </Button>
             <Button
               type="button"
               variant="subtle"
               onClick={() => update(sophonDefaults)}
             >
-              Reset to defaults
+              {text().reset}
             </Button>
           </HStack>
           <Show when={saved()}>
             <Text size="sm" role="status">
-              Saved.
+              {text().saved}
             </Text>
           </Show>
         </VStack>

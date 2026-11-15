@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getKeyOrDefault, setKey } from "@runtime/storage";
+import { sophonDownloaderText } from "@locale/sophon-downloader";
 import {
   readSophonSettings,
   saveSophonSettings,
@@ -19,6 +20,16 @@ afterEach(() => {
 });
 
 describe("Sophon downloader settings", () => {
+  it("formats an invalid number with the selected language and limits", () => {
+    const settings = { ...sophonDefaults, downloads: 17 };
+    expect(sophonSettingsError(settings, sophonDownloaderText("zh_cn"))).toBe(
+      "并发下载数必须是 1 到 16 之间的整数。"
+    );
+    expect(sophonSettingsError(settings, sophonDownloaderText("fr_fr"))).toBe(
+      "Saisissez un entier entre 1 et 16 pour « Téléchargements simultanés »."
+    );
+  });
+
   it("validates interdependent limits and write policy", () => {
     expect(
       sophonSettingsError({

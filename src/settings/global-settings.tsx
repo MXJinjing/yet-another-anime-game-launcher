@@ -85,6 +85,7 @@ export class GlobalSettings extends SettingsController<GlobalLoadedSettings> {
           )}
         />
         <DownloadTab
+          locale={this.locale}
           DownloadServerConfig={settings.downloadServer}
           GithubAcceleratedPrefixConfig={settings.githubAcceleratedPrefix}
         />

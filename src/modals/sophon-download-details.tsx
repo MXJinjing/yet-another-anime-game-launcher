@@ -1,4 +1,3 @@
-import { useColorMode } from "@hope-ui/solid";
 import {
   createMemo,
   createSignal,
@@ -353,7 +352,6 @@ export function SophonDownloadDetails(props: {
   activity: SophonActivity;
   paused: boolean;
 }) {
-  const { colorMode } = useColorMode();
   const [hover, setHover] = createSignal<Hover>();
   const progress = () => props.activity.progress;
   const metrics = () => progress()?.metrics;
@@ -585,7 +583,7 @@ export function SophonDownloadDetails(props: {
   return (
     <section
       class="download-details"
-      data-theme={colorMode()}
+      data-theme="dark"
       aria-label="Sophon activity"
     >
       <div class="activity-main">

@@ -2328,6 +2328,21 @@ export async function createHypLauncher({
           opened={downloadModalOpen()}
           onClose={() => setDownloadModalOpen(false)}
           locale={locale}
+          renderTaskIcon={task => {
+            const game =
+              task.key && games.find(game => game.namespace === task.key);
+            return (
+              <GameIcon
+                src={
+                  (game &&
+                    (game.client.uiContent.iconImage || game.fallbackIcon)) ||
+                  ""
+                }
+                title={task.title}
+                channel={task.key ?? task.id}
+              />
+            );
+          }}
         />
         <GameUninstallDialog />
         <LogViewer />

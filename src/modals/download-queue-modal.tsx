@@ -1,6 +1,14 @@
 import { SophonDownloadDetails } from "./sophon-download-details";
 import { Progress, ProgressIndicator } from "@hope-ui/solid";
-import { For, Show, createSignal, onCleanup } from "solid-js";
+import {
+  For,
+  Show,
+  createMemo,
+  createSignal,
+  createUniqueId,
+  onCleanup,
+} from "solid-js";
+import type { JSX } from "solid-js";
 import { createStore } from "solid-js/store";
 import { AppModal } from "../components/app-modal";
 import {
@@ -18,6 +26,7 @@ import {
 import { Locale, LocaleTextKey } from "../locale";
 import { formatDownloadSpeed, humanFileSize } from "../runtime/format";
 import { reconcileDownloadTasks } from "../download/solid-store";
+import { sophonDownloaderText } from "../locale/sophon-downloader";
 
 const STATUS_LOCALE_KEYS: Record<
   DownloadTaskSnapshot["status"],
@@ -53,6 +62,7 @@ export function DownloadQueueModal(props: {
   opened: boolean;
   onClose: () => void;
   locale: Locale;
+  renderTaskIcon: (task: DownloadTaskSnapshot) => JSX.Element;
 }) {
   const [tasks, setTasks] = createStore<DownloadTaskSnapshot[]>(
     getDownloadTasks().map(task => ({
@@ -62,6 +72,22 @@ export function DownloadQueueModal(props: {
     }))
   );
   const [expanded, setExpanded] = createSignal<Record<string, boolean>>({});
+  const [selectedTaskId, setSelectedTaskId] = createSignal<string>();
+  const activityHeadingId = createUniqueId();
+  const activityTasks = createMemo(() =>
+    tasks.filter(task => task.status === "active")
+  );
+  const selectedTask = createMemo(
+    () =>
+      activityTasks().find(task => task.id === selectedTaskId()) ??
+      activityTasks()[0]
+  );
+  const selectedActivity = createMemo(() =>
+    Array.from(selectedTask()?.sophonActivities?.values() ?? []).find(
+      activity =>
+        activity.status === "starting" || activity.status === "running"
+    )
+  );
   const [globalTaskActive, setGlobalTaskActive] = createSignal(
     getGlobalTaskActive()
   );
@@ -94,7 +120,7 @@ export function DownloadQueueModal(props: {
       onClose={props.onClose}
       title={props.locale.get("DOWNLOAD_MANAGER")}
       maxWidth={720}
-      height={600}
+      height="min(820px, calc(100vh - 40px))"
       bodyClass="download-queue-body"
     >
       <Show when={globalTaskActive()}>
@@ -179,17 +205,6 @@ export function DownloadQueueModal(props: {
                         )
                         .join(" + ")}
                     </div>
-                    <For each={Array.from(task.sophonActivities?.keys() ?? [])}>
-                      {id => (
-                        <SophonDownloadDetails
-                          activity={task.sophonActivities!.get(id)!}
-                          locale={props.locale}
-                          paused={
-                            task.status === "paused" || task.status === "queued"
-                          }
-                        />
-                      )}
-                    </For>
                     <Show when={task.files.length > 0}>
                       <div class="download-queue-files">
                         <For each={task.files.slice(0, 8)}>
@@ -294,6 +309,52 @@ export function DownloadQueueModal(props: {
             )}
           </For>
         </div>
+      </Show>
+      <Show when={selectedTask()}>
+        {task => (
+          <section
+            class="download-queue-activity"
+            aria-labelledby={activityHeadingId}
+          >
+            <h3 id={activityHeadingId}>
+              {sophonDownloaderText(props.locale.currentLanguage).activityTitle}
+            </h3>
+            <div class="download-queue-activity-tasks">
+              <For each={activityTasks()}>
+                {activityTask => (
+                  <button
+                    type="button"
+                    class="download-queue-activity-task"
+                    aria-label={activityTask.title}
+                    aria-pressed={activityTask.id === task().id}
+                    title={activityTask.title}
+                    onClick={() => setSelectedTaskId(activityTask.id)}
+                  >
+                    {props.renderTaskIcon(activityTask)}
+                  </button>
+                )}
+              </For>
+            </div>
+            <div class="download-queue-activity-title">{task().title}</div>
+            <Show
+              when={selectedActivity()}
+              fallback={
+                <div class="download-queue-item-meta">
+                  <span>{taskStatusText(task(), props.locale)}</span>
+                  <span>{formatDownloadSpeed(task().speed)}</span>
+                </div>
+              }
+            >
+              {activity => (
+                <SophonDownloadDetails
+                  activity={activity()}
+                  locale={props.locale}
+                  paused={false}
+                />
+              )}
+            </Show>
+          </section>
+        )}
       </Show>
     </AppModal>
   );
