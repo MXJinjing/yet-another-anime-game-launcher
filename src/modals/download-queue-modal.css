@@ -122,7 +122,8 @@
 }
 
 .download-queue-details {
-  grid-column: 2 / -1;
+  min-width: 0;
+  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -314,8 +315,7 @@
 }
 
 .download-manager-active,
-.download-manager-queue,
-.download-manager-diagnostics {
+.download-manager-queue {
   width: 100%;
   max-width: 1440px;
   margin-inline: auto;
@@ -325,8 +325,8 @@
 .download-manager-active {
   display: grid;
   flex: 0 0 auto;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   padding-top: 19px;
 }
 
@@ -393,56 +393,54 @@
   object-fit: cover;
 }
 
-.download-manager-cover {
+.download-manager-feature {
   position: relative;
-  display: flex;
+  display: grid;
   isolation: isolate;
-  align-items: flex-end;
-  min-width: 0;
-  min-height: 225px;
-  padding: clamp(18px, 2.8vw, 32px);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 1fr);
+  gap: clamp(16px, 4vw, 56px);
+  min-height: 216px;
+  padding: 16px clamp(16px, 2vw, 26px);
   overflow: hidden;
   border: 1px solid #44404e;
-  border-radius: 18px;
-  background: radial-gradient(
-    ellipse at 72% 11%,
-    #41344a,
-    #22202c 60%,
-    #1b1b25
-  );
+  border-radius: 17px;
+  background: linear-gradient(110deg, #2b2335, #181821 60%);
 }
 
 .download-manager-art {
   position: absolute;
   z-index: -2;
-  inset: 0;
-  width: 100%;
+  inset: 0 auto 0 0;
+  width: 70%;
   height: 100%;
   object-fit: cover;
-  object-position: center 40%;
+  object-position: center 39%;
+  -webkit-mask-image: linear-gradient(90deg, #000 20%, transparent 95%);
+  mask-image: linear-gradient(90deg, #000 20%, transparent 95%);
 }
 
-.download-manager-cover::after {
+.download-manager-feature::after {
   position: absolute;
   z-index: -1;
   inset: 0;
   background: linear-gradient(
     0deg,
-    rgba(13, 12, 20, 0.98),
-    rgba(17, 15, 24, 0.52) 42%,
-    transparent 78%
+    rgba(13, 12, 20, 0.93),
+    rgba(17, 15, 24, 0.45) 42%,
+    transparent 85%
   );
   content: "";
 }
 
 .download-manager-active-identity {
+  align-self: end;
   min-width: 0;
   color: #faf7fb;
 }
 
 .download-manager-active-identity h2 {
   margin: 0;
-  font-size: clamp(23px, 3.2vw, 40px);
+  font-size: clamp(23px, 2.9vw, 38px);
   font-weight: 740;
   line-height: 1.14;
   overflow-wrap: anywhere;
@@ -468,14 +466,14 @@
 
 .download-manager-chart {
   width: 100%;
-  height: clamp(54px, 9vh, 94px);
-  padding: 4px 0;
+  height: 42px;
+  padding: 2px 0;
   background: repeating-linear-gradient(
       to top,
       #c0aec226 0px 1px,
       transparent 1px 22px
     ),
-    linear-gradient(0deg, #23212c, transparent);
+    linear-gradient(0deg, #23212c80, transparent);
 }
 
 .download-manager-chart path {
@@ -496,12 +494,8 @@
 .download-manager-telemetry {
   display: grid;
   align-content: center;
-  gap: 10px;
+  gap: 7px;
   min-width: 0;
-  padding: clamp(13px, 2vw, 23px);
-  border: 1px solid #363442;
-  border-radius: 18px;
-  background: #1b1b24;
   font-variant-numeric: tabular-nums;
 }
 
@@ -549,6 +543,7 @@
   color: #f4f7fb;
   font-size: clamp(14px, 1.6vw, 19px);
   font-weight: 680;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -560,6 +555,7 @@
   gap: 8px;
   color: #e6e1eb;
   font-size: 13px;
+  line-height: 1.4;
 }
 
 .download-manager-transfer-progress > div:first-child {
@@ -587,7 +583,7 @@
 }
 
 .download-manager-task-controls {
-  min-height: 35px;
+  min-height: 31px;
   color: #bbb9c6;
 }
 
@@ -598,8 +594,8 @@
 
 .download-manager-pause {
   display: grid;
-  width: 39px;
-  height: 35px;
+  width: 36px;
+  height: 31px;
   flex: 0 0 auto;
   place-items: center;
   border: 0;
@@ -619,21 +615,6 @@
 
 .download-manager-pause:hover {
   filter: brightness(1.12);
-}
-
-.download-manager-diagnostics {
-  margin-top: 7px;
-}
-
-.download-manager-diagnostics > summary {
-  padding: 7px 0;
-  color: #cbc8d3;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.download-manager-diagnostics[open] {
-  padding-bottom: 14px;
 }
 
 .download-manager-queue {
@@ -707,13 +688,20 @@
 }
 
 @media (max-width: 680px) {
-  .download-manager-active {
+  .download-manager-feature {
     grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
+    gap: 16px;
   }
 
-  .download-manager-cover {
-    min-height: 170px;
+  .download-manager-active-identity {
+    padding-top: 84px;
+  }
+
+  .download-manager-art {
+    width: 100%;
+    height: 180px;
+    -webkit-mask-image: linear-gradient(#000 15%, transparent 100%);
+    mask-image: linear-gradient(#000 15%, transparent 100%);
   }
 }
 

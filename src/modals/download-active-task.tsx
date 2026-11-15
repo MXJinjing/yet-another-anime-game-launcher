@@ -1,5 +1,5 @@
 import { Progress, ProgressIndicator } from "@hope-ui/solid";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import type { JSX } from "solid-js";
 import type { DownloadTaskSnapshot } from "../download/types";
 import type { ActivitySample } from "../integrations/sophon-activity";
@@ -8,7 +8,6 @@ import type { Locale } from "../locale";
 import { downloadManagerText } from "../locale/download-manager";
 import { sophonDownloaderText } from "../locale/sophon-downloader";
 import { formatDownloadSpeed, humanFileSize } from "../runtime/format";
-import { SophonDownloadDetails } from "./sophon-download-details";
 
 const network = (sample: ActivitySample) => sample.values["common.network"];
 const disk = (sample: ActivitySample) =>
@@ -129,7 +128,6 @@ export function DownloadActiveTask(props: {
   onPause?: () => void;
 }) {
   const text = () => downloadManagerText(props.locale.currentLanguage);
-  const [detailsOpen, setDetailsOpen] = createSignal(false);
   const activity = createMemo(() =>
     Array.from(props.task.sophonActivities?.values() ?? []).find(
       item => item.status === "starting" || item.status === "running"
@@ -166,51 +164,49 @@ export function DownloadActiveTask(props: {
   };
 
   return (
-    <>
-      <section class="download-manager-active" aria-label={props.task.title}>
-        <Show when={props.tasks.length > 1}>
-          <div
-            class="download-manager-task-switcher"
-            role="group"
-            aria-label={
-              sophonDownloaderText(props.locale.currentLanguage).activityTitle
-            }
-          >
-            <For each={props.tasks}>
-              {task => (
-                <button
-                  type="button"
-                  aria-pressed={task.id === props.task.id}
-                  title={task.title}
-                  onClick={() => props.onSelect(task.id)}
-                >
-                  <span class="download-manager-task-icon">
-                    {props.renderTaskIcon(task)}
-                  </span>
-                  <span class="download-manager-task-name">{task.title}</span>
-                </button>
-              )}
-            </For>
-          </div>
-        </Show>
-        <div class="download-manager-cover">
-          <Show when={props.artwork} keyed>
-            {url => (
-              <img
-                class="download-manager-art"
-                src={url}
-                alt=""
-                onError={event => (event.currentTarget.hidden = true)}
-              />
+    <section class="download-manager-active" aria-label={props.task.title}>
+      <Show when={props.tasks.length > 1}>
+        <div
+          class="download-manager-task-switcher"
+          role="group"
+          aria-label={
+            sophonDownloaderText(props.locale.currentLanguage).activityTitle
+          }
+        >
+          <For each={props.tasks}>
+            {task => (
+              <button
+                type="button"
+                aria-pressed={task.id === props.task.id}
+                title={task.title}
+                onClick={() => props.onSelect(task.id)}
+              >
+                <span class="download-manager-task-icon">
+                  {props.renderTaskIcon(task)}
+                </span>
+                <span class="download-manager-task-name">{task.title}</span>
+              </button>
             )}
-          </Show>
-          <div class="download-manager-active-identity">
-            <h2>{props.task.title}</h2>
-            <p>
-              <span aria-hidden="true" />
-              {props.status}
-            </p>
-          </div>
+          </For>
+        </div>
+      </Show>
+      <div class="download-manager-feature">
+        <Show when={props.artwork} keyed>
+          {url => (
+            <img
+              class="download-manager-art"
+              src={url}
+              alt=""
+              onError={event => (event.currentTarget.hidden = true)}
+            />
+          )}
+        </Show>
+        <div class="download-manager-active-identity">
+          <h2>{props.task.title}</h2>
+          <p>
+            <span aria-hidden="true" />
+            {props.status}
+          </p>
         </div>
         <div class="download-manager-telemetry">
           <dl class="download-manager-rates">
@@ -272,28 +268,7 @@ export function DownloadActiveTask(props: {
             </Show>
           </div>
         </div>
-      </section>
-      <Show when={activity()}>
-        {selected => (
-          <details
-            class="download-manager-diagnostics"
-            onToggle={event => setDetailsOpen(event.currentTarget.open)}
-          >
-            <summary>{props.locale.get("DOWNLOAD_TASK_EXPAND")}</summary>
-            <Show when={detailsOpen()}>
-              <Show when={selected().id} keyed>
-                {_activityId => (
-                  <SophonDownloadDetails
-                    activity={selected()}
-                    locale={props.locale}
-                    paused={false}
-                  />
-                )}
-              </Show>
-            </Show>
-          </details>
-        )}
-      </Show>
-    </>
+      </div>
+    </section>
   );
 }

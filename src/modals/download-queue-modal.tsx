@@ -29,6 +29,7 @@ import { downloadManagerText } from "../locale/download-manager";
 import downloadIcon from "../assets/icons/download.svg";
 import settingsIcon from "../assets/icons/settings.svg";
 import { DownloadActiveTask } from "./download-active-task";
+import { SophonDownloadDetails } from "./sophon-download-details";
 import "./download-queue-modal.css";
 
 const STATUS_LOCALE_KEYS: Record<
@@ -361,6 +362,21 @@ export function DownloadQueueModal(props: {
                           </For>
                         </div>
                       </Show>
+                      <For
+                        each={Array.from(task.sophonActivities?.keys() ?? [])}
+                      >
+                        {activityId => (
+                          <Show when={task.sophonActivities?.get(activityId)}>
+                            {activity => (
+                              <SophonDownloadDetails
+                                activity={activity()}
+                                locale={props.locale}
+                                paused={task.status === "paused"}
+                              />
+                            )}
+                          </Show>
+                        )}
+                      </For>
                     </div>
                   </Show>
                 </div>
