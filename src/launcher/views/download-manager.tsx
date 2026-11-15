@@ -25,7 +25,6 @@ import { Locale, LocaleTextKey } from "../../locale";
 import { formatDownloadSpeed, humanFileSize } from "../../runtime/format";
 import { reconcileDownloadTasks } from "../../download/solid-store";
 import { downloadManagerText } from "../../locale/download-manager";
-import downloadIcon from "../../assets/icons/download.svg";
 import settingsIcon from "../../assets/icons/settings.svg";
 import { DownloadActiveTask } from "./download-active-task";
 import { DownloadTaskDetailsModal } from "../../modals/download-task-details-modal";
@@ -105,9 +104,6 @@ export function DownloadManager(props: {
     <div class="download-manager">
       <header class="download-manager-header">
         <h1 class="download-manager-title">
-          <span class="download-manager-title-icon">
-            <img src={downloadIcon} alt="" />
-          </span>
           {props.locale.get("DOWNLOAD_MANAGER")}
         </h1>
         <button
