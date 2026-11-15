@@ -47,6 +47,7 @@ describe("aria2 sidecar startup", () => {
     expect(spawn).toHaveBeenCalledWith(
       expect.arrayContaining([
         "/aria2",
+        "--max-concurrent-downloads=1",
         "--rpc-listen-port=41000",
         "--rpc-secret",
         "--stop-with-process",

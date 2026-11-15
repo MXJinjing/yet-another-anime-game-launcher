@@ -65,6 +65,7 @@ export async function startAria2Service(
       "-d",
       "/",
       "--no-conf",
+      "--max-concurrent-downloads=1",
       "--enable-rpc",
       `--rpc-listen-port=${port}`,
       "--rpc-listen-all=true",

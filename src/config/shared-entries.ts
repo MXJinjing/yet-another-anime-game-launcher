@@ -49,11 +49,6 @@ export const configEntries = {
     "K",
     stringCodec
   ),
-  downloadMaxConcurrent: withDefault(
-    "config_maxConcurrentDownloads",
-    0,
-    finiteNumberCodec
-  ),
   githubAcceleratedPrefixEnabled: withDefault(
     "config_github_accelerated_prefix_enabled",
     false,

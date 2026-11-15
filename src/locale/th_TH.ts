@@ -432,7 +432,6 @@ export const th_TH: typeof zh_CN = {
   DOWNLOAD_TASK_COLLAPSE: "ซ่อนรายละเอียด",
   DOWNLOAD_TASK_ENGINE: "กลไกดาวน์โหลด",
   DOWNLOAD_TASK_UNKNOWN_SIZE: "ไม่ทราบ",
-  SETTING_MAX_CONCURRENT_DOWNLOADS: "จำกัดการดาวน์โหลดพร้อมกัน",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   NOTIFICATION_TASK_COMPLETED: "ทำงานเสร็จสมบูรณ์แล้ว",
   NOTIFICATION_TASK_CANCELLED: "ยกเลิกงานแล้ว",

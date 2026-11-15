@@ -437,7 +437,6 @@ export const vi_VN: typeof zh_CN = {
   DOWNLOAD_TASK_COLLAPSE: "Ẩn chi tiết",
   DOWNLOAD_TASK_ENGINE: "Công cụ tải xuống",
   DOWNLOAD_TASK_UNKNOWN_SIZE: "Không rõ",
-  SETTING_MAX_CONCURRENT_DOWNLOADS: "Giới hạn lượt tải xuống song song",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   NOTIFICATION_TASK_COMPLETED: "Hoàn tất tác vụ thành công",
   NOTIFICATION_TASK_CANCELLED: "Đã hủy tác vụ",

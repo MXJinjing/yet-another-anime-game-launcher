@@ -31,9 +31,17 @@ body {
   --hope-colors-primary10: #4a4e5d;
   --hope-colors-primary11: #ffe0a3;
   --hope-colors-primary12: #fff1cc;
+  --hope-colors-danger4: #40272e;
+  --hope-colors-danger5: #4b2e38;
+  --hope-colors-danger6: #543540;
   --hope-colors-danger9: #ff8992;
   --hope-colors-danger10: #ff9fa8;
   --hope-colors-danger11: #ffb4bc;
+  --hope-colors-warning4: #3d3022;
+  --hope-colors-warning5: #473925;
+  --hope-colors-warning6: #53432c;
+  --hope-colors-warning10: #f4cc83;
+  --hope-colors-warning11: #ffe0a3;
 }
 
 @supports (color: color-mix(in srgb, black, white)) {

@@ -442,7 +442,6 @@ export const en: typeof zh_CN = {
   DOWNLOAD_TASK_COLLAPSE: "Hide details",
   DOWNLOAD_TASK_ENGINE: "Download engine",
   DOWNLOAD_TASK_UNKNOWN_SIZE: "Unknown",
-  SETTING_MAX_CONCURRENT_DOWNLOADS: "Limit parallel downloads",
   SETTING_GAME_VERSION_NOT_INSTALLED: "Not installed",
   NOTIFICATION_TASK_COMPLETED: "Task completed successfully",
   NOTIFICATION_TASK_CANCELLED: "Task cancelled",
