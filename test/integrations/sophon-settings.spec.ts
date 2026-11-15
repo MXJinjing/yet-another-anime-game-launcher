@@ -14,7 +14,9 @@ vi.mock("@runtime/storage", () => ({
   setKey: vi.fn(),
 }));
 
-afterEach(() => vi.resetAllMocks());
+afterEach(() => {
+  vi.resetAllMocks();
+});
 
 describe("Sophon downloader settings", () => {
   it("validates interdependent limits and write policy", () => {
