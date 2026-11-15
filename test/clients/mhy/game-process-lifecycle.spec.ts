@@ -37,6 +37,7 @@ vi.mock("@src/clients/mhy/patch", () => ({
 
 import type { Config } from "@config";
 import type { Server } from "@constants";
+import { writeFile } from "@platform/neutralino";
 import type { TaskProgressCommand } from "@tasks/task-program";
 import type { Wine } from "@wine";
 import { launchGameProgram as launchHk4e } from "@src/clients/mhy/hk4e/program-launch-game";
@@ -211,6 +212,32 @@ describe("game launch process-monitor integration", () => {
       expect.stringContaining("game_")
     );
   });
+
+  it.each(["hkrpg_cn", "hkrpg_global"])(
+    "launches %s through Jadeite without overriding GPU skinning",
+    async region => {
+      const { wine } = createWine();
+      await collect(
+        launchHkrpg({
+          gameDir: "/Games/Target Game",
+          gameExecutable: "TargetGame.exe",
+          wine,
+          config,
+          server: server(region, "TargetGame.exe"),
+        })
+      );
+
+      expect(writeFile).toHaveBeenCalledWith(
+        "/launcher/config.bat",
+        [
+          "@echo off",
+          'cd "%~dp0"',
+          'cd /d "Z:\\Games\\Target Game"',
+          '"Z:\\launcher\\jadeite\\jadeite.exe" "Z:\\Games\\Target Game\\TargetGame.exe"',
+        ].join("\n")
+      );
+    }
+  );
 
   it("uses indefinite prefix waiting when hkrpg enumeration becomes unknown", async () => {
     const { wine, raw } = createWine({ exitState: "unknown" });
