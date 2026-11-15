@@ -523,6 +523,7 @@ export async function createHypLauncher({
     const [installPrompt, setInstallPrompt] = createSignal<{
       game: HypGame;
       directory: string;
+      purpose: "install" | "verify";
     }>();
     async function enqueueInstall(
       game: HypGame,
@@ -1394,7 +1395,11 @@ export async function createHypLauncher({
           const selection = await selectPath();
           if (!selection) return;
           if (game.client.installOptions) {
-            setInstallPrompt({ game, directory: selection });
+            setInstallPrompt({
+              game,
+              directory: selection,
+              purpose: "install",
+            });
           } else {
             await enqueueInstall(game, selection);
           }
@@ -1419,6 +1424,14 @@ export async function createHypLauncher({
     }
 
     function startCheckIntegrity(game: HypGame) {
+      if (game.client.integrityOptions) {
+        setInstallPrompt({
+          game,
+          directory: game.client.installDir(),
+          purpose: "verify",
+        });
+        return;
+      }
       // Before checking integrity, check for game updates automatically. If a
       // new version is available, ask the user whether to install it first.
       if (
@@ -1426,15 +1439,23 @@ export async function createHypLauncher({
       ) {
         setUpdatePromptGame(game);
       } else {
-        taskQueue.enqueue({
-          key: game.id,
-          fn: gameProgram(aria2, baseWine, game, () =>
-            game.client.checkIntegrity()
-          ),
-          name: "SETTING_CHECK_INTEGRITY",
-          downloadTask: gameDownloadTaskMetadata(game, locale, "integrity"),
-        });
+        enqueueCheckIntegrity(game);
       }
+    }
+
+    function enqueueCheckIntegrity(
+      game: HypGame,
+      directory?: string,
+      selection?: SophonInstallSelection
+    ) {
+      taskQueue.enqueue({
+        key: game.id,
+        fn: gameProgram(aria2, baseWine, game, () =>
+          game.client.checkIntegrity(directory, selection)
+        ),
+        name: "SETTING_CHECK_INTEGRITY",
+        downloadTask: gameDownloadTaskMetadata(game, locale, "integrity"),
+      });
     }
 
     async function startGameLaunch(game: HypGame) {
@@ -2255,15 +2276,23 @@ export async function createHypLauncher({
               locale={locale}
               title={prompt.game.title}
               directory={prompt.directory}
-              load={() => prompt.game.client.installOptions!(prompt.directory)}
+              purpose={prompt.purpose}
+              chooseDirectory={selectPath}
+              load={directory =>
+                prompt.purpose === "verify"
+                  ? prompt.game.client.integrityOptions!(directory)
+                  : prompt.game.client.installOptions!(directory)
+              }
               onClose={() => setInstallPrompt()}
-              onConfirm={selection => {
+              onConfirm={(directory, selection) => {
                 setInstallPrompt();
-                void enqueueInstall(
-                  prompt.game,
-                  prompt.directory,
-                  selection
-                ).catch(fatal);
+                if (prompt.purpose === "verify") {
+                  enqueueCheckIntegrity(prompt.game, directory, selection);
+                } else {
+                  void enqueueInstall(prompt.game, directory, selection).catch(
+                    fatal
+                  );
+                }
               }}
             />
           )}

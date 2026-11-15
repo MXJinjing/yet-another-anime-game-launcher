@@ -307,9 +307,25 @@ export async function createHK4EChannelClient({
         storage,
       });
     },
-    async *checkIntegrity() {
-      yield* sophon.repair(_gameInstallDir(), gameCurrentVersion());
-      await refreshInstalledVersion();
+    integrityOptions: sophon.integrityOptions,
+    async *checkIntegrity(
+      directory = _gameInstallDir(),
+      selection?: SophonInstallSelection
+    ) {
+      const sameDirectory = directory === _gameInstallDir();
+      yield* sophon.repair(
+        directory,
+        sameDirectory ? gameCurrentVersion() : undefined,
+        selection
+      );
+      await refreshInstalledVersion(directory);
+      if (!sameDirectory) {
+        await setKey("game_install_dir", directory);
+        batch(() => {
+          setGameInstallDir(directory);
+          setInstalled("INSTALLED");
+        });
+      }
     },
     async changeInstallDir(selection: string) {
       setGameInfo(info => info && { ...info, needs_resume: false });

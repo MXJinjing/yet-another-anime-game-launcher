@@ -11,6 +11,8 @@ import type {
   SophonRegion,
 } from "@sophon";
 import {
+  mergeSophonVoicePacks,
+  sophonInstallSize,
   validateSophonInstallSelection,
   type SophonInstallSelection,
 } from "../../integrations/sophon-install-options";
@@ -94,21 +96,56 @@ export function createSophonGame(
 
   async function* repair(
     gameDir: string,
-    installedVersion?: string
+    installedVersion?: string,
+    selection?: SophonInstallSelection
   ): TaskProgram {
+    const sophon = await client();
+    const options =
+      selection &&
+      (await sophon.getInstallOptions(gameType, gameDir, "verify"));
+    if (options && selection) {
+      selection = {
+        ...selection,
+        voicePacks: mergeSophonVoicePacks(
+          options.installedVoicePacks ?? [],
+          selection.voicePacks
+        ),
+      };
+      try {
+        sophonInstallSize(options, selection);
+      } catch (error) {
+        throw new TaskFailedError(
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+      await prepareGameDirectory(gameDir);
+    }
     yield* checkIntegrityProgram({
-      sophon: await client(),
+      sophon,
       gameDir,
       gameType,
       installedVersion,
       downloadKey,
       storage,
+      selection,
+      resumeUpdate: options?.resumeUpdate,
     });
+  }
+
+  async function prepareGameDirectory(gameDir: string) {
+    await mkdirp(gameDir);
+    const file = join(gameDir, "config.ini");
+    const contents = (await fileOrDirExists(file)) ? await readFile(file) : "";
+    const updated = sophonConfigDefaults(contents, server);
+    if (updated !== contents) await writeFile(file, updated);
   }
 
   return {
     online,
     repair,
+    async integrityOptions(gameDir: string) {
+      return (await client()).getInstallOptions(gameType, gameDir, "verify");
+    },
     async installOptions(gameDir: string) {
       const existing = await fileOrDirExists(join(gameDir, server.executable));
       if (!existing)
@@ -155,13 +192,7 @@ export function createSophonGame(
           throw new TaskFailedError(locale.get("NO_ENOUGH_DISKSPACE"));
         }
       }
-      await mkdirp(gameDir);
-      const file = join(gameDir, "config.ini");
-      const contents = (await fileOrDirExists(file))
-        ? await readFile(file)
-        : "";
-      const updated = sophonConfigDefaults(contents, server);
-      if (updated !== contents) await writeFile(file, updated);
+      await prepareGameDirectory(gameDir);
       if (existing && !selection) {
         yield* repair(gameDir);
       } else {

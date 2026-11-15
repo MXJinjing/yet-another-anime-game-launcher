@@ -47,7 +47,16 @@ export interface SophonInstallOptionsMetadata {
   version: string;
   modes: { mode: SophonInstallMode; description?: string; size: number }[];
   voicePacks: { id: string; size: number }[];
+  installedVoicePacks?: string[];
+  resumeUpdate?: boolean;
   resume?: SophonInstallSelection;
+}
+
+export function mergeSophonVoicePacks(
+  installed: readonly string[],
+  selected: readonly string[]
+): string[] {
+  return [...new Set([...installed, ...selected])];
 }
 
 export function resolveSophonInstallOptions(
