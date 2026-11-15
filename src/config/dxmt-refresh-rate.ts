@@ -4,7 +4,7 @@ import { configEntries } from "./shared-entries";
 
 declare module "./config-def" {
   interface Config {
-    dxmtRefreshRate: DxmtRefreshRate;
+    dxmtRefreshRate: DetectedDxmtRefreshRate;
   }
 }
 
@@ -14,6 +14,8 @@ export type DxmtRefreshRate = {
   enabled: boolean;
   rate: number;
 };
+
+type DetectedDxmtRefreshRate = DxmtRefreshRate & { displayRate: number };
 
 export function parseRefreshRate(value: string): number | undefined {
   const rate = Number(value);
@@ -57,17 +59,18 @@ export async function detectDisplayRefreshRate(
 export async function loadDxmtRefreshRate(
   store: ConfigStore,
   detect = detectDisplayRefreshRate
-): Promise<DxmtRefreshRate> {
+): Promise<DetectedDxmtRefreshRate> {
+  const displayRate = await detect();
   const saved = await store.read(dxmtRefreshRateEntry);
-  if (saved) return saved;
+  if (saved) return { ...saved, displayRate };
 
   // The old 0 meant automatic detection, whereas the new custom 0 omits
   // the DXMT override. Positive presets become monitor Hz.
   const legacyRate = parseRefreshRate(
     (await store.read(configEntries.preferredMaxFps)) ?? ""
   );
-  if (legacyRate) return { enabled: true, rate: legacyRate };
-  return { enabled: false, rate: await detect() };
+  if (legacyRate) return { enabled: true, rate: legacyRate, displayRate };
+  return { enabled: false, rate: displayRate, displayRate };
 }
 
 function getDefaultPreferredMaxFrameRate(refreshRate: number): number {
@@ -79,13 +82,12 @@ function getDefaultPreferredMaxFrameRate(refreshRate: number): number {
 }
 
 export function dxmtFrameRateOverride(
-  setting: DxmtRefreshRate | undefined,
-  defaultFrameRate = DEFAULT_REFRESH_RATE
+  setting: DetectedDxmtRefreshRate
 ): string {
-  const fps = setting?.enabled
-    ? setting.rate <= 0
+  const fps = setting.enabled
+    ? setting.rate === 0
       ? 0
       : getDefaultPreferredMaxFrameRate(setting.rate)
-    : defaultFrameRate;
+    : setting.displayRate;
   return fps > 0 ? `d3d11.preferredMaxFrameRate=${fps};` : "";
 }

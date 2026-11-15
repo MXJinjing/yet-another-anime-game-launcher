@@ -193,7 +193,7 @@ export const zh_CN = {
   SETTING_VSYNC_DISABLE: "禁用垂直同步",
   SETTING_DXMT_MAX_FRAMERATE: "自定义显示器刷新率 (Hz)",
   SETTING_DXMT_MAX_FRAMERATE_DESC:
-    "仅适用于 DXMT。如果游戏帧率低于 60 FPS，请输入显示器刷新率；输入 0 则不覆盖 DXMT 的帧率设置。",
+    "关闭时自动使用检测到的显示器刷新率。开启后可手动输入刷新率。输入 0 会停用 DXMT 帧率覆盖。",
   SETTING_PREFERRED_MAX_FPS_RESET: "重置",
   SETTING_METALFX_DXMT_ONLY: "仅 DXMT 版 Wine 生效",
   SETTING_METALFX_UPSCALE: "MetalFX 空间超分",

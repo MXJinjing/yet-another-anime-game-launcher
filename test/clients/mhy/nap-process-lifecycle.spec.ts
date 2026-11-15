@@ -59,7 +59,7 @@ const config = {
   steamPatch: false,
   metalHud: false,
   timeoutFix: false,
-  dxmtRefreshRate: { enabled: false, rate: 60 },
+  dxmtRefreshRate: { enabled: false, rate: 60, displayRate: 144 },
   vsyncDisable: false,
   metalFxEnable: false,
   metalFxFactor: 1,
@@ -263,7 +263,7 @@ describe("nap game process lifecycle", () => {
     const dxmtConfig = raw.exec2.mock.calls.find(
       call => call[2]?.DXMT_LOG_PATH
     )?.[2]?.DXMT_CONFIG;
-    expect(dxmtConfig).toBe("");
+    expect(dxmtConfig).toBe("d3d11.preferredMaxFrameRate=144;");
     expect(dxmtConfig).not.toContain("customVendorId");
     expect(dxmtConfig).not.toContain("metalSpatialUpscaleFactor");
   });
@@ -285,7 +285,7 @@ describe("nap game process lifecycle", () => {
             napMetalFxEnable: true,
             metalFxFactor: 2,
             vsyncDisable: true,
-            dxmtRefreshRate: { enabled: true, rate },
+            dxmtRefreshRate: { enabled: true, rate, displayRate: 144 },
           },
           server: server("nap_cn"),
         })

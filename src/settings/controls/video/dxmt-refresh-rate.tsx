@@ -18,15 +18,16 @@ export default async function ({
   locale: Locale;
   store: ConfigStore;
 }) {
-  const [setting, setSetting] = createSignal(await loadDxmtRefreshRate(store));
-  config.dxmtRefreshRate = setting();
+  const { displayRate, ...saved } = await loadDxmtRefreshRate(store);
+  const [setting, setSetting] = createSignal(saved);
+  config.dxmtRefreshRate = { ...saved, displayRate };
   let pendingWrite = Promise.resolve();
 
   function save(enabled: boolean, rate: number) {
     if (setting().enabled === enabled && setting().rate === rate) return;
     const next = { enabled, rate };
     setSetting(next);
-    config.dxmtRefreshRate = next;
+    config.dxmtRefreshRate = { ...next, displayRate };
     pendingWrite = pendingWrite
       .then(() => store.write(dxmtRefreshRateEntry, next))
       .catch(error => console.error("Unable to save DXMT refresh rate", error));
@@ -49,7 +50,7 @@ export default async function ({
               step={1}
               width="6rem"
               disabled={!setting().enabled}
-              value={setting().rate}
+              value={setting().enabled ? setting().rate : displayRate}
               onChange={e => {
                 const rate = parseRefreshRate(e.currentTarget.value);
                 if (rate !== undefined) save(setting().enabled, rate);

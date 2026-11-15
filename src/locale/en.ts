@@ -201,7 +201,7 @@ export const en: typeof zh_CN = {
   SETTING_VSYNC_DISABLE: "Disable VSync",
   SETTING_DXMT_MAX_FRAMERATE: "Custom Monitor Refresh Rate (Hz)",
   SETTING_DXMT_MAX_FRAMERATE_DESC:
-    "For DXMT. Enter your monitor’s refresh rate if the game runs below 60 FPS. Enter 0 to leave the DXMT frame rate unchanged.",
+    "When off, use the detected display refresh rate. Turn on to enter a refresh rate manually. Enter 0 to disable the DXMT frame rate override.",
   SETTING_PREFERRED_MAX_FPS_RESET: "Reset",
   SETTING_METALFX_DXMT_ONLY: "Only works with a DXMT Wine",
   SETTING_METALFX_UPSCALE: "MetalFX Spatial Upscaling",

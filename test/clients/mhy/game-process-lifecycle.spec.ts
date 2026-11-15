@@ -65,7 +65,7 @@ const config = {
   steamPatch: false,
   metalHud: false,
   timeoutFix: false,
-  dxmtRefreshRate: { enabled: false, rate: 60 },
+  dxmtRefreshRate: { enabled: false, rate: 60, displayRate: 144 },
   vsyncDisable: false,
   metalFxEnable: false,
   metalFxFactor: 1,

@@ -30,21 +30,18 @@ describe("DXMT refresh rate", () => {
     [165, 83],
     [240, 60],
   ])("folds %s Hz to a %s FPS override", (rate, fps) => {
-    expect(dxmtFrameRateOverride({ enabled: true, rate })).toBe(
-      `d3d11.preferredMaxFrameRate=${fps};`
-    );
+    expect(
+      dxmtFrameRateOverride({ enabled: true, rate, displayRate: 120 })
+    ).toBe(`d3d11.preferredMaxFrameRate=${fps};`);
   });
 
-  it("omits only the frame rate override for a custom zero or disabled NAP", () => {
-    const disabled = { enabled: false, rate: 144 };
-    expect(dxmtFrameRateOverride(disabled)).toBe(
-      "d3d11.preferredMaxFrameRate=60;"
-    );
-    expect(dxmtFrameRateOverride(disabled, 0)).toBe("");
-    expect(dxmtFrameRateOverride({ enabled: true, rate: 0 })).toBe("");
-    expect(dxmtFrameRateOverride({ enabled: true, rate: 144 }, 0)).toBe(
-      "d3d11.preferredMaxFrameRate=72;"
-    );
+  it("uses the detected refresh rate in automatic mode and omits custom zero", () => {
+    expect(
+      dxmtFrameRateOverride({ enabled: false, rate: 120, displayRate: 144 })
+    ).toBe("d3d11.preferredMaxFrameRate=144;");
+    expect(
+      dxmtFrameRateOverride({ enabled: true, rate: 0, displayRate: 144 })
+    ).toBe("");
   });
 
   it.each<[string | undefined, boolean, number]>([
@@ -70,15 +67,25 @@ describe("DXMT refresh rate", () => {
       },
     });
     const detect = vi.fn(async () => 165);
-    await expect(loadDxmtRefreshRate(store, detect)).resolves.toEqual({
-      enabled,
-      rate,
-    });
+    const migrated = await loadDxmtRefreshRate(store, detect);
+    expect(migrated).toEqual({ enabled, rate, displayRate: 165 });
+    expect(dxmtFrameRateOverride(migrated)).toBe(
+      `d3d11.preferredMaxFrameRate=${enabled ? 72 : 165};`
+    );
     const saved = { enabled: true, rate: 0 };
     await store.write(dxmtRefreshRateEntry, saved);
-    detect.mockClear();
-    await expect(loadDxmtRefreshRate(store, detect)).resolves.toEqual(saved);
-    expect(detect).not.toHaveBeenCalled();
+    await expect(loadDxmtRefreshRate(store, detect)).resolves.toEqual({
+      ...saved,
+      displayRate: 165,
+    });
+
+    await store.write(dxmtRefreshRateEntry, { enabled: false, rate: 120 });
+    detect.mockResolvedValue(144);
+    const reopened = await loadDxmtRefreshRate(store, detect);
+    expect(reopened).toEqual({ enabled: false, rate: 120, displayRate: 144 });
+    expect(dxmtFrameRateOverride(reopened)).toBe(
+      "d3d11.preferredMaxFrameRate=144;"
+    );
   });
 
   it("does not treat a blank or invalid edit as custom zero", () => {
