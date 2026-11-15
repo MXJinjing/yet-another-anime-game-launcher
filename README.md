@@ -100,7 +100,7 @@ The target channel is selected at build time through `YAAGL_CHANNEL_CLIENT`. A c
 ## Install
 
 - Go to [Release](https://github.com/MXJinjing/yet-another-anime-game-launcher/releases/latest) and download the latest version.
-- Uncompress and copy the resulting application to your `/Applications` folder. (Do not open the application from Downloads folder.)
+- Open the DMG and drag the app to `/Applications`, or extract the `.tar.gz` and copy the app there. Then open the app from `/Applications`.
 - Also make sure your game files aren't stored inside `/Applications`, use something inside your home folder instead, e.g `Games/GI`.
 
 ### From source
@@ -212,7 +212,7 @@ YAAGL_BUILD_ARCH=x64 bash scripts/build-release.sh
 YAAGL_BUILD_ARCH=universal bash scripts/build-release.sh
 ```
 
-Run the command for the architecture you need after preparing its Sophon sidecar. A universal build needs both sidecar architectures. The [release script](scripts/build-release.sh) lists the channels, including `hk4eos` and `all`, and writes the archives to `release-assets/<architecture>/`.
+Run the command for the architecture you need after preparing its Sophon sidecar. A universal build needs both sidecar architectures. The [release script](scripts/build-release.sh) lists the channels, including `hk4eos` and `all`, and writes the DMG installers and `.tar.gz` archives to `release-assets/<architecture>/`.
 
 ## Uninstall (completely)
 

@@ -163,7 +163,7 @@ YAAGL_BUILD_ARCH=x64 bash scripts/build-release.sh
 YAAGL_BUILD_ARCH=universal bash scripts/build-release.sh
 ```
 
-[发布脚本](../scripts/build-release.sh) 列出了打包渠道，其中包括 `hk4eos` 和 `all`。先构建相应架构的 Sophon sidecar，通用包需要两种架构。归档文件输出到 `release-assets/<architecture>/`。
+[发布脚本](../scripts/build-release.sh) 列出了打包渠道，其中包括 `hk4eos` 和 `all`。先构建相应架构的 Sophon sidecar，通用包需要两种架构。DMG 安装镜像和 `.tar.gz` 归档文件输出到 `release-assets/<architecture>/`。例如，CN 多频道版的 arm64 安装镜像为 `release-assets/arm64/Yaaglm.CN-arm64.dmg`。
 
 ## 5. 构建流程会执行的操作
 

@@ -100,7 +100,7 @@ Yaaglm 是一个面向 macOS 的桌面启动器，用于管理不同区域和发
 ### 使用 release
 
 1. 前往 [Releases](https://github.com/MXJinjing/yet-another-anime-game-launcher/releases/latest) 下载对应版本。
-2. 解压下载的文件，并将应用复制到 `/Applications`。
+2. 打开 DMG，将应用拖入 `/Applications`，或解压 `.tar.gz` 后复制应用。
 3. 不要直接从 Downloads 目录运行应用。
 4. 建议将游戏文件放在用户目录下的独立目录中，例如 `~/Games/`，不要放入 `/Applications`。
 
@@ -217,7 +217,7 @@ YAAGL_BUILD_ARCH=x64 bash scripts/build-release.sh
 YAAGL_BUILD_ARCH=universal bash scripts/build-release.sh
 ```
 
-准备好对应架构的 Sophon sidecar 后，执行所需架构的命令。通用包需要两种架构的 sidecar。[发布脚本](../scripts/build-release.sh) 列出了打包渠道，其中包括 `hk4eos` 和 `all`。归档文件输出到 `release-assets/<architecture>/`。
+准备好对应架构的 Sophon sidecar 后，执行所需架构的命令。通用包需要两种架构的 sidecar。[发布脚本](../scripts/build-release.sh) 列出了打包渠道，其中包括 `hk4eos` 和 `all`。DMG 安装镜像和 `.tar.gz` 归档文件输出到 `release-assets/<architecture>/`。
 
 ## Uninstall
 

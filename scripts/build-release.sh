@@ -60,6 +60,7 @@ for i in "${!CHANNELS[@]}"; do
     node build-app.js
 
   dot="$(printf '%s' "$app" | tr ' ' '.')"
+  bash scripts/create-release-dmg.sh "release/$ARCH/$app.app" "$OUT/$dot-$ARCH.dmg"
   tar -czf "$OUT/$dot.app-$ARCH.tar.gz" -C "release/$ARCH" "$app.app"
 
   if [ "$ARCH" = "universal" ]; then

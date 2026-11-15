@@ -57,6 +57,7 @@ jobs:
 
       - name: Verify arm64 release assets
         run: |
+          test "$(find release-assets/arm64 -maxdepth 1 -name '*.dmg' | wc -l | tr -d ' ')" -eq 12
           test "$(find release-assets/arm64 -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 12
 
       - name: Upload arm64 release assets
