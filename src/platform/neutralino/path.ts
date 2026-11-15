@@ -1,14 +1,13 @@
-import { join } from "path-browserify";
+import { isAbsolute, join } from "path-browserify";
 
 export function resolve(path: string): string {
-  if (!path.startsWith("/")) {
-    path = join(
-      import.meta.env.PROD
-        ? window.NL_CWD
-        : join(window.NL_CWD, window.NL_PATH),
-      path
-    );
-    if (!path.startsWith("/") || path == "/") {
+  if (!isAbsolute(path)) {
+    const { NL_CWD, NL_PATH } = window;
+    // The packaged launcher supplies an absolute resource path and runs
+    // from Application Support. Local neu run uses a relative staging path.
+    const dataDir = isAbsolute(NL_PATH) ? NL_CWD : join(NL_CWD, NL_PATH);
+    path = join(dataDir, path);
+    if (!isAbsolute(path) || path === "/") {
       throw new Error("Assertation failed " + path);
     }
   }
@@ -16,15 +15,12 @@ export function resolve(path: string): string {
 }
 
 export function resolveResource(path: string): string {
-  if (!path.startsWith("/")) {
-    path = join(
-      import.meta.env.PROD
-        ? window.NL_PATH
-        : join(window.NL_CWD, window.NL_PATH),
-      path
-    );
+  if (!isAbsolute(path)) {
+    const { NL_CWD, NL_PATH } = window;
+    const resourceDir = isAbsolute(NL_PATH) ? NL_PATH : join(NL_CWD, NL_PATH);
+    path = join(resourceDir, path);
   }
-  if (!path.startsWith("/") || path == "/") {
+  if (!isAbsolute(path) || path === "/") {
     throw new Error("Assertation failed " + path);
   }
   return path;
