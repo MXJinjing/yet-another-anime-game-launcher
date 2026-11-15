@@ -34,12 +34,14 @@ describe("launcher data directory", () => {
   let configuredDirectory: string;
   let workingDirectory: string;
   let realPaths: Record<string, string>;
+  let trashError: Error | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
     configuredDirectory = directory;
     workingDirectory = directory;
     realPaths = { [directory]: directory, [support]: support };
+    trashError = undefined;
     vi.mocked(env).mockImplementation(async key =>
       key === "HOME" ? home : configuredDirectory
     );
@@ -47,6 +49,7 @@ describe("launcher data directory", () => {
       path === "." ? workingDirectory : path
     );
     vi.mocked(exec).mockImplementation(async args => {
+      if (args[0] === "/usr/bin/osascript" && trashError) throw trashError;
       if (args[0] !== "/usr/bin/perl") return commandResult();
       const target = args[4];
       if (typeof target !== "object" || Array.isArray(target)) {
@@ -149,13 +152,7 @@ describe("launcher data directory", () => {
   });
 
   it("leaves the launcher open if macOS cannot move the folder", async () => {
-    const delegate = vi.mocked(exec).getMockImplementation();
-    if (!delegate) throw new Error("Expected the default command mock");
-    vi.mocked(exec).mockImplementation(async (...args) => {
-      if (args[0][0] === "/usr/bin/osascript")
-        throw new Error("Trash unavailable");
-      return delegate(...args);
-    });
+    trashError = new Error("Trash unavailable");
     await expect(clearLauncherData(directory, [], isIdle)).rejects.toThrow(
       "Trash unavailable"
     );
