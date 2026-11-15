@@ -115,7 +115,7 @@ export class GameSettings extends SettingsController<GameLoadedSettings> {
         <VideoTab
           locale={this.locale}
           RetinaConfig={settings.retina}
-          PreferredMaxFpsConfig={settings.preferredMaxFps}
+          DxmtRefreshRateConfig={settings.dxmtRefreshRate}
           ChannelClientVideoConfig={settings.channelClientVideo}
           VsyncDisableConfig={settings.vsync}
           MetalFxUpscaleConfig={settings.metalFxUpscale}

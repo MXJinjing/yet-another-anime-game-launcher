@@ -9,7 +9,7 @@ import { SettingsTabPanel } from "./settings-tab-panel";
 export function VideoTab(props: {
   locale: Locale;
   RetinaConfig: () => JSXElement;
-  PreferredMaxFpsConfig?: () => JSXElement;
+  DxmtRefreshRateConfig?: () => JSXElement;
   ChannelClientVideoConfig?: () => JSXElement;
   VsyncDisableConfig?: () => JSXElement;
   MetalFxUpscaleConfig?: (opts?: { disabled?: boolean }) => JSXElement;
@@ -40,7 +40,7 @@ export function VideoTab(props: {
           </>
         ) : null}
         <props.RetinaConfig />
-        {props.PreferredMaxFpsConfig ? <props.PreferredMaxFpsConfig /> : null}
+        {props.DxmtRefreshRateConfig ? <props.DxmtRefreshRateConfig /> : null}
         {props.VsyncDisableConfig ? <props.VsyncDisableConfig /> : null}
         <Divider />
         <Box>

@@ -1,3 +1,4 @@
+import { dxmtFrameRateOverride } from "@config/dxmt-refresh-rate";
 import { join } from "path-browserify";
 import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "../server";
@@ -67,9 +68,9 @@ cd /d "${wine.toWinePath(gameDir)}"
             ? {
                 WINEMSYNC: "1",
                 DXMT_LOG_PATH: yaaglDir,
-                DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${
-                  config.preferredMaxFps
-                };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${
+                DXMT_CONFIG: `${dxmtFrameRateOverride(config.dxmtRefreshRate)}${
+                  config.vsyncDisable ? "dxgi.syncInterval=0;" : ""
+                }${
                   config.metalFxEnable
                     ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};`
                     : ""

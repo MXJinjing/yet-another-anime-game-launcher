@@ -37,6 +37,7 @@ function shouldNamespaceStorageKey(key: string) {
     key == "config_mhypbase_replacement_path" ||
     key == "config_patch_off" ||
     key == "config_preferred_max_fps" ||
+    key == "config_dxmt_refresh_rate" ||
     key == "config_resolution_custom" ||
     key == "config_resolution_width" ||
     key == "config_resolution_height" ||
@@ -146,9 +147,11 @@ async function setOldYaaglStorageValue(
 }
 
 function getOldYaaglStorageRoute(key: string, namespace?: string) {
-  return namespace && shouldNamespaceStorageKey(key)
-    ? oldYaaglmStorageAppsForNamespace(namespace)
-    : undefined;
+  if (!namespace || !shouldNamespaceStorageKey(key)) return undefined;
+  const oldApps = oldYaaglmStorageAppsForNamespace(namespace);
+  // Keep new DXMT preferences in the current game's scope; the old FPS
+  // key still follows the compatibility route for migration.
+  return key === "config_dxmt_refresh_rate" ? oldApps?.slice(0, 1) : oldApps;
 }
 
 export type Storage = {
