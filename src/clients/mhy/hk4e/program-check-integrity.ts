@@ -13,6 +13,7 @@ import { md5 } from "@runtime/patching";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { createTransferProgressTracker } from "./download-progress";
 import { readSophonPredownloadDirectory } from "../../../integrations/sophon-settings";
+import type { SophonInstallSelection } from "../../../integrations/sophon-install-options";
 
 export async function* checkIntegrityProgram({
   sophon,
@@ -21,6 +22,8 @@ export async function* checkIntegrityProgram({
   gameType = "hk4e",
   downloadKey,
   storage = globalStorage,
+  selection,
+  resumeUpdate,
 }: {
   gameDir: string;
   installedVersion?: string;
@@ -29,20 +32,42 @@ export async function* checkIntegrityProgram({
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
   storage?: Storage;
+  selection?: SophonInstallSelection;
+  resumeUpdate?: boolean;
 }): TaskProgram {
+  const predownloadRoot = await readSophonPredownloadDirectory(storage);
+  if (resumeUpdate) {
+    yield ["setStateText", "UPDATING"];
+    const updateId = await sophon.startUpdate(
+      {
+        gamedir: gameDir,
+        game_type: gameType,
+        installedVersion,
+        predownload: false,
+        predownloadRoot,
+      },
+      downloadKey
+    );
+    yield* integrityProgress(sophon, updateId);
+  }
+
   const taskId = await sophon.startRepair(
     {
       gamedir: gameDir,
       game_type: gameType,
       repair_mode: "reliable",
       installedVersion,
-      predownloadRoot: await readSophonPredownloadDirectory(storage),
+      predownloadRoot,
+      ...(selection && { selection }),
     },
     downloadKey
   );
 
   yield ["setStateText", "SCANNING_FILES", "0", "0"];
+  yield* integrityProgress(sophon, taskId);
+}
 
+async function* integrityProgress(sophon: Sophon, taskId: string): TaskProgram {
   let currentFileIndex = 0;
   let totalFileCount = 0;
   const transferProgress = createTransferProgressTracker();

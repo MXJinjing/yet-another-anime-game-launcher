@@ -313,6 +313,79 @@ describe("Swift Sophon RPC", () => {
         }),
       })
     );
+
+    const verifyRequests = mockRPC({
+      ...metadataRPC,
+      "game.nextAction": {
+        action: "resumeUpdate",
+        cacheOnly: false,
+        sourceVersion: "1.2.2",
+        targetVersion: "1.2.3",
+        voicePacks: ["ja-jp"],
+      },
+      "install.start": { operationID: "verify-selected" },
+    });
+    const verification = await client.getInstallOptions(
+      "hk4e",
+      "/games/alternate",
+      "verify"
+    );
+    expect(verification).toMatchObject({
+      installedVoicePacks: ["ja-jp"],
+      resumeUpdate: true,
+    });
+    expect(verification.resume).toBeUndefined();
+    expect(
+      JSON.parse(String(verifyRequests.mock.calls.at(-1)?.[1].body))
+    ).toMatchObject({
+      method: "game.nextAction",
+      params: { directory: "/games/alternate" },
+    });
+    await client.startRepair(
+      {
+        game_type: "hk4e",
+        gamedir: "/games/alternate",
+        repair_mode: "reliable",
+        selection: {
+          mode: "base",
+          voicePacks: ["ja-jp", "en-us"],
+          version: "1.2.3",
+        },
+      },
+      "game"
+    );
+    expect(
+      JSON.parse(String(verifyRequests.mock.calls.at(-1)?.[1].body))
+    ).toMatchObject({
+      method: "install.start",
+      params: {
+        directory: "/games/alternate",
+        mode: "base",
+        voicePacks: ["ja-jp", "en-us"],
+        targetVersion: "1.2.3",
+        quickVerify: false,
+        transfer: { preserveState: false },
+      },
+    });
+    expect(registerStream).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        phaseKind: "verifying",
+        sophonActivity: expect.objectContaining({ kind: "repair" }),
+      })
+    );
+
+    mockRPC({
+      ...metadataRPC,
+      "game.nextAction": {
+        action: "none",
+        sourceVersion: "1.2.4",
+        targetVersion: "1.2.4",
+        voicePacks: [],
+      },
+    });
+    await expect(
+      client.getInstallOptions("hk4e", "/games/alternate", "verify")
+    ).rejects.toThrow("The installed version is newer");
   });
 
   it("snapshots transfer settings at each start without changing the shared speed limit", async () => {

@@ -1,4 +1,5 @@
 import { log } from "../logging/logger";
+import { gt, valid } from "semver";
 import { TaskFailedError } from "@tasks/task-program";
 import { getKeyOrDefault } from "../runtime/storage";
 import {
@@ -66,6 +67,7 @@ export interface SophonRepairOptions extends GameOperationOptions {
   // "quick" or "reliable"
   // "quick" does file size check, "reliable" does hash check
   repair_mode: string;
+  selection?: SophonInstallSelection;
 }
 
 export interface SophonUpdateOptions extends GameOperationOptions {
@@ -275,6 +277,7 @@ export class SophonClient {
         ? (options.install_reltype as SophonRegion)
         : this.region;
     const selection = "selection" in options ? options.selection : undefined;
+    const verifySelection = type === "repair" && selection !== undefined;
     const cacheOnly = "predownload" in options && options.predownload;
     const settings = await readSophonSettings();
     const rpcSettings = sophonOperationSettings(settings);
@@ -283,7 +286,7 @@ export class SophonClient {
       options.gamedir
     );
     return this.startOperation(
-      `${type}.start`,
+      verifySelection ? "install.start" : `${type}.start`,
       {
         game: gameID(options.game_type, region),
         region,
@@ -298,12 +301,15 @@ export class SophonClient {
             : selection?.version,
         sourceVersion: type === "update" ? options.installedVersion : undefined,
         installedVersion: options.installedVersion,
-        resolveAction: true,
+        resolveAction: !verifySelection,
         quickVerify:
           "repair_mode" in options && options.repair_mode === "quick",
         ...rpcSettings,
         transfer: {
           ...rpcSettings.transfer,
+          // Scan the selected manifests instead of resuming an install plan
+          // that may have been created with different resource options.
+          preserveState: !verifySelection && rpcSettings.transfer.preserveState,
           predownloadDirectory:
             directory ??
             `${options.tempdir ?? `${options.gamedir}/.tmp`}/swift`,
@@ -450,7 +456,11 @@ export class SophonClient {
     });
   }
 
-  async getInstallOptions(game: SophonGameType, directory: string) {
+  async getInstallOptions(
+    game: SophonGameType,
+    directory: string,
+    purpose: "install" | "verify" = "install"
+  ) {
     const region = this.region;
     const params = { game: gameID(game, region), region, cn: region !== "os" };
     const [config, branches, build, next] = await Promise.all([
@@ -459,12 +469,33 @@ export class SophonClient {
       this.remoteRPC<SophonBuildMetadata>("api.sophonBuild", params),
       this.remoteRPC<{
         action: string;
+        cacheOnly?: boolean;
+        sourceVersion?: string;
         targetVersion: string;
         mode: "CATEGORY_SCENARIO_BASE" | "CATEGORY_SCENARIO_FULL";
         voicePacks: string[];
       }>("game.nextAction", { ...params, directory }),
     ]);
     const options = resolveSophonInstallOptions(config, branches, build);
+    if (purpose === "verify") {
+      const installed = valid(next.sourceVersion ?? "");
+      const live = valid(options.version);
+      if (installed && live && gt(installed, live)) {
+        throw new TaskFailedError(
+          "The installed version is newer than the verification manifest."
+        );
+      }
+      return {
+        ...options,
+        installedVoicePacks: options.voicePacks
+          .filter(pack => next.voicePacks.includes(pack.id))
+          .map(pack => pack.id),
+        resumeUpdate:
+          next.action === "resumeUpdate" &&
+          !next.cacheOnly &&
+          next.targetVersion === options.version,
+      };
+    }
     if (next.action === "resumeInstall") {
       const resume: SophonInstallSelection = {
         mode: next.mode === "CATEGORY_SCENARIO_BASE" ? "base" : "full",

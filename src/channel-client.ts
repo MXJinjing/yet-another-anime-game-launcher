@@ -97,10 +97,14 @@ export interface ChannelClient {
 
   update(): TaskProgram;
   installOptions?(path: string): Promise<SophonInstallOptionsMetadata | null>;
+  integrityOptions?(path: string): Promise<SophonInstallOptionsMetadata>;
   install(path: string, options?: SophonInstallSelection): TaskProgram;
   predownload(): TaskProgram;
   launch(config: Config): TaskProgram;
-  checkIntegrity(): TaskProgram;
+  checkIntegrity(
+    directory?: string,
+    selection?: SophonInstallSelection
+  ): TaskProgram;
   init(config: Config): TaskProgram;
   changeInstallDir?(path: string): Promise<void>;
   createConfig(

@@ -9,6 +9,7 @@ import {
   VStack,
 } from "@hope-ui/solid";
 import {
+  batch,
   createResource,
   createSignal,
   createUniqueId,
@@ -18,6 +19,7 @@ import {
 import { AppModal, AppModalButton } from "../components/app-modal";
 import type { Locale } from "../locale";
 import {
+  mergeSophonVoicePacks,
   sophonInstallSize,
   type SophonInstallOptionsMetadata,
   type SophonInstallSelection,
@@ -34,28 +36,37 @@ const voiceLabels: Record<string, [string, string]> = {
 export function SophonInstallModal(props: {
   title: string;
   directory: string;
+  purpose: "install" | "verify";
   locale: Locale;
-  load: () => Promise<SophonInstallOptionsMetadata | null>;
+  load: (directory: string) => Promise<SophonInstallOptionsMetadata | null>;
+  chooseDirectory: () => Promise<string>;
   onClose: () => void;
-  onConfirm: (selection?: SophonInstallSelection) => void;
+  onConfirm: (directory: string, selection?: SophonInstallSelection) => void;
 }) {
   const id = createUniqueId();
   const zh = props.locale.currentLanguage.startsWith("zh");
+  const verification = props.purpose === "verify";
+  const [directory, setDirectory] = createSignal(props.directory);
+  const [choosingDirectory, setChoosingDirectory] = createSignal(false);
+  const [directoryError, setDirectoryError] = createSignal("");
   const [selectedMode, setSelectedMode] = createSignal<"full" | "base">("full");
   const [selectedVoices, setSelectedVoices] = createSignal<string[]>([]);
-  const [options, { refetch }] = createResource(async () => {
+  const [options, { refetch }] = createResource(directory, async path => {
     try {
-      return { catalog: await props.load() };
+      return { catalog: await props.load(path) };
     } catch (error) {
       return { error: error instanceof Error ? error.message : String(error) };
     }
   });
   const catalog = () => options()?.catalog;
-  const error = () => options()?.error;
-  const busy = () => options.loading;
+  const error = () => directoryError() || options()?.error;
+  const busy = () => options.loading || choosingDirectory();
   const resuming = () => Boolean(catalog()?.resume);
   const mode = () => catalog()?.resume?.mode ?? selectedMode();
-  const voicePacks = () => catalog()?.resume?.voicePacks ?? selectedVoices();
+  const installedVoicePacks = () => catalog()?.installedVoicePacks ?? [];
+  const voicePacks = () =>
+    catalog()?.resume?.voicePacks ??
+    mergeSophonVoicePacks(installedVoicePacks(), selectedVoices());
   const selection = () => ({
     mode: mode(),
     voicePacks: voicePacks(),
@@ -63,16 +74,42 @@ export function SophonInstallModal(props: {
   });
   const totalSize = () => {
     const value = catalog();
-    return value ? humanFileSize(sophonInstallSize(value, selection())) : "—";
+    return value && !options.loading
+      ? humanFileSize(sophonInstallSize(value, selection()))
+      : "—";
   };
-  const modeLabel = (mode: "full" | "base") =>
-    mode === "full"
-      ? zh
-        ? "完整安装"
-        : "Full install"
-      : zh
-      ? "基础安装"
-      : "Base install";
+  async function chooseDirectory() {
+    if (choosingDirectory()) return;
+    setChoosingDirectory(true);
+    setDirectoryError("");
+    try {
+      const path = await props.chooseDirectory();
+      if (path && path !== directory()) {
+        batch(() => {
+          setSelectedMode("full");
+          setSelectedVoices([]);
+          setDirectory(path);
+        });
+      }
+    } catch (error) {
+      setDirectoryError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setChoosingDirectory(false);
+    }
+  }
+  const actionLabel = () =>
+    props.locale.get(verification ? "SETTING_CHECK_INTEGRITY" : "INSTALL");
+  const modeLabels = verification
+    ? {
+        full: zh ? "完整资源" : "Full resources",
+        base: zh ? "基础资源" : "Base resources",
+      }
+    : {
+        full: zh ? "完整安装" : "Full install",
+        base: zh ? "基础安装" : "Base install",
+      };
+  const voiceLocked = (pack: string) =>
+    busy() || resuming() || installedVoicePacks().includes(pack);
 
   const optionStyle = {
     display: "flex",
@@ -117,18 +154,24 @@ export function SophonInstallModal(props: {
     <AppModal
       opened
       onClose={props.onClose}
-      title={`${props.locale.get("INSTALL")} · ${props.title}`}
+      title={`${actionLabel()} · ${props.title}`}
       maxWidth={760}
       footer={
         <>
           <VStack alignItems="flex-start" spacing={0} mr="auto">
-            <Text size="xs" color="$neutral11">
-              {zh ? "预计安装大小" : "Estimated installation size"}
+            <Text size="xs" color="rgba(255, 255, 255, 0.72)">
+              {verification
+                ? zh
+                  ? "所选资源大小"
+                  : "Selected resource size"
+                : zh
+                ? "预计安装大小"
+                : "Estimated installation size"}
             </Text>
             <Text
               fontSize="$xl"
               fontWeight={600}
-              color="$neutral12"
+              color="#f4f5f8"
               aria-live="polite"
             >
               {totalSize()}
@@ -139,8 +182,15 @@ export function SophonInstallModal(props: {
           </AppModalButton>
           <AppModalButton
             variant="primary"
-            disabled={busy() || Boolean(error()) || !options()}
-            onClick={() => props.onConfirm(catalog() ? selection() : undefined)}
+            disabled={
+              busy() ||
+              Boolean(error()) ||
+              !options() ||
+              (verification && !catalog())
+            }
+            onClick={() =>
+              props.onConfirm(directory(), catalog() ? selection() : undefined)
+            }
           >
             {catalog() === null
               ? zh
@@ -148,7 +198,7 @@ export function SophonInstallModal(props: {
                 : "Import"
               : resuming()
               ? props.locale.get("DOWNLOAD_RESUME")
-              : props.locale.get("INSTALL")}
+              : actionLabel()}
           </AppModalButton>
         </>
       }
@@ -158,19 +208,30 @@ export function SophonInstallModal(props: {
           <FormLabel fontSize="$sm">
             {zh ? "游戏目录" : "Game directory"}
           </FormLabel>
-          <Input
-            readOnly
-            size="sm"
-            value={props.directory}
-            title={props.directory}
-            minW={0}
-            bg="$neutral2"
-            css={{ textOverflow: "ellipsis" }}
-          />
+          <HStack spacing="$2">
+            <Input
+              readOnly
+              size="sm"
+              value={directory()}
+              title={directory()}
+              minW={0}
+              bg="$neutral2"
+              css={{ textOverflow: "ellipsis" }}
+            />
+            <Button
+              variant="subtle"
+              size="sm"
+              flexShrink={0}
+              disabled={choosingDirectory()}
+              onClick={() => void chooseDirectory()}
+            >
+              {props.locale.get("SETTING_CHANGE_GAME_INSTALL_DIR")}
+            </Button>
+          </HStack>
         </FormControl>
         <Show when={busy()}>
-          <Text role="status" size="sm" color="$neutral11">
-            {zh ? "正在加载安装选项…" : "Loading installation options…"}
+          <Text role="status" size="sm" color="rgba(255, 255, 255, 0.72)">
+            {zh ? "正在加载资源选项…" : "Loading resource options…"}
           </Text>
         </Show>
         <Show when={!busy() && error()}>
@@ -186,7 +247,9 @@ export function SophonInstallModal(props: {
             variant="subtle"
             size="sm"
             alignSelf="flex-start"
-            onClick={() => void refetch()}
+            onClick={() =>
+              directoryError() ? void chooseDirectory() : void refetch()
+            }
           >
             {zh ? "重试" : "Retry"}
           </Button>
@@ -201,7 +264,13 @@ export function SophonInstallModal(props: {
         <Show when={!busy() && catalog()}>
           <Box as="fieldset" border={0} p={0} minW={0}>
             <FormLabel as="legend" fontSize="$sm">
-              {zh ? "安装模式" : "Installation mode"}
+              {verification
+                ? zh
+                  ? "资源模式"
+                  : "Resource mode"
+                : zh
+                ? "安装模式"
+                : "Installation mode"}
             </FormLabel>
             <Box
               {...choiceGrid}
@@ -227,7 +296,7 @@ export function SophonInstallModal(props: {
                         id={`${id}-mode-${option.mode}`}
                         name={`${id}-mode`}
                         value={option.mode}
-                        aria-label={modeLabel(option.mode)}
+                        aria-label={modeLabels[option.mode]}
                         checked={mode() === option.mode}
                         disabled={busy() || resuming()}
                         aria-describedby={
@@ -238,7 +307,7 @@ export function SophonInstallModal(props: {
                         onChange={() => setSelectedMode(option.mode)}
                       />
                       <Text as="span" size="sm" fontWeight={600}>
-                        {modeLabel(option.mode)}
+                        {modeLabels[option.mode]}
                       </Text>
                       <Text
                         as="span"
@@ -282,14 +351,14 @@ export function SophonInstallModal(props: {
                       {...optionStyle}
                       alignItems="center"
                       data-selected={voicePacks().includes(pack.id)}
-                      data-disabled={busy() || resuming()}
+                      data-disabled={voiceLocked(pack.id)}
                       for={`${id}-voice-${pack.id}`}
                     >
                       <input
                         type="checkbox"
                         id={`${id}-voice-${pack.id}`}
                         checked={voicePacks().includes(pack.id)}
-                        disabled={busy() || resuming()}
+                        disabled={voiceLocked(pack.id)}
                         onChange={() =>
                           setSelectedVoices(values =>
                             values.includes(pack.id)
@@ -300,6 +369,11 @@ export function SophonInstallModal(props: {
                       />
                       <Text as="span" size="sm" fontWeight={500}>
                         {voiceLabels[pack.id]?.[zh ? 1 : 0] ?? pack.id}
+                        <Show when={installedVoicePacks().includes(pack.id)}>
+                          <Text as="span" size="xs" color="$neutral11" ml="$1">
+                            {zh ? "已安装" : "Installed"}
+                          </Text>
+                        </Show>
                       </Text>
                       <Text
                         as="span"
