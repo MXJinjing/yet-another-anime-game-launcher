@@ -199,10 +199,9 @@ export const en: typeof zh_CN = {
   SETTING_YAAGL_VERSION: "YAAGLM Version",
 
   SETTING_VSYNC_DISABLE: "Disable VSync",
-  SETTING_PREFERRED_MAX_FPS: "Frame Rate Target",
-  SETTING_PREFERRED_MAX_FPS_DESC:
-    "Changing the frame rate target does not remove the in-game frame rate limit.",
-  SETTING_PREFERRED_MAX_FPS_AUTO: "Auto",
+  SETTING_DXMT_MAX_FRAMERATE: "Custom Monitor Refresh Rate (Hz)",
+  SETTING_DXMT_MAX_FRAMERATE_DESC:
+    "For DXMT. Enter your monitor’s refresh rate if the game runs below 60 FPS. Enter 0 to leave the DXMT frame rate unchanged.",
   SETTING_PREFERRED_MAX_FPS_RESET: "Reset",
   SETTING_METALFX_DXMT_ONLY: "Only works with a DXMT Wine",
   SETTING_METALFX_UPSCALE: "MetalFX Spatial Upscaling",

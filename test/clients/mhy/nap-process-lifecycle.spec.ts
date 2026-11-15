@@ -59,7 +59,7 @@ const config = {
   steamPatch: false,
   metalHud: false,
   timeoutFix: false,
-  preferredMaxFps: 60,
+  dxmtRefreshRate: { enabled: false, rate: 60 },
   vsyncDisable: false,
   metalFxEnable: false,
   metalFxFactor: 1,
@@ -261,56 +261,64 @@ describe("nap game process lifecycle", () => {
       expect.stringContaining("game_")
     );
     const dxmtConfig = raw.exec2.mock.calls.find(
-      call => call[2] && call[2].DXMT_CONFIG
+      call => call[2]?.DXMT_LOG_PATH
     )?.[2]?.DXMT_CONFIG;
+    expect(dxmtConfig).toBe("");
     expect(dxmtConfig).not.toContain("customVendorId");
     expect(dxmtConfig).not.toContain("metalSpatialUpscaleFactor");
   });
 
-  it("enables the NVIDIA DLSS-to-MetalFX bridge when MetalFX is on", async () => {
-    const { wine, raw } = createWine();
-    raw.attributes.renderBackend = "dxmt";
-    await collect(
-      launchGameProgram({
-        gameDir: "/game",
-        gameExecutable: "TargetGame.exe",
-        wine,
-        config: {
-          ...config,
-          resolutionCustom: false,
-          useD3D12: false,
-          napMetalFxEnable: true,
-          metalFxFactor: 2,
-        },
-        server: server("nap_cn"),
-      })
-    );
-    expect(raw.setNVExtension).toHaveBeenCalledOnce();
-    expect(raw.clearNVExtension).not.toHaveBeenCalled();
-    expect(cp).toHaveBeenCalledWith(
-      "./dxmt/nvngx.dll",
-      "/wine/lib/wine/x86_64-windows/nvngx.dll"
-    );
-    expect(cp).toHaveBeenCalledWith(
-      "./dxmt/nvngx.dll",
-      "/prefix/drive_c/windows/system32/nvngx.dll"
-    );
-    expect(raw.exec2).toHaveBeenCalledWith(
-      "cmd",
-      expect.any(Array),
-      expect.objectContaining({
-        DXMT_ENABLE_NVEXT: "1",
-        DXMT_METALFX_SPATIAL_SWAPCHAIN: "1",
-      }),
-      expect.stringContaining("game_")
-    );
-    const dxmtConfig = raw.exec2.mock.calls.find(
-      call => call[2] && call[2].DXMT_CONFIG
-    )?.[2]?.DXMT_CONFIG;
-    expect(dxmtConfig).toContain(
-      "d3d11.metalSpatialUpscaleFactor=2;dxgi.customVendorId=10de;dxgi.customDeviceId=2684"
-    );
-  });
+  it.each([0, 144])(
+    "keeps the DLSS-to-MetalFX bridge and VSync settings at %s Hz",
+    async rate => {
+      const { wine, raw } = createWine();
+      raw.attributes.renderBackend = "dxmt";
+      await collect(
+        launchGameProgram({
+          gameDir: "/game",
+          gameExecutable: "TargetGame.exe",
+          wine,
+          config: {
+            ...config,
+            resolutionCustom: false,
+            useD3D12: false,
+            napMetalFxEnable: true,
+            metalFxFactor: 2,
+            vsyncDisable: true,
+            dxmtRefreshRate: { enabled: true, rate },
+          },
+          server: server("nap_cn"),
+        })
+      );
+      expect(raw.setNVExtension).toHaveBeenCalledOnce();
+      expect(raw.clearNVExtension).not.toHaveBeenCalled();
+      expect(cp).toHaveBeenCalledWith(
+        "./dxmt/nvngx.dll",
+        "/wine/lib/wine/x86_64-windows/nvngx.dll"
+      );
+      expect(cp).toHaveBeenCalledWith(
+        "./dxmt/nvngx.dll",
+        "/prefix/drive_c/windows/system32/nvngx.dll"
+      );
+      expect(raw.exec2).toHaveBeenCalledWith(
+        "cmd",
+        expect.any(Array),
+        expect.objectContaining({
+          DXMT_ENABLE_NVEXT: "1",
+          DXMT_METALFX_SPATIAL_SWAPCHAIN: "1",
+        }),
+        expect.stringContaining("game_")
+      );
+      const dxmtConfig = raw.exec2.mock.calls.find(
+        call => call[2] && call[2].DXMT_CONFIG
+      )?.[2]?.DXMT_CONFIG;
+      expect(dxmtConfig).toBe(
+        `${
+          rate === 144 ? "d3d11.preferredMaxFrameRate=72;" : ""
+        }dxgi.syncInterval=0;d3d11.metalSpatialUpscaleFactor=2;dxgi.customVendorId=10de;dxgi.customDeviceId=2684`
+      );
+    }
+  );
 
   it("preserves the Steam DX12 launch branch for a capable runtime", async () => {
     const { wine, raw } = createWine();

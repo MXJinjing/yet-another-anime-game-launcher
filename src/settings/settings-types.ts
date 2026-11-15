@@ -53,7 +53,7 @@ export type GameLoadedSettings = BaseLoadedSettings & {
   gameInstallDir: SettingsComponent;
   retina: SettingsComponent;
   vsync: SettingsComponent;
-  preferredMaxFps: SettingsComponent;
+  dxmtRefreshRate: SettingsComponent;
   metalFxUpscale: AdvancedSettingsComponent;
   reShade: AdvancedSettingsComponent;
   proxyEnabled: SettingsComponent;

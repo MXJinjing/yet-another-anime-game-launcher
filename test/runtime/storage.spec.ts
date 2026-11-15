@@ -65,6 +65,44 @@ describe("instance storage", () => {
     );
   });
 
+  it("migrates legacy DXMT preferences while keeping new settings in each game scope", async () => {
+    const globalGame = createStorage("hpgenshin");
+    const chinaGame = createStorage("hpcngenshin");
+    const otherGame = createStorage("test-a");
+
+    await globalGame.getKey("config_preferred_max_fps");
+    expect(readFile).toHaveBeenCalledWith(
+      "/tmp/Library/Application Support/Yaaglm OS/.storage/config_preferred_max_fps.neustorage"
+    );
+
+    readFile.mockRejectedValueOnce(new Error("missing overseas preference"));
+    await expect(
+      globalGame.getKey("config_dxmt_refresh_rate")
+    ).rejects.toThrow();
+    expect(readFile).not.toHaveBeenCalledWith(
+      "/tmp/Library/Application Support/Yaaglm/.storage/config_dxmt_refresh_rate.neustorage"
+    );
+
+    await globalGame.setKey("config_dxmt_refresh_rate", "global");
+    await chinaGame.setKey("config_dxmt_refresh_rate", "china");
+    await otherGame.setKey("config_dxmt_refresh_rate", "other");
+    expect(writeFile).toHaveBeenNthCalledWith(
+      1,
+      "/tmp/Library/Application Support/Yaaglm OS/.storage/config_dxmt_refresh_rate.neustorage",
+      "global"
+    );
+    expect(writeFile).toHaveBeenNthCalledWith(
+      2,
+      "/tmp/Library/Application Support/Yaaglm/.storage/config_dxmt_refresh_rate.neustorage",
+      "china"
+    );
+    expect(writeFile).toHaveBeenNthCalledWith(
+      3,
+      ".storage/test-a_config_dxmt_refresh_rate.neustorage",
+      "other"
+    );
+  });
+
   it("leaves launcher-wide keys in the default storage scope", async () => {
     await globalStorage.setKey("hyp_last_view", "hk4e");
     expect(writeFile).toHaveBeenCalledWith(

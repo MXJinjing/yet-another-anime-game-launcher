@@ -35,7 +35,7 @@ import {
 
 const config = {
   metalHud: false,
-  preferredMaxFps: 60,
+  dxmtRefreshRate: { enabled: false, rate: 60 },
   vsyncDisable: false,
   metalFxEnable: false,
   metalFxFactor: 1,
