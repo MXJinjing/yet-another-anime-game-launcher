@@ -1,4 +1,5 @@
 import { log } from "../logging/logger";
+import { TaskFailedError } from "@tasks/task-program";
 import { getKeyOrDefault } from "../runtime/storage";
 import {
   ConnectionError,
@@ -176,7 +177,7 @@ export class SophonClient {
     if (reply.id !== id || reply.jsonrpc !== "2.0") {
       throw new ConnectionError(`Invalid Sophon RPC response for ${method}`);
     }
-    if (reply.error) throw new Error(reply.error.message);
+    if (reply.error) throw new TaskFailedError(reply.error.message);
     if (reply.result === undefined) {
       throw new ConnectionError(`Missing Sophon RPC result for ${method}`);
     }
@@ -412,7 +413,7 @@ export class SophonClient {
           yield { type: "error", task_id: taskId, error };
           throw isConnectionErrorMessage(error)
             ? new ConnectionError(error)
-            : new Error(error);
+            : new TaskFailedError(error);
         }
         await new Promise(resolve => setTimeout(resolve, 250));
       }

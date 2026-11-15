@@ -343,7 +343,6 @@ export async function createBH3ChannelClient({
       }
     },
     async *predownload() {
-      setShowPredownloadPrompt(false);
       if (
         pre_download_game == null ||
         !isNewerGameVersion(
@@ -386,6 +385,7 @@ export async function createBH3ChannelClient({
         downloadKey: storage.namespace,
         storage,
       });
+      setShowPredownloadPrompt(false);
     },
     async *update() {
       if (gameCurrentVersion() === "0.0.0") {

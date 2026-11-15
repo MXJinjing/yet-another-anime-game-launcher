@@ -81,7 +81,7 @@ The target channel is selected at build time through `YAAGL_CHANNEL_CLIENT`. A c
 ├── configure.sh       # Initialize configuration and Neutralino runtime
 ├── build-sophon.sh    # Build the Sophon sidecar
 ├── build-app.js       # Build one macOS application bundle
-├── build-all.sh       # Build all release channels
+├── scripts/build-release.sh # Build all release channels
 ├── dist/              # Frontend and Neutralino build output
 ├── release/           # Final .app output directory
 └── dev/           # Generated development runtime directories
@@ -173,7 +173,7 @@ These commands build frontend resources only; they do not create the final macOS
 
 - `vite build`: build frontend resources only.
 - `node build-app.js`: build and package one macOS application.
-- `./build-all.sh`: build multiple release channels from the predefined list.
+- `bash scripts/build-release.sh`: package all release channels for one architecture.
 
 ### Package one channel
 
@@ -206,32 +206,13 @@ release/<architecture>/
 ### Build all release channels
 
 ```sh
-YAAGL_BUILD_ARCH=arm64 ./build-all.sh
-YAAGL_BUILD_ARCH=x64 ./build-all.sh
-YAAGL_BUILD_ARCH=universal ./build-all.sh
+export YAAGL_VERSION="$(node -p 'require("./package.json").version')"
+YAAGL_BUILD_ARCH=arm64 bash scripts/build-release.sh
+YAAGL_BUILD_ARCH=x64 bash scripts/build-release.sh
+YAAGL_BUILD_ARCH=universal bash scripts/build-release.sh
 ```
 
-The current default release list is:
-
-```text
-hk4ecn
-mhyos
-mhycn
-hk4euniversal
-hkrpgcn
-hkrpgos
-bh3glb
-cbjq
-cbjqcn
-napos
-napcn
-```
-
-`hk4eos` has its own development and build scripts but is not currently included in the default `build-all.sh` list. To package it separately, use:
-
-```sh
-YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
-```
+Run the command for the architecture you need after preparing its Sophon sidecar. A universal build needs both sidecar architectures. The [release script](scripts/build-release.sh) lists the channels, including `hk4eos` and `all`, and writes the archives to `release-assets/<architecture>/`.
 
 ## Uninstall (completely)
 

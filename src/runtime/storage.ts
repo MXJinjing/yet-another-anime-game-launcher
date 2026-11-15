@@ -22,6 +22,7 @@ function shouldNamespaceStorageKey(key: string) {
     key == "patched" ||
     key == "predownloaded_all" ||
     key == "sophon_predownload_root" ||
+    key == "sophon_predownload_target" ||
     key == "sophon_predownload_directory" ||
     key.startsWith("predownloaded_") ||
     key == "left_cmd" ||
@@ -175,7 +176,10 @@ export function createStorage(namespace?: string): Storage {
       const oldApps = getOldYaaglStorageRoute(key, namespace);
       if (oldApps) {
         const apps =
-          key === "sophon_predownload_root" ? oldApps.slice(0, 1) : oldApps;
+          key === "sophon_predownload_root" ||
+          key === "sophon_predownload_target"
+            ? oldApps.slice(0, 1)
+            : oldApps;
         return getOldYaaglStorageValue(apps, key);
       }
       return readFile(getCurrentStorageFile(key, namespace));

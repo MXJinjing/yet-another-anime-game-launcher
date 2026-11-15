@@ -2,6 +2,7 @@ import { removeExternalSophonPredownload } from "@download/sophon-predownload";
 import {
   readSophonPredownloadDirectory,
   SOPHON_PREDOWNLOAD_ROOT_KEY,
+  SOPHON_PREDOWNLOAD_TARGET_KEY,
 } from "../../../integrations/sophon-settings";
 import { processingProgressCommands } from "./processing-progress";
 import { join, basename } from "path-browserify";
@@ -20,6 +21,7 @@ import { mkdirp } from "@runtime/macos-filesystem";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { gte } from "semver";
 import { createTransferProgressTracker } from "./download-progress";
+import { readGameVersion } from "../../game-version";
 
 //https://stackoverflow.com/a/69399958
 
@@ -224,13 +226,11 @@ export async function* updateGameProgram({
     }
   }
 
-  const savedTarget = await storage.getKeyOrDefault("predownloaded_all", "");
-  const savedRoot = await storage.getKeyOrDefault(
-    SOPHON_PREDOWNLOAD_ROOT_KEY,
-    ""
+  const { root: savedRoot, target: savedTarget } = await readPredownloadCache(
+    storage
   );
   const predownloadRoot =
-    savedTarget === updatedGameVersion
+    savedTarget === updatedGameVersion || (!savedTarget && savedRoot)
       ? savedRoot
       : await readSophonPredownloadDirectory(storage);
   yield* downloadAndPatch(
@@ -245,9 +245,22 @@ export async function* updateGameProgram({
   try {
     await removeExternalSophonPredownload(savedRoot, gameDir);
     await storage.setKey(SOPHON_PREDOWNLOAD_ROOT_KEY, null);
+    await storage.setKey(SOPHON_PREDOWNLOAD_TARGET_KEY, null);
   } catch (error) {
     void log(`Could not remove the Sophon predownload cache: ${error}`);
   }
+}
+
+async function readPredownloadCache(storage: Storage) {
+  const [root, target, completed] = await Promise.all([
+    storage.getKeyOrDefault(SOPHON_PREDOWNLOAD_ROOT_KEY, ""),
+    storage.getKeyOrDefault(SOPHON_PREDOWNLOAD_TARGET_KEY, ""),
+    storage.getKeyOrDefault("predownloaded_all", ""),
+  ]);
+  return {
+    root,
+    target: readGameVersion(target) ?? readGameVersion(completed),
+  };
 }
 
 async function* predownload(
@@ -365,18 +378,23 @@ export async function* predownloadGameProgram({
   downloadKey?: string;
   storage?: Storage;
 }) {
-  const predownloadDirectory = await readSophonPredownloadDirectory(storage);
-  const savedRoot = await storage.getKeyOrDefault(
-    SOPHON_PREDOWNLOAD_ROOT_KEY,
-    ""
+  const { root: savedRoot, target: savedTarget } = await readPredownloadCache(
+    storage
   );
+  const predownloadDirectory =
+    savedTarget === targetVersion || (!savedTarget && savedRoot)
+      ? savedRoot
+      : await readSophonPredownloadDirectory(storage);
   if (savedRoot !== predownloadDirectory) {
     await removeExternalSophonPredownload(savedRoot, gameDir);
+  }
+  if (savedTarget !== targetVersion) {
     await storage.setKey("predownloaded_all", null);
     await storage.setKey(
       SOPHON_PREDOWNLOAD_ROOT_KEY,
       predownloadDirectory || null
     );
+    await storage.setKey(SOPHON_PREDOWNLOAD_TARGET_KEY, targetVersion);
   }
   yield* predownload(
     sophon,

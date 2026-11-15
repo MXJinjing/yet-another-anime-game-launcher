@@ -1,27 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { showPredownloadAfterDeletion } from "@src/launcher/model/predownload-visibility";
+import { resolvePredownloadVisibility } from "@src/launcher/model/predownload-visibility";
 
-describe("predownload after deletion", () => {
-  it("restores the download entry when the client prompt remains false", () => {
-    expect(showPredownloadAfterDeletion(false, true, "2.0.0", "1.0.0")).toBe(
-      true
-    );
-  });
-  it("keeps the download entry hidden when the installed version is unknown", () => {
-    expect(showPredownloadAfterDeletion(false, true, "2.0.0", "0.0.0")).toBe(
-      false
-    );
-  });
-  it("does not offer an obsolete or unavailable package", () => {
-    expect(showPredownloadAfterDeletion(false, true, "2.0.0", "2.0.0")).toBe(
-      false
-    );
-    expect(showPredownloadAfterDeletion(false, false, "2.0.0", "1.0.0")).toBe(
-      false
-    );
-    expect(showPredownloadAfterDeletion(false, true, "", "1.0.0")).toBe(false);
+describe("predownload visibility", () => {
+  it("hides the cached version once the update installs it", () => {
     expect(
-      showPredownloadAfterDeletion(undefined, true, "2.0.0", "1.0.0")
-    ).toBe(false);
+      resolvePredownloadVisibility("2.0.0", false, true, "2.0.0", "1.0.0")
+    ).toBe("completed");
+    expect(
+      resolvePredownloadVisibility("2.0.0", false, true, "2.0.0", "2.0.0")
+    ).toBe("hidden");
+  });
+
+  it("offers the next predownload after the previous cache was consumed", () => {
+    expect(
+      resolvePredownloadVisibility("2.0.0", false, true, "3.0.0", "2.0.0")
+    ).toBe("available");
+    expect(
+      resolvePredownloadVisibility("", false, true, "3.0.0", "2.0.0")
+    ).toBe("available");
+  });
+
+  it("restores the download entry after deleting the cache", () => {
+    expect(
+      resolvePredownloadVisibility("", false, true, "2.0.0", "1.0.0")
+    ).toBe("available");
+  });
+
+  it("hides predownload when the game or target is unavailable", () => {
+    expect(resolvePredownloadVisibility("", true, true, "2.0.0", "0.0.0")).toBe(
+      "hidden"
+    );
+    expect(
+      resolvePredownloadVisibility("2.0.0", true, false, "2.0.0", "1.0.0")
+    ).toBe("hidden");
+    expect(resolvePredownloadVisibility("", true, true, "", "1.0.0")).toBe(
+      "hidden"
+    );
+    expect(
+      resolvePredownloadVisibility(undefined, false, true, "2.0.0", "1.0.0")
+    ).toBe("hidden");
   });
 });

@@ -1,5 +1,5 @@
 import { log } from "../logging/logger";
-import { spawnProcess } from "../platform/neutralino";
+import { spawnProcess, updateSpawnedProcess } from "../platform/neutralino";
 import { resolveSidecarPath } from "../platform/neutralino/sidecar";
 import { build, rawString } from "../platform/shell";
 import { exec } from "../runtime/command-runner";
@@ -8,9 +8,12 @@ import { readSophonSettings } from "./sophon-settings";
 import { SophonClient, type SophonRegion } from "./sophon";
 
 const host = "127.0.0.1";
-let sidecar: Promise<{ port: number; token: string }> | undefined;
+const healthOptions = { logFailures: false, timeoutMs: 500 };
+type SidecarEndpoint = { id: number; port: number; token: string };
+let sidecar: SidecarEndpoint | undefined;
+let connecting: Promise<SidecarEndpoint> | undefined;
 
-async function startSidecar() {
+async function startSidecar(): Promise<SidecarEndpoint> {
   const { debugLogging } = await readSophonSettings();
   const binary = await resolveSidecarPath("sophon-swift/SophonCLI");
   const parent = (await exec(["echo", rawString("$PPID")])).stdOut.trim();
@@ -20,7 +23,7 @@ async function startSidecar() {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     const port = 50000 + Math.floor(Math.random() * 15535);
-    const { pid } = await spawnProcess(
+    const { id, pid } = await spawnProcess(
       build([
         "exec",
         binary,
@@ -42,8 +45,8 @@ async function startSidecar() {
     );
     const client = new SophonClient(host, port, "os", token);
     for (let attempt = 0; attempt < 10 && Date.now() < deadline; attempt++) {
-      if (await client.healthCheck({ logFailures: false, timeoutMs: 500 })) {
-        return { port, token };
+      if (await client.healthCheck(healthOptions)) {
+        return { id, port, token };
       }
       await new Promise(resolve => setTimeout(resolve, 200));
     }
@@ -52,12 +55,29 @@ async function startSidecar() {
   throw new Error("Failed to start the Swift Sophon sidecar");
 }
 
-export async function getSophonClient(region: SophonRegion) {
-  sidecar ??= startSidecar().catch(error => {
+async function connectSidecar() {
+  if (sidecar) {
+    const { id, port, token } = sidecar;
+    const client = new SophonClient(host, port, "os", token);
+    if (await client.healthCheck({ ...healthOptions, timeoutMs: 2000 })) {
+      return sidecar;
+    }
     sidecar = undefined;
-    void log(String(error));
-    throw error;
-  });
-  const { port, token } = await sidecar;
+    await updateSpawnedProcess(id, "exit").catch(() => undefined);
+  }
+  sidecar = await startSidecar();
+  return sidecar;
+}
+
+export async function getSophonClient(region: SophonRegion) {
+  connecting ??= connectSidecar()
+    .catch(error => {
+      void log(String(error));
+      throw error;
+    })
+    .finally(() => {
+      connecting = undefined;
+    });
+  const { port, token } = await connecting;
   return new SophonClient(host, port, region, token);
 }

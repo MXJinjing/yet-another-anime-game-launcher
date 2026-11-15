@@ -11,7 +11,11 @@ import {
   detachDownloadStream,
   updateDownloadStream,
 } from "./task-registry";
-import type { DownloadStream, DownloadStreamUpdate } from "./types";
+import type {
+  DownloadStatus,
+  DownloadStream,
+  DownloadStreamUpdate,
+} from "./types";
 
 export type {
   DownloadStatus,
@@ -21,7 +25,11 @@ export type {
 
 const streams = new Map<string, DownloadStream>();
 const lastLimitByStream = new Map<string, number>();
-const controlActionByStream = new Map<string, Promise<void>>();
+type ControlAction = "pause" | "resume" | "cancel";
+const pendingControls = new Map<
+  DownloadStream,
+  { action: ControlAction; done: Promise<void> }
+>();
 const listeners = new Set<(streams: readonly DownloadStream[]) => void>();
 let budgetBps = 0;
 let recomputing = false;
@@ -38,7 +46,11 @@ function hasDownloadSlot(stream: DownloadStream) {
   return (
     !usesAria2Slot(stream) ||
     !getStreamSnapshot().some(
-      other => other.status === "active" && usesAria2Slot(other)
+      other =>
+        other !== stream &&
+        usesAria2Slot(other) &&
+        (other.status === "active" ||
+          pendingControls.get(other)?.action === "resume")
     )
   );
 }
@@ -49,29 +61,59 @@ async function runStreamAction(
 ) {
   try {
     await action();
+    return true;
   } catch (error) {
     log(
       `stream-scheduler: failed to ${actionName} stream ${stream.id}: ${String(
         error
       )}`
     );
+    return false;
   }
 }
-function runStreamControlAction(
+function changeStreamStatus(
   stream: DownloadStream,
-  action: () => Promise<void>,
-  actionName: string
+  action: ControlAction,
+  nextStatus: DownloadStatus,
+  failureStatus = stream.status
 ) {
-  const previous = controlActionByStream.get(stream.id);
-  const current = previous
-    ? previous.then(() => runStreamAction(stream, action, actionName))
-    : runStreamAction(stream, action, actionName);
-  controlActionByStream.set(stream.id, current);
-  void current.then(() => {
-    if (controlActionByStream.get(stream.id) === current)
-      controlActionByStream.delete(stream.id);
-  });
-  return current;
+  const previousStatus = stream.status;
+  const done = runStreamAction(stream, () => stream[action](), action).then(
+    succeeded => {
+      pendingControls.delete(stream);
+      if (streams.get(stream.id) !== stream) return;
+      if (stream.status === previousStatus) {
+        stream.status = succeeded ? nextStatus : failureStatus;
+      }
+      if (action === "resume" && succeeded) pauseForGlobalTask(stream);
+      recompute();
+    }
+  );
+  pendingControls.set(stream, { action, done });
+  return done;
+}
+function pauseForGlobalTask(stream: DownloadStream) {
+  if (
+    globalTaskActive &&
+    stream.key &&
+    stream.status === "active" &&
+    !pendingControls.has(stream)
+  ) {
+    void changeStreamStatus(stream, "pause", "queued");
+  }
+}
+async function controlStream(
+  id: string,
+  control: (stream: DownloadStream) => Promise<void>
+) {
+  const stream = streams.get(id);
+  if (!stream) return;
+  let pending = pendingControls.get(stream);
+  while (pending) {
+    await pending.done;
+    pending = pendingControls.get(stream);
+  }
+  if (streams.get(id) === stream) await control(stream);
 }
 function pushSpeedLimit(stream: DownloadStream, bps: number) {
   if ((lastLimitByStream.get(stream.id) ?? 0) === bps) return;
@@ -82,11 +124,12 @@ function recomputeSlots() {
   for (const stream of streams.values()) {
     if (
       stream.status === "queued" &&
+      !pendingControls.has(stream) &&
       !(globalTaskActive && stream.key) &&
       hasDownloadSlot(stream)
     ) {
-      stream.status = "active";
-      void runStreamControlAction(stream, () => stream.resume(), "resume");
+      // A failed automatic resume is available for a manual retry.
+      void changeStreamStatus(stream, "resume", "active", "paused");
     }
   }
 }
@@ -120,13 +163,13 @@ function recompute() {
 }
 
 export function registerStream(stream: DownloadStream) {
-  if ((globalTaskActive && Boolean(stream.key)) || !hasDownloadSlot(stream)) {
-    stream.status = "queued";
-    void runStreamControlAction(stream, () => stream.pause(), "pause");
-  } else stream.status = "active";
+  const queue =
+    (globalTaskActive && Boolean(stream.key)) || !hasDownloadSlot(stream);
+  stream.status = queue ? "queued" : "active";
   streams.set(stream.id, stream);
   attachDownloadStream(stream);
   lastLimitByStream.set(stream.id, 0);
+  if (queue) void changeStreamStatus(stream, "pause", "queued", "active");
   recompute();
 }
 export function unregisterStream(id: string) {
@@ -161,12 +204,7 @@ export const getActiveStreamCount = () => countActiveStreams();
 export function setGlobalTaskActive(active: boolean) {
   if (globalTaskActive === active) return;
   globalTaskActive = active;
-  if (active)
-    for (const stream of streams.values())
-      if (stream.key && stream.status === "active") {
-        stream.status = "queued";
-        void runStreamControlAction(stream, () => stream.pause(), "pause");
-      }
+  if (active) for (const stream of streams.values()) pauseForGlobalTask(stream);
   recompute();
 }
 export const getGlobalTaskActive = () => globalTaskActive;
@@ -179,46 +217,44 @@ export async function reloadConfig() {
   budgetBps = speedLimitConfigToBps(enabled, Number(rawValue), unit);
   recompute();
 }
-export async function pauseStream(id: string) {
-  const stream = streams.get(id);
-  if (!stream) return;
-  if (stream.status === "active") {
-    stream.status = "paused";
-    emit();
-    await runStreamControlAction(stream, () => stream.pause(), "pause");
-    recompute();
-  } else if (stream.status === "queued") {
-    stream.status = "paused";
-    emit();
-  }
+export function pauseStream(id: string) {
+  return controlStream(id, async stream => {
+    if (stream.status === "active") {
+      await changeStreamStatus(stream, "pause", "paused");
+    } else if (stream.status === "queued") {
+      stream.status = "paused";
+      emit();
+    }
+  });
 }
-export async function resumeStream(id: string) {
-  const stream = streams.get(id);
-  if (!stream || stream.status !== "paused") return;
-  if (globalTaskActive && stream.key) {
-    log(`stream-scheduler: resume refused for ${id} while a global task runs`);
-    return;
-  }
-  if (!hasDownloadSlot(stream)) {
-    stream.status = "queued";
-    emit();
-    return;
-  }
-  stream.status = "active";
-  emit();
-  await runStreamControlAction(stream, () => stream.resume(), "resume");
-  recompute();
+export function resumeStream(id: string) {
+  return controlStream(id, async stream => {
+    if (stream.status !== "paused") return;
+    if (globalTaskActive && stream.key) {
+      log(
+        `stream-scheduler: resume refused for ${id} while a global task runs`
+      );
+      return;
+    }
+    if (!hasDownloadSlot(stream)) {
+      stream.status = "queued";
+      emit();
+      return;
+    }
+    await changeStreamStatus(stream, "resume", "active");
+  });
 }
-export async function cancelStream(id: string) {
-  const stream = streams.get(id);
-  if (!stream) return;
-  if (globalTaskActive && stream.key) {
-    log(`stream-scheduler: cancel refused for ${id} while a global task runs`);
-    return;
-  }
-  stream.status = "cancelled";
-  await runStreamControlAction(stream, () => stream.cancel(), "cancel");
-  recompute();
+export function cancelStream(id: string) {
+  return controlStream(id, async stream => {
+    if (["completed", "error", "cancelled"].includes(stream.status)) return;
+    if (globalTaskActive && stream.key) {
+      log(
+        `stream-scheduler: cancel refused for ${id} while a global task runs`
+      );
+      return;
+    }
+    await changeStreamStatus(stream, "cancel", "cancelled");
+  });
 }
 export async function pauseDownloadTask(taskId: string) {
   for (const stream of getStreamsByTaskId(taskId).filter(
