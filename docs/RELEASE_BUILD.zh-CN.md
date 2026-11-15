@@ -149,38 +149,21 @@ grep -o '"version"[^,]*' neutralino.config.json | head -1
 
 ## 4. 构建全部 release channel
 
-`build-all.sh` 会根据 Git tag 自动选择版本，并构建预设的全部 channel：
+`scripts/build-release.sh` 使用 `YAAGL_VERSION` 指定的版本打包全部发布渠道。以下示例读取 `package.json` 的版本号：
 
 ```sh
-YAAGL_BUILD_ARCH=arm64 ./build-all.sh
+export YAAGL_VERSION="$(node -p 'require("./package.json").version')"
+YAAGL_BUILD_ARCH=arm64 bash scripts/build-release.sh
 ```
 
 也可以构建：
 
 ```sh
-YAAGL_BUILD_ARCH=x64 ./build-all.sh
-YAAGL_BUILD_ARCH=universal ./build-all.sh
+YAAGL_BUILD_ARCH=x64 bash scripts/build-release.sh
+YAAGL_BUILD_ARCH=universal bash scripts/build-release.sh
 ```
 
-默认列表包括：
-
-```text
-hk4ecn
-mhyos
-mhycn
-hk4euniversal
-hkrpgcn
-hkrpgos
-bh3glb
-cbjq
-cbjqcn
-napos
-napcn
-```
-
-`hk4eos` 不在默认批量列表中，需要单独执行 `build-app.js`。
-
-如果需要构建指定版本而不是从 Git tag 自动取版本，建议使用上一节的单 channel 流程。不要直接修改 `build-all.sh` 中的版本计算逻辑来进行临时测试。
+[发布脚本](../scripts/build-release.sh) 列出了打包渠道，其中包括 `hk4eos` 和 `all`。先构建相应架构的 Sophon sidecar，通用包需要两种架构。归档文件输出到 `release-assets/<architecture>/`。
 
 ## 5. 构建流程会执行的操作
 

@@ -156,6 +156,7 @@ describe("download queue concurrency", () => {
     expect(second.stream.status).toBe("queued");
 
     await queue.pauseStream(first.stream.id);
+    await flushAsyncActions();
 
     expect(first.stream.status).toBe("paused");
     expect(second.stream.status).toBe("active");
@@ -181,6 +182,7 @@ describe("download queue concurrency", () => {
 
     // Freeing first's slot auto-promotes second.
     await queue.pauseStream(first.stream.id);
+    await flushAsyncActions();
     expect(first.stream.status).toBe("paused");
     expect(second.stream.status).toBe("active");
     expect(second.stats.resume).toBe(1);
@@ -198,6 +200,46 @@ describe("download queue concurrency", () => {
     expect(first.stream.status).toBe("completed");
     expect(second.stream.status).toBe("active");
     expect(second.stats.resume).toBe(1);
+  });
+
+  it("keeps a failed pause active and only releases its slot after a successful retry", async () => {
+    const pause = vi.fn(async () => undefined);
+    pause.mockRejectedValueOnce(new Error("Pause RPC failed"));
+    const first = createStream({ pause });
+    const next = createStream();
+    queue.registerStream(first.stream);
+    queue.registerStream(next.stream);
+
+    await queue.pauseStream(first.stream.id);
+
+    expect(first.stream.status).toBe("active");
+    expect(next.stream.status).toBe("queued");
+    expect(next.stats.resume).toBe(0);
+
+    await queue.pauseStream(first.stream.id);
+    await flushAsyncActions();
+    expect(first.stream.status).toBe("paused");
+    expect(next.stream.status).toBe("active");
+  });
+
+  it("keeps the previous state when resume or cancel fails", async () => {
+    const resume = vi.fn(async () => undefined);
+    resume.mockRejectedValueOnce(new Error("Resume RPC failed"));
+    const cancel = vi.fn(async () => undefined);
+    cancel.mockRejectedValueOnce(new Error("Cancel RPC failed"));
+    const { stream } = createStream({ kind: "sophon", resume, cancel });
+    queue.registerStream(stream);
+    await queue.pauseStream(stream.id);
+
+    await queue.resumeStream(stream.id);
+    expect(stream.status).toBe("paused");
+
+    await queue.resumeStream(stream.id);
+    await queue.cancelStream(stream.id);
+    expect(stream.status).toBe("active");
+
+    await queue.cancelStream(stream.id);
+    expect(stream.status).toBe("cancelled");
   });
 });
 
@@ -342,8 +384,8 @@ describe("global task priority", () => {
     expect(game.stream.status).toBe("queued");
 
     queue.setGlobalTaskActive(false);
-    expect(game.stream.status).toBe("active");
     await flushAsyncActions();
+    expect(game.stream.status).toBe("active");
     expect(game.stats.resume).toBe(1);
   });
 
@@ -367,6 +409,7 @@ describe("global task priority", () => {
     await queue.pauseStream(userPaused.stream.id);
 
     queue.setGlobalTaskActive(true);
+    await flushAsyncActions();
     expect(userPaused.stream.status).toBe("paused");
     expect(running.stream.status).toBe("queued");
 
@@ -464,8 +507,8 @@ describe("global task priority", () => {
 
     // Once the global task ends, the slot can be handed to the game download.
     queue.setGlobalTaskActive(false);
-    expect(game.stream.status).toBe("active");
     await flushAsyncActions();
+    expect(game.stream.status).toBe("active");
     expect(game.stats.resume).toBe(1);
   });
 });

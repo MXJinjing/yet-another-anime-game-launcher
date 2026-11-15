@@ -44,6 +44,11 @@ vi.mock("@runtime/patching", () => ({
 
 import type { TaskProgressCommand } from "@tasks/task-program";
 import type { Sophon, SophonClient, SophonProgressEvent } from "@sophon";
+import {
+  SOPHON_PREDOWNLOAD_DIRECTORY_KEY,
+  SOPHON_PREDOWNLOAD_ROOT_KEY,
+  SOPHON_PREDOWNLOAD_TARGET_KEY,
+} from "@src/integrations/sophon-settings";
 import { checkIntegrityProgram } from "@src/clients/mhy/hk4e/program-check-integrity";
 import { downloadAndInstallGameProgram } from "@src/clients/mhy/hk4e/program-install-game";
 import {
@@ -264,6 +269,93 @@ describe("predownload directories", () => {
         predownload: false,
         predownloadRoot: "/Volumes/Previous",
       }),
+      undefined
+    );
+    expect(storage.setKey).toHaveBeenCalledWith("predownloaded_all", null);
+    expect(storage.setKey).toHaveBeenCalledWith(
+      SOPHON_PREDOWNLOAD_ROOT_KEY,
+      null
+    );
+    expect(storage.setKey).toHaveBeenCalledWith(
+      SOPHON_PREDOWNLOAD_TARGET_KEY,
+      null
+    );
+  });
+
+  it.each(["/Volumes/Previous", ""])(
+    "retains the interrupted predownload location %j after the preference changes",
+    async root => {
+      const saved = new Map([[SOPHON_PREDOWNLOAD_DIRECTORY_KEY, root]]);
+      const storage = {
+        async getKey(key: string) {
+          const value = saved.get(key);
+          if (value === undefined) throw new Error("Not saved");
+          return value;
+        },
+        async getKeyOrDefault(key: string, fallback: string) {
+          return saved.get(key) ?? fallback;
+        },
+        async setKey(key: string, value: string | null) {
+          if (value === null) saved.delete(key);
+          else saved.set(key, value);
+        },
+      };
+      const failingSophon = {
+        ...createSophon([]),
+        async *streamOperationProgress() {
+          throw new Error("Transfer interrupted");
+        },
+      };
+      const game = { gameDir: "/game", gameType: "nap" as const, storage };
+      await expect(
+        collect(
+          predownloadGameProgram({
+            ...game,
+            sophon: failingSophon as unknown as Sophon,
+            targetVersion: "2.0.0",
+          })
+        )
+      ).rejects.toThrow("Transfer interrupted");
+      expect(saved.has("predownloaded_all")).toBe(false);
+      saved.set(SOPHON_PREDOWNLOAD_DIRECTORY_KEY, "/Volumes/Next");
+
+      const retry = createSophon([]);
+      await collect(
+        updateGameProgram({
+          ...game,
+          sophon: retry as unknown as Sophon,
+          server: { dataDir: "Data" } as never,
+          updatedGameVersion: "2.0.0",
+        })
+      );
+      expect(retry.startUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ predownloadRoot: root }),
+        undefined
+      );
+      expect(saved.has(SOPHON_PREDOWNLOAD_TARGET_KEY)).toBe(false);
+    }
+  );
+
+  it("reuses a recorded external directory from an older interrupted predownload", async () => {
+    const sophon = createSophon([]);
+    await collect(
+      updateGameProgram({
+        sophon: sophon as unknown as Sophon,
+        gameDir: "/game",
+        gameType: "nap",
+        server: { dataDir: "Data" } as never,
+        updatedGameVersion: "2.0.0",
+        storage: {
+          getKey: vi.fn(async () => "/Volumes/Next"),
+          getKeyOrDefault: vi.fn(async (key, fallback) =>
+            key === SOPHON_PREDOWNLOAD_ROOT_KEY ? "/Volumes/Previous" : fallback
+          ),
+          setKey: vi.fn(async () => undefined),
+        },
+      })
+    );
+    expect(sophon.startUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ predownloadRoot: "/Volumes/Previous" }),
       undefined
     );
   });

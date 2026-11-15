@@ -79,7 +79,7 @@ Yaaglm 是一个面向 macOS 的桌面启动器，用于管理不同区域和发
 ├── configure.sh       # 初始化配置并准备 Neutralino 运行时
 ├── build-sophon.sh    # 构建 Sophon sidecar
 ├── build-app.js       # 构建单个 macOS 应用包
-├── build-all.sh       # 构建全部 release channel
+├── scripts/build-release.sh # 构建全部 release channel
 ├── dist/              # 前端和 Neutralino 构建产物
 ├── release/           # 最终 .app 输出目录
 └── dev/           # 开发运行时生成的工作目录
@@ -178,7 +178,7 @@ YAAGL_CHANNEL_CLIENT=<channel> pnpm exec vite build
 
 - `vite build`：只构建前端资源。
 - `node build-app.js`：构建并打包单个 macOS 应用。
-- `./build-all.sh`：按预设列表批量构建多个 release channel。
+- `bash scripts/build-release.sh`：为指定架构打包全部 release channel。
 
 ### 单 channel 应用打包
 
@@ -211,32 +211,13 @@ release/<architecture>/
 ### 批量构建全部 release channel
 
 ```sh
-YAAGL_BUILD_ARCH=arm64 ./build-all.sh
-YAAGL_BUILD_ARCH=x64 ./build-all.sh
-YAAGL_BUILD_ARCH=universal ./build-all.sh
+export YAAGL_VERSION="$(node -p 'require("./package.json").version')"
+YAAGL_BUILD_ARCH=arm64 bash scripts/build-release.sh
+YAAGL_BUILD_ARCH=x64 bash scripts/build-release.sh
+YAAGL_BUILD_ARCH=universal bash scripts/build-release.sh
 ```
 
-当前 `build-all.sh` 默认构建以下 channel：
-
-```text
-hk4ecn
-mhyos
-mhycn
-hk4euniversal
-hkrpgcn
-hkrpgos
-bh3glb
-cbjq
-cbjqcn
-napos
-napcn
-```
-
-`hk4eos` 虽然拥有独立的开发和构建脚本，但当前不在 `build-all.sh` 的默认批量列表中。如需单独打包，请使用：
-
-```sh
-YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
-```
+准备好对应架构的 Sophon sidecar 后，执行所需架构的命令。通用包需要两种架构的 sidecar。[发布脚本](../scripts/build-release.sh) 列出了打包渠道，其中包括 `hk4eos` 和 `all`。归档文件输出到 `release-assets/<architecture>/`。
 
 ## Uninstall
 

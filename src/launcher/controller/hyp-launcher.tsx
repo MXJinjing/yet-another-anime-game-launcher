@@ -1,11 +1,12 @@
 import {
   sophonPredownloadPath,
   SOPHON_PREDOWNLOAD_ROOT_KEY,
+  SOPHON_PREDOWNLOAD_TARGET_KEY,
 } from "../../integrations/sophon-settings";
 import { removeExternalSophonPredownload } from "@download/sophon-predownload";
 import { SophonInstallModal } from "../../modals/sophon-install-modal";
 import type { SophonInstallSelection } from "../../integrations/sophon-install-options";
-import { showPredownloadAfterDeletion } from "../model/predownload-visibility";
+import { resolvePredownloadVisibility } from "../model/predownload-visibility";
 import { createGlobalSettings } from "@settings";
 import { createConfigStore } from "@config";
 import { applyRecommendedGameSettings } from "@settings/recommended-settings";
@@ -482,37 +483,39 @@ export async function createHypLauncher({
     return paths;
   }
 
-  async function detectCompletedPredownload(game: HypGame) {
-    if (game.client.installState() !== "INSTALLED") return false;
+  async function detectCompletedPredownload(
+    game: HypGame,
+    verifyStagingFiles = true
+  ) {
+    if (game.client.installState() !== "INSTALLED") return "";
     const targetVersion = game.client.predownloadVersion();
-    if (!targetVersion || !game.client.installDir()) return false;
+    if (!targetVersion || !game.client.installDir()) return "";
 
     const storage = game.storage;
     const marker = await (storage?.getKeyOrDefault(
       "predownloaded_all",
       "NOTFOUND"
     ) ?? getKeyOrDefault("predownloaded_all", "NOTFOUND"));
-    if (marker === "NOTFOUND") return false;
-    if (marker !== "true" && marker !== targetVersion) return false;
+    if (marker !== "true" && marker !== targetVersion) return "";
+    if (!verifyStagingFiles) return targetVersion;
 
     // Aria2 and Sophon keep completed pre-download payloads in these
     // installation-directory staging folders until the game update runs.
     for (const path of await predownloadDirectories(game)) {
       if (!(await fileOrDirExists(path))) continue;
       try {
-        if ((await readDirectory(path)).length > 0) return true;
+        if ((await readDirectory(path)).length > 0) return targetVersion;
       } catch {
         // Ignore inaccessible staging directories and try the next one.
       }
     }
-    return false;
+    return "";
   }
 
-  const persistedPredownloads: Record<string, boolean> = {};
+  const persistedPredownloads: Record<string, string> = {};
   for (const game of games) {
-    if (await detectCompletedPredownload(game)) {
-      persistedPredownloads[game.id] = true;
-    }
+    const version = await detectCompletedPredownload(game);
+    if (version) persistedPredownloads[game.id] = version;
   }
 
   return function HypLauncher() {
@@ -748,8 +751,18 @@ export async function createHypLauncher({
     >({});
     const [gameLifecycleActiveByKey, setGameLifecycleActiveByKey] =
       createSignal<Record<string, boolean>>({});
-    const [predownloadCompletedByGame, setPredownloadCompletedByGame] =
-      createSignal<Record<string, boolean>>(persistedPredownloads);
+    const [completedPredownloadByGame, setCompletedPredownloadByGame] =
+      createSignal<Partial<Record<string, string>>>(persistedPredownloads);
+    const predownloadVisibility = createMemo(() => {
+      const game = selectedGame();
+      return resolvePredownloadVisibility(
+        completedPredownloadByGame()[game.id],
+        game.client.showPredownloadPrompt(),
+        game.client.installState() === "INSTALLED",
+        game.client.predownloadVersion(),
+        game.client.gameVersion?.() ?? ""
+      );
+    });
     const [predownloadSizeByGame, setPredownloadSizeByGame] = createSignal<
       Record<string, number | undefined>
     >({});
@@ -1372,12 +1385,7 @@ export async function createHypLauncher({
           return;
         case "update":
           await log("Game update requested");
-          taskQueue.enqueue({
-            key: game.id,
-            fn: gameProgram(aria2, baseWine, game, () => game.client.update()),
-            name: "UPDATE",
-            downloadTask: gameDownloadTaskMetadata(game, locale, "release"),
-          });
+          enqueueGameUpdate(game);
           return;
         case "launch":
           await startGameLaunch(game);
@@ -1556,16 +1564,43 @@ export async function createHypLauncher({
           yield* gameProgram(aria2, baseWine, game, () =>
             game.client.predownload()
           )();
-          await refreshPredownloadSize(game);
-          setPredownloadCompletedByGame(previous => ({
-            ...previous,
-            [game.id]: true,
-          }));
+          if (!(await refreshPredownloadCompletion(game, false))) {
+            throw new TaskFailedError(locale.get("NOTIFICATION_TASK_FAILED"));
+          }
         },
         name: "PREDOWNLOAD_READY",
         nameArgs: [game.title, game.client.predownloadVersion()],
         downloadTask: gameDownloadTaskMetadata(game, locale, "predownload"),
       });
+    }
+
+    function enqueueGameUpdate(game: HypGame) {
+      taskQueue.enqueue({
+        key: game.id,
+        fn: async function* () {
+          yield* gameProgram(aria2, baseWine, game, () =>
+            game.client.update()
+          )();
+          await refreshPredownloadCompletion(game);
+        },
+        name: "UPDATE",
+        downloadTask: gameDownloadTaskMetadata(game, locale, "release"),
+      });
+    }
+
+    async function refreshPredownloadCompletion(
+      game: HypGame,
+      verifyStagingFiles = true
+    ) {
+      const version = await detectCompletedPredownload(
+        game,
+        verifyStagingFiles
+      );
+      setCompletedPredownloadByGame(previous => ({
+        ...previous,
+        [game.id]: version,
+      }));
+      return version;
     }
 
     async function refreshPredownloadSize(game: HypGame) {
@@ -1593,13 +1628,14 @@ export async function createHypLauncher({
       const external = await externalPredownloadRoot(game);
       if (external) {
         await removeExternalSophonPredownload(external, installDir);
-        await game.storage?.setKey(SOPHON_PREDOWNLOAD_ROOT_KEY, null);
       }
+      await game.storage?.setKey(SOPHON_PREDOWNLOAD_ROOT_KEY, null);
+      await game.storage?.setKey(SOPHON_PREDOWNLOAD_TARGET_KEY, null);
       await (game.storage?.setKey("predownloaded_all", null) ??
         setKey("predownloaded_all", null));
-      setPredownloadCompletedByGame(previous => ({
+      setCompletedPredownloadByGame(previous => ({
         ...previous,
-        [game.id]: false,
+        [game.id]: "",
       }));
       setPredownloadSizeByGame(previous => ({ ...previous, [game.id]: 0 }));
     }
@@ -1924,20 +1960,13 @@ export async function createHypLauncher({
             </Show>
             <Show
               when={
-                (selectedGame().client.showPredownloadPrompt() ||
-                  predownloadCompletedByGame()[selectedGame().id] ||
-                  showPredownloadAfterDeletion(
-                    predownloadCompletedByGame()[selectedGame().id],
-                    selectedGame().client.installState() === "INSTALLED",
-                    selectedGame().client.predownloadVersion(),
-                    selectedGame().client.gameVersion?.() ?? ""
-                  )) &&
+                predownloadVisibility() !== "hidden" &&
                 !selectedGameTaskState().busy() &&
                 wineInstalled()
               }
             >
               <Show
-                when={predownloadCompletedByGame()[selectedGame().id]}
+                when={predownloadVisibility() === "completed"}
                 fallback={
                   <button class="hyp-secondary-button" onClick={onPredownload}>
                     <img src={cloudDownloadIcon} alt="" aria-hidden="true" />
@@ -2246,14 +2275,7 @@ export async function createHypLauncher({
           onClose={() => setUpdatePromptGame()}
           onConfirm={target => {
             setUpdatePromptGame();
-            taskQueue.enqueue({
-              key: target.id,
-              fn: gameProgram(aria2, baseWine, target, () =>
-                target.client.update()
-              ),
-              name: "UPDATE",
-              downloadTask: gameDownloadTaskMetadata(target, locale, "release"),
-            });
+            enqueueGameUpdate(target);
           }}
         />
 

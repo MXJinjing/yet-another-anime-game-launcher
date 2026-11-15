@@ -57,7 +57,7 @@ afterEach(() => {
 });
 
 describe("download manager and primary action synchronization", () => {
-  it("projects modal pause and resume immediately from queue status", async () => {
+  it("projects modal pause and resume after the transfer acknowledges them", async () => {
     const pause = deferred();
     const resume = deferred();
     const stream = makeStream({
@@ -74,6 +74,13 @@ describe("download manager and primary action synchronization", () => {
     const pausing = queue.pauseStream(stream.id);
     expect(states[states.length - 1]).toMatchObject({
       active: true,
+      paused: false,
+      canPause: true,
+    });
+    pause.resolve();
+    await pausing;
+    expect(states[states.length - 1]).toMatchObject({
+      active: true,
       paused: true,
       pauseRequested: true,
       canPause: false,
@@ -81,10 +88,14 @@ describe("download manager and primary action synchronization", () => {
       actionPending: false,
     });
 
-    pause.resolve();
-    await pausing;
-
     const resuming = queue.resumeStream(stream.id);
+    expect(states[states.length - 1]).toMatchObject({
+      active: true,
+      paused: true,
+      canResume: true,
+    });
+    resume.resolve();
+    await resuming;
     expect(states[states.length - 1]).toMatchObject({
       active: true,
       paused: false,
@@ -94,8 +105,6 @@ describe("download manager and primary action synchronization", () => {
       actionPending: false,
     });
 
-    resume.resolve();
-    await resuming;
     unsubscribe();
   });
 

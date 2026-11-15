@@ -97,6 +97,7 @@ const SOPHON_SETTINGS_KEY = "config_sophon";
 export const SOPHON_PREDOWNLOAD_DIRECTORY_KEY = "sophon_predownload_directory";
 // Records the location of a predownload already started, independently of the preference.
 export const SOPHON_PREDOWNLOAD_ROOT_KEY = "sophon_predownload_root";
+export const SOPHON_PREDOWNLOAD_TARGET_KEY = "sophon_predownload_target";
 
 async function readStoredSettings(): Promise<
   Partial<SophonSettings> & { predownloadDirectory?: unknown }

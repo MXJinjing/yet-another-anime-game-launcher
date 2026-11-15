@@ -234,7 +234,6 @@ export async function createHKRPGChannelClient({
       setRuntimeReady(true);
     },
     async *predownload() {
-      setShowPredownloadPrompt(false);
       if (!(await loadVersionInfo(_gameInstallDir()))) return;
       const target = predownloadVersion();
       if (!target) return;
@@ -243,6 +242,7 @@ export async function createHKRPGChannelClient({
         gameCurrentVersion(),
         target
       );
+      setShowPredownloadPrompt(false);
     },
     async *update() {
       const info = await loadVersionInfo(_gameInstallDir());

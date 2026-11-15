@@ -256,7 +256,6 @@ export async function createHK4EChannelClient({
       setRuntimeReady(true);
     },
     async *predownload() {
-      setShowPredownloadPrompt(false);
       if (!(await loadVersionInfo(_gameInstallDir()))) return;
       const target = predownloadVersion();
       if (!target) return;
@@ -265,6 +264,7 @@ export async function createHK4EChannelClient({
         gameCurrentVersion(),
         target
       );
+      setShowPredownloadPrompt(false);
     },
     async *update() {
       const info = await loadVersionInfo(_gameInstallDir());

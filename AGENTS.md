@@ -8,13 +8,13 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 - `sophon_server/` — Swift sidecar source copy in `swift/` and legacy Python API source.
 - `sidecar/` — bundled binaries (aria2, 7z, hpatchz, xdelta, built Sophon server).
 - `bin/`, `external/`, `dist/`, `dev/` — generated artifacts; gitignored, never commit them.
-- Root scripts: `configure.sh`, `build-app.js`, `build-all.sh`, `build-sophon.sh`.
+- Build scripts: `configure.sh`, `build-app.js`, `build-sophon.sh`, `scripts/build-release.sh`.
 
 ## Build, Test, and Development Commands
 - `pnpm install` — install dependencies.
 - `./configure.sh` — one-time setup: decodes the channel secret and fetches Neutralinojs binaries.
 - `pnpm dev` — Vite dev server; `pnpm start` — build and run the default (`hk4ecn`) channel; `pnpm run start-<channel>` for others.
-- `pnpm build` / `pnpm run build-<channel>` — production builds; `node build-app.js` / `./build-all.sh` — package release `.app` bundles.
+- `pnpm build` / `pnpm run build-<channel>` — production builds; `node build-app.js` / `bash scripts/build-release.sh` — package release `.app` bundles.
 - `pnpm exec tsc` — type check; `pnpm run lint` — ESLint over `src`; `pnpm run format` / `format-check` — Prettier write/check.
 - `pnpm exec vitest` — run unit tests; `pnpm run precommit` — tsc + lint + format-check.
 
@@ -44,11 +44,11 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 
 ## Security & Configuration Tips
 - `secret.ts` and `*.secret.ts` are gitignored; regenerate with `./configure.sh`. Never commit secrets or tokens.
-- Add a new game as a file in `src/clients/`, then register its channel in `build-all.sh`.
+- Add a new game as a file in `src/clients/`, then register its channel in `scripts/build-release.sh`.
 
 ## Verification Timing (IMPORTANT)
 - Do NOT automatically run local `pnpm exec tsc`, `pnpm run lint`, or `pnpm run format-check` right after modifying code.
-- Only run these local checks when the user explicitly asks to build (`pnpm build`, `pnpm run build-<channel>`, `node build-app.js`, `./build-all.sh`, or similar), immediately before the build.
+- Only run these local checks when the user explicitly asks to build (`pnpm build`, `pnpm run build-<channel>`, `node build-app.js`, `bash scripts/build-release.sh`, or similar), immediately before the build.
 - This timing restriction applies to local checks. Automatic PR and release CI must always run their configured checks and coverage policies.
 
 ## Shared Sophon source maintenance

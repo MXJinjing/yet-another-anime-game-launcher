@@ -26,6 +26,7 @@ import {
   updateStream,
 } from "@download/stream-scheduler";
 import { DownloadCancelledError } from "@download/control";
+import { TaskFailedError } from "@tasks/task-program";
 
 function mockRPC(
   results: Record<string, unknown | ((params: unknown) => unknown)>
@@ -50,6 +51,25 @@ describe("Swift Sophon RPC", () => {
     vi.mocked(getKeyOrDefault).mockImplementation(
       async (_key, fallback) => fallback
     );
+  });
+
+  it("treats a failed predownload as retryable without closing the launcher", async () => {
+    mockRPC({
+      "update.start": { operationID: "task" },
+      "operation.status": { status: "failed", error: "Download failed" },
+    });
+    const client = new SophonClient("127.0.0.1", 6969);
+    const task = await client.startUpdate({
+      gamedir: "/games/test",
+      game_type: "hk4e",
+      predownload: true,
+    });
+    const events = client.streamOperationProgress(task);
+    await events.next();
+    await expect(events.next()).resolves.toMatchObject({
+      value: { type: "error", error: "Download failed" },
+    });
+    await expect(events.next()).rejects.toBeInstanceOf(TaskFailedError);
   });
 
   it("passes the exact origin token and version for predownload and update", async () => {
