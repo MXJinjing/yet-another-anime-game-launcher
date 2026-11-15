@@ -1,3 +1,4 @@
+import type { SophonInstallSelection } from "../../../integrations/sophon-install-options";
 import { processingProgressCommands } from "./processing-progress";
 import { join, basename } from "path-browserify";
 import { SophonClient, type SophonGameType } from "@sophon";
@@ -15,12 +16,14 @@ export async function* downloadAndInstallGameProgram({
   sophonClient,
   gameDir,
   installReltype,
+  selection,
   gameType = "hk4e",
   downloadKey,
 }: {
   sophonClient: SophonClient;
   gameDir: string;
   installReltype: string;
+  selection?: SophonInstallSelection;
   gameType?: SophonGameType;
   /** Per-game download control key so the primary button can offer pause. */
   downloadKey?: string;
@@ -33,6 +36,7 @@ export async function* downloadAndInstallGameProgram({
       gamedir: gameDir,
       game_type: gameType,
       install_reltype: installReltype,
+      selection,
     },
     downloadKey
   );

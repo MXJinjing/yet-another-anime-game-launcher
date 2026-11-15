@@ -1,3 +1,5 @@
+import type { SophonActivity } from "../integrations/sophon-activity";
+
 /** Shared download-domain data. This module deliberately has no runtime
  * dependencies so the scheduler and task registry can depend on it without
  * depending on each other. */
@@ -38,6 +40,7 @@ export interface DownloadStream {
   downloaded: number;
   total: number;
   files?: DownloadFileSnapshot[];
+  sophonActivity?: SophonActivity;
   canPause: boolean;
   canResume: boolean;
   canCancel: boolean;
@@ -64,6 +67,7 @@ export type DownloadTaskSnapshot = {
   fileCount?: number;
   engines: DownloadStreamKind[];
   files: DownloadFileSnapshot[];
+  sophonActivities?: ReadonlyMap<string, SophonActivity>;
   canPause: boolean;
   canResume: boolean;
   canCancel: boolean;
@@ -86,6 +90,7 @@ export type DownloadStreamUpdate = Partial<
     | "downloaded"
     | "total"
     | "files"
+    | "sophonActivity"
     | "canPause"
     | "canResume"
     | "canCancel"

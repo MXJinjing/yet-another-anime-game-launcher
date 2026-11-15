@@ -10,6 +10,10 @@ import type {
   SophonOnlineGameInfo,
   SophonRegion,
 } from "@sophon";
+import {
+  validateSophonInstallSelection,
+  type SophonInstallSelection,
+} from "../../integrations/sophon-install-options";
 import { getSophonClient } from "../../integrations/sophon-sidecar";
 import {
   isNewerGameVersion,
@@ -105,10 +109,43 @@ export function createSophonGame(
   return {
     online,
     repair,
-    async *install(gameDir: string, info: SophonOnlineGameInfo): TaskProgram {
+    async installOptions(gameDir: string) {
       const existing = await fileOrDirExists(join(gameDir, server.executable));
-      if (!existing && info.install_size > 0) {
-        const required = Math.ceil(info.install_size / 1024 ** 3) * 1.2;
+      if (!existing)
+        return (await client()).getInstallOptions(gameType, gameDir);
+      if (!(await online(gameDir)).needs_resume) return null;
+      const options = await (
+        await client()
+      ).getInstallOptions(gameType, gameDir);
+      return options.resume ? options : null;
+    },
+    async *install(
+      gameDir: string,
+      info: SophonOnlineGameInfo,
+      selection?: SophonInstallSelection
+    ): TaskProgram {
+      const existing = await fileOrDirExists(join(gameDir, server.executable));
+      let installSize = info.install_size;
+      let resumable = false;
+      if (selection) {
+        if (selection.version !== info.version) {
+          throw new TaskFailedError(
+            "Installation version changed. Please try again."
+          );
+        }
+        const options = await (
+          await client()
+        ).getInstallOptions(gameType, gameDir);
+        if (existing && !options.resume) {
+          throw new TaskFailedError(
+            "The installation directory changed. Please choose it again."
+          );
+        }
+        installSize = validateSophonInstallSelection(options, selection);
+        resumable = Boolean(options.resume);
+      }
+      if (!existing && !resumable && installSize > 0) {
+        const required = Math.ceil(installSize / 1024 ** 3) * 1.2;
         if ((await getFreeSpace(gameDir, "g")) < required) {
           await locale.alert(
             "NO_ENOUGH_DISKSPACE",
@@ -125,7 +162,7 @@ export function createSophonGame(
         : "";
       const updated = sophonConfigDefaults(contents, server);
       if (updated !== contents) await writeFile(file, updated);
-      if (existing) {
+      if (existing && !selection) {
         yield* repair(gameDir);
       } else {
         yield* downloadAndInstallGameProgram({
@@ -133,6 +170,7 @@ export function createSophonGame(
           gameDir,
           gameType,
           installReltype: region,
+          selection,
           downloadKey,
         });
       }

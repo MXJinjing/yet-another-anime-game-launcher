@@ -397,6 +397,14 @@ textarea,
   pointer-events: none;
 }
 
+.hyp-stage.downloads-open {
+  pointer-events: auto;
+}
+
+.hyp-action-area[hidden] {
+  display: none;
+}
+
 .hyp-stage.library-open {
   z-index: 3;
 }
@@ -733,6 +741,32 @@ textarea,
   font-weight: 800;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.hyp-download-details-link {
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ece6f2;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.hyp-download-details-link:hover {
+  color: var(--hyp-accent, #ffd834);
+}
+
+.hyp-download-summary-metrics {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .hyp-download-cancel-icon {
@@ -1118,6 +1152,11 @@ textarea,
   margin-top: 12px;
 }
 
+.hyp-download-queue-button.active {
+  background: color-mix(in srgb, var(--hyp-accent, #ffd834) 20%, #1c1820);
+  box-shadow: inset 0 0 0 1px var(--hyp-accent, #ffd834);
+}
+
 .hyp-download-queue-icon {
   width: 22px;
   height: 22px;
@@ -1143,270 +1182,7 @@ textarea,
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* Download manager modal */
-.download-queue-body {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.download-queue-empty {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  min-height: 220px;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 15px;
-  text-align: center;
-}
-
-.download-queue-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow-y: auto;
-  padding: 2px 2px 6px;
-}
-
-.download-queue-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.download-queue-item-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.download-queue-item-titles {
-  min-width: 0;
-  flex: 1;
-}
-
-.download-queue-item-title {
-  color: rgba(255, 255, 255, 0.94);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.download-queue-item-phase {
-  margin-top: 3px;
-  color: rgba(255, 255, 255, 0.56);
-  font-size: 12px;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.download-queue-item-status {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 8px;
-}
-
-.download-queue-total-percent {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.download-queue-item-task {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-top: 3px;
-  min-width: 0;
-}
-
-.download-queue-item-task-label {
-  flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
-}
-
-.download-queue-item-task-id {
-  min-width: 0;
-  font-family: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.72);
-  overflow-wrap: anywhere;
-  word-break: break-all;
-}
-
-.download-queue-badge {
-  flex-shrink: 0;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.4;
-  white-space: nowrap;
-}
-
-.download-queue-badge--queued {
-  color: #b6c2ff;
-  background: rgba(122, 140, 255, 0.16);
-}
-
-.download-queue-badge--active {
-  color: var(--hyp-accent-text, #111418);
-  background: var(--hyp-accent, #ffd834);
-}
-
-.download-queue-badge--paused {
-  color: #ffc98a;
-  background: rgba(255, 159, 67, 0.18);
-}
-
-.download-queue-badge--completed {
-  color: #7ee2a8;
-  background: rgba(60, 187, 120, 0.18);
-}
-
-.download-queue-badge--error {
-  color: #ff9298;
-  background: rgba(229, 72, 77, 0.18);
-}
-
-.download-queue-badge--cancelled {
-  color: rgba(255, 255, 255, 0.55);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.download-queue-progress {
-  width: 100%;
-}
-
-.download-queue-item-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.download-queue-item-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.download-queue-details {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.download-queue-engine {
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.download-queue-files {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.download-queue-file {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.download-queue-file-header,
-.download-queue-file-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.download-queue-file-name {
-  min-width: 0;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 12px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.download-queue-file-progress {
-  width: 100%;
-  opacity: 0.9;
-}
-
-.download-queue-action--expand {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.download-queue-action {
-  -webkit-appearance: none;
-  appearance: none;
-  min-height: 30px;
-  padding: 0 14px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.86);
-  background: rgba(255, 255, 255, 0.08);
-  transition: background-color 160ms ease, color 160ms ease;
-}
-
-.download-queue-action:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.download-queue-action--cancel {
-  color: #ff9298;
-  background: rgba(229, 72, 77, 0.14);
-  border-color: rgba(229, 72, 77, 0.35);
-}
-
-.download-queue-action--cancel:hover {
-  color: #ffb1b5;
-  background: rgba(229, 72, 77, 0.24);
-}
-
-/* Download manager hint shown while a launcher-global task runs */
-.download-queue-global-hint {
-  margin-bottom: 12px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 193, 7, 0.12);
-  border: 1px solid rgba(255, 193, 7, 0.35);
+/* Sophon download settings */
+.sophon-downloader-settings .hope-form-helper-text {
+  color: rgba(255, 255, 255, 0.66);
 }

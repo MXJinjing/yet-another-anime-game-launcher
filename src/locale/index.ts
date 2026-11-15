@@ -23,7 +23,7 @@ export const locales = {
   en,
   vi_vn: vi_VN,
   es_es: es_ES,
-  fr_FR: fr_FR,
+  fr_fr: fr_FR,
   ru_ru: ru_RU,
   ja_jp: ja_JP,
   ko_kr: ko_KR,

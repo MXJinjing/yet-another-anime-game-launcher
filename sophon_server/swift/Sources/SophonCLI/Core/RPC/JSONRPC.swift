@@ -86,7 +86,7 @@ struct RPCOperationParameters: Decodable, Sendable {
   let directory: String
   let sourceVersion: String?
   let cn: Bool
-  let mode: String
+  let mode: String?
   let predownload: Bool
   let cacheOnly: Bool
   let voicePacks: [String]
@@ -123,7 +123,7 @@ struct RPCOperationParameters: Decodable, Sendable {
     directory = try values.decode(String.self, forKey: .directory)
     sourceVersion = try values.decodeIfPresent(String.self, forKey: .sourceVersion)
     cn = try values.decodeIfPresent(Bool.self, forKey: .cn) ?? false
-    mode = try values.decodeIfPresent(String.self, forKey: .mode) ?? "full"
+    mode = try values.decodeIfPresent(String.self, forKey: .mode)
     predownload = try values.decodeIfPresent(Bool.self, forKey: .predownload) ?? false
     cacheOnly = try values.decodeIfPresent(Bool.self, forKey: .cacheOnly) ?? false
     voicePacks = try values.decodeIfPresent([String].self, forKey: .voicePacks) ?? []
@@ -147,7 +147,7 @@ struct RPCOperationParameters: Decodable, Sendable {
     proxy = try downloadProxy(values.decodeIfPresent(String.self, forKey: .httpProxy))
     transfer =
       try values.decodeIfPresent(TransferSettings.self, forKey: .transfer) ?? TransferSettings()
-    guard ["full", "base"].contains(mode), downloads > 0, writes > 0,
+    guard mode.map({ ["full", "base"].contains($0) }) ?? true, downloads > 0, writes > 0,
       checks > 0, postProcessors > 0, maxRetries >= 0, retryInterval >= 0,
       maxCachedFileHandles >= (transfer.ioPolicy == .serialized ? 1 : writes),
       transfer.entryLimit > 0, !transfer.diskCacheEnabled || transfer.diskLimit > 0,
@@ -416,7 +416,8 @@ actor RPCDispatcher {
         } else {
           try await operationClient.install(
             mode: mode, additionalVoicePackMatchingFields: Set(params.voicePacks),
-            predownload: params.predownload, reporter: reporter)
+            predownload: params.predownload, reporter: reporter,
+            expectedVersion: params.targetVersion)
         }
       default:
         let reporter = operationClient.makeUpdateReporter(id: id)
@@ -442,17 +443,23 @@ actor RPCDispatcher {
   ) async throws {
     let hint = params.sourceVersion ?? params.installedVersion
     if params.cacheOnly && params.predownload {
+      let cacheMode: GameBranchCategoryScenario
+      if params.mode == nil {
+        cacheMode = try await client.nextAction(installedVersionHint: hint).mode
+      } else {
+        cacheMode = mode
+      }
       if try await client.usesDiffUpdate(from: hint, predownload: true) {
         let reporter = client.makeUpdateReporter(id: id)
         await subscribe(id, kind: "update", reporter: reporter)
         try await client.update(
-          sourceVersion: hint, mode: mode, predownload: true, cacheOnly: true, reporter: reporter,
+          sourceVersion: hint, mode: cacheMode, predownload: true, cacheOnly: true, reporter: reporter,
           expectedVersion: params.targetVersion)
       } else {
         let reporter = client.makeInstallationReporter(id: id)
         await subscribe(id, kind: "install", reporter: reporter)
         try await client.cacheInstallation(
-          mode: mode, reporter: reporter, expectedVersion: params.targetVersion)
+          mode: cacheMode, reporter: reporter, expectedVersion: params.targetVersion)
       }
       return
     }
@@ -630,7 +637,13 @@ actor RPCDispatcher {
     guard let values = params.object else {
       throw RPCFailure(code: -32602, message: "Expected named parameters")
     }
-    let cn = values["cn"]?.bool ?? false
+    let region: String?
+    switch values["region"] {
+    case .none, .some(.null): region = nil
+    case .some(.string(let value)) where ["os", "cn", "bb"].contains(value): region = value
+    default: throw RPCFailure(code: -32602, message: "Unsupported region")
+    }
+    let cn = region.map { $0 != "os" } ?? values["cn"]?.bool ?? false
     let proxyAddress: String?
     switch values["httpProxy"] {
     case .none, .some(.null): proxyAddress = nil
@@ -638,12 +651,14 @@ actor RPCDispatcher {
     default: throw RPCFailure(code: -32602, message: "httpProxy must be a string")
     }
     let api: HYPAPIClient
-    if let proxy = try downloadProxy(proxyAddress) {
+    let proxy = try downloadProxy(proxyAddress)
+    if proxy != nil || region == "bb" {
       api = try HYPAPIClient(
         baseURL: cn ? HYPAPI_CN_BASE_URL : HYPAPI_OS_BASE_URL,
         sophonBaseURL: cn ? SOPHON_API_CN_BASE_URL : SOPHON_API_OS_BASE_URL,
-        launcherID: cn ? HYPAPI_CN_LAUNCHER_ID : HYPAPI_OS_LAUNCHER_ID,
-        session: proxy.makeMetadataSession())
+        launcherID: region == "bb" ? "umfgRO5gh5" :
+          (cn ? HYPAPI_CN_LAUNCHER_ID : HYPAPI_OS_LAUNCHER_ID),
+        session: proxy?.makeMetadataSession() ?? .shared)
     } else {
       api = HYPAPIClientManager.shared.getClient(isCN: cn)
     }

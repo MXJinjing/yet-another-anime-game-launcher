@@ -1,17 +1,79 @@
 import type { SophonProgressEvent } from "./sophon";
 
-interface Metric {
+export interface SophonMetric {
   completed: number;
   total?: number;
+  remaining?: number;
   percentage?: number;
   rate?: number;
   averageRate?: number;
+  etaSeconds?: number;
+  elapsedSeconds?: number;
+  isFinished?: boolean;
 }
 
 interface Payload {
   id: string;
   receivedBytes: number;
   totalBytes: number;
+  category: string;
+  retainedBytes: number;
+  transferredBytes: number;
+}
+
+interface IOMetrics {
+  read: SophonMetric;
+  write: SophonMetric;
+}
+
+interface CommonMetrics extends IOMetrics {
+  network: SophonMetric;
+  files: SophonMetric;
+  timing: {
+    elapsedSeconds: number;
+    stageElapsedSeconds: number;
+    etaSeconds?: number;
+    phaseDurations: Record<string, number>;
+  };
+  resources?: {
+    memoryBytes: number;
+    memoryLimit: number;
+    diskLimit: number;
+    diskReservedBytes: number;
+    memoryCache: IOMetrics;
+    diskCache: IOMetrics;
+    target: IOMetrics;
+    devices: (IOMetrics & {
+      id: string;
+      location: string;
+      roles: string[];
+      cacheBytes: number;
+      reservedCacheBytes: number;
+    })[];
+    downloads: Payload[];
+  };
+}
+
+interface InstallationMetrics {
+  common: CommonMetrics;
+  verification: {
+    files: SophonMetric;
+    bytes: SophonMetric;
+    chunks: SophonMetric;
+    missingFiles: number;
+    brokenFiles: number;
+  };
+  downloadedChunks: number;
+  processing: { bytes: number };
+  retries: number;
+}
+
+interface UpdateMetrics {
+  common: CommonMetrics;
+  patch: { retainedBytes: number; verifiedBytes: number; bundlesReady: number };
+  repair: { files: number };
+  skippedFiles: number;
+  cachedFiles: number;
 }
 
 export interface SophonSnapshot {
@@ -19,16 +81,13 @@ export interface SophonSnapshot {
   currentFile?: string;
   currentFileBytes?: number;
   currentFileSize?: number;
-  metrics: {
-    common: {
-      network: Metric;
-      files: Metric;
-      write: Metric;
-      timing: { elapsedSeconds: number };
-      resources?: { downloads: Payload[] };
-    };
-    verification?: { files: Metric; bytes: Metric };
-  };
+  sourceVersion?: string;
+  targetVersion?: string;
+  outcome?:
+    | { failed: { reason: string } }
+    | { completed: object }
+    | { cancelled: object };
+  metrics: InstallationMetrics | UpdateMetrics;
 }
 
 export function progressEvent(
@@ -37,7 +96,7 @@ export function progressEvent(
 ): SophonProgressEvent | undefined {
   const { phase, metrics } = snapshot;
   const { network, files, resources, timing, write } = metrics.common;
-  const percent = (metric: Metric) =>
+  const percent = (metric: SophonMetric) =>
     metric.percentage ??
     (metric.total ? Math.min(100, (metric.completed * 100) / metric.total) : 0);
   const active = (resources?.downloads ?? []).filter(
@@ -53,7 +112,9 @@ export function progressEvent(
       network.completed >= (network.total ?? 0))
   ) {
     const processed =
-      phase === "scanning" ? metrics.verification?.files : files;
+      phase === "scanning" && "verification" in metrics
+        ? metrics.verification.files
+        : files;
     return {
       type: "processing_progress",
       task_id: taskId,

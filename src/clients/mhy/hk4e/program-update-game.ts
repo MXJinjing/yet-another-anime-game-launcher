@@ -1,3 +1,8 @@
+import { removeExternalSophonPredownload } from "@download/sophon-predownload";
+import {
+  readSophonSettings,
+  SOPHON_PREDOWNLOAD_ROOT_KEY,
+} from "../../../integrations/sophon-settings";
 import { processingProgressCommands } from "./processing-progress";
 import { join, basename } from "path-browserify";
 import { Sophon, type SophonGameType } from "@sophon";
@@ -23,7 +28,8 @@ async function* downloadAndPatch(
   gameDir: string,
   installedVersion: string | undefined,
   gameType: SophonGameType,
-  downloadKey?: string
+  downloadKey?: string,
+  predownloadRoot?: string
 ): TaskProgram {
   // Predownload downloads diffs without applying,
   // doesn't delete any files, and download new files
@@ -38,6 +44,7 @@ async function* downloadAndPatch(
       tempdir: downloadTmp,
       installedVersion,
       predownload: false,
+      predownloadRoot,
     },
     downloadKey
   );
@@ -217,14 +224,28 @@ export async function* updateGameProgram({
     }
   }
 
+  const savedTarget = await storage.getKeyOrDefault("predownloaded_all", "");
+  const savedRoot = await storage.getKeyOrDefault(
+    SOPHON_PREDOWNLOAD_ROOT_KEY,
+    ""
+  );
+  const predownloadRoot =
+    savedTarget === updatedGameVersion ? savedRoot : undefined;
   yield* downloadAndPatch(
     sophon,
     gameDir,
     installedVersion,
     gameType,
-    downloadKey
+    downloadKey,
+    predownloadRoot
   );
   await storage.setKey(`predownloaded_all`, null);
+  try {
+    await removeExternalSophonPredownload(savedRoot, gameDir);
+    await storage.setKey(SOPHON_PREDOWNLOAD_ROOT_KEY, null);
+  } catch (error) {
+    void log(`Could not remove the Sophon predownload cache: ${error}`);
+  }
 }
 
 async function* predownload(
@@ -233,7 +254,8 @@ async function* predownload(
   installedVersion: string | undefined,
   gameType: SophonGameType,
   targetVersion: string,
-  downloadKey?: string
+  downloadKey?: string,
+  predownloadRoot?: string
 ): TaskProgram {
   const downloadTmp = join(gameDir, ".tmp");
   const taskId = await sophon.startUpdate(
@@ -243,6 +265,7 @@ async function* predownload(
       tempdir: downloadTmp,
       installedVersion,
       predownload: true,
+      predownloadRoot,
       targetVersion,
     },
     downloadKey
@@ -340,13 +363,27 @@ export async function* predownloadGameProgram({
   downloadKey?: string;
   storage?: Storage;
 }) {
+  const { predownloadDirectory } = await readSophonSettings();
+  const savedRoot = await storage.getKeyOrDefault(
+    SOPHON_PREDOWNLOAD_ROOT_KEY,
+    ""
+  );
+  if (savedRoot !== predownloadDirectory) {
+    await removeExternalSophonPredownload(savedRoot, gameDir);
+    await storage.setKey("predownloaded_all", null);
+    await storage.setKey(
+      SOPHON_PREDOWNLOAD_ROOT_KEY,
+      predownloadDirectory || null
+    );
+  }
   yield* predownload(
     sophon,
     gameDir,
     installedVersion,
     gameType,
     targetVersion,
-    downloadKey
+    downloadKey,
+    predownloadDirectory
   );
   await storage.setKey(`predownloaded_all`, targetVersion);
 }
