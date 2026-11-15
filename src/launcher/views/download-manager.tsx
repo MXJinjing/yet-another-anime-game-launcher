@@ -26,7 +26,7 @@ import { formatDownloadSpeed, humanFileSize } from "../../runtime/format";
 import { reconcileDownloadTasks } from "../../download/solid-store";
 import { downloadManagerText } from "../../locale/download-manager";
 import settingsIcon from "../../assets/icons/settings.svg";
-import { DownloadActiveTask } from "./download-active-task";
+import { DownloadTaskOverview } from "./download-task-overview";
 import { DownloadTaskDetailsModal } from "../../modals/download-task-details-modal";
 import "./download-manager.css";
 
@@ -74,13 +74,11 @@ export function DownloadManager(props: {
   const [selectedTaskId, setSelectedTaskId] = createSignal<string>();
   const queueHeadingId = createUniqueId();
   const text = () => downloadManagerText(props.locale.currentLanguage);
-  const activityTasks = createMemo(() =>
-    tasks.filter(task => task.status === "active")
-  );
   const selectedTask = createMemo(
     () =>
-      activityTasks().find(task => task.id === selectedTaskId()) ??
-      activityTasks()[0]
+      tasks.find(task => task.id === selectedTaskId()) ??
+      tasks.find(task => task.status === "active") ??
+      tasks[0]
   );
   const [globalTaskActive, setGlobalTaskActive] = createSignal(
     getGlobalTaskActive()
@@ -119,16 +117,15 @@ export function DownloadManager(props: {
       <div class="download-manager-body">
         <Show when={selectedTask()}>
           {task => (
-            <DownloadActiveTask
+            <DownloadTaskOverview
               task={task()}
-              tasks={activityTasks()}
               locale={props.locale}
               status={taskStatusText(task(), props.locale)}
               artwork={props.getTaskArtwork(task())}
-              renderTaskIcon={props.renderTaskIcon}
-              onSelect={setSelectedTaskId}
               onPause={
-                task().canPause && !isLocked(task())
+                task().status === "active" &&
+                task().canPause &&
+                !isLocked(task())
                   ? () => void pauseDownloadTask(task().id)
                   : undefined
               }
@@ -164,6 +161,14 @@ export function DownloadManager(props: {
                       "is-featured": selectedTask()?.id === task.id,
                     }}
                   >
+                    <button
+                      class="download-queue-select"
+                      type="button"
+                      aria-label={task.title}
+                      aria-pressed={selectedTask()?.id === task.id}
+                      title={task.title}
+                      onClick={() => setSelectedTaskId(task.id)}
+                    />
                     <div class="download-queue-item-icon" aria-hidden="true">
                       {props.renderTaskIcon(task)}
                     </div>

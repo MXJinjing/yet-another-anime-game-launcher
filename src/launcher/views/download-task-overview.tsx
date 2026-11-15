@@ -1,12 +1,10 @@
 import { Progress, ProgressIndicator } from "@hope-ui/solid";
 import { createMemo, For, Show } from "solid-js";
-import type { JSX } from "solid-js";
 import type { DownloadTaskSnapshot } from "../../download/types";
 import type { ActivitySample } from "../../integrations/sophon-activity";
 import type { SophonMetric } from "../../integrations/sophon-progress";
 import type { Locale } from "../../locale";
 import { downloadManagerText } from "../../locale/download-manager";
-import { sophonDownloaderText } from "../../locale/sophon-downloader";
 import { formatDownloadSpeed, humanFileSize } from "../../runtime/format";
 
 const network = (sample: ActivitySample) => sample.values["common.network"];
@@ -117,14 +115,11 @@ function TransferProgress(props: {
   );
 }
 
-export function DownloadActiveTask(props: {
+export function DownloadTaskOverview(props: {
   task: DownloadTaskSnapshot;
-  tasks: readonly DownloadTaskSnapshot[];
   locale: Locale;
   status: string;
   artwork?: string;
-  renderTaskIcon: (task: DownloadTaskSnapshot) => JSX.Element;
-  onSelect: (id: string) => void;
   onPause?: () => void;
 }) {
   const text = () => downloadManagerText(props.locale.currentLanguage);
@@ -133,7 +128,8 @@ export function DownloadActiveTask(props: {
       item => item.status === "starting" || item.status === "running"
     )
   );
-  const history = () => activity()?.history ?? [];
+  const active = () => props.task.status === "active";
+  const history = () => (active() ? activity()?.history ?? [] : []);
   const snapshot = () => activity()?.progress;
   const common = () => snapshot()?.metrics.common;
   const peak = createMemo(() =>
@@ -155,6 +151,7 @@ export function DownloadActiveTask(props: {
   const total = () =>
     common()?.network.total ?? (props.task.total || undefined);
   const remaining = () => {
+    if (!active()) return undefined;
     const estimate = common()?.timing.etaSeconds;
     if (estimate !== undefined) return estimate;
     const size = total();
@@ -165,31 +162,6 @@ export function DownloadActiveTask(props: {
 
   return (
     <section class="download-manager-active" aria-label={props.task.title}>
-      <Show when={props.tasks.length > 1}>
-        <div
-          class="download-manager-task-switcher"
-          role="group"
-          aria-label={
-            sophonDownloaderText(props.locale.currentLanguage).activityTitle
-          }
-        >
-          <For each={props.tasks}>
-            {task => (
-              <button
-                type="button"
-                aria-pressed={task.id === props.task.id}
-                title={task.title}
-                onClick={() => props.onSelect(task.id)}
-              >
-                <span class="download-manager-task-icon">
-                  {props.renderTaskIcon(task)}
-                </span>
-                <span class="download-manager-task-name">{task.title}</span>
-              </button>
-            )}
-          </For>
-        </div>
-      </Show>
       <div class="download-manager-feature">
         <Show when={props.artwork} keyed>
           {url => (
@@ -212,7 +184,13 @@ export function DownloadActiveTask(props: {
           <dl class="download-manager-rates">
             <div>
               <dt>{text().network}</dt>
-              <dd>{formatRate(common()?.network.rate ?? props.task.speed)}</dd>
+              <dd>
+                {formatRate(
+                  active()
+                    ? common()?.network.rate ?? props.task.speed
+                    : undefined
+                )}
+              </dd>
             </div>
             <Show when={peak() !== undefined}>
               <div class="is-peak">
@@ -220,7 +198,7 @@ export function DownloadActiveTask(props: {
                 <dd>{formatRate(peak())}</dd>
               </div>
             </Show>
-            <Show when={common()}>
+            <Show when={active() && common()}>
               <div class="is-disk">
                 <dt>{text().disk}</dt>
                 <dd>{formatRate(diskWrite())}</dd>
@@ -241,7 +219,9 @@ export function DownloadActiveTask(props: {
               metricPercent(common()?.network) ??
               (props.task.transferring && !props.task.indeterminate
                 ? props.task.progress
-                : undefined)
+                : active()
+                ? undefined
+                : 0)
             }
           />
           <Show when={installPercent() !== undefined}>

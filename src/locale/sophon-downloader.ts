@@ -52,7 +52,6 @@ const english = {
   memoryError:
     "Memory cache must be greater than zero when disk caching is disabled.",
   pathError: "Choose an absolute path for predownloads.",
-  activityTitle: "Download activity",
 };
 
 export type SophonDownloaderText = typeof english;
@@ -105,7 +104,6 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
     invalidError: "下载器设置无效。",
     memoryError: "关闭磁盘缓存时，内存缓存必须大于零。",
     pathError: "请选择预下载目录的绝对路径。",
-    activityTitle: "下载活动",
   },
   ja_jp: {
     title: "Sophon ダウンローダー",
@@ -161,7 +159,6 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
     memoryError:
       "ディスクキャッシュをオフにするには、メモリキャッシュを 0 より大きくしてください。",
     pathError: "事前ダウンロード先には絶対パスを指定してください。",
-    activityTitle: "ダウンロード状況",
   },
   ko_kr: {
     title: "Sophon 다운로더",
@@ -213,7 +210,6 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
     invalidError: "다운로더 설정이 올바르지 않습니다.",
     memoryError: "디스크 캐시를 끈 경우 메모리 캐시는 0보다 커야 합니다.",
     pathError: "사전 다운로드 폴더의 절대 경로를 선택하세요.",
-    activityTitle: "다운로드 활동",
   },
   de_de: {
     title: "Sophon-Downloader",
@@ -268,7 +264,6 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
     memoryError:
       "Ohne Datenträger-Cache muss der Arbeitsspeicher-Cache größer als null sein.",
     pathError: "Wähle einen absoluten Pfad für Vorabdownloads.",
-    activityTitle: "Download-Aktivität",
   },
   fr_fr: {
     title: "Téléchargeur Sophon",
@@ -326,7 +321,6 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
     memoryError:
       "Le cache mémoire doit être supérieur à zéro si le cache disque est désactivé.",
     pathError: "Choisissez un chemin absolu pour les prétéléchargements.",
-    activityTitle: "Activité des téléchargements",
   },
   es_es: {
     title: "Descargador de Sophon",
@@ -384,7 +378,6 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
     memoryError:
       "La caché en memoria debe ser mayor que cero si la caché en disco está desactivada.",
     pathError: "Elige una ruta absoluta para las predescargas.",
-    activityTitle: "Actividad de descarga",
   },
   ru_ru: {
     title: "Загрузчик Sophon",
@@ -440,7 +433,6 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
     memoryError:
       "При отключённом кэше на диске объём кэша в памяти должен быть больше нуля.",
     pathError: "Выберите абсолютный путь для предварительных загрузок.",
-    activityTitle: "Активность загрузок",
   },
   vi_vn: {
     title: "Trình tải Sophon",
@@ -493,7 +485,6 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
     invalidError: "Cài đặt trình tải không hợp lệ.",
     memoryError: "Bộ nhớ đệm RAM phải lớn hơn 0 khi tắt bộ nhớ đệm đĩa.",
     pathError: "Chọn đường dẫn tuyệt đối cho thư mục tải trước.",
-    activityTitle: "Hoạt động tải xuống",
   },
   th_th: {
     title: "ตัวดาวน์โหลด Sophon",
@@ -546,7 +537,6 @@ const translations: Record<Locale["currentLanguage"], SophonDownloaderText> = {
     invalidError: "การตั้งค่าตัวดาวน์โหลดไม่ถูกต้อง",
     memoryError: "แคชหน่วยความจำต้องมากกว่าศูนย์เมื่อปิดแคชดิสก์",
     pathError: "เลือกพาธแบบสัมบูรณ์สำหรับโฟลเดอร์ดาวน์โหลดล่วงหน้า",
-    activityTitle: "กิจกรรมดาวน์โหลด",
   },
 };
 

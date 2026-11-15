@@ -5,7 +5,9 @@
 }
 
 .download-queue-item {
+  position: relative;
   display: grid;
+  isolation: isolate;
   grid-template-columns: 44px minmax(0, 1fr) minmax(130px, 0.9fr) auto;
   align-items: center;
   gap: 12px;
@@ -13,6 +15,25 @@
   border: 1px solid #343640;
   border-radius: 11px;
   background: #1e2029;
+}
+
+.download-queue-select {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.download-queue-select:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.download-queue-select:focus-visible {
+  outline: 2px solid var(--download-accent);
+  outline-offset: -2px;
 }
 
 .download-queue-item-header {
@@ -114,11 +135,18 @@
 }
 
 .download-queue-item-actions {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 6px;
+  pointer-events: none;
+}
+
+.download-queue-item-actions button {
+  pointer-events: auto;
 }
 
 .download-queue-action--expand {
@@ -253,59 +281,6 @@
   padding-top: 19px;
 }
 
-.download-manager-task-switcher {
-  display: flex;
-  grid-column: 1 / -1;
-  gap: 8px;
-  min-width: 0;
-  overflow-x: auto;
-  padding: 3px 3px 6px;
-  margin: -3px -3px -6px;
-}
-
-.download-manager-task-switcher button {
-  display: flex;
-  min-width: 0;
-  max-width: min(100%, 290px);
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 9px;
-  padding: 6px 13px 6px 6px;
-  border: 1px solid #45434f;
-  border-radius: 12px;
-  background: #25242e;
-  color: #e5e0e9;
-  cursor: pointer;
-}
-
-.download-manager-task-switcher button:hover {
-  background: #35343f;
-}
-
-.download-manager-task-switcher button[aria-pressed="true"] {
-  border-color: var(--download-accent);
-  background: #302a2a;
-  background: color-mix(in srgb, var(--download-accent) 12%, #25242e);
-  color: #fff;
-}
-
-.download-manager-task-icon {
-  display: block;
-  width: 27px;
-  height: 27px;
-  flex: 0 0 auto;
-}
-
-.download-manager-task-name {
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.download-manager-task-icon img,
-.download-manager-task-icon .hyp-game-icon-fallback,
 .download-queue-item-icon img,
 .download-queue-item-icon .hyp-game-icon-fallback {
   width: 100%;
@@ -322,8 +297,8 @@
   isolation: isolate;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 1fr);
   gap: clamp(16px, 4vw, 56px);
-  min-height: 216px;
-  padding: 16px clamp(16px, 2vw, 26px);
+  min-height: 288px;
+  padding: 20px clamp(16px, 2vw, 26px);
   overflow: hidden;
   border: 1px solid #44404e;
   border-radius: 17px;
@@ -389,7 +364,7 @@
 
 .download-manager-chart {
   width: 100%;
-  height: 42px;
+  height: 60px;
   padding: 2px 0;
   background: repeating-linear-gradient(
       to top,
