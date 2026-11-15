@@ -9,7 +9,7 @@ import { createProxyEnabledConfig } from "./controls/game/proxy-enabled";
 import { createProxyHostConfig } from "./controls/game/proxy-host";
 import { createRetinaConfig } from "./controls/video/retina";
 import createVSyncDisable from "./controls/video/vsync";
-import createPreferredMaxFps from "./controls/video/preferred-max-fps";
+import createDxmtRefreshRate from "./controls/video/dxmt-refresh-rate";
 import createMetalFxUpscale from "./controls/video/metal-fx-upscale";
 import createReShade from "./controls/video/reshade";
 import { createLeftCmdConfig } from "./controls/general/left-cmd";
@@ -231,7 +231,7 @@ async function loadGameSettings(
     config,
     store: configStore,
   });
-  const [preferredMaxFps] = await createPreferredMaxFps({
+  const [dxmtRefreshRate] = await createDxmtRefreshRate({
     locale,
     config,
     store: configStore,
@@ -274,7 +274,7 @@ async function loadGameSettings(
     gameInstallDir: gameInstallDirConfig,
     retina,
     vsync,
-    preferredMaxFps,
+    dxmtRefreshRate,
     metalFxUpscale,
     reShade,
     proxyEnabled,

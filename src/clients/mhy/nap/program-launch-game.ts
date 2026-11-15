@@ -1,3 +1,4 @@
+import { dxmtFrameRateOverride } from "@config/dxmt-refresh-rate";
 import { join } from "path-browserify";
 import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "../../../constants";
@@ -230,9 +231,9 @@ cd /d "${wine.toWinePath(gameDir)}"
                 DXMT_LOG_PATH: yaaglDir,
                 DXMT_CONFIG_FILE: join(yaaglDir, "dxmt.conf"),
                 GST_PLUGIN_FEATURE_RANK: "atdec:MAX,avdec_h264:MAX",
-                DXMT_CONFIG: `d3d11.preferredMaxFrameRate=${
-                  config.preferredMaxFps
-                };${config.vsyncDisable ? "dxgi.syncInterval=0;" : ""}${
+                DXMT_CONFIG: `${dxmtFrameRateOverride(config.dxmtRefreshRate)}${
+                  config.vsyncDisable ? "dxgi.syncInterval=0;" : ""
+                }${
                   metalFxEnabled
                     ? `d3d11.metalSpatialUpscaleFactor=${config.metalFxFactor};dxgi.customVendorId=10de;dxgi.customDeviceId=2684`
                     : ""
