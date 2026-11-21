@@ -15,6 +15,7 @@ import { exec as unixExec, exec2 as unixExec2 } from "@runtime/command-runner";
 import { rmrf_dangerously } from "@runtime/macos-filesystem";
 import { getKey, setKey } from "@runtime/storage";
 import { dirname, join } from "path-browserify";
+import { currentWineBinaryRoot } from "./binary-root";
 import type { WineDistribution, WineDistributionAttributes } from "./distro";
 import { D3DMETAL_RUNTIME_ID, isD3DMetalRuntimePrepared } from "./d3dmetal";
 import { getRegisteredSystemWineRoot, GPTK_WINE_ID } from "./system-wine";
@@ -29,7 +30,7 @@ import {
 import { createNativeGameWindowState } from "./native-window-state";
 
 export function getWineInstallDir(distroId: string) {
-  return resolve(`./wines/${distroId}`);
+  return join(currentWineBinaryRoot(), distroId);
 }
 
 export function getWineDistroRoot(distroId: string) {
