@@ -9,7 +9,10 @@ import { gt, lt } from "semver";
 import { CURRENT_YAAGL_VERSION } from "../constants";
 import { log } from "../logging/logger";
 import { formatDownloadSpeed, humanFileSize } from "@runtime/format";
-import { DownloadCancelledError } from "../download/control";
+import {
+  DownloadCancelledError,
+  isDownloadCancelledError,
+} from "../download/control";
 import {
   env,
   readFile,
@@ -21,9 +24,12 @@ import { tar_extract } from "../runtime/archive";
 import { exec } from "../runtime/command-runner";
 import { getAuthorizationPrompt } from "../locale/authorization";
 import { wait } from "../runtime/async";
+import { isAuthorizationCancelledError } from "../runtime/authorization";
+import { FatalError } from "../runtime/fatal";
+import { _safeRelaunch } from "../runtime/lifecycle";
 import { DEV_UPDATE_INFO } from "./dev-mock";
 import { mkdirp, rmrf_dangerously } from "../runtime/macos-filesystem";
-import type { TaskProgram } from "../tasks/task-program";
+import { TaskFailedError, type TaskProgram } from "../tasks/task-program";
 
 const owner = "MXJinjing";
 const repo = "yet-another-anime-game-launcher";
@@ -143,6 +149,21 @@ export async function getReleaseAssetsForVersion(
 const UPDATE_EXTRACT_DIR = "./.update-app";
 
 /**
+ * Side effects at the rsync/relaunch boundary, injected so tests can drive the
+ * post-rsync paths without touching Neutralino.
+ */
+export type UpdateRecovery = {
+  /** Restarts the launcher into whatever bundle is currently on disk. */
+  relaunch: () => Promise<void>;
+};
+
+const defaultRecovery: UpdateRecovery = { relaunch: _safeRelaunch };
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
  * Applies the release app shipped in the downloaded archive:
  *  1. extracts the full .app bundle once;
  *  2. mirrors it into the running .app path with rsync --delete, so the
@@ -153,15 +174,22 @@ const UPDATE_EXTRACT_DIR = "./.update-app";
  * The bundle is replaced first. Falls back to an administrator prompt when the
  * bundle is not writable by the current user (e.g. /Applications is
  * root-owned).
+ *
+ * Failure handling depends on how far the update got: before rsync the current
+ * version is still intact, so it becomes a reported task failure; after rsync
+ * began the bundle may be partially rewritten, so the launcher relaunches into
+ * the repair path instead of keeping the old process on inconsistent files.
  */
 export async function applyReleaseApp(
   archivePath: string,
-  topLevelDir: string
+  topLevelDir: string,
+  recovery: UpdateRecovery = defaultRecovery
 ): Promise<void> {
-  // Failures propagate: a release that cannot be applied must abort the update
-  // instead of leaving a half-updated launcher behind.
-  await rmrf_dangerously(UPDATE_EXTRACT_DIR);
+  // True once rsync has been pointed at the installed bundle: from then on a
+  // failure can leave the .app partially rewritten.
+  let bundleTouched = false;
   try {
+    await rmrf_dangerously(UPDATE_EXTRACT_DIR);
     await mkdirp(UPDATE_EXTRACT_DIR);
     await tar_extract(archivePath, UPDATE_EXTRACT_DIR);
     const newBundle = `${UPDATE_EXTRACT_DIR}/${topLevelDir}`;
@@ -187,24 +215,88 @@ export async function applyReleaseApp(
       ];
       try {
         await exec(sync);
+        bundleTouched = true;
       } catch (error) {
+        // A declined authorization prompt happens before any write, so the
+        // bundle is still intact and the update can simply be reported as
+        // cancelled.
+        if (isAuthorizationCancelledError(error)) throw error;
         await log(
           `App bundle replacement without privileges failed (${String(
             error
           )}); retrying with administrator privileges`
         );
-        await exec(
-          sync,
-          {},
-          await getAuthorizationPrompt("AUTHORIZATION_PROMPT_REPLACE_LAUNCHER")
-        );
+        try {
+          // From the moment the escalated replacement starts the bundle may
+          // change, so any failure is treated as a partial write.
+          bundleTouched = true;
+          await exec(
+            sync,
+            {},
+            await getAuthorizationPrompt(
+              "AUTHORIZATION_PROMPT_REPLACE_LAUNCHER"
+            )
+          );
+        } catch (escalated) {
+          // A declined prompt happens before any privileged write, so the
+          // bundle stays intact and the update is reported as cancelled.
+          bundleTouched = !isAuthorizationCancelledError(escalated);
+          throw escalated;
+        }
       }
       await log(`Replaced app bundle at ${bundlePath} with ${topLevelDir}`);
     } else {
       await log("YAAGL_BUNDLE_PATH is unset; skipping app bundle replacement");
     }
+  } catch (error) {
+    if (bundleTouched) {
+      // The installed bundle may be inconsistent now. Keep neither the old
+      // process nor an unusable window: relaunch so startup can detect the
+      // half-applied update and re-apply the release.
+      await log(
+        `App bundle replacement failed after rsync started (${errorMessage(
+          error
+        )}); relaunching to repair the update`
+      );
+      try {
+        await recovery.relaunch();
+      } catch (relaunchError) {
+        // Only a bundle that cannot be reopened is truly fatal: the user has
+        // to know that opening the launcher again repairs it.
+        throw new FatalError(
+          `The launcher was partially updated and could not be relaunched (${errorMessage(
+            relaunchError
+          )}). Reopen the launcher to repair the update.`,
+          relaunchError
+        );
+      }
+      return;
+    }
+
+    if (
+      isDownloadCancelledError(error) ||
+      isAuthorizationCancelledError(error)
+    ) {
+      // A genuine cancel keeps its own classification so callers can show the
+      // cancellation message instead of a generic task failure.
+      throw error;
+    }
+    // Nothing on disk changed: stay on the current version and report one
+    // failed task.
+    throw new TaskFailedError(
+      `Launcher update failed before replacing the app bundle: ${errorMessage(
+        error
+      )}`
+    );
   } finally {
-    await rmrf_dangerously(UPDATE_EXTRACT_DIR);
+    try {
+      await rmrf_dangerously(UPDATE_EXTRACT_DIR);
+    } catch (error) {
+      // Cleanup must not mask the update outcome (or a completed relaunch).
+      await log(
+        `Failed to clean up ${UPDATE_EXTRACT_DIR}: ${errorMessage(error)}`
+      );
+    }
   }
 }
 export async function createUpdater({
@@ -347,5 +439,14 @@ export async function* downloadProgram(
   const topLevelDir = getReleaseAppTopLevelDir(appUrl);
   await applyReleaseApp("./update-app.tar.gz", topLevelDir);
   assertNotAborted(signal);
-  await removeFile("./update-app.tar.gz");
+  try {
+    await removeFile("./update-app.tar.gz");
+  } catch (error) {
+    // The bundle is already replaced; a leftover archive is not a reason to
+    // report a failed update (which would leave the old process running
+    // against new resources without a relaunch).
+    await log(
+      `Failed to remove the downloaded update archive: ${errorMessage(error)}`
+    );
+  }
 }

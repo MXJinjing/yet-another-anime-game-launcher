@@ -9,6 +9,7 @@ import {
 } from "../../../integrations/github";
 import { configEntries, type ConfigStore } from "@config";
 import { Config, NOOP } from "../../../config/config-def";
+import { log } from "../../../logging/logger";
 import { assertValueDefined } from "../../../runtime/assertions";
 import { SettingSwitch } from "../../../components/setting-switch";
 
@@ -25,6 +26,25 @@ type GithubPrefixStatus =
   | "connected"
   | "failed"
   | "invalid";
+
+/**
+ * Probes a user-entered prefix and maps the outcome to a display status.
+ *
+ * The settings screen is the only caller allowed to surface a prefix error:
+ * `testGithubPrefix` keeps throwing, but that rejection is contained here so
+ * it never escapes into the settings tree or the boot flow.
+ */
+export async function probeGithubPrefix(
+  value: string
+): Promise<GithubPrefixStatus> {
+  if (!normalizeGithubPrefix(value)) return "invalid";
+  try {
+    await testGithubPrefix(value);
+    return "connected";
+  } catch {
+    return "failed";
+  }
+}
 
 function statusKey(status: GithubPrefixStatus): LocaleTextKey | undefined {
   switch (status) {
@@ -109,25 +129,18 @@ export async function createGithubAcceleratedPrefixConfig({
   }
 
   async function test() {
-    const normalizedPrefix = normalizeGithubPrefix(prefix());
-    if (!normalizedPrefix) {
-      setStatus("invalid");
-      return;
-    }
-
     setStatus("testing");
-    try {
-      await testGithubPrefix(normalizedPrefix);
-      setStatus("connected");
-    } catch {
-      setStatus("failed");
-    }
+    setStatus(await probeGithubPrefix(prefix()));
   }
 
   createEffect(() => {
     enabled();
     prefix();
-    void onSave();
+    // Saving a setting must never surface as an unhandled rejection; the
+    // invalid-prefix case is already reflected in the switch state.
+    void onSave().catch(error => {
+      void log(`Failed to save GitHub acceleration setting: ${String(error)}`);
+    });
   });
 
   return [
