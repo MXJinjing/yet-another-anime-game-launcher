@@ -280,9 +280,13 @@ export async function* patchRevertProgram(
   let step = 0;
 
   const report = async function* (
-    message: string
+    _message: string
   ): AsyncGenerator<TaskProgressCommand> {
-    yield ["setRawStateText", `还原阶段：正在还原补丁(${step}/${totalSteps})`];
+    yield ["setStateText", "REVERT_PATCHING", String(step), String(totalSteps)];
+    yield [
+      "setProgress",
+      totalSteps > 0 ? Math.min(100, (step / totalSteps) * 100) : 0,
+    ];
   };
 
   yield* report("还原阶段：开始还原游戏文件");

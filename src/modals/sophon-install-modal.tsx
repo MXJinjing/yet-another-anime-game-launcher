@@ -154,7 +154,7 @@ export function SophonInstallModal(props: {
     <AppModal
       opened
       onClose={props.onClose}
-      title={`${actionLabel()} · ${props.title}`}
+      title={props.title}
       maxWidth={760}
       footer={
         <>
