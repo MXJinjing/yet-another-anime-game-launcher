@@ -14,7 +14,6 @@ import { warn } from "@logging/logger";
 import {
   DownloadFailedError,
   isDownloadCancelledError,
-  isDownloadFailedError,
 } from "../download/control";
 import {
   fileOrDirExists,
@@ -272,11 +271,9 @@ async function* installDXMTWithRetry(
       if (isDownloadCancelledError(error)) throw error;
       await restoreDXMTRuntime(directory);
       if (attempt > 0) {
-        throw isDownloadFailedError(error)
-          ? error
-          : new DownloadFailedError(
-              `DXMT runtime installation failed: ${String(error)}`
-            );
+        throw new DownloadFailedError(
+          `DXMT runtime installation failed: ${String(error)}`
+        );
       }
     }
   }

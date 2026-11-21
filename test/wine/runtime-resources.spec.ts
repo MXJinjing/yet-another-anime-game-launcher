@@ -36,7 +36,7 @@ import {
   checkAndDownloadReshade,
   isDXMTInstalled,
 } from "@wine/runtime-resources";
-import { DownloadFailedError } from "@download/control";
+import { DownloadCancelledError, DownloadFailedError } from "@download/control";
 const download = vi.fn();
 const checksum =
   "fbc0721fb72ebafd2bad0dbdd3d13a52056fd10c4a9a699cee2689363823255b";
@@ -93,6 +93,35 @@ describe("Wine runtime resource installation", () => {
     ]);
     expect(setKey).toHaveBeenCalledWith("installed_moltenvk_version", "1.2.2");
   });
+  it("keeps a cancelled MoltenVK download cancellable", async () => {
+    download.mockImplementation(async function* () {
+      throw new DownloadCancelledError();
+    });
+    await expect(
+      collect(checkAndDownloadMoltenVK(aria2))
+    ).rejects.toBeInstanceOf(DownloadCancelledError);
+    expect(removeFileIfExists).not.toHaveBeenCalled();
+    expect(setKey).not.toHaveBeenCalled();
+  });
+  it("cleans a partial DXVK library before reporting a typed failure", async () => {
+    download.mockImplementation(async function* () {
+      throw new Error("network");
+    });
+    await expect(collect(checkAndDownloadDXVK(aria2))).rejects.toBeInstanceOf(
+      DownloadFailedError
+    );
+    expect(removeFileIfExists).toHaveBeenCalledWith("./dxvk/d3d9.dll");
+    expect(setKey).not.toHaveBeenCalled();
+  });
+  it("keeps a cancelled DXVK download cancellable", async () => {
+    download.mockImplementation(async function* () {
+      throw new DownloadCancelledError();
+    });
+    await expect(collect(checkAndDownloadDXVK(aria2))).rejects.toBeInstanceOf(
+      DownloadCancelledError
+    );
+    expect(removeFileIfExists).not.toHaveBeenCalled();
+  });
   it("downloads all DXVK libraries before recording its installed version", async () => {
     const commands = await collect(checkAndDownloadDXVK(aria2));
     expect(download).toHaveBeenCalledTimes(4);
@@ -131,6 +160,14 @@ describe("Wine runtime resource installation", () => {
     expect(setKey).not.toHaveBeenCalled();
     expect(removeFileIfExists).toHaveBeenCalledWith("./jadeite/archive.zip");
     expect(rmrf_dangerously).toHaveBeenCalledWith("./jadeite");
+  });
+  it("keeps a cancelled Jadeite extraction cancellable", async () => {
+    vi.mocked(exec).mockRejectedValueOnce(new DownloadCancelledError());
+    await expect(
+      collect(checkAndDownloadJadeite(aria2))
+    ).rejects.toBeInstanceOf(DownloadCancelledError);
+    expect(removeFileIfExists).not.toHaveBeenCalled();
+    expect(setKey).not.toHaveBeenCalled();
   });
   it("waits for a shared Jadeite install before checking for a leftover ZIP", async () => {
     const first = checkAndDownloadJadeite(aria2);
@@ -229,6 +266,58 @@ describe("Wine runtime resource installation", () => {
     expect(download).toHaveBeenCalledTimes(2);
     expect(setKey).not.toHaveBeenCalled();
     expect(rmrf_dangerously).toHaveBeenCalledWith("./dxmt-staging");
+  });
+  it("keeps a cancelled DXMT download cancellable", async () => {
+    download.mockImplementation(async function* () {
+      throw new DownloadCancelledError();
+    });
+    await expect(collect(checkAndDownloadDXMT(aria2))).rejects.toBeInstanceOf(
+      DownloadCancelledError
+    );
+    expect(setKey).not.toHaveBeenCalled();
+    expect(rmrf_dangerously).toHaveBeenCalledWith("./dxmt-staging");
+  });
+  it("reports missing DXMT runtime files as a download failure", async () => {
+    vi.mocked(stats).mockRejectedValue(new Error("Missing file"));
+    await expect(collect(checkAndDownloadDXMT(aria2))).rejects.toBeInstanceOf(
+      DownloadFailedError
+    );
+    expect(download).toHaveBeenCalledTimes(2);
+    expect(setKey).not.toHaveBeenCalled();
+    expect(rmrf_dangerously).toHaveBeenCalledWith("./dxmt-staging");
+  });
+  it("does not leave a half-swapped runtime when no backup exists", async () => {
+    vi.mocked(forceMove).mockImplementation(async source => {
+      if (source === "dxmt-staging/runtime") throw new Error("Swap failed");
+      return {} as never;
+    });
+    try {
+      await expect(collect(checkAndDownloadDXMT(aria2))).rejects.toBeInstanceOf(
+        DownloadFailedError
+      );
+      expect(forceMove).not.toHaveBeenCalledWith("./dxmt-backup", "./dxmt");
+      expect(setKey).not.toHaveBeenCalled();
+    } finally {
+      vi.mocked(forceMove).mockReset();
+    }
+  });
+  it("restores an existing backup when the runtime directory is missing", async () => {
+    vi.mocked(fileOrDirExists).mockImplementation(
+      async path => path === "./dxmt-backup"
+    );
+    vi.mocked(forceMove).mockImplementation(async source => {
+      if (source === "dxmt-staging/runtime") throw new Error("Swap failed");
+      return {} as never;
+    });
+    try {
+      await expect(collect(checkAndDownloadDXMT(aria2))).rejects.toBeInstanceOf(
+        DownloadFailedError
+      );
+      expect(forceMove).toHaveBeenCalledWith("./dxmt-backup", "./dxmt");
+      expect(setKey).not.toHaveBeenCalled();
+    } finally {
+      vi.mocked(forceMove).mockReset();
+    }
   });
   it("downloads DXMT once across simultaneous game requests", async () => {
     vi.mocked(setKey).mockImplementation(async (_key, version) => {

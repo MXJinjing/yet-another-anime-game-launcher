@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TaskFailedError } from "@tasks/task-program";
 
 vi.mock("@platform/neutralino", () => ({
   fileOrDirExists: vi.fn(),
@@ -27,7 +28,9 @@ vi.mock("@wine/wine", () => ({
   getWineInstallDir: (id: string) => `/wines/${id}`,
   isWineDistroInstalled: vi.fn(),
 }));
-vi.mock("@wine/mf", () => ({ installMediaFoundation: vi.fn() }));
+vi.mock("@wine/mf", () => ({
+  installMediaFoundation: vi.fn(async function* () {}),
+}));
 vi.mock("@wine/cert", () => ({ addCertsToWine: vi.fn() }));
 vi.mock("@wine/d3dmetal", () => ({
   D3DMETAL_RUNTIME_ID: "d3dmetal-test",
@@ -49,15 +52,18 @@ import { rmrf_dangerously, xattrRemove } from "@runtime/macos-filesystem";
 import { setKey } from "@runtime/storage";
 import { createWine, isWineDistroInstalled } from "@wine/wine";
 import { addCertsToWine } from "@wine/cert";
+import { installMediaFoundation } from "@wine/mf";
 import {
   assertD3DMetalHostSupported,
   D3DMETAL_RUNTIME_ID,
+  isD3DMetalRuntimePrepared,
   prepareD3DMetalWine,
   requireD3DMetalLicense,
   verifyD3DMetalArchive,
 } from "@wine/d3dmetal";
 import {
   configureWineEnvironmentProgram,
+  confirmWinePrefixReset,
   createWineInstallProgram,
   installWineEnvironmentProgram,
 } from "@wine/wine-install-program";
@@ -364,6 +370,35 @@ describe("Wine environment installation", () => {
     expect(setKey).toHaveBeenCalledWith("wine_state", "ready");
   });
 
+  it("treats an unreadable prefix as populated and asks before resetting", async () => {
+    vi.mocked(isWineDistroInstalled).mockResolvedValue(true);
+    vi.mocked(fileOrDirExists).mockResolvedValue(true);
+    vi.mocked(exec).mockImplementation(async command => {
+      if (command[0] === "ls") throw new Error("permission denied");
+      return {
+        stdOut: "logs/wine-initialization.test\n",
+        stdErr: "",
+        exitCode: 0,
+        pid: 1,
+      };
+    });
+    wine.exec.mockRejectedValueOnce(new Error("wineboot failed"));
+    const confirmPrefixReset = vi.fn(async () => true);
+    const removePrefix = vi.fn(async () => undefined);
+
+    await collect(
+      configureWineEnvironmentProgram({
+        ...options(),
+        confirmPrefixReset,
+        removePrefix,
+      })
+    );
+
+    expect(confirmPrefixReset).toHaveBeenCalledWith("/prefix");
+    expect(removePrefix).toHaveBeenCalledWith("/prefix");
+    expect(setKey).toHaveBeenCalledWith("wine_state", "ready");
+  });
+
   it("does not publish a bundled distribution when preparing its files fails", async () => {
     vi.mocked(xattrRemove).mockRejectedValueOnce(
       new Error("authorization cancelled")
@@ -443,6 +478,49 @@ describe("Wine environment installation", () => {
       expect(commands.at(-1)).toEqual(["setStateText", "INSTALL_DONE"]);
     }
   );
+
+  it("keeps system Wine untouched without a completion message", async () => {
+    vi.mocked(isWineDistroInstalled).mockResolvedValue(true);
+    const commands = await collect(
+      installWineEnvironmentProgram({
+        ...options(),
+        activate: false,
+        finishMessage: false,
+        wineDistro: { ...distro, systemWineRoot: "/system/wine" },
+      })
+    );
+    expect(commands).toEqual([]);
+    expect(createWine).not.toHaveBeenCalled();
+  });
+
+  it("asks by default with a YES_NO prompt before resetting a prefix", async () => {
+    const showMessageBox = vi.fn(async () => "YES");
+    const globals = globalThis as unknown as { Neutralino?: unknown };
+    globals.Neutralino = { os: { showMessageBox } };
+    try {
+      await expect(confirmWinePrefixReset("/prefix")).resolves.toBe(true);
+      showMessageBox.mockResolvedValueOnce("NO");
+      await expect(confirmWinePrefixReset("/prefix")).resolves.toBe(false);
+      expect(showMessageBox).toHaveBeenCalledWith(
+        "Wine 环境初始化失败",
+        expect.stringContaining("重置该 prefix 并重试"),
+        "YES_NO",
+        "WARNING"
+      );
+    } finally {
+      delete globals.Neutralino;
+    }
+  });
+
+  it("installs media foundation for channels that need it", async () => {
+    vi.stubEnv("YAAGL_CHANNEL_CLIENT", "bh3-test");
+    try {
+      await collect(createWineInstallProgram(options()));
+      expect(installMediaFoundation).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe("Experimental D3DMetal Wine installation", () => {
@@ -543,5 +621,32 @@ describe("Experimental D3DMetal Wine installation", () => {
     expect(prepareD3DMetalWine).not.toHaveBeenCalled();
     expect(addCertsToWine).not.toHaveBeenCalled();
     expect(createWine).toHaveBeenCalledOnce();
+  });
+
+  it("discards an archive that fails verification", async () => {
+    vi.mocked(verifyD3DMetalArchive).mockRejectedValueOnce(
+      new Error("bad signature")
+    );
+    await expect(install()).rejects.toBeInstanceOf(DownloadFailedError);
+    expect(removeFileIfExists).toHaveBeenCalledWith(archive);
+    expect(tar_extract_directory).not.toHaveBeenCalled();
+    expect(setKey).not.toHaveBeenCalled();
+  });
+
+  it("reports an incomplete staged runtime as a task failure", async () => {
+    vi.mocked(isD3DMetalRuntimePrepared).mockResolvedValueOnce(false);
+    await expect(install()).rejects.toBeInstanceOf(TaskFailedError);
+    expect(rmrf_dangerously).toHaveBeenCalledWith(stage);
+    expect(exec).not.toHaveBeenCalledWith(["mv", stage, destination]);
+    expect(setKey).not.toHaveBeenCalled();
+  });
+
+  it("preserves an authorization cancellation while preparing the runtime", async () => {
+    vi.mocked(prepareD3DMetalWine).mockRejectedValueOnce(
+      new Error("user cancelled")
+    );
+    await expect(install()).rejects.toThrow("user cancelled");
+    expect(rmrf_dangerously).toHaveBeenCalledWith(stage);
+    expect(setKey).not.toHaveBeenCalled();
   });
 });

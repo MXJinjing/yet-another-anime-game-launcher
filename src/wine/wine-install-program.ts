@@ -322,7 +322,6 @@ async function runWinePrefixInitialization(wine: Wine) {
       wine.exec("winecfg", ["-v", "win10"], {}, logFile)
     );
   } catch (error) {
-    if (error instanceof PrefixInitializationFailedError) throw error;
     throw new PrefixInitializationFailedError(
       runStep.directory,
       runStep.logFiles,

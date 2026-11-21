@@ -59,6 +59,16 @@ function createHarness(installed = false) {
 }
 
 describe("wine environment service", () => {
+  it("uses production dependencies when none are injected", () => {
+    const service = createWineEnvironmentService({
+      aria2: {} as never,
+      wine: { killAll: vi.fn() } as never,
+      wineAbsPrefix: "/prefix",
+      setWineInstalled: vi.fn(),
+    });
+    expect(typeof service.initialize).toBe("function");
+  });
+
   it("resets the prefix after terminating Wine", async () => {
     const { service, wine, dependencies, setWineInstalled } = createHarness();
     await service.reset();
