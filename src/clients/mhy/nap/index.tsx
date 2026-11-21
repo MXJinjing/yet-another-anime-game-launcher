@@ -14,7 +14,11 @@ import { Locale } from "../../../locale";
 import { md5 } from "@runtime/patching";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
-import { isNewerGameVersion, readGameVersion } from "../../game-version";
+import {
+  isNewerGameVersion,
+  readGameVersion,
+  readInstalledGameVersion,
+} from "../../game-version";
 import { Config } from "@config";
 import { launchGameProgram } from "./program-launch-game";
 import { patchRevertProgram } from "../patch";
@@ -171,9 +175,14 @@ export async function createNAPChannelClient({
   );
 
   async function refreshInstalledVersion(directory = _gameInstallDir()) {
-    const version =
-      readGameVersion(await readInstalledVersion(directory)) ?? "0.0.0";
-    setGameVersion(version);
+    const result = await readInstalledGameVersion(() =>
+      readInstalledVersion(directory)
+    );
+    if (result.status === "missing") throw result.error;
+    setGameVersion(result.status === "version" ? result.version : "0.0.0");
+    if (result.status === "unavailable") {
+      await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+    }
     setGameInfo(info => info && { ...info, needs_resume: false });
   }
 
@@ -331,27 +340,27 @@ export async function createNAPChannelClient({
         await setKey("game_install_dir", null);
         return;
       }
-      try {
-        const gameVersion = await getGameVersion(
-          join(selection, server.dataDir),
-          0xc4
-        );
-        batch(() => {
-          setInstalled("INSTALLED");
-          setGameInstallDir(selection);
-          setGameVersion(readGameVersion(gameVersion) ?? "0.0.0");
-        });
-        if (gameCurrentVersion() === "0.0.0") {
-          await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
-        }
-      } catch {
+      const result = await readInstalledGameVersion(() =>
+        getGameVersion(join(selection, server.dataDir), 0xc4)
+      );
+      if (result.status === "missing") {
         batch(() => {
           setInstalled("NOT_INSTALLED");
           setGameInstallDir(selection);
           setGameVersion("0.0.0");
         });
+        await setKey("game_install_dir", selection);
+        return;
       }
+      batch(() => {
+        setInstalled("INSTALLED");
+        setGameInstallDir(selection);
+        setGameVersion(result.status === "version" ? result.version : "0.0.0");
+      });
       await setKey("game_install_dir", selection);
+      if (result.status === "unavailable") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+      }
       if (installed() === "INSTALLED") await loadVersionInfo(selection);
     },
     async *init(config: Config) {
@@ -454,16 +463,17 @@ async function checkGameState(
       gameInstalled: false,
     } as const;
   }
-  try {
-    return {
-      gameInstalled: true,
-      gameInstallDir: gameDir,
-      gameVersion:
-        (await getGameVersion(join(gameDir, server.dataDir), 0xc4)) || "0.0.0",
-    } as const;
-  } catch {
+  const result = await readInstalledGameVersion(() =>
+    getGameVersion(join(gameDir, server.dataDir), 0xc4)
+  );
+  if (result.status === "missing") {
     return {
       gameInstalled: false,
     } as const;
   }
+  return {
+    gameInstalled: true,
+    gameInstallDir: gameDir,
+    gameVersion: result.status === "version" ? result.version : "0.0.0",
+  } as const;
 }

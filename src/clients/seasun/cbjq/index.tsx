@@ -17,6 +17,7 @@ import { join } from "path-browserify";
 import {
   isNewerGameVersion,
   readGameVersion,
+  readInstalledGameVersion,
   requireGameVersion,
 } from "../../game-version";
 import { Config } from "@config";
@@ -42,15 +43,19 @@ import { LauncherResourceData } from "./launcher-info";
 import { checkIntegrityProgram } from "./program-check-integrity";
 import { updateGameProgram } from "./program-update-game";
 import { CBJQ_GAME_LOG_LOCATIONS } from "../../game-log-paths";
+import { GameVersionUnreadableError } from "../../launch-errors";
 
 const getGameVersion = async (gameDir: string) => {
   const local_manifest = join(gameDir, "manifest.json");
-  const localResourceData: LauncherResourceData = await readFile(
-    local_manifest
-  ).then(content => {
-    return JSON.parse(content);
-  });
-  return localResourceData.projectVersion;
+  const content = await readFile(local_manifest);
+  try {
+    const localResourceData: LauncherResourceData = JSON.parse(content);
+    return localResourceData.projectVersion;
+  } catch {
+    throw new GameVersionUnreadableError(
+      `Failed to parse the local manifest: ${local_manifest}`
+    );
+  }
 };
 
 const CURRENT_SUPPORTED_VERSION = "2.0.0";
@@ -192,11 +197,15 @@ export async function createCBJQChannelClient({
         await setKey("game_install_dir", selection);
         return;
       }
-      const gameVersion = await getGameVersion(selection);
-      if (!readGameVersion(gameVersion)) {
+      const versionRead = await readInstalledGameVersion(() =>
+        getGameVersion(selection)
+      );
+      if (versionRead.status === "missing") throw versionRead.error;
+      if (versionRead.status === "unavailable") {
         await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
         return;
       }
+      const gameVersion = versionRead.version;
       if (isNewerGameVersion(gameVersion, CURRENT_SUPPORTED_VERSION)) {
         await locale.alert(
           "UNSUPPORTED_VERSION",
@@ -307,9 +316,14 @@ export async function createCBJQChannelClient({
       });
 
       if (gameCurrentVersion() === "0.0.0") {
-        setGameVersion(
-          readGameVersion(await getGameVersion(_gameInstallDir())) ?? "0.0.0"
+        const result = await readInstalledGameVersion(() =>
+          getGameVersion(_gameInstallDir())
         );
+        if (result.status === "missing") throw result.error;
+        if (result.status === "version") setGameVersion(result.version);
+        if (result.status === "unavailable") {
+          await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        }
       }
     },
     async changeInstallDir(selection: string) {
@@ -322,24 +336,27 @@ export async function createCBJQChannelClient({
         await setKey("game_install_dir", null);
         return;
       }
-      try {
-        const gameVersion = await getGameVersion(selection);
-        batch(() => {
-          setInstalled("INSTALLED");
-          setGameInstallDir(selection);
-          setGameVersion(readGameVersion(gameVersion) ?? "0.0.0");
-        });
-        if (gameCurrentVersion() === "0.0.0") {
-          await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
-        }
-      } catch {
+      const result = await readInstalledGameVersion(() =>
+        getGameVersion(selection)
+      );
+      if (result.status === "missing") {
         batch(() => {
           setInstalled("NOT_INSTALLED");
           setGameInstallDir(selection);
           setGameVersion("0.0.0");
         });
+        await setKey("game_install_dir", selection);
+        return;
       }
+      batch(() => {
+        setInstalled("INSTALLED");
+        setGameInstallDir(selection);
+        setGameVersion(result.status === "version" ? result.version : "0.0.0");
+      });
       await setKey("game_install_dir", selection);
+      if (result.status === "unavailable") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+      }
     },
     async *init(config: Config) {
       setRuntimeReady(await isDXMTInstalled());
@@ -379,17 +396,17 @@ async function checkGameState(
       gameInstalled: false,
     } as const;
   }
-  try {
-    return {
-      gameInstalled: true,
-      gameInstallDir: gameDir,
-      gameVersion: (await getGameVersion(gameDir)) || "0.0.0",
-    } as const;
-  } catch {
+  const result = await readInstalledGameVersion(() => getGameVersion(gameDir));
+  if (result.status === "missing") {
     return {
       gameInstalled: false,
     } as const;
   }
+  return {
+    gameInstalled: true,
+    gameInstallDir: gameDir,
+    gameVersion: result.status === "version" ? result.version : "0.0.0",
+  } as const;
 }
 
 async function fetch(url: string) {

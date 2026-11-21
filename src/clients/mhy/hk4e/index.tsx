@@ -14,7 +14,11 @@ import { Locale } from "@locale";
 import { log } from "@logging/logger";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { join } from "path-browserify";
-import { isNewerGameVersion, readGameVersion } from "../../game-version";
+import {
+  isNewerGameVersion,
+  readGameVersion,
+  readInstalledGameVersion,
+} from "../../game-version";
 import { Config } from "@config";
 import { launchGameProgram } from "./program-launch-game";
 import { patchRevertProgram } from "../patch";
@@ -37,7 +41,7 @@ import { CN_BLOCK_URL, OS_BLOCK_URL } from "../../secret";
 import createResolution from "./config/resolution";
 import createTimeoutFix from "./config/timeout-fix";
 import { createEnableHDRConfig } from "./config/enable-hdr";
-import { getGameVersion } from "../unity";
+import { getGameVersionWithFallback } from "../unity";
 import { HoyoConnectGameBackgroundType } from "../launcher-info";
 import {
   getLatestLauncherContent,
@@ -123,7 +127,7 @@ export async function createHK4EChannelClient({
 
   const sophon = createSophonGame(server, locale, storage, "hk4e", releaseType);
   const readInstalledVersion = (directory: string) =>
-    getGameVersionGI(join(directory, server.dataDir));
+    getGameVersionWithFallback(join(directory, server.dataDir));
   const [gameInfo, setGameInfo] = createSignal<SophonOnlineGameInfo>();
   const latestVersion = () => gameInfo()?.version ?? "0.0.0";
 
@@ -179,9 +183,14 @@ export async function createHK4EChannelClient({
   );
 
   async function refreshInstalledVersion(directory = _gameInstallDir()) {
-    const version =
-      readGameVersion(await readInstalledVersion(directory)) ?? "0.0.0";
-    setGameVersion(version);
+    const result = await readInstalledGameVersion(() =>
+      readInstalledVersion(directory)
+    );
+    if (result.status === "missing") throw result.error;
+    setGameVersion(result.status === "version" ? result.version : "0.0.0");
+    if (result.status === "unavailable") {
+      await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+    }
     setGameInfo(info => info && { ...info, needs_resume: false });
   }
 
@@ -338,20 +347,10 @@ export async function createHK4EChannelClient({
         await setKey("game_install_dir", null);
         return;
       }
-      try {
-        const gameVersion = await getGameVersionGI(
-          join(selection, server.dataDir)
-        );
-        batch(() => {
-          setInstalled("INSTALLED");
-          setGameInstallDir(selection);
-          setGameVersion(readGameVersion(gameVersion) ?? "0.0.0");
-        });
-        await setKey("game_install_dir", selection);
-        if (gameCurrentVersion() === "0.0.0") {
-          await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
-        }
-      } catch {
+      const result = await readInstalledGameVersion(() =>
+        getGameVersionWithFallback(join(selection, server.dataDir))
+      );
+      if (result.status === "missing") {
         // A selected directory is also a valid target for a new install.
         batch(() => {
           setInstalled("NOT_INSTALLED");
@@ -360,6 +359,16 @@ export async function createHK4EChannelClient({
         });
         await setKey("game_install_dir", selection);
         if (installed() === "INSTALLED") await loadVersionInfo(selection);
+        return;
+      }
+      batch(() => {
+        setInstalled("INSTALLED");
+        setGameInstallDir(selection);
+        setGameVersion(result.status === "version" ? result.version : "0.0.0");
+      });
+      await setKey("game_install_dir", selection);
+      if (result.status === "unavailable") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
       }
     },
     async *init(config: Config) {
@@ -426,21 +435,6 @@ export async function createHK4EChannelClient({
   };
 }
 
-async function getGameVersionGI(gameDataDir: string) {
-  const currentOffset = await getGameVersion(gameDataDir, 0xac).catch(
-    () => undefined
-  );
-  const version = readGameVersion(currentOffset);
-  if (version) return version;
-
-  // The older offset can fail even when the file exists and the current
-  // offset contains an unreadable version.
-  return getGameVersion(gameDataDir).catch(error => {
-    if (currentOffset !== undefined) return currentOffset;
-    throw error;
-  });
-}
-
 async function checkGameState(
   locale: Locale,
   server: Server,
@@ -454,15 +448,17 @@ async function checkGameState(
       gameInstalled: false,
     } as const;
   }
-  try {
-    return {
-      gameInstalled: true,
-      gameInstallDir: gameDir,
-      gameVersion: await getGameVersionGI(join(gameDir, server.dataDir)),
-    } as const;
-  } catch {
+  const result = await readInstalledGameVersion(() =>
+    getGameVersionWithFallback(join(gameDir, server.dataDir))
+  );
+  if (result.status === "missing") {
     return {
       gameInstalled: false,
     } as const;
   }
+  return {
+    gameInstalled: true,
+    gameInstallDir: gameDir,
+    gameVersion: result.status === "version" ? result.version : "0.0.0",
+  } as const;
 }

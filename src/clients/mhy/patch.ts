@@ -370,10 +370,68 @@ export class RuntimeReplacementFileMissingError extends TaskFailedError {
   }
 }
 
+/**
+ * An enabled replacement row is incomplete (for example an empty source
+ * path). Skipping it is possible, but the user must choose first.
+ */
+export class RuntimeReplacementConfigInvalidError extends TaskFailedError {
+  constructor(message: string) {
+    super(message);
+    this.name = "RuntimeReplacementConfigInvalidError";
+  }
+}
+
+/** The temporary copy did not match its source, so nothing was replaced. */
+export class RuntimeReplacementVerificationError extends TaskFailedError {
+  constructor(message: string) {
+    super(message);
+    this.name = "RuntimeReplacementVerificationError";
+  }
+}
+
+/**
+ * A replacement row can never be applied (unsafe target, duplicate target,
+ * or a target that does not exist). The launch skips the replacement.
+ */
+export class RuntimeReplacementImpossibleError extends TaskFailedError {
+  constructor(message: string) {
+    super(message);
+    this.name = "RuntimeReplacementImpossibleError";
+  }
+}
+
 export function isRuntimeReplacementFileMissingError(
   error: unknown
 ): error is RuntimeReplacementFileMissingError {
   return error instanceof RuntimeReplacementFileMissingError;
+}
+
+export function isRuntimeReplacementConfigInvalidError(
+  error: unknown
+): error is RuntimeReplacementConfigInvalidError {
+  return error instanceof RuntimeReplacementConfigInvalidError;
+}
+
+export function isRuntimeReplacementVerificationError(
+  error: unknown
+): error is RuntimeReplacementVerificationError {
+  return error instanceof RuntimeReplacementVerificationError;
+}
+
+export function isRuntimeReplacementImpossibleError(
+  error: unknown
+): error is RuntimeReplacementImpossibleError {
+  return error instanceof RuntimeReplacementImpossibleError;
+}
+
+/** True for every failure raised while preparing runtime replacements. */
+export function isRuntimeReplacementError(error: unknown): boolean {
+  return (
+    isRuntimeReplacementFileMissingError(error) ||
+    isRuntimeReplacementConfigInvalidError(error) ||
+    isRuntimeReplacementVerificationError(error) ||
+    isRuntimeReplacementImpossibleError(error)
+  );
 }
 
 type RuntimeReplacementPlan = {
@@ -480,6 +538,20 @@ function getRuntimeReplacementConfig(config: Config): {
     };
   }
   return { enabled: false, entries: [] };
+}
+
+/**
+ * Return a copy of the config with every runtime replacement disabled. Used
+ * when the user asks to launch anyway after a replacement problem.
+ */
+export function withoutRuntimeReplacements<T extends object>(config: T): T {
+  return {
+    ...config,
+    runtimeReplacementsEnabled: false,
+    runtimeReplacements: [],
+    workaround4: false,
+    mhypBaseReplacementPath: "",
+  } as T;
 }
 
 export function isSafeTargetRelativePath(
@@ -701,6 +773,7 @@ async function buildRuntimeReplacementPlans(
   entries: RuntimeReplacementEntry[]
 ): Promise<RuntimeReplacementPlan[]> {
   const failures: string[] = [];
+  const configFailures: string[] = [];
   let missingReplacementFile = false;
   const plans: RuntimeReplacementPlan[] = [];
   const seenTargets = new Set<string>();
@@ -720,7 +793,7 @@ async function buildRuntimeReplacementPlans(
       continue;
     }
     if (!replacementPath) {
-      failures.push(`缺少替换文件：${label}`);
+      configFailures.push(`缺少替换文件：${label}`);
       continue;
     }
 
@@ -768,12 +841,20 @@ async function buildRuntimeReplacementPlans(
     });
   }
 
-  if (failures.length > 0) {
-    const message = `运行时文件替换配置无效：${failures.join("；")}`;
+  if (failures.length > 0 || configFailures.length > 0) {
+    const message = `运行时文件替换配置无效：${[
+      ...configFailures,
+      ...failures,
+    ].join("；")}`;
     if (missingReplacementFile) {
       throw new RuntimeReplacementFileMissingError(message);
     }
-    throw new Error(message);
+    if (configFailures.length > 0) {
+      throw new RuntimeReplacementConfigInvalidError(message);
+    }
+    // Unsafe/duplicate/missing targets cannot be applied at all; the caller
+    // launches without replacements after warning the user.
+    throw new RuntimeReplacementImpossibleError(message);
   }
   return plans;
 }
@@ -822,7 +903,9 @@ export async function applyMhypBaseReplacement(
 
       await cp(plan.source, plan.tmp);
       if (await filesDiffer(plan.source, plan.tmp)) {
-        throw new Error(`临时副本校验失败：${plan.tmp}`);
+        throw new RuntimeReplacementVerificationError(
+          `临时副本校验失败：${plan.tmp}`
+        );
       }
       await forceMove(plan.target, plan.backup);
       await forceMove(plan.tmp, plan.target);

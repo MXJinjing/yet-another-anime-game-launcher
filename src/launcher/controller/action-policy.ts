@@ -43,3 +43,10 @@ export function resolvePrimaryLauncherAction({
 export function resolveIntegrityAction(updateRequired: boolean) {
   return updateRequired ? "prompt-update" : "check-integrity";
 }
+
+/** Actions that cannot make progress without the local download service. */
+export function isDownloadDependentAction(action: PrimaryLauncherAction) {
+  return (
+    action === "install" || action === "continue-install" || action === "update"
+  );
+}

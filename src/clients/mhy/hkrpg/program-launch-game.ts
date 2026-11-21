@@ -22,9 +22,10 @@ import {
   patchProgram,
   patchRevertProgram,
   applyMhypBaseReplacement,
-  isRuntimeReplacementFileMissingError,
+  isRuntimeReplacementError,
   revertMhypBaseReplacement,
 } from "../patch";
+import { GameAlreadyRunningError } from "../../launch-errors";
 import { HKRPG_CN_BLOCK_URL, HKRPG_OS_BLOCK_URL } from "../../secret";
 import { buildBlockHosts } from "../block-hosts";
 import {
@@ -58,9 +59,7 @@ export async function* launchGameProgram({
     exitOnWindowClose: config.exitOnWindowClose === true,
   });
   if (await processMonitor.isRunning()) {
-    throw new Error(
-      `The game executable is already running: ${gameExecutablePath}`
-    );
+    throw new GameAlreadyRunningError(gameExecutablePath);
   }
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "PATCHING"];
@@ -81,7 +80,7 @@ cd /d "${wine.toWinePath(gameDir)}"
   try {
     mhypBaseReplaced = await applyMhypBaseReplacement(gameDir, config);
   } catch (error) {
-    if (!isRuntimeReplacementFileMissingError(error)) throw error;
+    if (!isRuntimeReplacementError(error)) throw error;
     await log(`Runtime replacement validation failed: ${String(error)}`);
     try {
       await removeFile(resolve("config.bat"));
