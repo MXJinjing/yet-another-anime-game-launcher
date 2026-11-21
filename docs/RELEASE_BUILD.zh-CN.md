@@ -31,14 +31,14 @@ pnpm install
 ./configure.sh
 ```
 
-如果本地还没有 Sophon sidecar，先构建：
+如果本地还没有 Sophon sidecar，按根目录 `sophon.release` 下载：
 
 ```sh
 ./build-sophon.sh
 SOPHON_ARCH=x64 ./build-sophon.sh  # Intel 或通用版还需要这一份
 ```
 
-产物按架构放在 `sophon_server/dist/{arm64,x64}/`，包含 CLI、随附许可证和平台所需的 Swift 兼容运行库。
+版本不写在 workflow 里。产物按架构放在 `sophon_server/dist/{arm64,x64}/`，包含 CLI、随附许可证和平台所需的 Swift 兼容运行库。`SOPHON_FROM_SOURCE=1` 只会编译 `sophon_server/` 里的开发镜像，发布打包不要使用。
 
 `build-app.js` 会从项目根目录的 `sidecar/` 复制运行时文件，因此以下内容应当已经存在：
 

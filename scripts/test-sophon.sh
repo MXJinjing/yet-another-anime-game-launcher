@@ -6,7 +6,6 @@ SOURCE="$ROOT/sophon_server/swift"
 REPORT="$ROOT/coverage/sophon"
 SCRATCH="${SOPHON_TEST_SCRATCH:-$SOURCE/.build-tests}"
 mkdir -p "$REPORT"
-python3 "$ROOT/scripts/sync-sophon.py" --verify-lock
 ARGS=(--package-path "$SOURCE" --scratch-path "$SCRATCH")
 SOPHON_TEST_PRODUCTS="$(swift build "${ARGS[@]}" --show-bin-path)"
 export SOPHON_TEST_PRODUCTS

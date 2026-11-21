@@ -75,11 +75,12 @@ The target channel is selected at build time through `YAAGL_CHANNEL_CLIENT`. A c
 │   ├── locale/        # Localization resources
 │   ├── assets/        # Interface assets and images
 │   └── icons/         # Icon resources
-├── sophon_server/     # Swift Sophon source copy and legacy API source
+├── sophon_server/     # Development mirror of the Sophon source; not used for packaging
+├── sophon.release     # Pinned Sophon release downloaded by build-sophon.sh
 ├── sidecar/           # aria2, 7z, hpatchz, xdelta, and runtime helpers
 ├── external/          # External patches and build-time resources
 ├── configure.sh       # Initialize configuration and Neutralino runtime
-├── build-sophon.sh    # Build the Sophon sidecar
+├── build-sophon.sh    # Download the pinned Sophon sidecar release
 ├── build-app.js       # Build one macOS application bundle
 ├── scripts/build-release.sh # Build all release channels
 ├── dist/              # Frontend and Neutralino build output
@@ -93,7 +94,7 @@ The target channel is selected at build time through `YAAGL_CHANNEL_CLIENT`. A c
 
 - macOS.
 - Node.js and pnpm.
-- Swift 6.3 or later with Xcode for the Sophon sidecar. Python and uv are used when running the legacy API tests.
+- Xcode Command Line Tools, used to verify the downloaded Sophon binary. Swift is required only when compiling the local mirror with `SOPHON_FROM_SOURCE=1`.
 - A C compiler for native helper programs; on macOS this is typically provided by Xcode Command Line Tools.
 - Enough disk space for frontend dependencies, sidecars, Wine runtimes, and game files.
 
@@ -110,11 +111,13 @@ pnpm install
 ./configure.sh
 ```
 
-`./configure.sh` prepares channel configuration dependencies, external directories, and the Neutralino binaries required by the project. If the Sophon sidecar has not been generated locally, run:
+`./configure.sh` prepares channel configuration dependencies, external directories, and the Neutralino binaries required by the project. Download the pinned Sophon sidecar before packaging or running the app:
 
 ```sh
 ./build-sophon.sh
 ```
+
+The version comes from `sophon.release`. `SOPHON_ARCH=x64 ./build-sophon.sh` downloads the Intel build. Set `SOPHON_FROM_SOURCE=1` only to compile the local mirror instead.
 
 ## Development
 

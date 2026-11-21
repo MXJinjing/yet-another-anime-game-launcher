@@ -10,24 +10,63 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: pr-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Detect launcher changes
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          frontend=false
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            case "$file" in
+              sophon_server/*) ;;
+              *) frontend=true ;;
+            esac
+          done < <(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[].filename')
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+          echo "Frontend tests required: $frontend"
+
   tests:
+    needs: changes
+    if: always() && (github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true')
     uses: ./.github/workflows/tests.yaml
 
   # Keep this status name stable: main branch protection requires "check".
   # always() is essential so failed/cancelled dependencies cannot skip the gate.
   check:
     if: always()
-    needs: tests
+    needs: [changes, tests]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require every test job to succeed
+      - name: Require frontend tests when the launcher changed
         env:
+          EVENT: ${{ github.event_name }}
+          CHANGES: ${{ needs.changes.result }}
+          FRONTEND: ${{ needs.changes.outputs.frontend }}
           TEST_RESULT: ${{ needs.tests.result }}
-        run: test "$TEST_RESULT" = success
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "pull_request" ]; then
+            test "$CHANGES" = success
+            if [ "$FRONTEND" != "true" ]; then
+              echo "Only the Sophon source mirror changed; frontend tests were not required."
+              exit 0
+            fi
+          fi
+          test "$TEST_RESULT" = success
