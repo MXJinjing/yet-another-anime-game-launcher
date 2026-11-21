@@ -126,6 +126,9 @@ export async function createWineDistroConfig({
   const [binaryRootPath, setBinaryRootPath] = createSignal(
     initialBinaryRoot.root
   );
+  const [binaryRootDraft, setBinaryRootDraft] = createSignal(
+    initialBinaryRoot.root
+  );
   const [binaryRootSaving, setBinaryRootSaving] = createSignal(false);
 
   function markInstalled(distro: WineDistribution) {
@@ -374,8 +377,37 @@ export async function createWineDistroConfig({
       setBinaryRootMode(mode);
       setBinaryRootCustom(customDir);
       setBinaryRootPath(next);
+      setBinaryRootDraft(next);
       await refreshVersions();
     } catch {
+      await locale.alert(
+        "SETTING_WINE_BINARY_ROOT",
+        "SETTING_WINE_BINARY_ROOT_INVALID"
+      );
+    } finally {
+      setBinaryRootSaving(false);
+    }
+  }
+
+  async function commitCustomBinaryRoot() {
+    if (binaryRootMode() !== "custom" || binaryRootSaving()) return;
+    const next = binaryRootDraft().trim();
+    if (!next || next === binaryRootPath()) {
+      setBinaryRootDraft(binaryRootPath());
+      return;
+    }
+    setBinaryRootSaving(true);
+    try {
+      const saved = await saveWineBinaryRoot({
+        mode: "custom",
+        customDir: next,
+      });
+      setBinaryRootCustom(next);
+      setBinaryRootPath(saved);
+      setBinaryRootDraft(saved);
+      await refreshVersions();
+    } catch {
+      setBinaryRootDraft(binaryRootPath());
       await locale.alert(
         "SETTING_WINE_BINARY_ROOT",
         "SETTING_WINE_BINARY_ROOT_INVALID"
@@ -671,8 +703,32 @@ export async function createWineDistroConfig({
               ]}
             />
           </div>
-          <div class="wine-binary-root-path" title={binaryRootPath()}>
-            <span>{binaryRootPath()}</span>
+          <HStack
+            class="wine-binary-root-path"
+            spacing="$2"
+            alignItems="center"
+            w="100%"
+          >
+            <Input
+              flex={1}
+              minWidth={0}
+              value={
+                binaryRootMode() === "custom"
+                  ? binaryRootDraft()
+                  : binaryRootPath()
+              }
+              readOnly={binaryRootMode() !== "custom"}
+              disabled={
+                binaryRootMode() !== "custom" ||
+                wineActionDisabled() ||
+                binaryRootSaving()
+              }
+              onInput={event => setBinaryRootDraft(event.currentTarget.value)}
+              onBlur={() => void commitCustomBinaryRoot()}
+              onKeyDown={event => {
+                if (event.key === "Enter") event.currentTarget.blur();
+              }}
+            />
             <Show when={binaryRootMode() === "custom"}>
               <Button
                 size="sm"
@@ -683,7 +739,7 @@ export async function createWineDistroConfig({
                 {locale.get("SETTING_WINE_BINARY_ROOT_CHOOSE")}
               </Button>
             </Show>
-          </div>
+          </HStack>
           <Text class="wine-binary-root-hint">
             {locale.get("SETTING_WINE_BINARY_ROOT_HINT")}
           </Text>
