@@ -1,14 +1,6 @@
-import {
-  Button,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  Text,
-} from "@hope-ui/solid";
+import { Text } from "@hope-ui/solid";
 import { Show, type Accessor } from "solid-js";
+import { AppModal, AppModalButton } from "../components/app-modal";
 import type { Locale } from "../locale";
 
 export function GameUpdatePromptModal<T>(props: {
@@ -18,32 +10,32 @@ export function GameUpdatePromptModal<T>(props: {
   onConfirm: (game: T) => void;
 }) {
   return (
-    <Modal
+    <AppModal
       opened={!!props.game()}
       onClose={props.onClose}
-      scrollBehavior="inside"
+      title={props.locale.get("SETTING_GAME_UPDATE_AVAILABLE")}
+      footer={
+        <>
+          <AppModalButton variant="secondary" onClick={props.onClose}>
+            {props.locale.get("SETTING_CANCEL_INSTALL")}
+          </AppModalButton>
+          <AppModalButton
+            variant="primary"
+            onClick={() => {
+              const game = props.game();
+              if (game) props.onConfirm(game);
+            }}
+          >
+            {props.locale.get("SETTING_CONFIRM_INSTALL")}
+          </AppModalButton>
+        </>
+      }
     >
-      <ModalOverlay />
       <Show when={props.game()}>
-        <ModalContent>
-          <ModalHeader>
-            {props.locale.get("SETTING_GAME_UPDATE_AVAILABLE")}
-          </ModalHeader>
-          <ModalBody>
-            <Text style={{ "white-space": "pre-wrap" }}>
-              {props.locale.get("SETTING_GAME_UPDATE_AVAILABLE_DESC")}
-            </Text>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr="$3" onClick={props.onClose}>
-              {props.locale.get("SETTING_CANCEL_INSTALL")}
-            </Button>
-            <Button onClick={() => props.onConfirm(props.game()!)}>
-              {props.locale.get("SETTING_CONFIRM_INSTALL")}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
+        <Text class="app-modal-message">
+          {props.locale.get("SETTING_GAME_UPDATE_AVAILABLE_DESC")}
+        </Text>
       </Show>
-    </Modal>
+    </AppModal>
   );
 }
