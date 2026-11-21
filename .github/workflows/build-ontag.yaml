@@ -1,23 +1,73 @@
 name: Build Release
 
 on:
-  push:
-    tags:
-      - "*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag, such as 1.1.5. Leave empty to use package.json.
+        required: false
+        type: string
 
 permissions:
   contents: write
 
 jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          tag="${INPUT_VERSION:-}"
+          tag="${tag#"${tag%%[![:space:]]*}"}"
+          tag="${tag%"${tag##*[![:space:]]}"}"
+          if [ -z "$tag" ]; then
+            tag="$(node -p "require('./package.json').version")"
+          fi
+          case "$tag" in
+            *[!0-9A-Za-z._+-]*|"")
+              echo "Invalid release tag: ${tag}"
+              exit 1
+              ;;
+          esac
+          sha="${{ github.sha }}"
+          if payload="$(gh api "repos/${{ github.repository }}/git/ref/tags/${tag}" 2>/dev/null)"; then
+            existing="$(printf '%s' "$payload" | jq -r '.object.sha')"
+            kind="$(printf '%s' "$payload" | jq -r '.object.type')"
+            if [ "$kind" = "tag" ]; then
+              existing="$(gh api "repos/${{ github.repository }}/git/tags/${existing}" --jq '.object.sha')"
+            fi
+            if [ "$existing" != "$sha" ]; then
+              echo "Tag ${tag} already points at ${existing}, not ${sha}."
+              echo "Enter a new version when starting Build Release."
+              exit 1
+            fi
+            echo "Tag ${tag} already points at this commit; the draft release will be updated."
+          else
+            echo "Tag ${tag} will be created on ${sha} when the draft release is published."
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
   tests:
+    needs: resolve
     uses: ./.github/workflows/tests.yaml
 
   release:
-    needs: tests
+    needs: [resolve, tests]
     runs-on: macos-26
     timeout-minutes: 120
     env:
-      YAAGL_VERSION: ${{ github.ref_name }}
+      YAAGL_VERSION: ${{ needs.resolve.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -80,12 +130,14 @@ jobs:
         id: publish
         uses: softprops/action-gh-release@v2
         with:
-          name: Yaaglm ${{ github.ref_name }} Release
+          name: Yaaglm ${{ needs.resolve.outputs.tag }} Release
           draft: true
+          tag_name: ${{ needs.resolve.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           preserve_order: true
           fail_on_unmatched_files: true
           body: |
-            # Yaaglm ${{ github.ref_name }}
+            # Yaaglm ${{ needs.resolve.outputs.tag }}
 
             ## 主要更新 / Major Changes
 
@@ -101,38 +153,38 @@ jobs:
 
             | Channel | .app 文件名 / App Name | DMG | .tar.gz |
             | --- | --- | --- | --- |
-            | `mhyos` | `Yaaglm OS.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.OS-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.OS-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.OS-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.OS.app.tar.gz) |
+            | `mhyos` | `Yaaglm OS.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.OS-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.OS-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.OS-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.OS.app.tar.gz) |
 
             ### 国服多版本 / CN Multi-Game
 
             | Channel | .app 文件名 / App Name | DMG | .tar.gz |
             | --- | --- | --- | --- |
-            | `mhycn` | `Yaaglm CN.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.CN.app.tar.gz) |
+            | `mhycn` | `Yaaglm CN.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.CN-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.CN-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.CN-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.CN.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.CN.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.CN.app.tar.gz) |
 
             ### 全版本 / All Game-Clients
 
             | Channel | .app 文件名 / App Name | DMG | .tar.gz |
             | --- | --- | --- | --- |
-            | `all` | `Yaagl.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaagl.app.tar.gz) |
+            | `all` | `Yaagl.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaagl-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaagl-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaagl-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaagl.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaagl.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaagl.app.tar.gz) |
 
             ### 国际版单版本 / International Single-Game
 
             | Channel | .app 文件名 / App Name | DMG | .tar.gz |
             | --- | --- | --- | --- |
-            | `hk4eos` | `Yaaglm GI OS.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.OS-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.OS-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.OS-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.OS.app.tar.gz) |
-            | `hkrpgos` | `Yaaglm HSR OS.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.OS-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.OS-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.OS-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.OS.app.tar.gz) |
-            | `napos` | `Yaaglm ZZZ OS.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.OS-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.OS-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.OS-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.OS.app.tar.gz) |
-            | `bh3glb` | `Yaaglm Honkai Global.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.Honkai.Global-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.Honkai.Global-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.Honkai.Global-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.Honkai.Global.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.Honkai.Global.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.Honkai.Global.app.tar.gz) |
-            | `cbjq` | `Yaaglm SCZ OS.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.OS-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.OS-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.OS-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.OS.app.tar.gz) |
+            | `hk4eos` | `Yaaglm GI OS.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.OS-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.OS-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.OS-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.OS.app.tar.gz) |
+            | `hkrpgos` | `Yaaglm HSR OS.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR.OS-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR.OS-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR.OS-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR.OS.app.tar.gz) |
+            | `napos` | `Yaaglm ZZZ OS.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ.OS-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ.OS-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ.OS-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ.OS.app.tar.gz) |
+            | `bh3glb` | `Yaaglm Honkai Global.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.Honkai.Global-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.Honkai.Global-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.Honkai.Global-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.Honkai.Global.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.Honkai.Global.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.Honkai.Global.app.tar.gz) |
+            | `cbjq` | `Yaaglm SCZ OS.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ.OS-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ.OS-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ.OS-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ.OS.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ.OS.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ.OS.app.tar.gz) |
 
             ### 国服单版本 / CN Single-Game
 
             | Channel | .app 文件名 / App Name | DMG | .tar.gz |
             | --- | --- | --- | --- |
-            | `hk4ecn` | `Yaaglm GI CN.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.CN-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.CN-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.CN-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.CN.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.CN.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.GI.CN.app.tar.gz) |
-            | `hkrpgcn` | `Yaaglm HSR.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.HSR.app.tar.gz) |
-            | `napcn` | `Yaaglm ZZZ.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.ZZZ.app.tar.gz) |
-            | `cbjqcn` | `Yaaglm SCZ.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Yaaglm.SCZ.app.tar.gz) |
+            | `hk4ecn` | `Yaaglm GI CN.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.CN-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.CN-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.CN-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.CN.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.CN.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.GI.CN.app.tar.gz) |
+            | `hkrpgcn` | `Yaaglm HSR.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.HSR.app.tar.gz) |
+            | `napcn` | `Yaaglm ZZZ.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.ZZZ.app.tar.gz) |
+            | `cbjqcn` | `Yaaglm SCZ.app` | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ-arm64.dmg) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ-x64.dmg) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ-universal.dmg) | [arm64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ.app-arm64.tar.gz) · [x64](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ.app-x64.tar.gz) · [universal](https://github.com/${{ github.repository }}/releases/download/${{ needs.resolve.outputs.tag }}/Yaaglm.SCZ.app.tar.gz) |
 
             ## 说明 / Notes
 
@@ -152,7 +204,7 @@ jobs:
         if: failure() && steps.publish.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: yaaglm-${{ github.ref_name }}-release-assets
+          name: yaaglm-${{ needs.resolve.outputs.tag }}-release-assets
           path: release-assets/
           compression-level: 0
           retention-days: 7

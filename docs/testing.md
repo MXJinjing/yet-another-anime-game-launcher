@@ -46,7 +46,7 @@ Python coverage.py's default total combines executed statements and branch desti
 
 The PR workflow also supports merge queues and manual runs. Its final job is named `check`; it runs with `always()` and succeeds only if the shared test workflow succeeded. Failed, cancelled, or skipped tests cannot silently produce a successful gate. Keep this job name stable because main protection requires it.
 
-Manual main builds and tag packaging jobs depend on the shared tests. A failing test or coverage policy prevents packaging and draft release publication. Pushing or merging to main does not automatically run Build Main. Use its workflow_dispatch entrypoint for a manual build; version tags still trigger Build Release.
+Manual main builds and release packaging jobs depend on the shared tests. A failing test or coverage policy prevents packaging and draft release publication. Pushing or merging to `main`, and pushing a tag, does not automatically run Build Main or Build Release. Start Build Release from the Actions tab on the tested `main` commit. Leave the version empty to use `package.json`, or enter a new tag in the form. The workflow creates that tag when the draft release is published.
 
 ## Remote main protection
 
