@@ -146,6 +146,16 @@
   border-radius: 8px !important;
 }
 
+.sophon-install-modal .sophon-install-button {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.sophon-install-modal .sophon-install-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14) !important;
+}
+
 .app-modal-content .display-mode-toggle {
   display: inline-flex;
   align-items: center;
