@@ -73,11 +73,12 @@ Yaaglm 是一个面向 macOS 的桌面启动器，用于管理不同区域和发
 │   ├── locale/        # 多语言资源
 │   ├── assets/        # 界面素材和图片资源
 │   └── icons/         # 图标资源
-├── sophon_server/     # Swift Sophon 源码副本及旧版 API 源码
+├── sophon_server/     # Sophon 源码镜像，仅供开发对照，不参与打包
+├── sophon.release     # build-sophon.sh 下载的 Sophon 版本
 ├── sidecar/           # aria2、7z、hpatchz、xdelta 和运行时辅助文件
 ├── external/          # 外部补丁和构建期间使用的资源
 ├── configure.sh       # 初始化配置并准备 Neutralino 运行时
-├── build-sophon.sh    # 构建 Sophon sidecar
+├── build-sophon.sh    # 下载 sophon.release 指定的 Sophon sidecar
 ├── build-app.js       # 构建单个 macOS 应用包
 ├── scripts/build-release.sh # 构建全部 release channel
 ├── dist/              # 前端和 Neutralino 构建产物
@@ -91,7 +92,7 @@ Yaaglm 是一个面向 macOS 的桌面启动器，用于管理不同区域和发
 
 - macOS。
 - Node.js 和 pnpm。
-- 构建 Sophon 需要 Xcode 和 Swift 6.3 或更新版本。运行旧版 API 测试需要 Python 和 uv。
+- 需要 Xcode Command Line Tools，用来校验下载的 Sophon 二进制。只有在 `SOPHON_FROM_SOURCE=1` 编译本地镜像时才需要 Swift。
 - 构建原生辅助程序所需的 C 编译器；macOS 通常可通过 Xcode Command Line Tools 提供。
 - 足够的磁盘空间，用于前端依赖、sidecar、Wine 运行时和游戏文件。
 
@@ -111,11 +112,13 @@ pnpm install
 ./configure.sh
 ```
 
-`./configure.sh` 会准备 channel 配置依赖、外部目录和项目所需的 Neutralino 二进制文件。如果本地尚未生成 Sophon sidecar，请额外运行：
+`./configure.sh` 会准备 channel 配置依赖、外部目录和项目所需的 Neutralino 二进制文件。打包或运行前下载 `sophon.release` 指定的 Sophon sidecar：
 
 ```sh
 ./build-sophon.sh
 ```
+
+版本写在仓库根目录的 `sophon.release`，不写在 workflow 里。`SOPHON_ARCH=x64 ./build-sophon.sh` 下载 Intel 构建。只有要编译本地镜像时才设置 `SOPHON_FROM_SOURCE=1`。
 
 ## Development
 
