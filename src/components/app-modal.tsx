@@ -52,6 +52,7 @@ export function AppModal(props: {
   bodyClass?: string;
   contentClass?: string;
   overlayClass?: string;
+  closeOnOverlayClick?: boolean;
 }) {
   // NOTE: keep all reads through `props.*`. Destructuring a reactive prop
   // evaluates it once when the component is created, freezing dynamic content
@@ -62,7 +63,7 @@ export function AppModal(props: {
       onClose={props.onClose}
       centered
       scrollBehavior="inside"
-      closeOnOverlayClick={false}
+      closeOnOverlayClick={props.closeOnOverlayClick ?? false}
       closeOnEsc={true}
       motionPreset="scale"
     >
