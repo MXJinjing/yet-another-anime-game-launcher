@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js";
 import { log } from "../logging/logger";
+import { TaskFailedError } from "@tasks/task-program";
 import {
   fileOrDirExists,
   getCPUInfo,
@@ -65,7 +66,7 @@ export async function isWineDistroInstalled(distroId: string) {
 
 export async function uninstallWineDistro(distroId: string) {
   if (getRegisteredSystemWineRoot(distroId) || distroId == GPTK_WINE_ID) {
-    throw new Error(
+    throw new TaskFailedError(
       "System Wine is managed outside the launcher and cannot be uninstalled here"
     );
   }
@@ -76,7 +77,9 @@ export async function uninstallWineDistro(distroId: string) {
     activeDistroId = undefined;
   }
   if (activeDistroId == distroId) {
-    throw new Error(`Cannot uninstall active Wine distribution: ${distroId}`);
+    throw new TaskFailedError(
+      `Cannot uninstall active Wine distribution: ${distroId}`
+    );
   }
 
   const wineBinaryDir = getWineInstallDir(distroId);
@@ -95,9 +98,31 @@ export async function ensureActiveWineCompatLink(distroId: string) {
   await unixExec(["ln", "-s", activeWineDir, resolve("./wine")]);
 }
 
+export type StaleWineProcess = {
+  pid: string;
+  name: string;
+  command: string;
+};
+
+/**
+ * User decision required before the launcher touches processes it did not
+ * spawn or destroys an existing Wine prefix. Injectable so task code stays
+ * testable without a Neutralino runtime.
+ */
+export type WineProcessCleanupRequest = {
+  kind: "kill-stale" | "force-kill";
+  processes: StaleWineProcess[];
+  error?: unknown;
+};
+
+export type WineProcessCleanupConfirmation = (
+  request: WineProcessCleanupRequest
+) => Promise<boolean>;
+
 export async function createWine(options: {
   prefix: string;
   distro: WineDistribution;
+  confirmProcessCleanup?: WineProcessCleanupConfirmation;
 }) {
   let loaderBin = await getCorrectWineBinary(options.distro.id);
   let wineRoot = getWineDistroRoot(options.distro.id);
@@ -146,7 +171,64 @@ export async function createWine(options: {
     );
   }
 
+  /**
+   * Ask the prefix's Wine server to shut down, escalating only with the user's
+   * consent. Declining is a decision about this task, not about the launcher,
+   * so it fails the task instead of terminating the process.
+   */
   async function waitUntilServerOff(timeoutMs = 15_000) {
+    try {
+      await waitForServerExit(timeoutMs);
+      return;
+    } catch {
+      // Fall through to the stale-process cleanup flow below.
+    }
+    await log(
+      "wineserver wait timed out; asking before killing stale wine processes"
+    );
+    const staleProcesses = await listStaleWineProcesses();
+    const confirmed = await confirmProcessCleanup({
+      kind: "kill-stale",
+      processes: staleProcesses,
+    });
+    if (!confirmed) {
+      await log("User declined to kill stale wine processes");
+      throw new TaskFailedError("User declined to kill stale wine processes");
+    }
+    await log("User confirmed killing stale wine processes");
+    await killAll();
+    try {
+      await waitForServerExit(timeoutMs);
+      return;
+    } catch (error) {
+      await log(`Wine server is still running after cleanup: ${String(error)}`);
+      const forced = await confirmProcessCleanup({
+        kind: "force-kill",
+        processes: staleProcesses,
+        error,
+      });
+      if (!forced) {
+        await log("User declined to force-kill stale wine processes");
+        throw new TaskFailedError(
+          "User declined to force-kill stale wine processes"
+        );
+      }
+      await log("User confirmed force-killing stale wine processes");
+      // killAll already sends SIGKILL (`wineserver -k -9`); running it again
+      // after the explicit confirmation gives the force path its own attempt.
+      await killAll();
+      try {
+        await waitForServerExit(timeoutMs);
+      } catch (forceError) {
+        throw new TaskFailedError(
+          `Wine server did not exit after force kill: ${String(forceError)}`
+        );
+      }
+    }
+  }
+
+  /** One bounded `wineserver -w` wait; a timeout rejects. */
+  async function waitForServerExit(timeoutMs: number) {
     const waitPromise = unixExec2(
       [join(dirname(loaderBin), "wineserver"), "-w"],
       {
@@ -154,7 +236,6 @@ export async function createWine(options: {
       }
     );
     let timeout: ReturnType<typeof setTimeout> | undefined;
-
     try {
       return await Promise.race([
         waitPromise,
@@ -166,23 +247,10 @@ export async function createWine(options: {
           );
         }),
       ]);
-    } catch (e) {
-      await log(String(e));
-      await log(
-        "wineserver wait timed out; asking before killing stale wine processes"
-      );
+    } catch (error) {
+      await log(String(error));
       waitPromise.catch(() => undefined);
-      const staleProcesses = await listStaleWineProcesses();
-      const confirmed = await confirmKillStaleWineProcesses(staleProcesses);
-      if (!confirmed) {
-        await log("User declined to kill stale wine processes");
-        throw new Error("User declined to kill stale wine processes");
-      }
-      await log("User confirmed killing stale wine processes");
-      await killAll();
-      return await unixExec2([join(dirname(loaderBin), "wineserver"), "-w"], {
-        ...getEnvironmentVariables(),
-      });
+      throw error;
     } finally {
       if (timeout != undefined) {
         clearTimeout(timeout);
@@ -244,12 +312,6 @@ export async function createWine(options: {
     }
   }
 
-  type StaleWineProcess = {
-    pid: string;
-    name: string;
-    command: string;
-  };
-
   function processName(command: string) {
     const executable = command.trim().split(/\s+/)[0] ?? "";
     return executable.split("/").pop() || executable || "unknown";
@@ -293,9 +355,18 @@ export async function createWine(options: {
     }
   }
 
-  async function confirmKillStaleWineProcesses(
-    processes: StaleWineProcess[]
-  ): Promise<boolean> {
+  async function confirmProcessCleanup({
+    kind,
+    processes,
+    error,
+  }: WineProcessCleanupRequest): Promise<boolean> {
+    if (options.confirmProcessCleanup) {
+      return await options.confirmProcessCleanup({
+        kind,
+        processes,
+        error,
+      });
+    }
     const processList =
       processes.length > 0
         ? processes
@@ -308,16 +379,24 @@ export async function createWine(options: {
             .join("\n\n")
         : "未能找到明确的 Wine 相关进程，但当前 Wine prefix 仍在等待退出。";
 
+    const force = kind === "force-kill";
     const out = await Neutralino.os.showMessageBox(
-      "Wine 进程未退出",
+      force ? "Wine 进程仍然未退出" : "Wine 进程未退出",
       [
-        `启动器等待 Wine 退出已超过 15 秒。`,
-        `继续启动前需要结束当前 Wine prefix 下的残留进程。`,
+        force
+          ? "结束残留进程后 Wine 仍未退出。"
+          : "启动器等待 Wine 退出已超过 15 秒。",
+        force
+          ? "可以强制结束该 Wine prefix 的进程并继续，或取消本次任务。"
+          : "继续启动前需要结束当前 Wine prefix 下的残留进程。",
         ``,
-        `将处理的进程候选：`,
+        force ? `仍未退出的进程候选：` : `将处理的进程候选：`,
         processList,
+        ...(force && error ? [``, `最近一次等待错误：${String(error)}`] : []),
         ``,
-        `是否继续并结束这些 Wine 进程？`,
+        force
+          ? "强制结束进程并继续？选择“否”将取消本次任务。"
+          : "是否继续并结束这些 Wine 进程？",
       ].join("\n"),
       "YES_NO",
       "WARNING"
@@ -414,16 +493,30 @@ export async function createWine(options: {
     }
 
     async function listWineProcesses(): Promise<WineProcess[]> {
-      const result = await unixExec2(
-        ["ps", "-axww", "-o", "pid=,command="],
-        undefined,
-        false,
-        undefined,
-        { timeoutMs: 3_000 }
-      );
-      // A ps failure must propagate as "unknown", never as game exit. Do not
-      // fall back to tasklist/winedbg, which would restart the Wine prefix.
-      return parseMacWineProcesses(result.stdOut, pinnedLoaderBin, executable);
+      // A ps failure must never abort the launch or be reported as a game
+      // exit. Returning an empty list leaves the monitor without process
+      // identity, which its existing cleanup path reports as "unknown".
+      try {
+        const result = await unixExec2(
+          ["ps", "-axww", "-o", "pid=,command="],
+          undefined,
+          false,
+          undefined,
+          { timeoutMs: 3_000 }
+        );
+        return parseMacWineProcesses(
+          result.stdOut,
+          pinnedLoaderBin,
+          executable
+        );
+      } catch (error) {
+        await log(
+          `Wine process enumeration failed; treating game state as unknown: ${String(
+            error
+          )}`
+        );
+        return [];
+      }
     }
 
     return createGameProcessMonitor({
@@ -536,10 +629,17 @@ exit /b 0
   >({ ...options.distro.attributes });
 
   async function setDistribution(distro: WineDistribution) {
+    const nextRoot = getWineDistroRoot(distro.id);
+    // Selecting a distribution whose files vanished (for example a system
+    // Wine that was moved) is a task-level problem: report it and let the
+    // launcher offer another distribution instead of exiting.
+    if (!(await fileOrDirExists(nextRoot))) {
+      throw new TaskFailedError(`Wine root cannot be resolved: ${distro.id}`);
+    }
     const nextLoader = await getCorrectWineBinary(distro.id);
     await ensureActiveWineCompatLink(distro.id);
     loaderBin = nextLoader;
-    wineRoot = getWineDistroRoot(distro.id);
+    wineRoot = nextRoot;
     setAttributes({ ...distro.attributes });
   }
 

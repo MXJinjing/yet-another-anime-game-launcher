@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@platform/neutralino", () => ({
+  fileOrDirExists: vi.fn(),
   removeFile: vi.fn(),
   removeFileIfExists: vi.fn(),
   resolve: (path: string) => path,
@@ -37,7 +38,11 @@ vi.mock("@wine/d3dmetal", () => ({
   verifyD3DMetalArchive: vi.fn(),
 }));
 
-import { removeFile, removeFileIfExists } from "@platform/neutralino";
+import {
+  fileOrDirExists,
+  removeFile,
+  removeFileIfExists,
+} from "@platform/neutralino";
 import { tar_extract, tar_extract_directory } from "@runtime/archive";
 import { exec } from "@runtime/command-runner";
 import { rmrf_dangerously, xattrRemove } from "@runtime/macos-filesystem";
@@ -56,6 +61,7 @@ import {
   createWineInstallProgram,
   installWineEnvironmentProgram,
 } from "@wine/wine-install-program";
+import { PrefixInitializationFailedError } from "@wine/prefix-initialization-log";
 import { DownloadCancelledError, DownloadFailedError } from "@download/control";
 
 const distro = {
@@ -85,6 +91,7 @@ beforeEach(() => {
     pid: 1,
   });
   vi.mocked(isWineDistroInstalled).mockResolvedValue(false);
+  vi.mocked(fileOrDirExists).mockResolvedValue(false);
   vi.mocked(createWine).mockResolvedValue(wine as never);
   vi.mocked(tar_extract).mockReset();
   wine.exec.mockReset().mockResolvedValue(undefined);
@@ -256,24 +263,106 @@ describe("Wine environment installation", () => {
     ["wineboot", "1-wineboot.log"],
     ["winecfg", "2-winecfg.log"],
   ])(
-    "reports the %s log and leaves ready state unset on failure",
+    "retries a fresh prefix once and reports the %s logs without ready state",
     async (program, file) => {
       vi.mocked(isWineDistroInstalled).mockResolvedValue(true);
-      const cause = new Error(`${program} failed`);
-      if (program === "winecfg") wine.exec.mockResolvedValueOnce(undefined);
-      wine.exec.mockRejectedValueOnce(cause);
+      const failure = new Error(`${program} failed`);
+      if (program === "wineboot") {
+        wine.exec.mockRejectedValueOnce(failure).mockRejectedValueOnce(failure);
+      } else {
+        wine.exec
+          .mockResolvedValueOnce(undefined)
+          .mockRejectedValueOnce(failure)
+          .mockResolvedValueOnce(undefined)
+          .mockRejectedValueOnce(failure);
+      }
       await expect(
         collect(createWineInstallProgram(options()))
       ).rejects.toMatchObject({
-        cause,
+        name: "PrefixInitializationFailedError",
         message: expect.stringContaining(
           `logs/wine-initialization.test/${file}`
         ),
       });
-      expect(wine.exec).toHaveBeenCalledTimes(program === "wineboot" ? 1 : 2);
+      // Two attempts: wineboot fails once per attempt; winecfg fails after a
+      // successful wineboot in each attempt.
+      expect(wine.exec).toHaveBeenCalledTimes(program === "wineboot" ? 2 : 4);
+      expect(rmrf_dangerously).toHaveBeenCalledWith("/prefix");
       expect(setKey).not.toHaveBeenCalled();
     }
   );
+
+  it("does not retry a prefix that succeeded on the first attempt", async () => {
+    vi.mocked(isWineDistroInstalled).mockResolvedValue(true);
+    await collect(createWineInstallProgram(options()));
+    expect(rmrf_dangerously).not.toHaveBeenCalledWith("/prefix");
+    expect(setKey).toHaveBeenCalledWith("wine_state", "ready");
+  });
+
+  it("keeps a populated prefix when the user declines the reset", async () => {
+    vi.mocked(isWineDistroInstalled).mockResolvedValue(true);
+    vi.mocked(fileOrDirExists).mockResolvedValue(true);
+    vi.mocked(exec).mockImplementation(async command => {
+      if (command[0] === "ls") {
+        return { stdOut: "drive_c\n", stdErr: "", exitCode: 0, pid: 1 };
+      }
+      return {
+        stdOut: "logs/wine-initialization.test\n",
+        stdErr: "",
+        exitCode: 0,
+        pid: 1,
+      };
+    });
+    wine.exec.mockRejectedValue(new Error("wineboot failed"));
+    const confirmPrefixReset = vi.fn(async () => false);
+    const removePrefix = vi.fn(async () => undefined);
+
+    await expect(
+      collect(
+        configureWineEnvironmentProgram({
+          ...options(),
+          confirmPrefixReset,
+          removePrefix,
+        })
+      )
+    ).rejects.toBeInstanceOf(PrefixInitializationFailedError);
+
+    expect(confirmPrefixReset).toHaveBeenCalledWith("/prefix");
+    expect(removePrefix).not.toHaveBeenCalled();
+    expect(wine.exec).toHaveBeenCalledTimes(1);
+    expect(setKey).not.toHaveBeenCalled();
+  });
+
+  it("resets a populated prefix after confirmation and retries once", async () => {
+    vi.mocked(isWineDistroInstalled).mockResolvedValue(true);
+    vi.mocked(fileOrDirExists).mockResolvedValue(true);
+    vi.mocked(exec).mockImplementation(async command => {
+      if (command[0] === "ls") {
+        return { stdOut: "drive_c\n", stdErr: "", exitCode: 0, pid: 1 };
+      }
+      return {
+        stdOut: "logs/wine-initialization.test\n",
+        stdErr: "",
+        exitCode: 0,
+        pid: 1,
+      };
+    });
+    wine.exec.mockRejectedValueOnce(new Error("wineboot failed"));
+    const confirmPrefixReset = vi.fn(async () => true);
+    const removePrefix = vi.fn(async () => undefined);
+
+    await collect(
+      configureWineEnvironmentProgram({
+        ...options(),
+        confirmPrefixReset,
+        removePrefix,
+      })
+    );
+
+    expect(confirmPrefixReset).toHaveBeenCalledWith("/prefix");
+    expect(removePrefix).toHaveBeenCalledWith("/prefix");
+    expect(setKey).toHaveBeenCalledWith("wine_state", "ready");
+  });
 
   it("does not publish a bundled distribution when preparing its files fails", async () => {
     vi.mocked(xattrRemove).mockRejectedValueOnce(

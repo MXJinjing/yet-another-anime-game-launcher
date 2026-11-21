@@ -394,16 +394,26 @@ export async function createMultiGameWineFromRoot({
   const listWineProcesses = async (
     executable: string
   ): Promise<WineProcess[]> => {
-    const result = await exec2(
-      ["ps", "-axww", "-o", "pid=,command="],
-      undefined,
-      false,
-      undefined,
-      { timeoutMs: 3_000 }
-    );
-    // A ps failure must propagate as "unknown", never as game exit. Do not
-    // fall back to tasklist/winedbg, which would restart the Wine prefix.
-    return parseMacWineProcesses(result.stdOut, loaderBin, executable);
+    // A ps failure must never abort the launch or be reported as a game exit.
+    // Returning an empty list makes the monitor fall back to its "unknown"
+    // cleanup path. Do not use tasklist/winedbg here; they restart Wine.
+    try {
+      const result = await exec2(
+        ["ps", "-axww", "-o", "pid=,command="],
+        undefined,
+        false,
+        undefined,
+        { timeoutMs: 3_000 }
+      );
+      return parseMacWineProcesses(result.stdOut, loaderBin, executable);
+    } catch (error) {
+      await log(
+        `Wine process enumeration failed; treating game state as unknown: ${String(
+          error
+        )}`
+      );
+      return [];
+    }
   };
   const killAll = async () => {
     try {

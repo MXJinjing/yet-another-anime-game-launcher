@@ -148,6 +148,12 @@ describe("isolated Wine runtime", () => {
     vi.mocked(exec).mockRejectedValueOnce(new Error("gone"));
     await expect(wine.killAll()).resolves.toBeUndefined();
   });
+  it("treats a failed ps query as an unknown game state", async () => {
+    const wine = await create();
+    vi.mocked(exec2).mockRejectedValueOnce(new Error("ps failed"));
+    const monitor = wine.createGameProcessMonitor("game.exe");
+    await expect(monitor.listProcesses()).resolves.toEqual([]);
+  });
   it.each([SHARED_WINE_TAG, AUTO_WINE_TAG, "test", "unknown"])(
     "resolves a persisted selection %s",
     async wineTag => {

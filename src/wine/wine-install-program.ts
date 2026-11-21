@@ -1,6 +1,11 @@
 import { Aria2 } from "@aria2";
 import { TaskFailedError, type TaskProgram } from "@tasks/task-program";
-import { removeFile, removeFileIfExists, resolve } from "@platform/neutralino";
+import {
+  fileOrDirExists,
+  removeFile,
+  removeFileIfExists,
+  resolve,
+} from "@platform/neutralino";
 import { tar_extract, tar_extract_directory } from "@runtime/archive";
 import { generateRandomString } from "@runtime/binary";
 import { exec } from "@runtime/command-runner";
@@ -24,6 +29,7 @@ import {
   ensureActiveWineCompatLink,
   getWineInstallDir,
   isWineDistroInstalled,
+  type Wine,
 } from "./wine";
 import { installMediaFoundation } from "./mf";
 import { WineDistribution } from "./distro";
@@ -36,7 +42,10 @@ import {
   verifyD3DMetalArchive,
 } from "./d3dmetal";
 import { addCertsToWine } from "./cert";
-import { createWinePrefixInitializationLog } from "./prefix-initialization-log";
+import {
+  createWinePrefixInitializationLog,
+  PrefixInitializationFailedError,
+} from "./prefix-initialization-log";
 
 /**
  * Returns the install task. Rendering it is the composition layer's concern.
@@ -65,7 +74,31 @@ type WineInstallOptions = {
   activate?: boolean;
   finishMessage?: boolean;
   downloadKey?: string;
+  /** Ask before an existing, populated prefix is deleted and retried. */
+  confirmPrefixReset?: (prefix: string) => Promise<boolean>;
+  /** Deletes a prefix the user agreed to reset. */
+  removePrefix?: (path: string) => Promise<unknown>;
 };
+
+export type WinePrefixResetConfirmation = (prefix: string) => Promise<boolean>;
+
+/** Default reset prompt; the launcher owns the window it is shown in. */
+export const confirmWinePrefixReset: WinePrefixResetConfirmation =
+  async prefix => {
+    const out = await Neutralino.os.showMessageBox(
+      "Wine 环境初始化失败",
+      [
+        "当前 Wine prefix 已包含数据，自动删除会丢失其中的游戏与系统设置。",
+        `Prefix: ${prefix}`,
+        ``,
+        "是否重置该 prefix 并重试？",
+        "选择“否”将取消本次任务，现有数据会保留。",
+      ].join("\n"),
+      "YES_NO",
+      "WARNING"
+    );
+    return out == "YES";
+  };
 
 let d3dMetalInstallationActive = false;
 
@@ -98,6 +131,8 @@ async function* installWineBinariesAndConfigure({
   activate = true,
   finishMessage = true,
   downloadKey,
+  confirmPrefixReset,
+  removePrefix,
 }: WineInstallOptions): TaskProgram {
   const wineBinaryDir = getWineInstallDir(wineDistro.id);
   const isD3DMetal = wineDistro.id === D3DMETAL_RUNTIME_ID;
@@ -109,8 +144,11 @@ async function* installWineBinariesAndConfigure({
   // the launcher-owned Wine prefix.
   if (wineDistro.systemWineRoot) {
     if (!installedBefore) {
-      throw new Error(
-        `System Wine is no longer available: ${wineDistro.displayName}`
+      // The user's system Wine vanished between discovery and use. Selecting
+      // another installed distribution is the launcher settings flow's job;
+      // fail only this task so the launcher stays usable.
+      throw new TaskFailedError(
+        `System Wine is no longer available: ${wineDistro.displayName}. Select another installed Wine distribution and retry.`
       );
     }
     if (!activate) {
@@ -121,6 +159,8 @@ async function* installWineBinariesAndConfigure({
       aria2,
       wineAbsPrefix,
       wineDistro,
+      confirmPrefixReset,
+      removePrefix,
     });
     return;
   }
@@ -241,7 +281,13 @@ async function* installWineBinariesAndConfigure({
     return;
   }
 
-  yield* configureWineEnvironmentProgram({ aria2, wineAbsPrefix, wineDistro });
+  yield* configureWineEnvironmentProgram({
+    aria2,
+    wineAbsPrefix,
+    wineDistro,
+    confirmPrefixReset,
+    removePrefix,
+  });
 }
 
 async function prepareWineBinaries(directory: string) {
@@ -253,16 +299,83 @@ async function prepareWineBinaries(directory: string) {
   );
 }
 
+/** True when the prefix exists and already holds files. */
+async function prefixHasData(prefix: string) {
+  if (!(await fileOrDirExists(prefix))) return false;
+  try {
+    const { stdOut } = await exec(["ls", "-A", prefix]);
+    return stdOut.trim().length > 0;
+  } catch {
+    // Unknown contents: treat the prefix as user data and never delete it
+    // without asking.
+    return true;
+  }
+}
+
+async function runWinePrefixInitialization(wine: Wine) {
+  const runStep = await createWinePrefixInitializationLog();
+  try {
+    await runStep("wineboot", logFile =>
+      wine.exec("wineboot", ["-u"], {}, logFile)
+    );
+    await runStep("winecfg", logFile =>
+      wine.exec("winecfg", ["-v", "win10"], {}, logFile)
+    );
+  } catch (error) {
+    if (error instanceof PrefixInitializationFailedError) throw error;
+    throw new PrefixInitializationFailedError(
+      runStep.directory,
+      runStep.logFiles,
+      error
+    );
+  }
+}
+
+/**
+ * Initialize the prefix, recovering once. A fresh (missing or empty) prefix
+ * only contains this attempt's half-built files, so it is safe to delete and
+ * retry. An existing populated prefix is user data: delete it only after an
+ * explicit confirmation, and otherwise fail the task with the Wine logs.
+ */
+async function initializeWinePrefix({
+  wine,
+  wineAbsPrefix,
+  confirmPrefixReset,
+  removePrefix,
+}: {
+  wine: Wine;
+  wineAbsPrefix: string;
+  confirmPrefixReset: WinePrefixResetConfirmation;
+  removePrefix: (path: string) => Promise<unknown>;
+}) {
+  const populated = await prefixHasData(wineAbsPrefix);
+  try {
+    await runWinePrefixInitialization(wine);
+    return;
+  } catch (error) {
+    if (populated) {
+      // Keep the user's data unless they explicitly choose to reset it.
+      if (!(await confirmPrefixReset(wineAbsPrefix))) throw error;
+    }
+    await removePrefix(wineAbsPrefix);
+  }
+  await runWinePrefixInitialization(wine);
+}
+
 export async function* configureWineEnvironmentProgram({
   aria2,
   wineAbsPrefix,
   wineDistro,
   beforeActivate,
+  confirmPrefixReset = confirmWinePrefixReset,
+  removePrefix = rmrf_dangerously,
 }: {
   aria2: Aria2;
   wineAbsPrefix: string;
   wineDistro: WineDistribution;
   beforeActivate?: () => Promise<void>;
+  confirmPrefixReset?: WinePrefixResetConfirmation;
+  removePrefix?: (path: string) => Promise<unknown>;
 }): TaskProgram {
   yield ["setUndeterminedProgress"];
   await ensureHosts(ENSURE_HOSTS);
@@ -271,13 +384,12 @@ export async function* configureWineEnvironmentProgram({
     prefix: wineAbsPrefix,
     distro: wineDistro,
   });
-  const runInitializationStep = await createWinePrefixInitializationLog();
-  await runInitializationStep("wineboot", logFile =>
-    wine.exec("wineboot", ["-u"], {}, logFile)
-  );
-  await runInitializationStep("winecfg", logFile =>
-    wine.exec("winecfg", ["-v", "win10"], {}, logFile)
-  );
+  await initializeWinePrefix({
+    wine,
+    wineAbsPrefix,
+    confirmPrefixReset,
+    removePrefix,
+  });
 
   if (
     String(import.meta.env["YAAGL_CHANNEL_CLIENT"]).startsWith("bh3") ||

@@ -30,7 +30,8 @@ vi.mock("@runtime/storage", () => ({
 }));
 
 import { fileOrDirExists } from "@platform/neutralino";
-import { exec2 } from "@runtime/command-runner";
+import { exec, exec2 } from "@runtime/command-runner";
+import { TaskFailedError } from "@tasks/task-program";
 import { createWine } from "@wine/wine";
 
 describe("Wine server shutdown", () => {
@@ -74,5 +75,131 @@ describe("Wine server shutdown", () => {
     });
 
     await expect(wine.waitForWineServerExit()).resolves.toBe(false);
+  });
+
+  async function createTestWine(
+    confirmProcessCleanup?: (request: {
+      kind: "kill-stale" | "force-kill";
+      processes: { pid: string; name: string; command: string }[];
+      error?: unknown;
+    }) => Promise<boolean>
+  ) {
+    return await createWine({
+      prefix: "/tmp/yaaglm-test-prefix",
+      distro: {
+        id: "test-wine",
+        displayName: "Test Wine",
+        remoteUrl: "https://example.invalid/wine.tar.xz",
+        attributes: { renderBackend: "dxmt", winePath: "wine" },
+      },
+      confirmProcessCleanup,
+    });
+  }
+
+  it("fails only the task when stale process cleanup is declined", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(exec2).mockReturnValueOnce(new Promise(() => undefined));
+      vi.mocked(exec).mockRejectedValueOnce(new Error("ps failed"));
+      const confirm = vi.fn(async () => false);
+      const wine = await createTestWine(confirm);
+
+      const pending = wine.waitUntilServerOff(10);
+      const rejection = expect(pending).rejects.toBeInstanceOf(TaskFailedError);
+      await vi.advanceTimersByTimeAsync(10);
+
+      await rejection;
+      expect(confirm).toHaveBeenCalledWith({
+        kind: "kill-stale",
+        processes: [],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("force-kills after a second confirmation and continues", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(exec2)
+        .mockReturnValueOnce(new Promise(() => undefined))
+        .mockReturnValueOnce(new Promise(() => undefined))
+        .mockResolvedValueOnce({
+          exitCode: 0,
+          stdOut: "",
+          stdErr: "",
+        } as never);
+      const confirm = vi.fn(async () => true);
+      const wine = await createTestWine(confirm);
+
+      const pending = wine.waitUntilServerOff(10);
+      const resolution = expect(pending).resolves.toBeUndefined();
+      await vi.advanceTimersByTimeAsync(30);
+
+      await resolution;
+      expect(confirm).toHaveBeenCalledTimes(2);
+      expect(confirm.mock.calls.map(call => call[0].kind)).toEqual([
+        "kill-stale",
+        "force-kill",
+      ]);
+      expect(exec).toHaveBeenCalledWith(
+        [expect.stringContaining("wineserver"), "-k", "-9"],
+        expect.any(Object),
+        false,
+        "/dev/null"
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels the task when the force-kill confirmation is declined", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(exec2)
+        .mockReturnValueOnce(new Promise(() => undefined))
+        .mockReturnValueOnce(new Promise(() => undefined));
+      const confirm = vi
+        .fn()
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+      const wine = await createTestWine(confirm);
+
+      const pending = wine.waitUntilServerOff(10);
+      const rejection = expect(pending).rejects.toBeInstanceOf(TaskFailedError);
+      await vi.advanceTimersByTimeAsync(30);
+
+      await rejection;
+      await expect(pending).rejects.toThrow(
+        "User declined to force-kill stale wine processes"
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports a task failure when the server survives the forced kill", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(exec2).mockReturnValue(new Promise(() => undefined));
+      const confirm = vi.fn(async () => true);
+      const wine = await createTestWine(confirm);
+
+      const pending = wine.waitUntilServerOff(10);
+      const rejection = expect(pending).rejects.toBeInstanceOf(TaskFailedError);
+      await vi.advanceTimersByTimeAsync(40);
+
+      await rejection;
+      await expect(pending).rejects.toThrow("did not exit after force kill");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns an empty process list when ps fails", async () => {
+    vi.mocked(exec2).mockRejectedValueOnce(new Error("ps failed"));
+    const wine = await createTestWine();
+    const monitor = wine.createGameProcessMonitor("game.exe");
+    await expect(monitor.listProcesses()).resolves.toEqual([]);
   });
 });
