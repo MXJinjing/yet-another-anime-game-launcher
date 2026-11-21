@@ -135,6 +135,10 @@ export function createGameLogTail(options: {
   gameDir?: string;
   locations?: readonly GameLogLocation[];
   onLine: GameLogLineHandler;
+  /** Attribute each emitted line to the file that produced it. */
+  onFileLine?: (path: string, line: string) => void;
+  /** Configured and discovered files, including ones that do not exist yet. */
+  onPaths?: (paths: string[]) => void;
   pollIntervalMs?: number;
   maxLinesPerPoll?: number;
   lookbackLines?: number;
@@ -150,11 +154,13 @@ export function createGameLogTail(options: {
   let lastPathScan = 0;
   const states = new Map<string, TailState>();
 
-  function emit(lines: string[]) {
+  function emit(path: string, lines: string[]) {
     for (const line of lines) {
       if (stopped) return;
       // Wine logs may use CRLF; strip the trailing CR for clean output.
-      options.onLine(line.replace(/\r$/, ""));
+      const clean = line.replace(/\r$/, "");
+      options.onLine(clean);
+      options.onFileLine?.(path, clean);
     }
   }
 
@@ -222,7 +228,7 @@ export function createGameLogTail(options: {
       state.fingerprint = text.slice(0, 64);
       state.seeded = true;
       if (recent.length > 0) {
-        emit(recent.slice(-lookbackLines));
+        emit(path, recent.slice(-lookbackLines));
       }
       return;
     }
@@ -237,12 +243,12 @@ export function createGameLogTail(options: {
     const lines = parts.filter(line => line.length > 0);
     if (lines.length === 0) return;
     if (lines.length > maxLinesPerPoll) {
-      emit([
+      emit(path, [
         `... ${lines.length - maxLinesPerPoll} more log lines truncated ...`,
       ]);
-      emit(lines.slice(-maxLinesPerPoll));
+      emit(path, lines.slice(-maxLinesPerPoll));
     } else {
-      emit(lines);
+      emit(path, lines);
     }
   }
 
@@ -255,8 +261,13 @@ export function createGameLogTail(options: {
             locations,
           })
         : await findLegacyUnityLogFiles(options.prefix);
-    paths = [...new Set([...paths, ...discovered])];
+    const next = [...new Set([...paths, ...discovered])];
+    const changed =
+      next.length !== paths.length ||
+      next.some((path, index) => path !== paths[index]);
+    paths = next;
     lastPathScan = Date.now();
+    if (changed) options.onPaths?.([...paths]);
   }
 
   async function poll() {

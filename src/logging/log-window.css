@@ -42,19 +42,120 @@
 .log-window-tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .log-window-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  max-width: 280px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.72);
-  padding: 6px 12px;
+}
+
+.log-window-tab-main,
+.log-window-tab-close,
+.log-window-add,
+.log-window-file-toggle {
+  border: 0;
+  background: transparent;
+  color: inherit;
   font: inherit;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.log-window-tab-main {
+  min-width: 0;
+  padding: 6px 10px 6px 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-window-tab-close {
+  width: 28px;
+  height: 28px;
+  margin-right: 4px;
+  border-radius: 999px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.log-window-tab-close:hover,
+.log-window-file-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.log-window-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.log-window-add {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 6px 12px;
+}
+
+.log-window-file-menu {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(420px, 70vw);
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: #141820;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.log-window-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 8px;
+}
+
+.log-window-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.log-window-file-toggle {
+  flex: 0 0 auto;
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.log-window-file-empty,
+.log-window-path {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+}
+
+.log-window-file-empty {
+  padding: 8px;
+}
+
+.log-window-path {
+  margin: 0 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .log-window-tab[aria-selected="true"] {
