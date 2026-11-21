@@ -20,6 +20,7 @@ import {
   type TaskDownloadStats,
   type TaskProgram,
 } from "./task-program";
+import { fileProgressLabel, presentTaskStatus } from "./status-presentation";
 
 const SKIP_LOG_STATE_KEYS = new Set(["DOWNLOADING_ENVIRONMENT_SPEED"]);
 
@@ -62,6 +63,8 @@ export function createTaskProgressScreen({
   return function TaskProgressScreen() {
     const [progress, setProgress] = createSignal(0);
     const [statusText, setStatusText] = createSignal("");
+    const [statusKey, setStatusKey] = createSignal<string>();
+    const [statusArgs, setStatusArgs] = createSignal<string[]>([]);
     const [downloadStats, setDownloadStats] =
       createSignal<TaskDownloadStats | null>(null);
     const [done, setDone] = createSignal(false);
@@ -82,6 +85,8 @@ export function createTaskProgressScreen({
               case "setStateText": {
                 const [_, key, ...args] = command;
                 const text = locale.format(key, args);
+                setStatusKey(key);
+                setStatusArgs(args);
                 setStatusText(text);
                 if (!SKIP_LOG_STATE_KEYS.has(key)) await log(text);
                 break;
@@ -163,7 +168,10 @@ export function createTaskProgressScreen({
             title={locale.get("LOG_VIEWER_OPEN_HINT")}
             style="text-align: center; cursor: pointer; color: white"
           >
-            {statusText()}
+            {(() => {
+              const presented = presentTaskStatus(statusKey(), statusArgs());
+              return presented ? locale.get(presented.titleKey) : statusText();
+            })()}
           </h1>
           <Box height={180}>
             <Show
@@ -182,6 +190,21 @@ export function createTaskProgressScreen({
                     {progress() > 0
                       ? `${Math.round(progress())}%`
                       : locale.get("PROCESSING")}
+                    <Show
+                      when={fileProgressLabel(
+                        presentTaskStatus(statusKey(), statusArgs())
+                      )}
+                    >
+                      {label => (
+                        <Box
+                          fontSize="14px"
+                          fontWeight="650"
+                          color="rgba(255, 255, 255, 0.72)"
+                        >
+                          {label()}
+                        </Box>
+                      )}
+                    </Show>
                   </Box>
                 </Center>
                 <Show when={downloadStats()} keyed>
