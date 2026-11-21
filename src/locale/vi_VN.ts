@@ -36,6 +36,8 @@ export const vi_VN: typeof zh_CN = {
   PROCESSING: "Đang xử lý…",
   FORCE_QUIT_GAME: "Buộc thoát",
   FIXING_FILES: "Đang sửa tệp trò chơi {0}/{1}",
+  REPAIRING_FILES: "Đang sửa tệp",
+  CHECKING_EXISTING_FILES: "Đang kiểm tra tệp hiện có",
   PATCHING_FILE_PROGRESS:
     "Patching files: {0}/{1}, current file {2}{3}, {4}s elapsed",
   CHECKING_DOWNLOAD_FILES:
@@ -227,6 +229,14 @@ export const vi_VN: typeof zh_CN = {
   PREDOWNLOAD_READY: en.PREDOWNLOAD_READY,
   PREDOWNLOAD_BUTTON: "Tải trước {0}",
   DOWNLOAD_TASK_CHECK_INTEGRITY: "Kiểm tra tính toàn vẹn trò chơi ({0})",
+  DOWNLOAD_TASK_ACTION_INSTALL: "Cài đặt",
+  DOWNLOAD_TASK_ACTION_UPDATE: "Cập nhật",
+  DOWNLOAD_TASK_ACTION_CONTINUE: "Tiếp tục cài đặt",
+  DOWNLOAD_TASK_ACTION_PREDOWNLOAD: "Tải trước",
+  DOWNLOAD_TASK_ACTION_INTEGRITY: "Kiểm tra tính toàn vẹn",
+  DOWNLOAD_TASK_ACTION_ENVIRONMENT: "Khởi tạo môi trường",
+  DOWNLOAD_TASK_IN_PROGRESS: "Đang {0}",
+  DOWNLOAD_TASK_IN_PROGRESS_VERSION: "Đang {0} {1}",
   PREDOWNLOAD_DONE: en.PREDOWNLOAD_DONE,
   SETTING_PREDOWNLOAD: en.SETTING_PREDOWNLOAD,
   SETTING_PREDOWNLOAD_VERSION: en.SETTING_PREDOWNLOAD_VERSION,

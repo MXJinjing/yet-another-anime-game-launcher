@@ -54,6 +54,8 @@ export type DownloadTaskSnapshot = {
   id: string;
   key?: string;
   title: string;
+  /** Short heading for the selected game's progress card. */
+  progressTitle?: string;
   phaseKind?: DownloadTaskPhase;
   phase: string;
   transferring: boolean;
@@ -75,6 +77,7 @@ export type DownloadTaskSnapshot = {
 
 export type DownloadTaskMetadata = {
   title: string;
+  progressTitle?: string;
   key?: string;
   /** Show configuration-only work before it owns a download stream. */
   showImmediately?: boolean;

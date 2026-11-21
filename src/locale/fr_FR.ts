@@ -37,6 +37,8 @@ export const fr_FR: typeof zh_CN = {
   PROCESSING: "Traitement en cours…",
   FORCE_QUIT_GAME: "Forcer la fermeture",
   FIXING_FILES: "Correction des fichiers de jeu {0}/{1}",
+  REPAIRING_FILES: "Réparation des fichiers",
+  CHECKING_EXISTING_FILES: "Vérification des fichiers existants",
   PATCHING_FILE_PROGRESS:
     "Patching files: {0}/{1}, current file {2}{3}, {4}s elapsed",
   CHECKING_DOWNLOAD_FILES:
@@ -234,6 +236,14 @@ export const fr_FR: typeof zh_CN = {
   PREDOWNLOAD_READY: "{0} prétéléchargement {1}",
   PREDOWNLOAD_BUTTON: "Pré-télécharger {0}",
   DOWNLOAD_TASK_CHECK_INTEGRITY: "Vérifier l'intégrité du jeu ({0})",
+  DOWNLOAD_TASK_ACTION_INSTALL: "Installer",
+  DOWNLOAD_TASK_ACTION_UPDATE: "Mettre à jour",
+  DOWNLOAD_TASK_ACTION_CONTINUE: "Poursuivre l’installation",
+  DOWNLOAD_TASK_ACTION_PREDOWNLOAD: "Pré-téléchargement",
+  DOWNLOAD_TASK_ACTION_INTEGRITY: "Vérifier l’intégrité",
+  DOWNLOAD_TASK_ACTION_ENVIRONMENT: "Initialiser l’environnement",
+  DOWNLOAD_TASK_IN_PROGRESS: "{0}",
+  DOWNLOAD_TASK_IN_PROGRESS_VERSION: "{0} {1}",
   PREDOWNLOAD_DONE: "Préchargé",
   SETTING_PREDOWNLOAD: en.SETTING_PREDOWNLOAD,
   SETTING_PREDOWNLOAD_VERSION: en.SETTING_PREDOWNLOAD_VERSION,

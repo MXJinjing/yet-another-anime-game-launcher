@@ -10,6 +10,8 @@ const english = {
   install: "Installation progress",
   remaining: "Time remaining",
   viewDetails: "View details",
+  details: "Details",
+  cancel: "Cancel",
 };
 
 const translations: Record<Locale["currentLanguage"], typeof english> = {
@@ -24,6 +26,8 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     install: "安装进度",
     remaining: "预计剩余时间",
     viewDetails: "查看详情",
+    details: "详情",
+    cancel: "取消",
   },
   ja_jp: {
     queue: "ダウンロードキュー",
@@ -35,6 +39,8 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     install: "インストール進捗",
     remaining: "残り時間",
     viewDetails: "詳細を表示",
+    details: "詳細",
+    cancel: "キャンセル",
   },
   ko_kr: {
     queue: "다운로드 대기열",
@@ -46,6 +52,8 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     install: "설치 진행률",
     remaining: "남은 시간",
     viewDetails: "자세히 보기",
+    details: "상세",
+    cancel: "취소",
   },
   de_de: {
     queue: "Download-Warteschlange",
@@ -57,6 +65,8 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     install: "Installationsfortschritt",
     remaining: "Verbleibende Zeit",
     viewDetails: "Details anzeigen",
+    details: "Details",
+    cancel: "Abbrechen",
   },
   fr_fr: {
     queue: "File de téléchargement",
@@ -68,6 +78,8 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     install: "Progression de l’installation",
     remaining: "Temps restant",
     viewDetails: "Voir les détails",
+    details: "Détails",
+    cancel: "Annuler",
   },
   es_es: {
     queue: "Cola de descargas",
@@ -79,6 +91,8 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     install: "Progreso de instalación",
     remaining: "Tiempo restante",
     viewDetails: "Ver detalles",
+    details: "Detalles",
+    cancel: "Cancelar",
   },
   ru_ru: {
     queue: "Очередь загрузок",
@@ -90,6 +104,8 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     install: "Ход установки",
     remaining: "Оставшееся время",
     viewDetails: "Подробнее",
+    details: "Детали",
+    cancel: "Отмена",
   },
   vi_vn: {
     queue: "Hàng đợi tải xuống",
@@ -101,6 +117,8 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     install: "Tiến độ cài đặt",
     remaining: "Thời gian còn lại",
     viewDetails: "Xem chi tiết",
+    details: "Chi tiết",
+    cancel: "Hủy",
   },
   th_th: {
     queue: "คิวดาวน์โหลด",
@@ -112,6 +130,8 @@ const translations: Record<Locale["currentLanguage"], typeof english> = {
     install: "ความคืบหน้าการติดตั้ง",
     remaining: "เวลาที่เหลือ",
     viewDetails: "ดูรายละเอียด",
+    details: "รายละเอียด",
+    cancel: "ยกเลิก",
   },
 };
 
