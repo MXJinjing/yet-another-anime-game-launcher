@@ -1,7 +1,8 @@
 import { render } from "solid-js/web";
 import { HopeProvider, NotificationsProvider } from "@hope-ui/solid";
 import { amber } from "@radix-ui/colors";
-import { fatal } from "./runtime";
+import { fatal, FatalError, isFatalError } from "./runtime";
+import { log } from "./logging/logger";
 import {
   getBootDetail,
   getBootText,
@@ -122,8 +123,20 @@ if (typeof Neutralino == "undefined") {
       });
       Neutralino.window.show();
     })
-    .catch(error => {
+    .catch(async error => {
       reportBootProgress("BOOT_INITIALIZATION_FAILED", 100, String(error));
-      fatal(error);
+      console.error(error);
+      try {
+        await log(`Boot failed: ${String(error)}`);
+      } catch {
+        // Logging can fail when boot infrastructure (Neutralino) is broken;
+        // the message box below is the last-resort report.
+      }
+      // createApp failing means there is no UI to mount, which is the one
+      // remaining fatal boot path. Preserve an existing FatalError and wrap
+      // unknown failures so the original cause stays attached.
+      await fatal(
+        isFatalError(error) ? error : new FatalError(String(error), error)
+      );
     });
 }
