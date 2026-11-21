@@ -37,7 +37,9 @@ describe("GitHub acceleration prefix", () => {
   beforeEach(() => {
     resetStartupNotices();
     vi.mocked(globalStorage.getKey).mockReset();
-    vi.mocked(globalStorage.getKey).mockResolvedValue(null);
+    vi.mocked(globalStorage.getKey).mockResolvedValue(
+      null as unknown as string
+    );
     vi.unstubAllGlobals();
     configureGithubEndpoint({
       enabled: false,
@@ -118,7 +120,7 @@ describe("GitHub acceleration prefix", () => {
     vi.mocked(globalStorage.getKey).mockImplementation(async (key: string) => {
       if (key === "config_github_accelerated_prefix_enabled") return "true";
       if (key === "config_github_accelerated_prefix") return "ftp://proxy";
-      return null;
+      return null as unknown as string;
     });
     const fetchMock = vi.fn().mockResolvedValue({
       status: 200,

@@ -5,8 +5,8 @@ vi.mock("@logging/logger", () => ({ log: vi.fn() }));
 import {
   createUnavailableAria2,
   DownloadServiceUnavailableError,
-  type Aria2,
 } from "@download/aria2-service";
+import type { Aria2 } from "@aria2";
 import {
   getDownloadServiceUnavailableReason,
   isDownloadServiceAvailable,
@@ -48,12 +48,15 @@ describe("download service boot", () => {
     ]);
     await expect(
       (async () => {
-        for await (const _ of aria2.doStreamingDownload()) {
+        for await (const _ of aria2.doStreamingDownload({
+          uri: "",
+          absDst: "",
+        })) {
           // The facade must never produce a progress sample.
         }
       })()
     ).rejects.toBeInstanceOf(DownloadServiceUnavailableError);
-    await expect(aria2.shutdown()).resolves.toBeUndefined();
+    await expect(aria2.shutdown()).resolves.toBe("");
   });
 
   it("uses injected fallbacks for callers that own their wiring", async () => {
@@ -73,7 +76,10 @@ describe("download service boot", () => {
   it("facade has a default reason for downloads", async () => {
     await expect(
       (async () => {
-        for await (const _ of createUnavailableAria2().doStreamingDownload()) {
+        for await (const _ of createUnavailableAria2().doStreamingDownload({
+          uri: "",
+          absDst: "",
+        })) {
           // Never yields.
         }
       })()

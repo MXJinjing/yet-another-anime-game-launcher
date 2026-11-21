@@ -1,8 +1,8 @@
 import {
   createUnavailableAria2,
   startAria2Service,
-  type Aria2,
 } from "../download/aria2-service";
+import type { Aria2 } from "@aria2";
 import { setDownloadServiceUnavailable } from "../download/service-status";
 import { log } from "../logging/logger";
 import { pushStartupNotice } from "../runtime/startup-notices";

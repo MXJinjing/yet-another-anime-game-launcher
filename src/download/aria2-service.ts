@@ -182,7 +182,7 @@ export async function startAria2Service(
 export function createUnavailableAria2(reason?: string): Aria2 {
   return {
     version: { version: "unavailable", enabledFeatures: [] },
-    shutdown: async () => undefined,
+    shutdown: async () => "",
     async *doStreamingDownload() {
       throw new DownloadServiceUnavailableError(
         reason ?? "Download service is unavailable"

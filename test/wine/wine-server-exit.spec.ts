@@ -129,7 +129,9 @@ describe("Wine server shutdown", () => {
           stdOut: "",
           stdErr: "",
         } as never);
-      const confirm = vi.fn(async () => true);
+      const confirm = vi.fn(
+        async (_request: { kind: "kill-stale" | "force-kill" }) => true
+      );
       const wine = await createTestWine(confirm);
 
       const pending = wine.waitUntilServerOff(10);

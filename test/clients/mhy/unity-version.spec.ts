@@ -20,6 +20,13 @@ const CATEGORY_PATTERN = [
   0x72, 0x79, 0x2e,
 ];
 
+/** `readBinary` resolves to an ArrayBuffer; keep test fixtures typed as such. */
+function asBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
 function viewWithVersion(offset: number, version: string) {
   const bytes = new Uint8Array(0x200);
   bytes.set(CATEGORY_PATTERN, 0);
@@ -27,7 +34,7 @@ function viewWithVersion(offset: number, version: string) {
   for (let i = 0; i < version.length; i++) {
     bytes[offset + 4 + i] = version.charCodeAt(i);
   }
-  return bytes;
+  return asBuffer(bytes);
 }
 
 const readBinaryMock = vi.mocked(readBinary);
@@ -56,7 +63,7 @@ describe("installed version reading", () => {
   });
 
   it("throws the typed unreadable error when the marker is missing", async () => {
-    readBinaryMock.mockResolvedValue(new Uint8Array(0x40));
+    readBinaryMock.mockResolvedValue(asBuffer(new Uint8Array(0x40)));
 
     await expect(
       getGameVersionWithFallback("/game/Data")
@@ -67,13 +74,13 @@ describe("installed version reading", () => {
     const bytes = new Uint8Array(0x100);
     bytes.set([0x63, 0x61, 0x74, 0x65, 0x67, 0x6f, 0x72, 0x79], 0);
     bytes.set([0x31, 0x2e, 0x32, 0x2e, 0x33], 10);
-    readBinaryMock.mockResolvedValue(bytes);
+    readBinaryMock.mockResolvedValue(asBuffer(bytes));
 
     await expect(getGameVersion2019("/game/Data")).resolves.toBe("1.2.3");
   });
 
   it("keeps the 2019 MD5 table when the version marker is absent", async () => {
-    readBinaryMock.mockResolvedValue(new Uint8Array(0x40));
+    readBinaryMock.mockResolvedValue(asBuffer(new Uint8Array(0x40)));
     md5Mock.mockResolvedValue("57DAD95088363B87E0C1AB614FE9431C");
 
     await expect(getGameVersion2019("/game/Data")).resolves.toBe("3.1.0");
@@ -82,7 +89,7 @@ describe("installed version reading", () => {
   it("throws the typed unreadable error when the 2019 version cannot be parsed", async () => {
     const bytes = new Uint8Array(0x100);
     bytes.set([0x63, 0x61, 0x74, 0x65, 0x67, 0x6f, 0x72, 0x79], 0);
-    readBinaryMock.mockResolvedValue(bytes);
+    readBinaryMock.mockResolvedValue(asBuffer(bytes));
 
     await expect(getGameVersion2019("/game/Data")).rejects.toBeInstanceOf(
       GameVersionUnreadableError

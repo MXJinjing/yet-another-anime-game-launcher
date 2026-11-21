@@ -61,7 +61,7 @@ describe("Wine certificate injection", () => {
     expect(path).toBe(wineInfPath);
     expect(contents).toContain("[Next Section]");
     expect(contents).toContain("HKCU,Software\\\\Test");
-    expect(writeFile.mock.calls[0][1].length).toBeGreaterThan(
+    expect(vi.mocked(writeFile).mock.calls[0][1].length).toBeGreaterThan(
       "HKCU,Software\\\\Test".length
     );
   });

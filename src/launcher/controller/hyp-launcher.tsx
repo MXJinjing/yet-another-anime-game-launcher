@@ -123,6 +123,7 @@ import {
 } from "./action-policy";
 import { resolveLaunchFailure } from "./launch-failure-policy";
 import { reportActionFailure } from "./action-failure";
+import { forceStopThenLaunch } from "./force-stop-launch";
 import type {
   HypGame,
   HypGameWineTaskRequest,
@@ -2498,9 +2499,13 @@ export async function createHypLauncher({
             void (async () => {
               try {
                 // Destructive on purpose: this stops every Wine process in
-                // the game's prefix, as the user explicitly asked.
-                await (running.game.wineRef?.current ?? baseWine).killAll();
-                await startGameLaunch(running.game);
+                // the game's prefix, as the user explicitly asked. Wait for
+                // the server to settle before relaunching so the new launch
+                // does not immediately see the dying processes.
+                await forceStopThenLaunch(
+                  running.game.wineRef?.current ?? baseWine,
+                  () => startGameLaunch(running.game)
+                );
               } catch (error) {
                 await reportActionFailure(locale, "LAUNCH", error);
               }

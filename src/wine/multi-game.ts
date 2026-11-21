@@ -315,8 +315,9 @@ export async function createMultiGameWineFromRoot({
       logFile,
       options
     );
-  const waitUntilServerOff = (_timeoutMs = 0) =>
-    exec2([join(dirname(loaderBin), "wineserver"), "-w"], env());
+  const waitUntilServerOff = async (_timeoutMs = 0) => {
+    await exec2([join(dirname(loaderBin), "wineserver"), "-w"], env());
+  };
   const waitForWineServerExit = async ({
     timeoutMs = 5_000,
   }: { timeoutMs?: number } = {}) => {

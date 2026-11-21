@@ -149,17 +149,23 @@ describe("aria2 sidecar startup", () => {
   it("provides a facade whose downloads fail with the typed error", async () => {
     const facade = createUnavailableAria2("download service offline");
     expect(facade.version.version).toBe("unavailable");
-    await expect(facade.shutdown()).resolves.toBeUndefined();
+    await expect(facade.shutdown()).resolves.toBe("");
     await expect(
       (async () => {
-        for await (const _ of facade.doStreamingDownload()) {
+        for await (const _ of facade.doStreamingDownload({
+          uri: "",
+          absDst: "",
+        })) {
           // The facade never yields.
         }
       })()
     ).rejects.toThrow("download service offline");
     await expect(
       (async () => {
-        for await (const _ of createUnavailableAria2().doStreamingDownload()) {
+        for await (const _ of createUnavailableAria2().doStreamingDownload({
+          uri: "",
+          absDst: "",
+        })) {
           // The default reason is used when none is provided.
         }
       })()
