@@ -61,6 +61,7 @@ import {
   type Wine,
   type WineDistribution,
 } from "./wine";
+import { loadWineBinaryRoot } from "./wine/binary-root";
 import { reportBootProgress, setBootProgressLocale } from "./boot-progress";
 import type { BootPerformance } from "./boot-performance";
 import { ENSURE_HOSTS } from "./system/ensure-hosts";
@@ -120,6 +121,7 @@ export async function createApp(bootPerformance?: BootPerformance) {
   reportBootProgress("BOOT_CHECKING_LAUNCHER_UPDATE", 36);
   const ignoredVersion = await getKeyOrDefault("ignore_launcher_update", "");
 
+  await measure("wine-binary-root", loadWineBinaryRoot);
   const wineStatus = await measure("wine-environment-check", () =>
     checkWineEnvironment(DEFAULT_WINE_DISTRO_TAG)
   );
