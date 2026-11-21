@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
 
 vi.mock("@platform/neutralino", () => ({
@@ -19,8 +19,24 @@ vi.mock("@logging/logger", () => ({ log: vi.fn() }));
 import { spawnProcess, updateSpawnedProcess } from "@platform/neutralino";
 import { getSophonClient } from "@src/integrations/sophon-sidecar";
 
+beforeEach(() => {
+  vi.mocked(spawnProcess).mockReset();
+  vi.mocked(updateSpawnedProcess).mockReset();
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+it("retries once and reports a clear error when the sidecar cannot start", async () => {
+  vi.stubGlobal("window", { location: { origin: "http://localhost:3000" } });
+  vi.stubGlobal("crypto", webcrypto);
+  vi.mocked(spawnProcess).mockRejectedValue(new Error("ENOENT: SophonCLI"));
+
+  await expect(getSophonClient("os")).rejects.toThrow(
+    "Failed to connect to the Sophon download service"
+  );
+  expect(spawnProcess).toHaveBeenCalledTimes(2);
 });
 
 it("reuses a healthy Sophon process and shares one restart after a disconnect", async () => {
