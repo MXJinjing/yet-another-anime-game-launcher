@@ -11,6 +11,7 @@ vi.mock("@logging/logger", () => ({
 
 vi.mock("@runtime/fatal", () => ({
   fatal: vi.fn(),
+  isFatalError: () => false,
 }));
 
 vi.mock("@download/control", () => ({

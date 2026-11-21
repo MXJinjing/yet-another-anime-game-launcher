@@ -3,6 +3,7 @@ export * from "./async";
 export * from "./binary";
 export * from "./command-runner";
 export * from "./fatal";
+export * from "./startup-notices";
 export * from "./format";
 export * from "./lifecycle";
 export * from "./macos-filesystem";

@@ -9,6 +9,33 @@ import {
 } from "../platform/neutralino";
 import { build, CommandSegments, rawString } from "../platform/shell";
 
+/**
+ * A spawned process exited with a non-zero status (or could not be started).
+ *
+ * Callers classify the failure themselves: a game or Wine command that fails
+ * is a task failure, never a reason to terminate the launcher. The message
+ * keeps the historical wording because diagnostic helpers already match it.
+ */
+export class CommandFailedError extends Error {
+  constructor(
+    readonly exitCode: number,
+    readonly command: string,
+    readonly stdOut: string,
+    readonly stdErr: string
+  ) {
+    super(
+      `Command return non-zero code (${exitCode}) \n${command}\nStdOut:\n${stdOut}\nStdErr:\n${stdErr}`
+    );
+    this.name = "CommandFailedError";
+  }
+}
+
+export function isCommandFailedError(
+  error: unknown
+): error is CommandFailedError {
+  return error instanceof CommandFailedError;
+}
+
 function authorizationPrompt(sudoPrompt: string | boolean) {
   if (typeof sudoPrompt == "string") return sudoPrompt;
   if (sudoPrompt) {
@@ -32,9 +59,7 @@ export async function exec(
   await log(command);
   const ret = await execCommand(command, {});
   if (ret.exitCode != 0) {
-    throw new Error(
-      `Command return non-zero code (${ret.exitCode}) \n${cmd}\nStdOut:\n${ret.stdOut}\nStdErr:\n${ret.stdErr}`
-    );
+    throw new CommandFailedError(ret.exitCode, cmd, ret.stdOut, ret.stdErr);
   }
   return ret;
 }
@@ -84,11 +109,7 @@ export async function exec2(
       cleanup();
       if (exit == 0) res({ pid, exitCode: exit, stdErr, stdOut });
       else {
-        rej(
-          new Error(
-            `Command return non-zero code (${exit}) \n${command}\nStdOut:\n${stdOut}\nStdErr:\n${stdErr}`
-          )
-        );
+        rej(new CommandFailedError(exit, command, stdOut, stdErr));
       }
     };
     fail = error => {
