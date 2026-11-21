@@ -248,6 +248,29 @@
   background: rgba(255, 255, 255, 0.16) !important;
 }
 
+.app-modal-icon-button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+.app-modal-icon-button svg,
+.app-modal-icon-button img {
+  width: 16px;
+  height: 16px;
+}
+
+.app-modal-icon-button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .app-modal-button {
   display: inline-flex;
   align-items: center;

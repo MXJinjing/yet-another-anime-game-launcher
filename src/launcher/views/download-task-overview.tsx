@@ -1,5 +1,12 @@
 import { Progress, ProgressIndicator } from "@hope-ui/solid";
-import { createMemo, For, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
 import type { DownloadTaskSnapshot } from "../../download/types";
 import type { ActivitySample } from "../../integrations/sophon-activity";
 import type { SophonMetric } from "../../integrations/sophon-progress";
@@ -34,7 +41,92 @@ function formatRemaining(seconds: number | undefined) {
     .join(":");
 }
 
-function TransferChart(props: { history: readonly ActivitySample[] }) {
+const CHART_WINDOW = 60;
+const CHART_GAP = 2.5;
+
+function valueAt(
+  history: readonly ActivitySample[],
+  time: number,
+  read: (sample: ActivitySample) => number | undefined
+) {
+  let previous: ActivitySample | undefined;
+  let next: ActivitySample | undefined;
+  for (const sample of history) {
+    if (read(sample) === undefined) continue;
+    if (sample.time <= time) previous = sample;
+    if (sample.time >= time) {
+      next = sample;
+      break;
+    }
+  }
+  if (
+    previous &&
+    next &&
+    previous !== next &&
+    next.time - previous.time <= CHART_GAP
+  ) {
+    const span = next.time - previous.time;
+    const ratio = span === 0 ? 0 : (time - previous.time) / span;
+    return (
+      (read(previous) ?? 0) +
+      ((read(next) ?? 0) - (read(previous) ?? 0)) * ratio
+    );
+  }
+  const nearest = [previous, next]
+    .filter((sample): sample is ActivitySample => sample !== undefined)
+    .sort(
+      (left, right) => Math.abs(left.time - time) - Math.abs(right.time - time)
+    )[0];
+  return nearest && Math.abs(nearest.time - time) <= CHART_GAP / 2
+    ? read(nearest)
+    : undefined;
+}
+
+function formatChartTime(seconds: number) {
+  const duration = Math.max(0, Math.round(seconds));
+  return `${Math.floor(duration / 60)}:${String(duration % 60).padStart(
+    2,
+    "0"
+  )}`;
+}
+
+export function TransferChart(props: {
+  history: readonly ActivitySample[];
+  locale: Locale;
+}) {
+  const text = () => downloadManagerText(props.locale.currentLanguage);
+  let frame: HTMLDivElement | undefined;
+  const [hover, setHover] = createSignal<{
+    x: number;
+    tipX: number;
+    networkY?: number;
+    diskY?: number;
+    time: number;
+    network?: number;
+    disk?: number;
+  }>();
+  createEffect(() => {
+    if (!hover()) return;
+    const hideIfOutside = (event: PointerEvent) => {
+      if (!frame) return;
+      const bounds = frame.getBoundingClientRect();
+      const outside =
+        event.clientX < bounds.left ||
+        event.clientX > bounds.right ||
+        event.clientY < bounds.top ||
+        event.clientY > bounds.bottom;
+      if (outside) setHover();
+    };
+    const hide = () => setHover();
+    window.addEventListener("pointermove", hideIfOutside);
+    window.addEventListener("pointerup", hideIfOutside);
+    window.addEventListener("blur", hide);
+    onCleanup(() => {
+      window.removeEventListener("pointermove", hideIfOutside);
+      window.removeEventListener("pointerup", hideIfOutside);
+      window.removeEventListener("blur", hide);
+    });
+  });
   const paths = createMemo(() => {
     const history = props.history;
     const end = history[history.length - 1]?.time ?? 0;
@@ -54,73 +146,143 @@ function TransferChart(props: { history: readonly ActivitySample[] }) {
             return "";
           }
           const command =
-            previousTime !== undefined && sample.time - previousTime <= 2.5
+            previousTime !== undefined &&
+            sample.time - previousTime <= CHART_GAP
               ? "L"
               : "M";
           previousTime = sample.time;
-          const x = 60 - end + sample.time;
+          const x = CHART_WINDOW - end + sample.time;
           const y = 96 - (rate / maxRate) * 85;
           return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
         })
         .join(" ");
     });
   });
+  const readPoint = (event: PointerEvent) => {
+    const history = props.history;
+    const frame = event.currentTarget;
+    if (!(frame instanceof HTMLElement) || history.length === 0) {
+      setHover();
+      return;
+    }
+    const bounds = frame.getBoundingClientRect();
+    if (bounds.width <= 0) return;
+    const ratio = Math.min(
+      1,
+      Math.max(0, (event.clientX - bounds.left) / bounds.width)
+    );
+    const end = history[history.length - 1]?.time ?? 0;
+    const time = end - CHART_WINDOW + ratio * CHART_WINDOW;
+    const x = ratio * bounds.width;
+    const maxRate = Math.max(
+      1,
+      ...history.map(sample =>
+        Math.max(network(sample) ?? 0, disk(sample) ?? 0)
+      )
+    );
+    const yFor = (rate: number | undefined) =>
+      rate === undefined
+        ? undefined
+        : ((96 - (rate / maxRate) * 85) / 100) * bounds.height;
+    const networkValue = valueAt(history, time, network);
+    const diskValue = valueAt(history, time, disk);
+    setHover({
+      x,
+      tipX:
+        ratio > 0.62
+          ? Math.max(8, x - 156)
+          : Math.min(x + 14, bounds.width - 156),
+      networkY: yFor(networkValue),
+      diskY: yFor(diskValue),
+      time,
+      network: networkValue,
+      disk: diskValue,
+    });
+  };
 
   return (
-    <svg
-      class="download-manager-chart"
-      viewBox="0 0 60 100"
-      preserveAspectRatio="none"
-      aria-hidden="true"
+    <div
+      ref={frame}
+      class="download-manager-chart-frame"
+      onPointerMove={readPoint}
+      onPointerLeave={() => setHover()}
+      onPointerCancel={() => setHover()}
     >
-      <For each={paths()}>
-        {(path, index) => (
-          <path
-            class={index() === 0 ? "is-network" : "is-disk"}
-            d={path}
-            fill="none"
-            vector-effect="non-scaling-stroke"
-          />
-        )}
-      </For>
-    </svg>
-  );
-}
-
-function TransferProgress(props: {
-  label: string;
-  text: string;
-  value?: number;
-  install?: boolean;
-}) {
-  return (
-    <div class="download-manager-transfer-progress">
-      <div>
-        <span>{props.label}</span>
-        <span>{props.text}</span>
-      </div>
-      <Progress
-        aria-label={props.label}
-        classList={{
-          "download-manager-meter": true,
-          "download-manager-meter--install": props.install ?? false,
-        }}
-        value={Math.min(100, Math.max(0, props.value ?? 0))}
-        indeterminate={props.value === undefined}
-        size="xs"
+      <svg
+        class="download-manager-chart"
+        viewBox="0 0 60 100"
+        preserveAspectRatio="none"
+        aria-hidden="true"
       >
-        <ProgressIndicator style="transition: none;" />
-      </Progress>
+        <For each={paths()}>
+          {(path, index) => (
+            <path
+              class={index() === 0 ? "is-network" : "is-disk"}
+              d={path}
+              fill="none"
+              vector-effect="non-scaling-stroke"
+            />
+          )}
+        </For>
+      </svg>
+      <div
+        class="download-chart-overlay"
+        hidden={!hover()}
+        style={{ display: hover() ? "block" : "none" }}
+      >
+        <span
+          class="download-chart-cursor"
+          style={{ left: `${hover()?.x ?? 0}px` }}
+        />
+        <Show when={hover()?.networkY !== undefined}>
+          <span
+            class="download-chart-dot is-network"
+            style={{
+              left: `${hover()?.x ?? 0}px`,
+              top: `${hover()?.networkY}px`,
+            }}
+          />
+        </Show>
+        <Show when={hover()?.diskY !== undefined}>
+          <span
+            class="download-chart-dot is-disk"
+            style={{
+              left: `${hover()?.x ?? 0}px`,
+              top: `${hover()?.diskY}px`,
+            }}
+          />
+        </Show>
+        <div
+          class="download-chart-tip"
+          role="tooltip"
+          style={{ left: `${hover()?.tipX ?? 0}px` }}
+        >
+          <strong>{formatChartTime(hover()?.time ?? 0)}</strong>
+          <span>
+            <i class="is-network" />
+            {text().network}
+            <b>{formatRate(hover()?.network)}</b>
+          </span>
+          <span>
+            <i class="is-disk" />
+            {text().disk}
+            <b>{formatRate(hover()?.disk)}</b>
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
 
-export function DownloadTaskOverview(props: {
+export function DownloadTaskDetail(props: {
   task: DownloadTaskSnapshot;
   locale: Locale;
   status: string;
-  artwork?: string;
+  fileProgress?: { label: string; value: number };
   onPause?: () => void;
+  onResume?: () => void;
+  onCancel?: () => void;
+  onDetails?: () => void;
 }) {
   const text = () => downloadManagerText(props.locale.currentLanguage);
   const activity = createMemo(() =>
@@ -130,125 +292,113 @@ export function DownloadTaskOverview(props: {
   );
   const active = () => props.task.status === "active";
   const history = () => (active() ? activity()?.history ?? [] : []);
-  const snapshot = () => activity()?.progress;
-  const common = () => snapshot()?.metrics.common;
-  const peak = createMemo(() =>
-    history().reduce<number | undefined>((maximum, sample) => {
-      const rate = network(sample);
-      return rate === undefined ? maximum : Math.max(maximum ?? 0, rate);
-    }, undefined)
-  );
-  const diskWrite = () => {
-    const samples = history();
-    const latest = samples[samples.length - 1];
-    return (latest && disk(latest)) ?? common()?.write.rate;
-  };
-  const installPercent = () =>
-    snapshot()?.phase === "scanning" || activity()?.predownload
-      ? undefined
-      : metricPercent(common()?.files);
+  const common = () => activity()?.progress?.metrics.common;
   const downloaded = () => common()?.network.completed ?? props.task.downloaded;
   const total = () =>
     common()?.network.total ?? (props.task.total || undefined);
+  const transferValue = () =>
+    metricPercent(common()?.network) ??
+    (props.task.transferring && !props.task.indeterminate
+      ? props.task.progress
+      : props.fileProgress?.value);
   const remaining = () => {
-    if (!active()) return undefined;
+    if (!active() || !props.task.transferring) return undefined;
     const estimate = common()?.timing.etaSeconds;
     if (estimate !== undefined) return estimate;
     const size = total();
-    return props.task.transferring && props.task.speed > 0 && size !== undefined
+    return props.task.speed > 0 && size !== undefined
       ? (size - downloaded()) / props.task.speed
       : undefined;
   };
+  const meta = () => {
+    if (props.fileProgress && !props.task.transferring) {
+      return props.fileProgress.label;
+    }
+    const size = `${humanFileSize(downloaded())} / ${
+      total() === undefined
+        ? props.locale.get("DOWNLOAD_TASK_UNKNOWN_SIZE")
+        : humanFileSize(total() ?? 0)
+    }`;
+    const eta =
+      remaining() !== undefined
+        ? `${text().remaining} ${formatRemaining(remaining())}`
+        : undefined;
+    return [size, eta].filter(Boolean).join(" · ");
+  };
 
   return (
-    <section class="download-manager-active" aria-label={props.task.title}>
-      <div class="download-manager-feature">
-        <Show when={props.artwork} keyed>
-          {url => (
-            <img
-              class="download-manager-art"
-              src={url}
-              alt=""
-              onError={event => (event.currentTarget.hidden = true)}
-            />
-          )}
-        </Show>
-        <div class="download-manager-active-identity">
-          <h2>{props.task.title}</h2>
-          <p>
-            <span aria-hidden="true" />
-            {props.status}
-          </p>
-        </div>
-        <div class="download-manager-telemetry">
-          <dl class="download-manager-rates">
-            <div>
-              <dt>{text().network}</dt>
-              <dd>
-                {formatRate(
-                  active()
-                    ? common()?.network.rate ?? props.task.speed
-                    : undefined
-                )}
-              </dd>
-            </div>
-            <Show when={peak() !== undefined}>
-              <div class="is-peak">
-                <dt>{text().peak}</dt>
-                <dd>{formatRate(peak())}</dd>
-              </div>
-            </Show>
-            <Show when={active() && common()}>
-              <div class="is-disk">
-                <dt>{text().disk}</dt>
-                <dd>{formatRate(diskWrite())}</dd>
-              </div>
-            </Show>
-          </dl>
-          <Show when={history().length > 1}>
-            <TransferChart history={history()} />
-          </Show>
-          <TransferProgress
-            label={text().download}
-            text={`${humanFileSize(downloaded())} / ${
-              total() === undefined
-                ? props.locale.get("DOWNLOAD_TASK_UNKNOWN_SIZE")
-                : humanFileSize(total() ?? 0)
-            }`}
-            value={
-              metricPercent(common()?.network) ??
-              (props.task.transferring && !props.task.indeterminate
-                ? props.task.progress
-                : active()
-                ? undefined
-                : 0)
-            }
-          />
-          <Show when={installPercent() !== undefined}>
-            <TransferProgress
-              label={text().install}
-              text={`${Math.min(100, installPercent() ?? 0).toFixed(1)}%`}
-              value={installPercent()}
-              install
-            />
-          </Show>
-          <div class="download-manager-task-controls">
-            <span>
-              {text().remaining}
-              <strong>{formatRemaining(remaining())}</strong>
-            </span>
-            <Show when={props.onPause}>
-              <button
-                class="download-manager-pause"
-                type="button"
-                title={props.locale.get("DOWNLOAD_PAUSE")}
-                aria-label={props.locale.get("DOWNLOAD_PAUSE")}
-                onClick={() => props.onPause?.()}
-              />
-            </Show>
-          </div>
-        </div>
+    <div class="download-task-detail">
+      <div class="download-task-meter">
+        <span>
+          {props.fileProgress && !props.task.transferring
+            ? props.locale.get("DOWNLOAD_FILE_INDEX")
+            : text().download}
+        </span>
+        <span>{meta()}</span>
       </div>
-    </section>
+      <Progress
+        class="download-task-bar"
+        aria-label={props.status}
+        value={Math.min(100, Math.max(0, transferValue() ?? 0))}
+        indeterminate={transferValue() === undefined}
+        size="xs"
+      >
+        <ProgressIndicator style="transition: none;" />
+      </Progress>
+      <div class="download-task-actions">
+        <Show when={props.onPause}>
+          <button
+            type="button"
+            class="download-task-action is-primary"
+            onClick={() => props.onPause?.()}
+          >
+            <span
+              class="download-task-action-icon is-pause"
+              aria-hidden="true"
+            />
+            {props.locale.get("DOWNLOAD_PAUSE")}
+          </button>
+        </Show>
+        <Show when={props.onResume}>
+          <button
+            type="button"
+            class="download-task-action is-primary"
+            onClick={() => props.onResume?.()}
+          >
+            <span
+              class="download-task-action-icon is-play"
+              aria-hidden="true"
+            />
+            {props.locale.get("DOWNLOAD_RESUME")}
+          </button>
+        </Show>
+        <Show when={props.onDetails}>
+          <button
+            type="button"
+            class="download-task-action"
+            onClick={() => props.onDetails?.()}
+          >
+            <span
+              class="download-task-action-icon is-file"
+              aria-hidden="true"
+            />
+            {text().details}
+          </button>
+        </Show>
+        <Show when={props.onCancel}>
+          <button
+            type="button"
+            class="download-task-action is-danger"
+            onClick={() => props.onCancel?.()}
+          >
+            <span
+              class="download-task-action-icon is-close"
+              aria-hidden="true"
+            />
+            {text().cancel}
+          </button>
+        </Show>
+      </div>
+    </div>
   );
 }

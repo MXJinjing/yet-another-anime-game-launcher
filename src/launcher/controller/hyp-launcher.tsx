@@ -65,6 +65,8 @@ import {
 import { GameIcon } from "../components/game-icon";
 import { GameLibraryView, GameLibraryItem } from "../views/game-library";
 import { MhyClientView } from "../views/clients/mhy";
+import settingsIcon from "../../assets/icons/settings.svg";
+import { AppModal } from "../../components/app-modal";
 import { GlobalModals } from "../../modals/global-modal-host";
 import type { GlobalModalRoute } from "../../modals/global-modal-host";
 import { getThemeColorHex, getContrastText } from "@settings/theme/color";
@@ -98,10 +100,15 @@ import { isRuntimeReplacementFileMissingError } from "../../clients/mhy/patch";
 import cloudDownloadIcon from "../../assets/icons/cloud-download.svg";
 import cloudCheckIcon from "../../assets/icons/cloud-check.svg";
 import { humanFileSize } from "../../runtime/format";
+import {
+  fileProgressLabel,
+  presentTaskStatus,
+} from "../../tasks/status-presentation";
 import { getProgressPanelVisibility } from "../model/progress-panel-visibility";
 import {
   clearGameInstallationState,
   createGameLaunchProgram,
+  formatGameTaskTitle,
   gameDownloadTaskMetadata,
   gameProgram,
 } from "./hyp-controller";
@@ -140,6 +147,8 @@ type ProgressSummaryData = {
   speed?: string;
   progress?: number;
   progressMode?: "determinate" | "indeterminate";
+  fileProgress?: string;
+  detail?: string;
 };
 
 type ProgressPanelData = ProgressSummaryData & {
@@ -194,8 +203,15 @@ function GameProgressSummary(props: {
   return (
     <div class="hyp-progress-div hyp-game-progress-summary">
       <div class="hyp-download-header">
-        <span class="hyp-download-title" title={props.panel.title}>
-          {props.panel.title}
+        <span class="hyp-download-heading">
+          <span class="hyp-download-title" title={props.panel.title}>
+            {props.panel.title}
+          </span>
+          <Show when={props.panel.detail}>
+            <span class="hyp-download-detail" title={props.panel.detail}>
+              {props.panel.detail}
+            </span>
+          </Show>
         </span>
         <Show when={props.onViewDetails}>
           <button
@@ -209,17 +225,25 @@ function GameProgressSummary(props: {
       </div>
       <LauncherProgressBar panel={props.panel} />
       <Show
-        when={props.panel.progressMode === "determinate" || props.panel.speed}
+        when={
+          props.panel.progressMode === "determinate" ||
+          props.panel.speed ||
+          props.panel.fileProgress
+        }
       >
         <div class="hyp-download-summary-metrics">
+          <span>{props.panel.fileProgress}</span>
           <span>
             <Show when={props.panel.progressMode === "determinate"}>
               {roundedProgress(props.panel.progress)}%
             </Show>
+            <Show when={props.panel.speed}>
+              {props.panel.fileProgress ||
+              props.panel.progressMode === "determinate"
+                ? ` · ${props.panel.speed}`
+                : props.panel.speed}
+            </Show>
           </span>
-          <Show when={props.panel.speed}>
-            <span>{props.panel.speed}</span>
-          </Show>
         </div>
       </Show>
     </div>
@@ -537,7 +561,7 @@ export async function createHypLauncher({
           game.client.install(directory, selection)
         ),
         name: "INSTALL",
-        downloadTask: gameDownloadTaskMetadata(game, locale, "release"),
+        downloadTask: gameDownloadTaskMetadata(game, locale, "install"),
       });
     }
     const [initialWineSetup, setInitialWineSetup] = createSignal<{
@@ -839,6 +863,9 @@ export async function createHypLauncher({
           name: "INIT_ENVIRONMENT",
           downloadTask: {
             title: request.title,
+            progressTitle: locale.format("DOWNLOAD_TASK_IN_PROGRESS", [
+              locale.get("DOWNLOAD_TASK_ACTION_ENVIRONMENT"),
+            ]),
             key: request.downloadKey,
             showImmediately: true,
           },
@@ -1023,15 +1050,22 @@ export async function createHypLauncher({
       const isRestorePhase =
         args?.key === "REVERT_PATCHING" ||
         taskStatusText.startsWith("还原阶段");
-      const isScanning = args?.key === "SCANNING_FILES";
-      const title = download.paused
+      const presented = presentTaskStatus(args?.key, args?.args);
+      const countedFileWork =
+        presented?.titleKey === "CHECKING_GAME_INTEGRITY" ||
+        presented?.titleKey === "CHECKING_EXISTING_FILES" ||
+        presented?.titleKey === "REPAIRING_FILES" ||
+        presented?.titleKey === "PATCHING" ||
+        presented?.titleKey === "REVERT_PATCHING";
+      const progressTitle = downloadTasks().find(
+        task => task.key === (selectedGame().namespace ?? selectedGame().id)
+      )?.progressTitle;
+      const title = progressTitle
+        ? progressTitle
+        : download.paused
         ? locale.get("DOWNLOAD_STATUS_PAUSED")
-        : isScanning
-        ? locale.get("CHECKING_GAME_INTEGRITY")
-        : isDownloadStatus
-        ? isEnvSpeed
-          ? locale.get("DOWNLOADING_ENVIRONMENT")
-          : locale.get("DOWNLOAD_PROGRESS")
+        : presented
+        ? locale.get(presented.titleKey)
         : taskStatusText;
       const speed =
         download.paused || !isDownloadStatus
@@ -1046,8 +1080,8 @@ export async function createHypLauncher({
             : "indeterminate"
           : isGameRunning
           ? "indeterminate"
-          : isScanning
-          ? Number(args?.args[1]) > 0
+          : countedFileWork
+          ? (presented?.count ?? 0) > 0 || taskState.progress() > 0
             ? "determinate"
             : "indeterminate"
           : isDownloadStatus ||
@@ -1056,7 +1090,14 @@ export async function createHypLauncher({
             taskState.progress() > 0
           ? "determinate"
           : undefined;
-      return { title, speed, progress: taskState.progress(), progressMode };
+      return {
+        title,
+        speed,
+        progress: taskState.progress(),
+        progressMode,
+        fileProgress: fileProgressLabel(presented),
+        detail: presented?.file,
+      };
     });
     // Dedicated panel for launcher-global tasks (e.g. Wine environment init).
     // Always rendered on top while the global task runs, regardless of which
@@ -1081,11 +1122,8 @@ export async function createHypLauncher({
         args?.key === "EXTRACT_ENVIRONMENT" ||
         args?.key === "DECOMPRESS_FILE_PROGRESS";
       const isEnvironmentConfiguring = args?.key === "CONFIGURING_ENVIRONMENT";
-      const title = isDownloadStatus
-        ? isEnvSpeed
-          ? locale.get("DOWNLOADING_ENVIRONMENT")
-          : locale.get("DOWNLOAD_PROGRESS")
-        : taskStatusText;
+      const presented = presentTaskStatus(args?.key, args?.args);
+      const title = presented ? locale.get(presented.titleKey) : taskStatusText;
       const downloadArgs = isDownloadStatus ? args : null;
       const [file, speed, downloaded, total, , fileIndex, fileCount] =
         downloadArgs
@@ -1101,15 +1139,23 @@ export async function createHypLauncher({
               ]
             : downloadArgs.args
           : [];
+      const resolvedFileIndex =
+        fileIndex ??
+        (presented?.index !== undefined ? String(presented.index) : undefined);
+      const resolvedFileCount =
+        fileCount ??
+        (presented?.count !== undefined ? String(presented.count) : undefined);
       const progressMode: ProgressPanelData["progressMode"] =
         isEnvironmentExtract || isEnvironmentConfiguring
           ? "indeterminate"
-          : isEnvironmentDownload
+          : isEnvironmentDownload ||
+            (presented?.count ?? 0) > 0 ||
+            globalState.progress() > 0
           ? "determinate"
           : undefined;
       return {
         title,
-        file,
+        file: file ?? presented?.file,
         speed,
         downloaded,
         total,
@@ -1118,16 +1164,16 @@ export async function createHypLauncher({
         // environment, so show its real download progress instead of the
         // indeterminate environment-file marquee.
         progressMode,
-        fileIndex,
-        fileCount,
+        fileIndex: resolvedFileIndex,
+        fileCount: resolvedFileCount,
         ...getProgressPanelVisibility({
           isDownloadStatus,
           file,
           speed,
           downloaded,
           total,
-          fileIndex,
-          fileCount,
+          fileIndex: resolvedFileIndex,
+          fileCount: resolvedFileCount,
         }),
         canCancel: download.active && download.canCancel,
         cancelDisabled: download.actionPending,
@@ -1381,7 +1427,7 @@ export async function createHypLauncher({
               game.client.continueInstall()
             ),
             name: "INSTALL",
-            downloadTask: gameDownloadTaskMetadata(game, locale, "release"),
+            downloadTask: gameDownloadTaskMetadata(game, locale, "continue"),
           });
           return;
         case "update":
@@ -1605,7 +1651,7 @@ export async function createHypLauncher({
           await refreshPredownloadCompletion(game);
         },
         name: "UPDATE",
-        downloadTask: gameDownloadTaskMetadata(game, locale, "release"),
+        downloadTask: gameDownloadTaskMetadata(game, locale, "update"),
       });
     }
 
@@ -1779,7 +1825,7 @@ export async function createHypLauncher({
 
         <div class="hyp-vignette" aria-hidden="true" />
 
-        <Show when={!downloadManagerOpen() && currentBackgrounds().length > 1}>
+        <Show when={currentBackgrounds().length > 1}>
           <div class="hyp-bg-switcher" role="group" aria-label="Backgrounds">
             <For each={currentBackgrounds()}>
               {(_, index) => (
@@ -1816,9 +1862,7 @@ export async function createHypLauncher({
                     "hyp-game-icon": true,
                     // 必须在 classList 内直接读取 selectedGameIndex()：
                     // 若先求值到非响应式局部变量，切换游戏后高亮不会移动。
-                    active:
-                      !downloadManagerOpen() &&
-                      selectedGameIndex() === entry.index,
+                    active: selectedGameIndex() === entry.index,
                   }}
                   aria-label={entry.game.title}
                   onClick={() => selectGame(entry.index)}
@@ -1841,21 +1885,18 @@ export async function createHypLauncher({
               classList={{
                 "hyp-rail-button": true,
                 "hyp-library-button": true,
-                active: !downloadManagerOpen() && libraryOpen(),
+                active: libraryOpen(),
               }}
               aria-label="游戏库"
               title="游戏库"
               onClick={() => {
-                const wasViewingDownloads = downloadManagerOpen();
-                const next = wasViewingDownloads || !libraryOpen();
                 setDownloadManagerOpen(false);
-                if (wasViewingDownloads) openLibrary();
-                else toggleLibrary();
-                if (next) {
-                  void setKey("hyp_last_view", "library");
-                } else {
-                  void setKey("hyp_last_view", selectedGame().id);
-                }
+                const opening = !libraryOpen();
+                toggleLibrary();
+                void setKey(
+                  "hyp_last_view",
+                  opening ? "library" : selectedGame().id
+                );
               }}
             >
               <span class="hyp-library-icon" />
@@ -1868,9 +1909,13 @@ export async function createHypLauncher({
               active: downloadManagerOpen(),
             }}
             aria-label={locale.get("DOWNLOAD_MANAGER")}
-            aria-current={downloadManagerOpen() ? "page" : undefined}
+            aria-expanded={downloadManagerOpen()}
             title={locale.get("DOWNLOAD_MANAGER")}
-            onClick={() => openDownloadManager()}
+            onClick={() =>
+              downloadManagerOpen()
+                ? setDownloadManagerOpen(false)
+                : openDownloadManager()
+            }
           >
             <span class="hyp-download-queue-icon" aria-hidden="true" />
             <Show when={activeDownloadCount() > 0}>
@@ -1897,7 +1942,6 @@ export async function createHypLauncher({
             "library-open": libraryMounted(),
           }}
           aria-label={selectedGame().title}
-          hidden={downloadManagerOpen()}
         >
           <MhyClientView
             client={selectedGame().client}
@@ -1922,35 +1966,51 @@ export async function createHypLauncher({
           </Show>
         </main>
 
-        <Show when={downloadManagerOpen()}>
-          <main
-            class="hyp-stage downloads-open"
-            aria-label={locale.get("DOWNLOAD_MANAGER")}
-          >
+        <AppModal
+          opened={downloadManagerOpen()}
+          onClose={() => setDownloadManagerOpen(false)}
+          closeOnOverlayClick
+          title={
+            <div class="global-modal-title-row">
+              <span>{locale.get("DOWNLOAD_MANAGER")}</span>
+              <button
+                class="app-modal-icon-button"
+                type="button"
+                aria-label={
+                  downloadManagerText(locale.currentLanguage).settings
+                }
+                title={downloadManagerText(locale.currentLanguage).settings}
+                onClick={() => {
+                  setDownloadManagerOpen(false);
+                  setGlobalSettingsInitialTab(1);
+                  setGlobalModalRoute("settings");
+                }}
+              >
+                <img src={settingsIcon} alt="" />
+              </button>
+            </div>
+          }
+          maxWidth={760}
+          height="auto"
+          contentClass="download-manager-modal"
+          bodyClass="download-manager-modal-body"
+        >
+          <Show when={downloadManagerOpen()}>
             <DownloadManager
               locale={locale}
               initialTaskId={downloadManagerTaskId()}
-              onOpenSettings={() => {
-                setGlobalSettingsInitialTab(1);
-                setGlobalModalRoute("settings");
-              }}
-              getTaskArtwork={task => {
-                const game = gameForDownloadTask(task);
-                return game
-                  ? game.bannerImage ||
-                      GAME_BANNER_URLS[game.id] ||
-                      game.client.uiContent.background
-                  : undefined;
-              }}
+              accent={themeHex()}
+              accentText={themeText()}
               renderTaskIcon={task => {
                 const game = gameForDownloadTask(task);
                 return (
                   <GameIcon
                     src={
-                      (game &&
-                        (game.client.uiContent.iconImage ||
-                          game.fallbackIcon)) ||
-                      ""
+                      game
+                        ? game.iconImage ||
+                          game.client.uiContent.iconImage ||
+                          game.fallbackIcon
+                        : ""
                     }
                     title={task.title}
                     channel={task.key ?? task.id}
@@ -1958,10 +2018,10 @@ export async function createHypLauncher({
                 );
               }}
             />
-          </main>
-        </Show>
+          </Show>
+        </AppModal>
 
-        <section class="hyp-action-area" hidden={downloadManagerOpen()}>
+        <section class="hyp-action-area">
           <div class="hyp-action-group">
             <Show when={globalProgressPanel()}>
               <ProgressPanel panel={globalProgressPanel} locale={locale} />
@@ -2274,7 +2334,14 @@ export async function createHypLauncher({
           {prompt => (
             <SophonInstallModal
               locale={locale}
-              title={prompt.game.title}
+              title={formatGameTaskTitle(
+                prompt.game,
+                locale,
+                prompt.purpose === "verify" ? "integrity" : "install",
+                prompt.purpose === "verify"
+                  ? prompt.game.client.gameVersion?.()
+                  : prompt.game.client.latestVersion?.()
+              )}
               directory={prompt.directory}
               purpose={prompt.purpose}
               chooseDirectory={selectPath}

@@ -137,4 +137,42 @@ describe("task errors and recovery", () => {
       transferring: true,
     });
   });
+
+  it("stores integrity and repair counts beside a short title", async () => {
+    const { runner } = harness();
+    const snapshots: unknown[] = [];
+    runner.enqueue({
+      key: "game",
+      downloadTask: {
+        title: "Check game integrity (Game)",
+        showImmediately: true,
+      },
+      fn: async function* () {
+        yield ["setStateText", "SCANNING_FILES", "12", "40"];
+        snapshots.push({ ...getDownloadTasks()[0] });
+        yield ["setStateText", "FIXING_FILES", "1", "4"];
+        snapshots.push({ ...getDownloadTasks()[0] });
+        yield ["setStateText", "REVERT_PATCHING", "3", "10"];
+        snapshots.push({ ...getDownloadTasks()[0] });
+      },
+    });
+    await runner.waitForIdle("game");
+    expect(snapshots[0]).toMatchObject({
+      phase: "CHECKING_GAME_INTEGRITY",
+      fileIndex: 12,
+      fileCount: 40,
+      transferring: false,
+    });
+    expect(snapshots[1]).toMatchObject({
+      phase: "REPAIRING_FILES",
+      fileIndex: 1,
+      fileCount: 4,
+    });
+    expect(snapshots[2]).toMatchObject({
+      phase: "REVERT_PATCHING",
+      fileIndex: 3,
+      fileCount: 10,
+    });
+    expect(String(snapshots[0])).not.toContain("12/40");
+  });
 });

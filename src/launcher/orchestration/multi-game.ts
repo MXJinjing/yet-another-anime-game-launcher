@@ -13,6 +13,7 @@ import {
 } from "../../clients/mhy/hyp-connect";
 import type { HoyoConnectGameDisplay } from "../../clients/mhy/launcher-info";
 import { log } from "@logging/logger";
+import { formatGameTaskTitle } from "../controller/hyp-controller";
 import { createHypLauncher } from "../controller/hyp-launcher";
 import { MULTI_GAME_OS_GAME_SPECS } from "../data/multi-game-os";
 import type {
@@ -250,7 +251,16 @@ export async function createMultiGameLauncher({
         dispatch({
           gameId: spec.id,
           downloadKey: spec.namespace,
-          title: `${resolvedSpec.title} · ${locale.get("INIT_ENVIRONMENT")}`,
+          title: formatGameTaskTitle(
+            {
+              title: resolvedSpec.title,
+              id: spec.id,
+              clientId: spec.clientId,
+              serverLabel: resolvedSpec.serverLabel,
+            },
+            locale,
+            "environment"
+          ),
           fn: async function* () {
             try {
               yield* fn();
