@@ -1,8 +1,6 @@
 import { render } from "solid-js/web";
-import { createApp } from "./app";
 import { HopeProvider, NotificationsProvider } from "@hope-ui/solid";
 import { amber } from "@radix-ui/colors";
-
 import { fatal } from "./runtime";
 import {
   getBootDetail,
@@ -16,6 +14,11 @@ import {
   CURRENT_YAAGL_CHANNEL,
   CURRENT_YAAGL_VERSION,
 } from "./constants/version";
+import { isLogWindowArgs } from "./logging/log-window-protocol";
+
+function launchArgs() {
+  return typeof NL_ARGS === "undefined" ? [] : NL_ARGS;
+}
 
 function createPlates(
   tag: string,
@@ -34,6 +37,17 @@ function createPlates(
 
 if (typeof Neutralino == "undefined") {
   console.log(`This app doesn't work on browser.`);
+} else if (isLogWindowArgs(launchArgs())) {
+  // This process is only the log window. Do not load the launcher graph.
+  Neutralino.init();
+  installInputEditingShortcuts();
+  void Neutralino.events.on("ready", () => {
+    void import("./logging/log-window-app")
+      .then(module => module.startLogWindow())
+      .catch(error => {
+        console.error(error);
+      });
+  });
 } else {
   const bootPerformance = createBootPerformance(
     import.meta.env.DEV && import.meta.env.YAAGL_BOOT_PERF === "1"
@@ -72,7 +86,10 @@ if (typeof Neutralino == "undefined") {
   Neutralino.window.show();
   bootPerformance.mark("window-shown");
   reportBootProgress("BOOT_INITIALIZING", 0);
-  createApp(bootPerformance)
+  // Loaded after the branch check so the log-window process does not evaluate
+  // the launcher, Wine, or download graph while this module is parsed.
+  void import("./app")
+    .then(({ createApp }) => createApp(bootPerformance))
     .then(UI => {
       reportBootProgress("BOOT_ENTERING_MAIN_SCREEN", 100);
       // Remove the startup loading screen before mounting the real UI.

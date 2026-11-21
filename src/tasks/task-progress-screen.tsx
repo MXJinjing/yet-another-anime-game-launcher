@@ -4,7 +4,7 @@ import {
   isDownloadCancelledError,
   isDownloadFailedError,
 } from "../download/control";
-import { createLogViewer } from "../modals/log-viewer-modal";
+import { openLogWindow } from "../logging/log-window-host";
 import { type Locale } from "@locale";
 import { log, logerror } from "../logging/logger";
 import { fatal } from "../runtime/fatal";
@@ -65,7 +65,9 @@ export function createTaskProgressScreen({
     const [downloadStats, setDownloadStats] =
       createSignal<TaskDownloadStats | null>(null);
     const [done, setDone] = createSignal(false);
-    const { LogViewer, openLogs } = createLogViewer(locale);
+    const openLogs = () => {
+      void openLogWindow("launcher").catch(() => undefined);
+    };
 
     onMount(() => {
       void (async () => {
@@ -227,7 +229,6 @@ export function createTaskProgressScreen({
               </Button>
             </Center>
           </Show>
-          <LogViewer />
         </VStack>
       </Center>
     );

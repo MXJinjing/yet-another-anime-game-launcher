@@ -18,12 +18,18 @@ vi.mock("@platform/neutralino/system", () => ({
   env: vi.fn(async () => "/tmp"),
 }));
 
+import { exec } from "@runtime/command-runner";
 import { createStorage, globalStorage } from "@runtime/storage";
 
 beforeEach(() => {
   readFile.mockClear();
   removeFile.mockClear();
   writeFile.mockClear();
+  vi.mocked(exec).mockClear();
+  vi.stubGlobal("window", {
+    NL_CWD: "/launcher",
+    NL_PATH: "dev/yaaglmwd",
+  });
 });
 
 describe("instance storage", () => {
@@ -34,6 +40,11 @@ describe("instance storage", () => {
     await hk4e.setKey("game_install_dir", "/games/a");
     await hsr.setKey("game_install_dir", "/games/b");
 
+    expect(vi.mocked(exec)).toHaveBeenCalledWith([
+      "mkdir",
+      "-p",
+      "/launcher/dev/yaaglmwd/.storage",
+    ]);
     expect(writeFile).toHaveBeenNthCalledWith(
       1,
       ".storage/test-a_game_install_dir.neustorage",

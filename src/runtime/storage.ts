@@ -1,9 +1,10 @@
-import { join } from "path-browserify";
+import { dirname, join } from "path-browserify";
 import {
   readFile,
   removeFile,
   writeFile,
 } from "../platform/neutralino/filesystem";
+import { resolve } from "../platform/neutralino/path";
 import { env } from "../platform/neutralino/system";
 import { exec } from "./command-runner";
 
@@ -203,7 +204,10 @@ export function createStorage(namespace?: string): Storage {
         }
         return;
       }
-      await exec(["mkdir", "-p", ".storage"]);
+      // neu run keeps its cwd at the repo root while NL_PATH points at the
+      // staging directory. A relative mkdir would miss the directory writeFile
+      // actually uses, and Neutralino does not create missing parents.
+      await exec(["mkdir", "-p", dirname(resolve(path))]);
       await writeFile(path, value);
     },
   };
