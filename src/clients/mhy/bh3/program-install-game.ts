@@ -2,7 +2,7 @@ import { join, basename } from "path-browserify";
 import { Aria2 } from "@aria2";
 import type { TaskProgram } from "@tasks/task-program";
 import { Server } from "@constants";
-import { removeFile, writeFile } from "@platform/neutralino";
+import { removeFileIfExists } from "@platform/neutralino";
 import { doStreamUnzip, extract7z } from "@runtime/archive";
 import {
   downloadPercent,
@@ -63,5 +63,6 @@ export async function* downloadAndInstallGameProgram({
   yield ["setStateText", "DECOMPRESS_FILE_PROGRESS"];
   yield ["setUndeterminedProgress"];
   await extract7z(gameFileTmp, gameDir);
-  // await removeFile(gameFileTmp);
+  await removeFileIfExists(gameFileTmp);
+  await removeFileIfExists(`${gameFileTmp}.aria2`);
 }
