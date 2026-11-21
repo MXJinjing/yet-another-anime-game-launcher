@@ -22,12 +22,30 @@ export function exit(exitCode: number) {
   return Neutralino.app.exit(exitCode);
 }
 
+const beforeCloseAppHooks: Array<() => Promise<void>> = [];
+
+export function addBeforeCloseApp(hook: () => Promise<void>) {
+  beforeCloseAppHooks.push(hook);
+  return () => {
+    const index = beforeCloseAppHooks.indexOf(hook);
+    if (index >= 0) beforeCloseAppHooks.splice(index, 1);
+  };
+}
+
 /**
  * Terminates the current app without asking WebView/AppKit to close its
  * window. macOS 26 can throw from Neutralino's graceful WebView teardown
  * (ViewBridge/NSRemoteView), which aborts the process before exit completes.
+ * Registered cleanup, including the independent log window, runs first.
  */
-export function closeApp() {
+export async function closeApp() {
+  for (const hook of [...beforeCloseAppHooks]) {
+    try {
+      await hook();
+    } catch {
+      // Cleanup must not keep the launcher process alive.
+    }
+  }
   return Neutralino.app.killProcess();
 }
 

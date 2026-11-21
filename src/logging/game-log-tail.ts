@@ -1,6 +1,5 @@
 import { join } from "path-browserify";
-import { execCommand, readFile, stats } from "../platform/neutralino";
-import { build } from "../platform/shell";
+import { readFile, stats } from "../platform/neutralino";
 import type { GameLogLocation } from "../channel-client";
 
 /**
@@ -278,60 +277,6 @@ export function createGameLogTail(options: {
         timer = setTimeout(() => void poll(), pollIntervalMs);
       }
     }
-  }
-
-  void poll();
-
-  return () => {
-    stopped = true;
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      timer = undefined;
-    }
-  };
-}
-
-/**
- * Wait for the configured game log and open it in macOS Console.app.
- * This intentionally does not use the launcher logger or runtime-log store.
- */
-export function openGameLogFile(options: {
-  prefix: string;
-  gameDir?: string;
-  locations?: readonly GameLogLocation[];
-  pollIntervalMs?: number;
-  onOpenError?: (path: string) => void;
-}): () => void {
-  const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
-  const locations = options.locations ?? [];
-  let stopped = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  async function poll() {
-    if (stopped) return;
-    const paths =
-      locations.length > 0
-        ? await findGameLogFiles({
-            prefix: options.prefix,
-            gameDir: options.gameDir ?? "",
-            locations,
-            existingOnly: true,
-          })
-        : await findLegacyUnityLogFiles(options.prefix);
-    if (stopped) return;
-    const path = paths[0];
-    if (path) {
-      try {
-        const result = await execCommand(
-          build(["/usr/bin/open", "-b", "com.apple.Console", path])
-        );
-        if (result.exitCode !== 0 && !stopped) options.onOpenError?.(path);
-      } catch {
-        if (!stopped) options.onOpenError?.(path);
-      }
-      return;
-    }
-    if (!stopped) timer = setTimeout(() => void poll(), pollIntervalMs);
   }
 
   void poll();

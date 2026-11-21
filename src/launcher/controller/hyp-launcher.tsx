@@ -69,7 +69,7 @@ import { GlobalModals } from "../../modals/global-modal-host";
 import type { GlobalModalRoute } from "../../modals/global-modal-host";
 import { getThemeColorHex, getContrastText } from "@settings/theme/color";
 import { createConcurrentTaskQueueState, GLOBAL_TASK_KEY } from "./task-queue";
-import { createLogViewer } from "../../modals/log-viewer-modal";
+import { openLogWindow } from "../../logging/log-window-host";
 import {
   cancelControlledDownload,
   DownloadControlState,
@@ -407,14 +407,9 @@ export async function createHypLauncher({
     locale,
   });
 
-  // Debug mode: when enabled (game settings -> Launch -> Debug mode),
-  // launching a game opens its configured runtime/error log in Console.app. The
-  // preference lives in the global `config_debug_mode` key and is read fresh
-  // at every launch.
-  let stopGameLogOpen: (() => void) | undefined;
-  // The log viewer still handles manual launcher-log viewing. Debug-mode file
-  // opening runs outside the component and does not populate that viewer.
-  let openGameLogs: (() => void) | undefined;
+  // Debug mode opens the independent log window on the game tab. The window
+  // is its own process, so launcher modals and minimize do not cover it, and
+  // it is closed with the launcher.
 
   const { UI: GameUninstallDialog, open: openGameUninstallDialog } =
     await createGameUninstallDialog({
@@ -570,11 +565,6 @@ export async function createHypLauncher({
         if (usesIdleCallback) window.cancelIdleCallback(scheduled as number);
         else window.clearTimeout(scheduled as number);
       });
-    });
-    onCleanup(() => {
-      stopGameLogOpen?.();
-      stopGameLogOpen = undefined;
-      openGameLogs = undefined;
     });
     const initialLibraryOpen =
       showLibrary && (!anyInstalled || lastView === "library");
@@ -958,8 +948,15 @@ export async function createHypLauncher({
         await log(`Force quit failed for ${game.id}: ${String(e)}`);
       }
     }
-    const { LogViewer, openLogs } = createLogViewer(locale);
-    openGameLogs = openLogs;
+    function openLogs() {
+      void openLogWindow("launcher").catch(error => {
+        notificationService.show({
+          status: "warning",
+          title: locale.get("LOG_VIEWER_OPEN_FAILED"),
+          description: String(error),
+        });
+      });
+    }
     function actionDisabled() {
       // A launcher-global task (e.g. Wine environment init) takes priority:
       // while it runs, the primary button stays disabled even if a per-game
@@ -1474,19 +1471,16 @@ export async function createHypLauncher({
           createGameLaunchProgram({
             game,
             baseWine,
-            getStopGameLogOpen: () => stopGameLogOpen,
-            setStopGameLogOpen: stop => {
-              stopGameLogOpen = stop;
-            },
-            onGameLogOpenError: path => {
-              const zh = locale.currentLanguage.startsWith("zh");
-              notificationService.show({
-                status: "warning",
-                title: zh ? "无法打开游戏日志" : "Unable to open game log",
-                description: zh
-                  ? `无法使用 macOS「控制台」打开日志。日志路径：${path}`
-                  : `Unable to open the log in macOS Console. Log path: ${path}`,
-              });
+            onDebugLogs: async target => {
+              try {
+                await openLogWindow("game", target);
+              } catch (error) {
+                notificationService.show({
+                  status: "warning",
+                  title: locale.get("LOG_VIEWER_OPEN_FAILED"),
+                  description: String(error),
+                });
+              }
             },
           })
         ),
@@ -2454,7 +2448,6 @@ export async function createHypLauncher({
         />
 
         <GameUninstallDialog />
-        <LogViewer />
       </div>
     );
   };

@@ -1271,6 +1271,11 @@ declare namespace Neutralino {
        */
       exitProcessOnClose?: boolean;
       /**
+       * Persist and restore this window's size and position. Child windows
+       * must leave this off so they do not overwrite the main window state.
+       */
+      useSavedState?: boolean;
+      /**
        * Additional command-line arguments for the new window process.
        */
       processArgs?: string;

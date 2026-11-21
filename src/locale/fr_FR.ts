@@ -412,6 +412,11 @@ export const fr_FR: typeof zh_CN = {
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Défilement automatique",
   LOG_VIEWER_COPY: "Copier les logs",
+  LOG_VIEWER_TAB_LAUNCHER: "Lanceur",
+  LOG_VIEWER_TAB_GAME: "Débogage du jeu",
+  LOG_VIEWER_GAME_EMPTY: "Pas encore de logs de débogage",
+  LOG_VIEWER_OPEN_FAILED: "Impossible d'ouvrir la fenêtre de logs",
+  LOG_VIEWER_JUMP: "Aller au plus récent",
   LICENSE_VIEW_ONLINE: "Voir en ligne",
   SETTING_GITHUB_ACCELERATED_PREFIX:
     "Utiliser le préfixe d’accélération GitHub",
