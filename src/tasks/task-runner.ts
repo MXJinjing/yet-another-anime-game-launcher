@@ -11,7 +11,7 @@ import {
 } from "../download/task-registry";
 import { type Locale, type LocaleTextKey } from "@locale";
 import { log, logerror } from "../logging/logger";
-import { fatal } from "../runtime/fatal";
+import { fatal, isFatalError } from "../runtime/fatal";
 import { isConnectionError } from "../services/connection-error";
 import { isAuthorizationCancelledError } from "../runtime/authorization";
 import { type Accessor, createSignal, type Setter } from "solid-js";
@@ -250,9 +250,16 @@ export function createTaskRunner({
       } else if (isConnectionError(error)) {
         await logerror(error instanceof Error ? error.message : String(error));
         notifier.connectionError(locale, taskName);
-      } else {
+      } else if (isFatalError(error)) {
+        // Only conditions that make the process unsafe may terminate the
+        // launcher; the task itself is already lost either way.
         await logerror(error instanceof Error ? error.message : String(error));
         await fatal(error);
+      } else {
+        // Unexpected errors are one task's problem. The launcher, the other
+        // games and the settings screen stay usable, so report and move on.
+        await logerror(error instanceof Error ? error.message : String(error));
+        notifier.taskFailed(locale, taskName, error, key);
       }
       state.setStatusArgs(null);
     } finally {

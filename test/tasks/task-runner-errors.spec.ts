@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("@logging/logger", () => ({ log: vi.fn(), logerror: vi.fn() }));
-vi.mock("@runtime/fatal", () => ({ fatal: vi.fn() }));
+vi.mock("@runtime/fatal", async () => {
+  const actual = await vi.importActual<typeof import("@runtime/fatal")>(
+    "@runtime/fatal"
+  );
+  return { ...actual, fatal: vi.fn() };
+});
 import { fatal } from "@runtime/fatal";
+import { FatalError } from "@runtime/fatal";
 import { DownloadCancelledError, DownloadFailedError } from "@download/control";
 import { ConnectionError } from "@services/connection-error";
 import { TaskFailedError } from "@tasks/task-program";
@@ -55,9 +61,48 @@ describe("task errors and recovery", () => {
       expect(getDownloadTasks()).toEqual([]);
     }
   );
-  it("surfaces unexpected failures and still clears task state", async () => {
-    const { runner } = harness();
+  it("reports an unexpected failure without terminating the launcher", async () => {
+    const { runner, notifier } = harness();
     const error = new Error("unexpected");
+    runner.enqueue({
+      name: "UPDATE",
+      fn: async function* () {
+        throw error;
+      },
+    });
+    await runner.waitForIdle("__global__");
+    expect(fatal).not.toHaveBeenCalled();
+    expect(notifier.taskFailed).toHaveBeenCalledWith(
+      expect.anything(),
+      "UPDATE",
+      error,
+      "__global__"
+    );
+    expect(runner.isBusy("__global__")).toBe(false);
+  });
+  it("keeps running the next queued task after an unexpected failure", async () => {
+    const { runner, notifier } = harness();
+    const next = vi.fn();
+    runner.enqueue({
+      key: "game",
+      fn: async function* () {
+        throw new Error("boom");
+      },
+    });
+    runner.enqueue({
+      key: "game",
+      fn: async function* () {
+        next();
+      },
+    });
+    await runner.waitForIdle("game");
+    expect(fatal).not.toHaveBeenCalled();
+    expect(notifier.taskFailed).toHaveBeenCalledOnce();
+    expect(next).toHaveBeenCalledOnce();
+  });
+  it("still terminates for a failure that makes the process unsafe", async () => {
+    const { runner } = harness();
+    const error = new FatalError("storage unavailable");
     runner.enqueue({
       fn: async function* () {
         throw error;
