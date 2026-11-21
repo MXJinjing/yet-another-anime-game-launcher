@@ -33,7 +33,7 @@ build_from_source() {
   install -m 644 "$source/LICENSE" "$DEST/LICENSE"
   xcrun swift-stdlib-tool --copy --platform macosx \
     --scan-executable "$DEST/SophonCLI" --destination "$DEST"
-  xcrun lipo -verify_arch "$lipo_arch" "$DEST/SophonCLI"
+  xcrun lipo "$DEST/SophonCLI" -verify_arch "$lipo_arch"
   printf 'source\n' > "$DEST/VERSION"
 }
 
@@ -112,7 +112,7 @@ download_release() {
     echo "SophonCLI is missing from ${archive}" >&2
     exit 1
   }
-  xcrun lipo -verify_arch "$lipo_arch" "$DEST/SophonCLI"
+  xcrun lipo "$DEST/SophonCLI" -verify_arch "$lipo_arch"
   printf '%s\n' "$tag" > "$DEST/VERSION"
   echo "Installed ${repository} ${tag} for ${TARGET_ARCH}"
 }
