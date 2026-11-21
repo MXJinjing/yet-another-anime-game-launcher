@@ -36,6 +36,8 @@ export const ja_JP: typeof zh_CN = {
   PROCESSING: "処理中…",
   FORCE_QUIT_GAME: "強制終了",
   FIXING_FILES: "ゲームファイルを修復中{0}/{1}",
+  REPAIRING_FILES: "ファイルを修復中",
+  CHECKING_EXISTING_FILES: "既存ファイルを確認中",
   PATCHING_FILE_PROGRESS:
     "Patching files: {0}/{1}, current file {2}{3}, {4}s elapsed",
   CHECKING_DOWNLOAD_FILES:
@@ -228,6 +230,14 @@ export const ja_JP: typeof zh_CN = {
   PREDOWNLOAD_READY: "{0}事前ダウンロード{1}",
   PREDOWNLOAD_BUTTON: "{0}を事前ダウンロード",
   DOWNLOAD_TASK_CHECK_INTEGRITY: "ゲームの整合性を確認（{0}）",
+  DOWNLOAD_TASK_ACTION_INSTALL: "インストール",
+  DOWNLOAD_TASK_ACTION_UPDATE: "アップデート",
+  DOWNLOAD_TASK_ACTION_CONTINUE: "インストールを続行",
+  DOWNLOAD_TASK_ACTION_PREDOWNLOAD: "事前ダウンロード",
+  DOWNLOAD_TASK_ACTION_INTEGRITY: "整合性を確認",
+  DOWNLOAD_TASK_ACTION_ENVIRONMENT: "環境を初期化",
+  DOWNLOAD_TASK_IN_PROGRESS: "{0}中",
+  DOWNLOAD_TASK_IN_PROGRESS_VERSION: "{0}中 {1}",
   PREDOWNLOAD_DONE: "事前ダウンロード済み",
   SETTING_PREDOWNLOAD: en.SETTING_PREDOWNLOAD,
   SETTING_PREDOWNLOAD_VERSION: en.SETTING_PREDOWNLOAD_VERSION,

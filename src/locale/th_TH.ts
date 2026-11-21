@@ -36,6 +36,8 @@ export const th_TH: typeof zh_CN = {
   PROCESSING: "กำลังประมวลผล…",
   FORCE_QUIT_GAME: "บังคับปิด",
   FIXING_FILES: "กำลังซ่อมแซมไฟล์เกม {0}/{1}",
+  REPAIRING_FILES: "กำลังซ่อมแซมไฟล์",
+  CHECKING_EXISTING_FILES: "กำลังตรวจสอบไฟล์ที่มีอยู่",
   PATCHING_FILE_PROGRESS:
     "Patching files: {0}/{1}, current file {2}{3}, {4}s elapsed",
   CHECKING_DOWNLOAD_FILES:
@@ -224,6 +226,14 @@ export const th_TH: typeof zh_CN = {
   PREDOWNLOAD_READY: "{0} ดาวน์โหลดล่วงหน้า {1}",
   PREDOWNLOAD_BUTTON: "ดาวน์โหลดล่วงหน้า {0}",
   DOWNLOAD_TASK_CHECK_INTEGRITY: "ตรวจสอบความสมบูรณ์ของเกม ({0})",
+  DOWNLOAD_TASK_ACTION_INSTALL: "ติดตั้ง",
+  DOWNLOAD_TASK_ACTION_UPDATE: "อัปเดต",
+  DOWNLOAD_TASK_ACTION_CONTINUE: "ติดตั้งต่อ",
+  DOWNLOAD_TASK_ACTION_PREDOWNLOAD: "ดาวน์โหลดล่วงหน้า",
+  DOWNLOAD_TASK_ACTION_INTEGRITY: "ตรวจสอบความสมบูรณ์",
+  DOWNLOAD_TASK_ACTION_ENVIRONMENT: "เริ่มต้นสภาพแวดล้อม",
+  DOWNLOAD_TASK_IN_PROGRESS: "กำลัง{0}",
+  DOWNLOAD_TASK_IN_PROGRESS_VERSION: "กำลัง{0} {1}",
   PREDOWNLOAD_DONE: "ดาวน์โหลดล่วงหน้าแล้ว",
   SETTING_PREDOWNLOAD: en.SETTING_PREDOWNLOAD,
   SETTING_PREDOWNLOAD_VERSION: en.SETTING_PREDOWNLOAD_VERSION,

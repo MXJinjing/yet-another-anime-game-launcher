@@ -1,10 +1,9 @@
-import { Progress, ProgressIndicator } from "@hope-ui/solid";
 import {
   For,
   Show,
+  createEffect,
   createMemo,
   createSignal,
-  createUniqueId,
   onCleanup,
 } from "solid-js";
 import type { JSX } from "solid-js";
@@ -21,12 +20,12 @@ import {
   getDownloadTasks,
   subscribeDownloadTasks,
 } from "../../download/task-registry";
-import { Locale, LocaleTextKey } from "../../locale";
-import { formatDownloadSpeed, humanFileSize } from "../../runtime/format";
+import { Locale, type LocaleTextKey } from "../../locale";
 import { reconcileDownloadTasks } from "../../download/solid-store";
+import { DownloadTaskDetail, TransferChart } from "./download-task-overview";
 import { downloadManagerText } from "../../locale/download-manager";
-import settingsIcon from "../../assets/icons/settings.svg";
-import { DownloadTaskOverview } from "./download-task-overview";
+import { formatDownloadSpeed } from "../../runtime/format";
+import type { ActivitySample } from "../../integrations/sophon-activity";
 import { DownloadTaskDetailsModal } from "../../modals/download-task-details-modal";
 import "./download-manager.css";
 
@@ -42,26 +41,42 @@ const STATUS_LOCALE_KEYS: Record<
   cancelled: "DOWNLOAD_STATUS_CANCELLED",
 };
 
+const networkRate = (sample: ActivitySample) => sample.values["common.network"];
+const diskRate = (sample: ActivitySample) =>
+  sample.values["disk.write"] ?? sample.values["common.write"];
+
 function percent(value: number): string {
   return `${Math.min(100, Math.max(0, value)).toFixed(1)}%`;
 }
 
-function taskStatusText(task: DownloadTaskSnapshot, locale: Locale): string {
+export function taskStatusText(task: DownloadTaskSnapshot, locale: Locale) {
   if (task.status === "active" && task.phaseKind === "verifying") {
     return locale.get("DOWNLOAD_STATUS_VERIFYING");
   }
-  if (task.status === "active" && !task.transferring && task.phase) {
-    return task.phase;
-  }
+  if (task.phase && !/\d+\s*\/\s*\d+/.test(task.phase)) return task.phase;
   return locale.get(STATUS_LOCALE_KEYS[task.status]);
+}
+
+export function taskFileProgress(task: DownloadTaskSnapshot) {
+  if (
+    task.fileIndex === undefined ||
+    task.fileCount === undefined ||
+    task.fileCount <= 0
+  ) {
+    return undefined;
+  }
+  return {
+    label: `${task.fileIndex} / ${task.fileCount}`,
+    value: (task.fileIndex / task.fileCount) * 100,
+  };
 }
 
 export function DownloadManager(props: {
   locale: Locale;
   initialTaskId?: string;
+  accent?: string;
+  accentText?: string;
   renderTaskIcon: (task: DownloadTaskSnapshot) => JSX.Element;
-  getTaskArtwork: (task: DownloadTaskSnapshot) => string | undefined;
-  onOpenSettings: () => void;
 }) {
   const [tasks, setTasks] = createStore<DownloadTaskSnapshot[]>(
     getDownloadTasks().map(task => ({
@@ -73,8 +88,6 @@ export function DownloadManager(props: {
   const [detailTaskId, setDetailTaskId] = createSignal<string>();
   const detailTask = () => tasks.find(task => task.id === detailTaskId());
   const [selectedTaskId, setSelectedTaskId] = createSignal(props.initialTaskId);
-  const queueHeadingId = createUniqueId();
-  const text = () => downloadManagerText(props.locale.currentLanguage);
   const selectedTask = createMemo(
     () =>
       tasks.find(task => task.id === selectedTaskId()) ??
@@ -84,6 +97,11 @@ export function DownloadManager(props: {
   const [globalTaskActive, setGlobalTaskActive] = createSignal(
     getGlobalTaskActive()
   );
+
+  createEffect(() => {
+    const id = props.initialTaskId;
+    if (id) setSelectedTaskId(id);
+  });
 
   onCleanup(
     subscribeDownloadTasks(next => {
@@ -98,205 +116,163 @@ export function DownloadManager(props: {
 
   const isLocked = (task: DownloadTaskSnapshot) =>
     globalTaskActive() && Boolean(task.key);
+  const text = () => downloadManagerText(props.locale.currentLanguage);
+  const telemetry = createMemo(() => {
+    const task = selectedTask();
+    if (!task) return undefined;
+    const activity = Array.from(task.sophonActivities?.values() ?? []).sort(
+      (left, right) =>
+        (right.history.at(-1)?.time ?? 0) - (left.history.at(-1)?.time ?? 0)
+    )[0];
+    const live = task.status === "active";
+    const history = activity?.history ?? [];
+    const latest = history.at(-1);
+    const peak = history.reduce<number | undefined>((maximum, sample) => {
+      const rate = networkRate(sample);
+      return rate === undefined ? maximum : Math.max(maximum ?? 0, rate);
+    }, undefined);
+    return {
+      history,
+      network: live
+        ? activity?.progress?.metrics.common.network.rate ??
+          (task.transferring ? task.speed : undefined)
+        : undefined,
+      disk: live
+        ? (latest && diskRate(latest)) ??
+          activity?.progress?.metrics.common.write.rate
+        : undefined,
+      peak,
+    };
+  });
 
   return (
-    <div class="download-manager">
-      <header class="download-manager-header">
-        <h1 class="download-manager-title">
-          {props.locale.get("DOWNLOAD_MANAGER")}
-        </h1>
-        <button
-          class="download-manager-settings"
-          type="button"
-          aria-label={text().settings}
-          title={text().settings}
-          onClick={props.onOpenSettings}
-        >
-          <img src={settingsIcon} alt="" />
-        </button>
-      </header>
-      <div class="download-manager-body">
-        <Show when={selectedTask()}>
-          {task => (
-            <DownloadTaskOverview
-              task={task()}
-              locale={props.locale}
-              status={taskStatusText(task(), props.locale)}
-              artwork={props.getTaskArtwork(task())}
-              onPause={
-                task().status === "active" &&
-                task().canPause &&
-                !isLocked(task())
-                  ? () => void pauseDownloadTask(task().id)
-                  : undefined
-              }
-            />
-          )}
-        </Show>
-        <section
-          class="download-manager-queue"
-          aria-labelledby={queueHeadingId}
-        >
-          <h2 id={queueHeadingId}>
-            {text().queue} <span>({tasks.length})</span>
-          </h2>
-          <Show when={globalTaskActive()}>
-            <div class="download-queue-global-hint">
-              {props.locale.get("DOWNLOAD_MANAGER_GLOBAL_TASK_WAITING")}
-            </div>
-          </Show>
-          <Show
-            when={tasks.length > 0}
-            fallback={
-              <div class="download-queue-empty">
-                {props.locale.get("DOWNLOAD_MANAGER_EMPTY")}
-              </div>
-            }
-          >
-            <div class="download-queue-list">
-              <For each={tasks}>
-                {task => (
-                  <div
-                    class="download-queue-item"
-                    classList={{
-                      "is-featured": selectedTask()?.id === task.id,
-                    }}
+    <div
+      class="download-manager"
+      style={{
+        "--download-accent": props.accent,
+        "--download-accent-text": props.accentText,
+      }}
+    >
+      <Show when={globalTaskActive()}>
+        <div class="download-queue-global-hint">
+          {props.locale.get("DOWNLOAD_MANAGER_GLOBAL_TASK_WAITING")}
+        </div>
+      </Show>
+      <Show
+        when={tasks.length > 0}
+        fallback={
+          <div class="download-queue-empty">
+            {props.locale.get("DOWNLOAD_MANAGER_EMPTY")}
+          </div>
+        }
+      >
+        <div class="download-task-list">
+          <For each={tasks}>
+            {task => {
+              const open = () => selectedTask()?.id === task.id;
+              const files = () => taskFileProgress(task);
+              const status = () => taskStatusText(task, props.locale);
+              return (
+                <article
+                  class="download-task"
+                  classList={{ "is-open": open(), [`is-${task.status}`]: true }}
+                >
+                  <button
+                    class="download-task-select"
+                    type="button"
+                    aria-pressed={open()}
+                    aria-label={task.title}
+                    onClick={() => setSelectedTaskId(task.id)}
                   >
-                    <button
-                      class="download-queue-select"
-                      type="button"
-                      aria-label={task.title}
-                      aria-pressed={selectedTask()?.id === task.id}
-                      title={task.title}
-                      onClick={() => setSelectedTaskId(task.id)}
-                    />
-                    <div class="download-queue-item-icon" aria-hidden="true">
+                    <span class="download-task-avatar" aria-hidden="true">
                       {props.renderTaskIcon(task)}
-                    </div>
-                    <div class="download-queue-item-header">
-                      <div class="download-queue-item-titles">
-                        <div
-                          class="download-queue-item-title"
-                          title={task.title}
-                        >
-                          {task.title}
-                        </div>
-                        <Show when={task.phase}>
-                          <div
-                            class="download-queue-item-phase"
-                            title={task.phase}
-                          >
-                            {task.phase}
-                          </div>
-                        </Show>
-                      </div>
-                      <div class="download-queue-item-status">
-                        <span class="download-queue-total-percent">
-                          {task.indeterminate ? " " : percent(task.progress)}
-                        </span>
-                        <span
-                          classList={{
-                            "download-queue-badge": true,
-                            [`download-queue-badge--${task.status}`]: true,
-                          }}
-                        >
-                          {taskStatusText(task, props.locale)}
-                        </span>
-                      </div>
-                    </div>
-                    <div class="download-queue-item-transfer">
-                      <Progress
-                        class="download-queue-progress"
-                        value={task.progress}
-                        indeterminate={task.indeterminate}
-                        size="sm"
-                        borderRadius={8}
-                      >
-                        <ProgressIndicator
-                          style={"transition: none;"}
-                          borderRadius={8}
-                        />
-                      </Progress>
-                      <div class="download-queue-item-meta">
-                        <span>
-                          {humanFileSize(task.downloaded)} /{" "}
-                          {task.total > 0
-                            ? humanFileSize(task.total)
-                            : props.locale.get("DOWNLOAD_TASK_UNKNOWN_SIZE")}
-                          <Show
-                            when={
-                              task.fileIndex !== undefined &&
-                              task.fileCount !== undefined
-                            }
-                          >
-                            {` · ${props.locale.get("DOWNLOAD_FILE_INDEX")} ${
-                              task.fileIndex
-                            } / ${task.fileCount}`}
-                          </Show>
-                        </span>
-                        <span>{formatDownloadSpeed(task.speed)}</span>
-                      </div>
-                    </div>
-
-                    <div class="download-queue-item-actions">
-                      <Show
-                        when={
-                          (task.status === "active" ||
-                            task.status === "queued") &&
-                          task.canPause &&
-                          !isLocked(task)
-                        }
-                      >
-                        <button
-                          type="button"
-                          class="download-queue-action"
-                          onClick={() => void pauseDownloadTask(task.id)}
-                        >
-                          {props.locale.get("DOWNLOAD_PAUSE")}
-                        </button>
-                      </Show>
-                      <Show
-                        when={
-                          task.status === "paused" &&
-                          task.canResume &&
-                          !isLocked(task)
-                        }
-                      >
-                        <button
-                          type="button"
-                          class="download-queue-action"
-                          onClick={() => void resumeDownloadTask(task.id)}
-                        >
-                          {props.locale.get("DOWNLOAD_RESUME")}
-                        </button>
-                      </Show>
-                      <Show when={task.engines.length > 0}>
-                        <button
-                          type="button"
-                          class="download-queue-action download-queue-action--expand"
-                          aria-haspopup="dialog"
-                          onClick={() => setDetailTaskId(task.id)}
-                        >
-                          {props.locale.get("DOWNLOAD_TASK_EXPAND")}
-                        </button>
-                      </Show>
-                      <Show when={task.canCancel && !isLocked(task)}>
-                        <button
-                          type="button"
-                          class="download-queue-action download-queue-action--cancel"
-                          onClick={() => void cancelDownloadTask(task.id)}
-                        >
-                          {props.locale.get("CANCEL_DOWNLOAD")}
-                        </button>
-                      </Show>
-                    </div>
-                  </div>
-                )}
-              </For>
-            </div>
-          </Show>
-        </section>
-      </div>
+                    </span>
+                    <span class="download-task-copy">
+                      <strong>{task.title}</strong>
+                      <small>
+                        <i />
+                        {status()}
+                      </small>
+                    </span>
+                    <Show when={!open()}>
+                      <span class="download-task-aside">
+                        {files()?.label ??
+                          (task.indeterminate ? "" : percent(task.progress))}
+                      </span>
+                    </Show>
+                  </button>
+                  <Show when={open()}>
+                    <DownloadTaskDetail
+                      task={task}
+                      locale={props.locale}
+                      status={status()}
+                      fileProgress={files()}
+                      onPause={
+                        (task.status === "active" ||
+                          task.status === "queued") &&
+                        task.canPause &&
+                        !isLocked(task)
+                          ? () => void pauseDownloadTask(task.id)
+                          : undefined
+                      }
+                      onResume={
+                        task.status === "paused" &&
+                        task.canResume &&
+                        !isLocked(task)
+                          ? () => void resumeDownloadTask(task.id)
+                          : undefined
+                      }
+                      onCancel={
+                        task.canCancel && !isLocked(task)
+                          ? () => void cancelDownloadTask(task.id)
+                          : undefined
+                      }
+                      onDetails={
+                        task.engines.length > 0
+                          ? () => setDetailTaskId(task.id)
+                          : undefined
+                      }
+                    />
+                  </Show>
+                </article>
+              );
+            }}
+          </For>
+        </div>
+      </Show>
+      <Show when={telemetry()}>
+        {rates => (
+          <footer class="download-telemetry" aria-label={text().network}>
+            <dl>
+              <div>
+                <dt>{text().network}</dt>
+                <dd>
+                  {rates().network === undefined
+                    ? "—"
+                    : formatDownloadSpeed(rates().network ?? 0)}
+                </dd>
+              </div>
+              <div class="is-peak">
+                <dt>{text().peak}</dt>
+                <dd>
+                  {rates().peak === undefined
+                    ? "—"
+                    : formatDownloadSpeed(rates().peak ?? 0)}
+                </dd>
+              </div>
+              <div class="is-disk">
+                <dt>{text().disk}</dt>
+                <dd>
+                  {rates().disk === undefined
+                    ? "—"
+                    : formatDownloadSpeed(rates().disk ?? 0)}
+                </dd>
+              </div>
+            </dl>
+            <TransferChart history={rates().history} locale={props.locale} />
+          </footer>
+        )}
+      </Show>
       <DownloadTaskDetailsModal
         task={detailTask()}
         locale={props.locale}
