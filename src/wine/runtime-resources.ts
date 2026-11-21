@@ -12,6 +12,10 @@ import { getKeyOrDefault, setKey } from "@runtime/storage";
 import { downloadPercent } from "@runtime/format";
 import { warn } from "@logging/logger";
 import {
+  DownloadFailedError,
+  isDownloadCancelledError,
+} from "../download/control";
+import {
   fileOrDirExists,
   removeFileIfExists,
   stats,
@@ -127,16 +131,24 @@ export async function* checkAndDownloadMoltenVK(aria2: Aria2): TaskProgram {
   )
     return;
   await mkdirp("./moltenvk");
+  const target = resolve("./moltenvk/libMoltenVK.dylib");
   yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
-  for await (const progress of aria2.doStreamingDownload({
-    uri: "https://github.com/3Shain/winecx/releases/download/gi-wine-1.0/libMoltenVK.dylib",
-    absDst: resolve("./moltenvk/libMoltenVK.dylib"),
-  })) {
-    yield [
-      "setProgress",
-      Number((progress.completedLength * BigInt(100)) / progress.totalLength),
-    ];
-    yield downloadProgress(progress);
+  try {
+    for await (const progress of aria2.doStreamingDownload({
+      uri: "https://github.com/3Shain/winecx/releases/download/gi-wine-1.0/libMoltenVK.dylib",
+      absDst: target,
+    })) {
+      yield [
+        "setProgress",
+        Number((progress.completedLength * BigInt(100)) / progress.totalLength),
+      ];
+      yield downloadProgress(progress);
+    }
+  } catch (error) {
+    if (isDownloadCancelledError(error)) throw error;
+    // A partial dylib would otherwise be treated as installed next time.
+    await removeRuntimeInstaller(target);
+    throw new DownloadFailedError(`MoltenVK download failed: ${String(error)}`);
   }
   await setKey("installed_moltenvk_version", CURRENT_MVK_VERSION);
 }
@@ -152,22 +164,33 @@ export async function* checkAndDownloadDXVK(aria2: Aria2): TaskProgram {
   yield ["setStateText", "DOWNLOADING_ENVIRONMENT"];
   const overall = new Aria2OverallProgress();
   for (const [fileNumber, file] of DXVK_FILES.entries()) {
-    for await (const progress of aria2.doStreamingDownload({
-      uri: `https://github.com/3Shain/winecx/releases/download/gi-wine-1.0/${file}`,
-      absDst: resolve(`./dxvk/${file}`),
-    })) {
-      const current = overall.current(progress);
-      yield ["setProgress", overall.step(progress)];
-      yield [
-        "setStateText",
-        "DOWNLOADING_ENVIRONMENT_SPEED",
-        formatDownloadSpeed(Number(progress.downloadSpeed)),
-        `${humanFileSize(Number(current.completed))}`,
-        `${humanFileSize(Number(current.total))}`,
-        downloadPercent(current.completed, current.total),
-        String(fileNumber + 1),
-        String(DXVK_FILES.length),
-      ];
+    const target = resolve(`./dxvk/${file}`);
+    try {
+      for await (const progress of aria2.doStreamingDownload({
+        uri: `https://github.com/3Shain/winecx/releases/download/gi-wine-1.0/${file}`,
+        absDst: target,
+      })) {
+        const current = overall.current(progress);
+        yield ["setProgress", overall.step(progress)];
+        yield [
+          "setStateText",
+          "DOWNLOADING_ENVIRONMENT_SPEED",
+          formatDownloadSpeed(Number(progress.downloadSpeed)),
+          `${humanFileSize(Number(current.completed))}`,
+          `${humanFileSize(Number(current.total))}`,
+          downloadPercent(current.completed, current.total),
+          String(fileNumber + 1),
+          String(DXVK_FILES.length),
+        ];
+      }
+    } catch (error) {
+      if (isDownloadCancelledError(error)) throw error;
+      // Drop the partial library; the version marker stays unset so the next
+      // launch downloads the whole set again.
+      await removeRuntimeInstaller(target);
+      throw new DownloadFailedError(
+        `DXVK download failed for ${file}: ${String(error)}`
+      );
     }
     overall.finishFile();
   }
@@ -206,8 +229,14 @@ async function* installJadeite(aria2: Aria2, archive: string): TaskProgram {
   try {
     await exec(["/usr/bin/unzip", "-oq", archive, "-d", resolve("./jadeite")]);
   } catch (error) {
+    if (isDownloadCancelledError(error)) throw error;
+    // Remove both the installer and any partially extracted payload so a
+    // retry starts from a clean directory.
     await removeRuntimeInstaller(archive);
-    throw error;
+    await rmrf_dangerously(resolve("./jadeite"));
+    throw new DownloadFailedError(
+      `Jadeite extraction failed: ${String(error)}`
+    );
   }
   await setKey("installed_jadeite_version", CURRENT_JADEITE_VERSION);
   await removeRuntimeInstaller(archive);
@@ -220,8 +249,45 @@ export function checkAndDownloadDXMT(
   const directory = resolve("./dxmt");
   return installRuntimeArchive(
     directory,
-    installDXMT(aria2, directory, downloadKey)
+    installDXMTWithRetry(aria2, directory, downloadKey)
   );
+}
+
+/**
+ * A corrupt or incomplete DXMT payload must not leave a half-swapped runtime.
+ * Clean up the staging area, restore the previous runtime when it was moved
+ * aside, and try the download once more before reporting a download failure.
+ */
+async function* installDXMTWithRetry(
+  aria2: Aria2,
+  directory: string,
+  downloadKey?: string
+): TaskProgram {
+  for (let attempt = 0; attempt <= 1; attempt++) {
+    try {
+      yield* installDXMT(aria2, directory, downloadKey);
+      return;
+    } catch (error) {
+      if (isDownloadCancelledError(error)) throw error;
+      await restoreDXMTRuntime(directory);
+      if (attempt > 0) {
+        throw new DownloadFailedError(
+          `DXMT runtime installation failed: ${String(error)}`
+        );
+      }
+    }
+  }
+}
+
+async function restoreDXMTRuntime(directory: string) {
+  const staging = resolve("./dxmt-staging");
+  const backup = resolve("./dxmt-backup");
+  await rmrf_dangerously(staging);
+  if (!(await fileOrDirExists(directory)) && (await fileOrDirExists(backup))) {
+    await forceMove(backup, directory);
+  } else {
+    await rmrf_dangerously(backup);
+  }
 }
 
 async function* installDXMT(
@@ -354,8 +420,11 @@ async function* installReshade(
   try {
     await exec(["/usr/bin/tar", "-xf", installer, "-C", reshaderDir]);
   } catch (error) {
+    if (isDownloadCancelledError(error)) throw error;
     await removeRuntimeInstaller(installer);
-    throw error;
+    throw new DownloadFailedError(
+      `ReShade extraction failed: ${String(error)}`
+    );
   }
   await forceMove(
     join(reshaderDir, "ReShade64.dll"),

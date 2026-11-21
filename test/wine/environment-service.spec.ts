@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { TaskProgram } from "@tasks/task-program";
+import { TaskFailedError, type TaskProgram } from "@tasks/task-program";
 import {
   createWineEnvironmentService,
   type WineEnvironmentServiceDependencies,
@@ -46,6 +46,7 @@ function createHarness(installed = false) {
     installWineEnvironmentProgram,
     configureWineEnvironmentProgram,
     removePrefix: vi.fn(async () => undefined),
+    confirmPrefixReset: vi.fn(async () => false),
   };
   const service = createWineEnvironmentService({
     aria2: {} as never,
@@ -58,6 +59,16 @@ function createHarness(installed = false) {
 }
 
 describe("wine environment service", () => {
+  it("uses production dependencies when none are injected", () => {
+    const service = createWineEnvironmentService({
+      aria2: {} as never,
+      wine: { killAll: vi.fn() } as never,
+      wineAbsPrefix: "/prefix",
+      setWineInstalled: vi.fn(),
+    });
+    expect(typeof service.initialize).toBe("function");
+  });
+
   it("resets the prefix after terminating Wine", async () => {
     const { service, wine, dependencies, setWineInstalled } = createHarness();
     await service.reset();
@@ -71,6 +82,9 @@ describe("wine environment service", () => {
   it("rejects an unavailable distribution without changing the prefix", async () => {
     const { service, dependencies, wine, setWineInstalled } =
       createHarness(false);
+    await expect(collect(service.enable(distro))).rejects.toBeInstanceOf(
+      TaskFailedError
+    );
     await expect(collect(service.enable(distro))).rejects.toThrow(
       "Wine distribution has not been downloaded"
     );
@@ -86,6 +100,12 @@ describe("wine environment service", () => {
     await collect(service.enable(distro));
     expect(dependencies.installWineEnvironmentProgram).not.toHaveBeenCalled();
     expect(dependencies.configureWineEnvironmentProgram).toHaveBeenCalledOnce();
+    expect(dependencies.configureWineEnvironmentProgram).toHaveBeenCalledWith(
+      expect.objectContaining({
+        confirmPrefixReset: dependencies.confirmPrefixReset,
+        removePrefix: dependencies.removePrefix,
+      })
+    );
     expect(wine.killAll).toHaveBeenCalledOnce();
     expect(wine.waitForWineServerExit).toHaveBeenCalledWith({
       timeoutMs: 5_000,

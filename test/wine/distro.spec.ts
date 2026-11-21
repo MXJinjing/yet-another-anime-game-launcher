@@ -6,6 +6,7 @@ vi.mock("@platform/neutralino", () => ({
 }));
 vi.mock("@runtime/command-runner", () => ({ exec: vi.fn() }));
 vi.mock("@runtime/storage", () => ({ getKey: vi.fn(), setKey: vi.fn() }));
+vi.mock("@logging/logger", () => ({ warn: vi.fn() }));
 vi.mock("@wine/wine", () => ({
   ensureActiveWineCompatLink: vi.fn(),
   getWineInstallDir: (id: string) => `/wines/${id}`,
@@ -21,6 +22,7 @@ vi.mock("@wine/system-wine", () => ({
 import { stats, fileOrDirExists } from "@platform/neutralino";
 import { exec } from "@runtime/command-runner";
 import { getKey, setKey } from "@runtime/storage";
+import { warn } from "@logging/logger";
 import { ensureActiveWineCompatLink, isWineDistroInstalled } from "@wine/wine";
 import { readCustomWineEntries, findConfiguredWine } from "@wine/system-wine";
 import {
@@ -118,9 +120,13 @@ describe("Wine distribution discovery and activation", () => {
     expect(isWineRuntimeReady({ renderBackend: "dxmt" }, false)).toBe(false);
     expect(isWineRuntimeReady({ renderBackend: "dxmt" }, true)).toBe(true);
   });
-  it("fails clearly for an unknown channel default", async () => {
-    await expect(checkWine("unknown")).rejects.toThrow(
-      "can not find default wine version"
+  it("falls back to the recommended build for an unknown channel default", async () => {
+    await expect(checkWine("unknown")).resolves.toMatchObject({
+      wineReady: false,
+      wineDistribution: { id: defaultId },
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("can not find default wine version: unknown")
     );
   });
   it("returns the default when state is missing or not ready", async () => {

@@ -1,12 +1,14 @@
 import type { Aria2 } from "@aria2";
-import type { TaskProgram } from "@tasks/task-program";
+import { TaskFailedError, type TaskProgram } from "@tasks/task-program";
 import { rmrf_dangerously } from "@runtime";
 import { dirname, join } from "path-browserify";
 import { checkWine } from "./distro";
 import type { WineDistribution, WineStatus } from "./distro";
 import {
   configureWineEnvironmentProgram,
+  confirmWinePrefixReset,
   installWineEnvironmentProgram,
+  type WinePrefixResetConfirmation,
 } from "./wine-install-program";
 import { isWineDistroInstalled, uninstallWineDistro, type Wine } from "./wine";
 
@@ -17,6 +19,7 @@ export type WineEnvironmentServiceDependencies = {
   installWineEnvironmentProgram: typeof installWineEnvironmentProgram;
   configureWineEnvironmentProgram: typeof configureWineEnvironmentProgram;
   removePrefix: (path: string) => Promise<unknown>;
+  confirmPrefixReset: WinePrefixResetConfirmation;
 };
 
 const defaultDependencies: WineEnvironmentServiceDependencies = {
@@ -26,6 +29,7 @@ const defaultDependencies: WineEnvironmentServiceDependencies = {
   installWineEnvironmentProgram,
   configureWineEnvironmentProgram,
   removePrefix: rmrf_dangerously,
+  confirmPrefixReset: confirmWinePrefixReset,
 };
 
 export async function checkWineEnvironment(
@@ -54,7 +58,9 @@ export function createWineEnvironmentService({
   async function stopWine() {
     await wine.killAll();
     if (!(await wine.waitForWineServerExit({ timeoutMs: 5_000 }))) {
-      throw new Error("Wine server did not exit; environment was not changed");
+      throw new TaskFailedError(
+        "Wine server did not exit; environment was not changed"
+      );
     }
   }
 
@@ -79,6 +85,8 @@ export function createWineEnvironmentService({
       wineDistro,
       activate: false,
       finishMessage: false,
+      confirmPrefixReset: dependencies.confirmPrefixReset,
+      removePrefix: dependencies.removePrefix,
     });
     yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
     yield ["setUndeterminedProgress"];
@@ -87,6 +95,8 @@ export function createWineEnvironmentService({
       wineAbsPrefix,
       wineDistro,
       beforeActivate,
+      confirmPrefixReset: dependencies.confirmPrefixReset,
+      removePrefix: dependencies.removePrefix,
     });
     await wine.setDistribution(wineDistro);
     setWineInstalled(true);
@@ -94,7 +104,7 @@ export function createWineEnvironmentService({
 
   async function* enable(wineDistro: WineDistribution): TaskProgram {
     if (!(await dependencies.isWineDistroInstalled(wineDistro.id))) {
-      throw new Error(
+      throw new TaskFailedError(
         `Wine distribution has not been downloaded: ${wineDistro.id}`
       );
     }
@@ -108,6 +118,8 @@ export function createWineEnvironmentService({
       aria2,
       wineAbsPrefix,
       wineDistro,
+      confirmPrefixReset: dependencies.confirmPrefixReset,
+      removePrefix: dependencies.removePrefix,
     });
     await wine.setDistribution(wineDistro);
     setWineInstalled(true);
