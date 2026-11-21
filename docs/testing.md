@@ -1,15 +1,15 @@
 # Tests, coverage, and main protection
 
-Run the tests on macOS with pnpm, Node.js, Xcode with Swift 6.3 or newer, and uv installed. Install frontend dependencies with `pnpm install --frozen-lockfile`. The frontend also needs the ignored channel configuration: `base64 -d -i src/clients/secret.b64 -o src/clients/secret.ts`. Tests mock platform operations and do not require a running launcher or real game downloads.
+Run the frontend tests with pnpm and Node.js. Install dependencies with `pnpm install --frozen-lockfile`. The frontend also needs the ignored channel configuration: `base64 -d -i src/clients/secret.b64 -o src/clients/secret.ts` on macOS, or the equivalent decode on Linux. Tests mock platform operations and do not require a running launcher, Neutralino, or real game downloads. Swift and the legacy Python API are not part of CI.
 
 | Command                  | Purpose                                                       |
 | ------------------------ | ------------------------------------------------------------- |
 | `pnpm test`              | All frontend unit and regression tests, once                  |
 | `pnpm run test:watch`    | Frontend tests in watch mode                                  |
 | `pnpm run test:coverage` | Frontend tests, full-source coverage, and coverage thresholds |
-| `pnpm run test:sophon`   | Swift sidecar tests and LLVM coverage thresholds              |
-| `pnpm run test:sophon-python` | Legacy Python API tests and coverage thresholds          |
-| `pnpm run test:all`      | Both coverage suites and all coverage thresholds              |
+| `pnpm run test:sophon`   | Optional local Swift mirror tests; not a CI gate              |
+| `pnpm run test:sophon-python` | Optional local legacy API tests; not a CI gate           |
+| `pnpm run test:all`      | Frontend coverage plus the optional local Sophon suites       |
 
 The Swift suite uses local fixtures for manifest browsing, file selection, integrity, transfer recovery, and JSON-RPC. Export `SOPHON_LIVE_TESTS=1` to opt into the upstream tests that contact the public game APIs. The legacy API suite uses uv and the existing Python coverage policy.
 
@@ -21,7 +21,7 @@ Frontend coverage includes every executable TypeScript and TSX module under `src
 
 `test/coverage-thresholds.json` defines the full-source baseline and separate thresholds for critical files. `scripts/check-coverage.mjs` fails for insufficient coverage, missing required files, missing reports, or malformed metrics. New baseline values should reflect tests that exercise behavior; increase the values when adding coverage. Keep untested source in the denominator.
 
-Current global minimums:
+CI enforces the frontend minimum only. The Swift and legacy Python minimums below apply to the optional local commands, not to pull requests.
 
 | Scope    | Lines | Statements    | Branches | Functions     |
 | -------- | ----- | ------------- | -------- | ------------- |
@@ -42,9 +42,9 @@ Python coverage.py's default total combines executed statements and branch desti
 
 ## CI and release gates
 
-`.github/workflows/tests.yaml` is shared by PR checks, main builds, and tag releases. It runs frontend code checks and both coverage suites, and uploads the two coverage reports. Unit tests prepare their configuration without downloading the full Neutralino runtime.
+`.github/workflows/tests.yaml` is shared by PR checks, main builds, and tag releases. It runs frontend code checks and the frontend coverage policy on `ubuntu-latest`, then uploads that report. It does not compile, test, or synchronize the Sophon source mirror. Unit tests prepare their configuration without downloading the full Neutralino runtime.
 
-The PR workflow also supports merge queues and manual runs. Its final job is named `check`; it runs with `always()` and succeeds only if the shared test workflow succeeded. Failed, cancelled, or skipped tests cannot silently produce a successful gate. Keep this job name stable because main protection requires it.
+The PR workflow also supports merge queues and manual runs. It skips the frontend job only when a pull request changes nothing outside `sophon_server/`. Its final job is named `check`; it runs with `always()` and succeeds when the required frontend tests succeeded, or when those tests were not required. Failed, cancelled, or missing required tests cannot silently produce a successful gate. Keep this job name stable because main protection requires it.
 
 Manual main builds and tag packaging jobs depend on the shared tests. A failing test or coverage policy prevents packaging and draft release publication. Pushing or merging to main does not automatically run Build Main. Use its workflow_dispatch entrypoint for a manual build; version tags still trigger Build Release.
 
