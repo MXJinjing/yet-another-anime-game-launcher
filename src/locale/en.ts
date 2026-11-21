@@ -407,6 +407,15 @@ export const en: typeof zh_CN = {
   SETTING_WINE_LOCAL_NAME: "Name",
   SETTING_WINE_BINARY_PATH: "Wine executable path",
   SETTING_WINE_GLOBAL: "Global Wine",
+  SETTING_WINE_BINARY_ROOT: "Wine runtime location",
+  SETTING_WINE_BINARY_ROOT_LAUNCHER: "Launcher data directory",
+  SETTING_WINE_BINARY_ROOT_SHARED: "Shared directory (~/.local/yaaglm-wines)",
+  SETTING_WINE_BINARY_ROOT_CUSTOM: "Custom",
+  SETTING_WINE_BINARY_ROOT_CHOOSE: "Choose directory",
+  SETTING_WINE_BINARY_ROOT_HINT:
+    "Installed versions stay where they are. Later downloads are saved here.",
+  SETTING_WINE_BINARY_ROOT_INVALID:
+    "The selected directory cannot be used. The location was not changed.",
   SETTING_OPEN: "Open",
   LOG_VIEWER_TITLE: "Live Logs",
   LOG_VIEWER_EMPTY: "No logs yet",
