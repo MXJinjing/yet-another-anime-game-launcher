@@ -148,7 +148,7 @@ function LogWindowApp(props: { locale: Locale }) {
       },
       onGameReset: () => {
         setMonitored([]);
-        setClosed(new Set());
+        setClosed(new Set<string>());
         setLinesByPath({});
         if (selected() !== LAUNCHER_LOG_TAB) setSelected(LAUNCHER_LOG_TAB);
       },
