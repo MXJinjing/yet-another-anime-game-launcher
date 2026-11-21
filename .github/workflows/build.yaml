@@ -45,7 +45,7 @@ jobs:
         env:
           HELPER_RELEASE: latest
 
-      - name: Build Sophon for arm64
+      - name: Download pinned Sophon release
         run: ./build-sophon.sh
 
       - name: Build arm64 release assets

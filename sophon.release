@@ -1,0 +1,5 @@
+# Pinned MXJinjing/sophon release downloaded by ./build-sophon.sh.
+# Change this file to move the launcher onto another published build.
+# Workflows do not select the version.
+repository=MXJinjing/sophon
+tag=v0.1.0
