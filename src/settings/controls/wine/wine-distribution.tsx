@@ -12,6 +12,7 @@ import { Locale } from "@locale";
 import { Config } from "../../../config/config-def";
 import { AppModal, AppModalButton } from "../../../components/app-modal";
 import { AppSelect } from "../../../components/app-select";
+import { openDir } from "@platform/neutralino";
 import closeIcon from "../../../assets/icons/close.svg";
 import downloadIcon from "../../../assets/icons/download.svg";
 import editIcon from "../../../assets/icons/edit.svg";
@@ -24,6 +25,12 @@ import {
   readCustomWineEntries,
   writeCustomWineEntries,
 } from "../../../wine/system-wine";
+import {
+  parseWineBinaryRootMode,
+  readWineBinaryRootSetting,
+  saveWineBinaryRoot,
+  type WineBinaryRootMode,
+} from "../../../wine/binary-root";
 import "./wine-distribution.css";
 
 declare module "../../../config/config-def" {
@@ -109,6 +116,17 @@ export async function createWineDistroConfig({
   const [downloadProgresses, setDownloadProgresses] = createSignal(
     new Map<string, { progress: number | undefined; extracting: boolean }>()
   );
+  const initialBinaryRoot = await readWineBinaryRootSetting();
+  const [binaryRootMode, setBinaryRootMode] = createSignal<WineBinaryRootMode>(
+    initialBinaryRoot.mode
+  );
+  const [binaryRootCustom, setBinaryRootCustom] = createSignal(
+    initialBinaryRoot.customDir
+  );
+  const [binaryRootPath, setBinaryRootPath] = createSignal(
+    initialBinaryRoot.root
+  );
+  const [binaryRootSaving, setBinaryRootSaving] = createSignal(false);
 
   function markInstalled(distro: WineDistribution) {
     setInstalledWineDistroIds(prev => new Set([...prev, distro.id]));
@@ -335,6 +353,35 @@ export async function createWineDistroConfig({
         distro => distro.customWine?.binary == binary
       );
       if (updated) setSelectedWineDistroId(updated.id);
+    }
+  }
+
+  async function changeBinaryRoot(nextMode: string) {
+    const mode = parseWineBinaryRootMode(nextMode);
+    if (wineActionDisabled() || binaryRootSaving()) return;
+    if (mode === binaryRootMode() && mode !== "custom") return;
+    let customDir = binaryRootCustom();
+    if (mode === "custom") {
+      const picked = await openDir(
+        locale.get("SETTING_WINE_BINARY_ROOT_CHOOSE")
+      );
+      if (!picked) return;
+      customDir = picked;
+    }
+    setBinaryRootSaving(true);
+    try {
+      const next = await saveWineBinaryRoot({ mode, customDir });
+      setBinaryRootMode(mode);
+      setBinaryRootCustom(customDir);
+      setBinaryRootPath(next);
+      await refreshVersions();
+    } catch {
+      await locale.alert(
+        "SETTING_WINE_BINARY_ROOT",
+        "SETTING_WINE_BINARY_ROOT_INVALID"
+      );
+    } finally {
+      setBinaryRootSaving(false);
     }
   }
 
@@ -601,6 +648,45 @@ export async function createWineDistroConfig({
     function GlobalWineDistroConfig() {
       return (
         <VStack spacing="$2" alignItems="stretch">
+          <div class="hyp-setting-row">
+            <span>{locale.get("SETTING_WINE_BINARY_ROOT")}</span>
+            <AppSelect
+              value={binaryRootMode()}
+              onChange={value => void changeBinaryRoot(value)}
+              width={280}
+              disabled={wineActionDisabled() || binaryRootSaving()}
+              options={[
+                {
+                  value: "launcher",
+                  label: locale.get("SETTING_WINE_BINARY_ROOT_LAUNCHER"),
+                },
+                {
+                  value: "shared",
+                  label: locale.get("SETTING_WINE_BINARY_ROOT_SHARED"),
+                },
+                {
+                  value: "custom",
+                  label: locale.get("SETTING_WINE_BINARY_ROOT_CUSTOM"),
+                },
+              ]}
+            />
+          </div>
+          <div class="wine-binary-root-path" title={binaryRootPath()}>
+            <span>{binaryRootPath()}</span>
+            <Show when={binaryRootMode() === "custom"}>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={wineActionDisabled() || binaryRootSaving()}
+                onClick={() => void changeBinaryRoot("custom")}
+              >
+                {locale.get("SETTING_WINE_BINARY_ROOT_CHOOSE")}
+              </Button>
+            </Show>
+          </div>
+          <Text class="wine-binary-root-hint">
+            {locale.get("SETTING_WINE_BINARY_ROOT_HINT")}
+          </Text>
           <div class="hyp-setting-row">
             <span>{locale.get("SETTING_WINE_GLOBAL")}</span>
             <AppSelect

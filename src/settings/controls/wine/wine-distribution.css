@@ -11,6 +11,30 @@
   letter-spacing: 0 !important;
 }
 
+.wine-binary-root-path {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+}
+
+.wine-binary-root-path span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wine-binary-root-hint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.46) !important;
+  font-size: 12px !important;
+  line-height: 1.45;
+}
+
 .wine-global-save-button {
   min-width: 72px;
   border: 1px solid var(--hyp-accent, #ffd834) !important;
