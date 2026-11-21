@@ -17,6 +17,7 @@ import { isAuthorizationCancelledError } from "../runtime/authorization";
 import { type Accessor, createSignal, type Setter } from "solid-js";
 import { isTaskFailedError, type TaskProgram } from "./task-program";
 import type { TaskNotifier } from "./task-notifications";
+import { presentTaskStatus } from "./status-presentation";
 
 export type { TaskNotifier } from "./task-notifications";
 
@@ -96,26 +97,21 @@ function updateDownloadTaskState(
   taskId: string | undefined,
   key: LocaleTextKey | null,
   args: string[],
-  text: string
+  formatted: string,
+  locale: Locale
 ) {
   if (!taskId) return;
+  const presented = key ? presentTaskStatus(key, args) : undefined;
   updateDownloadTaskPhase(
     taskId,
-    text,
+    presented ? locale.get(presented.titleKey) : formatted,
     key ? DOWNLOAD_TRANSFER_STATE_KEYS.has(key) : false
   );
-  if (key === "DOWNLOADING_FILE_PROGRESS") {
-    updateDownloadTaskFileCounter(
-      taskId,
-      Number(args[5]) || undefined,
-      Number(args[6]) || undefined
-    );
-  } else if (key === "DOWNLOADING_ENVIRONMENT_SPEED") {
-    updateDownloadTaskFileCounter(
-      taskId,
-      Number(args[4]) || undefined,
-      Number(args[5]) || undefined
-    );
+  if (
+    presented &&
+    (presented.index !== undefined || presented.count !== undefined)
+  ) {
+    updateDownloadTaskFileCounter(taskId, presented.index, presented.count);
   }
 }
 
@@ -207,11 +203,8 @@ export function createTaskRunner({
               downloadTaskId,
               stateKey,
               args,
-              stateKey === "DOWNLOADING_FILE_PROGRESS"
-                ? locale.get("DOWNLOAD_PROGRESS")
-                : stateKey === "DOWNLOADING_ENVIRONMENT_SPEED"
-                ? locale.get("DOWNLOADING_ENVIRONMENT")
-                : formatted
+              formatted,
+              locale
             );
             if (!SKIP_LOG_STATE_KEYS.has(stateKey)) await log(formatted);
             break;
@@ -223,7 +216,13 @@ export function createTaskRunner({
             // reaches its terminal cleanup path below.
             state.setStatusArgs(null);
             state.setStatusText(command[1]);
-            updateDownloadTaskState(downloadTaskId, null, [], command[1]);
+            updateDownloadTaskState(
+              downloadTaskId,
+              null,
+              [],
+              command[1],
+              locale
+            );
             await log(command[1]);
             break;
         }

@@ -20,6 +20,7 @@ type DownloadTaskRecord = {
   id: string;
   key?: string;
   title: string;
+  progressTitle?: string;
   phaseKind?: DownloadTaskPhase;
   phase: string;
   phaseTransferring: boolean;
@@ -116,6 +117,7 @@ function toSnapshot(record: DownloadTaskRecord): DownloadTaskSnapshot {
     id: record.id,
     key: record.key,
     title: record.title,
+    ...(record.progressTitle ? { progressTitle: record.progressTitle } : {}),
     phaseKind: record.phaseKind,
     phase: record.phase,
     transferring: record.phaseTransferring,
@@ -166,6 +168,7 @@ export function beginDownloadTask(metadata: DownloadTaskMetadata): string {
     id,
     key: metadata.key,
     title: metadata.title,
+    progressTitle: metadata.progressTitle,
     phaseKind: undefined,
     phase: "",
     phaseTransferring: true,
