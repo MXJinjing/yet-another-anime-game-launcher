@@ -156,6 +156,7 @@ export function SophonInstallModal(props: {
       onClose={props.onClose}
       title={`${actionLabel()} · ${props.title}`}
       maxWidth={760}
+      contentClass="sophon-install-modal"
       footer={
         <>
           <VStack alignItems="flex-start" spacing={0} mr="auto">
@@ -219,6 +220,7 @@ export function SophonInstallModal(props: {
               css={{ textOverflow: "ellipsis" }}
             />
             <Button
+              class="sophon-install-button"
               variant="subtle"
               size="sm"
               flexShrink={0}
@@ -244,6 +246,7 @@ export function SophonInstallModal(props: {
             {error()}
           </Text>
           <Button
+            class="sophon-install-button"
             variant="subtle"
             size="sm"
             alignSelf="flex-start"
