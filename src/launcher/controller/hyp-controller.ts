@@ -3,7 +3,7 @@ import type { TaskProgram } from "@tasks/task-program";
 import type { Locale } from "../../locale";
 import { getKeyOrDefault } from "@runtime/storage";
 import { ensureMultiGameGameWine } from "@wine/multi-game";
-import { openGameLogFile } from "../../logging/game-log-tail";
+import type { GameLogLocation } from "../../channel-client";
 import type { HypGame } from "./launcher-types";
 
 /** Wrap a game operation with its per-game Wine selection. */
@@ -39,19 +39,21 @@ export async function clearGameInstallationState(game: HypGame) {
   await game.client.changeInstallDir?.("");
 }
 
+export interface GameDebugLogTarget {
+  prefix: string;
+  gameDir: string;
+  locations: readonly GameLogLocation[];
+}
+
 /** Compose launch and optional game-log opening outside the view layer. */
 export function createGameLaunchProgram({
   game,
   baseWine,
-  getStopGameLogOpen,
-  setStopGameLogOpen,
-  onGameLogOpenError,
+  onDebugLogs,
 }: {
   game: HypGame;
   baseWine: import("../../wine").Wine;
-  getStopGameLogOpen: () => (() => void) | undefined;
-  setStopGameLogOpen: (stop: (() => void) | undefined) => void;
-  onGameLogOpenError?: (path: string) => void;
+  onDebugLogs?: (target: GameDebugLogTarget) => void | Promise<void>;
 }): TaskProgram {
   return (async function* () {
     const config = game.config.advancedEnable
@@ -61,25 +63,17 @@ export function createGameLaunchProgram({
       (await getKeyOrDefault("config_debug_mode", "false")) === "true" &&
       game.client.installState() === "INSTALLED"
     ) {
-      getStopGameLogOpen()?.();
-      const prefix = game.wineRef
-        ? game.wineRef.current.prefix
-        : baseWine.prefix;
-      setStopGameLogOpen(
-        openGameLogFile({
-          prefix,
+      try {
+        await onDebugLogs?.({
+          prefix: game.wineRef ? game.wineRef.current.prefix : baseWine.prefix,
           gameDir: game.client.installDir(),
-          locations: game.client.gameLogLocations,
-          onOpenError: onGameLogOpenError,
-        })
-      );
+          locations: game.client.gameLogLocations ?? [],
+        });
+      } catch {
+        // A log window failure must not block the game itself.
+      }
     }
-    try {
-      yield* game.client.launch(config);
-    } finally {
-      getStopGameLogOpen()?.();
-      setStopGameLogOpen(undefined);
-    }
+    yield* game.client.launch(config);
   })();
 }
 

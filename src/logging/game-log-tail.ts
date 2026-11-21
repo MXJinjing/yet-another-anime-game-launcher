@@ -1,6 +1,5 @@
 import { join } from "path-browserify";
-import { execCommand, readFile, stats } from "../platform/neutralino";
-import { build } from "../platform/shell";
+import { readFile, stats } from "../platform/neutralino";
 import type { GameLogLocation } from "../channel-client";
 
 /**
@@ -136,6 +135,10 @@ export function createGameLogTail(options: {
   gameDir?: string;
   locations?: readonly GameLogLocation[];
   onLine: GameLogLineHandler;
+  /** Attribute each emitted line to the file that produced it. */
+  onFileLine?: (path: string, line: string) => void;
+  /** Configured and discovered files, including ones that do not exist yet. */
+  onPaths?: (paths: string[]) => void;
   pollIntervalMs?: number;
   maxLinesPerPoll?: number;
   lookbackLines?: number;
@@ -151,11 +154,13 @@ export function createGameLogTail(options: {
   let lastPathScan = 0;
   const states = new Map<string, TailState>();
 
-  function emit(lines: string[]) {
+  function emit(path: string, lines: string[]) {
     for (const line of lines) {
       if (stopped) return;
       // Wine logs may use CRLF; strip the trailing CR for clean output.
-      options.onLine(line.replace(/\r$/, ""));
+      const clean = line.replace(/\r$/, "");
+      options.onLine(clean);
+      options.onFileLine?.(path, clean);
     }
   }
 
@@ -223,7 +228,7 @@ export function createGameLogTail(options: {
       state.fingerprint = text.slice(0, 64);
       state.seeded = true;
       if (recent.length > 0) {
-        emit(recent.slice(-lookbackLines));
+        emit(path, recent.slice(-lookbackLines));
       }
       return;
     }
@@ -238,12 +243,12 @@ export function createGameLogTail(options: {
     const lines = parts.filter(line => line.length > 0);
     if (lines.length === 0) return;
     if (lines.length > maxLinesPerPoll) {
-      emit([
+      emit(path, [
         `... ${lines.length - maxLinesPerPoll} more log lines truncated ...`,
       ]);
-      emit(lines.slice(-maxLinesPerPoll));
+      emit(path, lines.slice(-maxLinesPerPoll));
     } else {
-      emit(lines);
+      emit(path, lines);
     }
   }
 
@@ -256,8 +261,13 @@ export function createGameLogTail(options: {
             locations,
           })
         : await findLegacyUnityLogFiles(options.prefix);
-    paths = [...new Set([...paths, ...discovered])];
+    const next = [...new Set([...paths, ...discovered])];
+    const changed =
+      next.length !== paths.length ||
+      next.some((path, index) => path !== paths[index]);
+    paths = next;
     lastPathScan = Date.now();
+    if (changed) options.onPaths?.([...paths]);
   }
 
   async function poll() {
@@ -278,60 +288,6 @@ export function createGameLogTail(options: {
         timer = setTimeout(() => void poll(), pollIntervalMs);
       }
     }
-  }
-
-  void poll();
-
-  return () => {
-    stopped = true;
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      timer = undefined;
-    }
-  };
-}
-
-/**
- * Wait for the configured game log and open it in macOS Console.app.
- * This intentionally does not use the launcher logger or runtime-log store.
- */
-export function openGameLogFile(options: {
-  prefix: string;
-  gameDir?: string;
-  locations?: readonly GameLogLocation[];
-  pollIntervalMs?: number;
-  onOpenError?: (path: string) => void;
-}): () => void {
-  const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
-  const locations = options.locations ?? [];
-  let stopped = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  async function poll() {
-    if (stopped) return;
-    const paths =
-      locations.length > 0
-        ? await findGameLogFiles({
-            prefix: options.prefix,
-            gameDir: options.gameDir ?? "",
-            locations,
-            existingOnly: true,
-          })
-        : await findLegacyUnityLogFiles(options.prefix);
-    if (stopped) return;
-    const path = paths[0];
-    if (path) {
-      try {
-        const result = await execCommand(
-          build(["/usr/bin/open", "-b", "com.apple.Console", path])
-        );
-        if (result.exitCode !== 0 && !stopped) options.onOpenError?.(path);
-      } catch {
-        if (!stopped) options.onOpenError?.(path);
-      }
-      return;
-    }
-    if (!stopped) timer = setTimeout(() => void poll(), pollIntervalMs);
   }
 
   void poll();

@@ -21,6 +21,7 @@ import { CloseConfirmationModal } from "./modals/close-confirmation-modal";
 import { LauncherUpdateModal } from "./modals/launcher-update-modal";
 import { HostsHelperTokenRecoveryModal } from "./modals/hosts-helper-token-recovery-modal";
 import { closeApp } from "./platform/neutralino/system";
+import { installLogWindowLifecycle } from "./logging/log-window-host";
 import { resolve } from "./platform/neutralino/path";
 import {
   _safeRelaunch,
@@ -93,6 +94,7 @@ type HostsHelperReregisterMarker = {
  * not have to know how Neutralino processes, Wine or update UI are wired.
  */
 export async function createApp(bootPerformance?: BootPerformance) {
+  installLogWindowLifecycle();
   function measure<T>(name: string, operation: () => Promise<T>) {
     return bootPerformance
       ? bootPerformance.measure(name, operation)
