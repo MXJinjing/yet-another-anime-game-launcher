@@ -132,4 +132,83 @@ describe("update apply", () => {
     // rmrf("./sidecar") must NOT have been issued before the layout check.
     expect(mockedRmrf).not.toHaveBeenCalledWith("./sidecar");
   });
+
+  it("reports a pre-rsync failure as a task failure without relaunching", async () => {
+    mockedEnv.mockResolvedValue("/Applications/Yaaglm.app");
+    mockedExec.mockRejectedValueOnce(new Error("tar: not a gzip file"));
+    const relaunch = vi.fn(async () => undefined);
+
+    const failure = applyReleaseApp("./sidecar.tar.gz", "Yaaglm.app", {
+      relaunch,
+    });
+
+    await expect(failure).rejects.toMatchObject({ name: "TaskFailedError" });
+    await expect(failure).rejects.toThrow("not a gzip file");
+    expect(relaunch).not.toHaveBeenCalled();
+  });
+
+  it("relaunches into the repair path when rsync fails after touching the bundle", async () => {
+    mockedEnv.mockResolvedValue("/Applications/Yaaglm.app");
+    mockedExec.mockImplementation(async (segments, _env, sudo) => {
+      if (segments.includes("--delete") && sudo) {
+        throw new Error("rsync: operation not permitted");
+      }
+      if (segments.includes("--delete")) {
+        throw new Error("rsync: permission denied");
+      }
+      return OK_RESULT;
+    });
+    const relaunch = vi.fn(async () => undefined);
+
+    await expect(
+      applyReleaseApp("./sidecar.tar.gz", "Yaaglm.app", { relaunch })
+    ).resolves.toBeUndefined();
+
+    expect(relaunch).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws a fatal error only when a partially applied bundle cannot be relaunched", async () => {
+    mockedEnv.mockResolvedValue("/Applications/Yaaglm.app");
+    mockedExec.mockImplementation(async (segments, _env, sudo) => {
+      if (segments.includes("--delete") && sudo) {
+        throw new Error("rsync: operation not permitted");
+      }
+      if (segments.includes("--delete")) {
+        throw new Error("rsync: permission denied");
+      }
+      return OK_RESULT;
+    });
+    const relaunch = vi.fn(async () => {
+      throw new Error("open failed");
+    });
+
+    await expect(
+      applyReleaseApp("./sidecar.tar.gz", "Yaaglm.app", { relaunch })
+    ).rejects.toMatchObject({ name: "FatalError" });
+    expect(relaunch).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a declined authorization prompt on the intact-version path", async () => {
+    mockedEnv.mockResolvedValue("/Applications/Yaaglm.app");
+    mockedExec.mockImplementation(async (segments, _env, sudo) => {
+      if (segments.includes("--delete") && sudo) {
+        throw new Error("User cancelled the authorization prompt");
+      }
+      if (segments.includes("--delete")) {
+        throw new Error("rsync: permission denied");
+      }
+      return OK_RESULT;
+    });
+    const relaunch = vi.fn(async () => undefined);
+
+    const failure = applyReleaseApp("./sidecar.tar.gz", "Yaaglm.app", {
+      relaunch,
+    });
+
+    await expect(failure).rejects.toMatchObject({
+      name: "Error",
+      message: "User cancelled the authorization prompt",
+    });
+    expect(relaunch).not.toHaveBeenCalled();
+  });
 });

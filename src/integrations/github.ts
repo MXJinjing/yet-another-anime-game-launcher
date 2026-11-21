@@ -1,6 +1,7 @@
 import { configEntries, createConfigStore } from "@config";
 import { log } from "../logging/logger";
 import { timeout } from "../runtime/async";
+import { pushStartupNotice } from "../runtime/startup-notices";
 
 /** GitHub acceleration is opt-in; no proxy endpoint is selected by default. */
 export const DEFAULT_GITHUB_PREFIX = "";
@@ -60,20 +61,42 @@ export function normalizeGithubPrefix(value: string): string | null {
   }
 }
 
+/**
+ * Applies the acceleration configuration.
+ *
+ * Acceleration only decorates a connection that already works against GitHub,
+ * so this never throws: an unusable prefix disables acceleration and boot
+ * continues against api.github.com. The reason is logged once and raised as a
+ * startup notice so the degradation stays visible without blocking startup.
+ */
 export function configureGithubEndpoint(config: {
   enabled: boolean;
   prefix: string;
 }): string {
-  const prefix = normalizeGithubPrefix(config.prefix);
-  if (config.enabled && !prefix) {
-    throw new Error("Invalid GitHub acceleration prefix");
+  const normalized = normalizeGithubPrefix(config.prefix);
+  if (config.enabled && !normalized) {
+    void log(
+      `Invalid GitHub acceleration prefix "${config.prefix}"; acceleration disabled`
+    );
+    pushStartupNotice(
+      "github-prefix-disabled",
+      `invalid prefix: ${config.prefix || "(empty)"}`
+    );
   }
 
   githubEndpointConfig = {
-    enabled: config.enabled,
-    prefix: prefix ?? DEFAULT_GITHUB_PREFIX,
+    enabled: config.enabled && normalized !== null,
+    prefix: normalized ?? DEFAULT_GITHUB_PREFIX,
   };
   return githubEndpointConfig.prefix;
+}
+
+/** Drops acceleration for the rest of the session without touching settings. */
+function disableGithubAcceleration(reason: string) {
+  if (!githubEndpointConfig.enabled) return;
+  githubEndpointConfig = { enabled: false, prefix: DEFAULT_GITHUB_PREFIX };
+  void log(`GitHub acceleration disabled for this session: ${reason}`);
+  pushStartupNotice("github-prefix-disabled", reason);
 }
 
 function isGithubUrl(url: string): boolean {
@@ -88,11 +111,18 @@ function isGithubUrl(url: string): boolean {
   }
 }
 
-/** Applies the currently configured prefix without changing the source URL. */
+/**
+ * Applies the currently configured prefix without changing the source URL.
+ * A prefix is only prepended when acceleration is enabled AND the stored
+ * prefix is still a valid proxy root, so a partially applied configuration
+ * can never produce a malformed request URL.
+ */
 export function applyGithubPrefix(url: string): string {
-  if (!githubEndpointConfig.enabled || !isGithubUrl(url)) return url;
-  if (url.startsWith(githubEndpointConfig.prefix)) return url;
-  return `${githubEndpointConfig.prefix}${url}`;
+  const { enabled, prefix } = githubEndpointConfig;
+  if (!enabled || !prefix || !isGithubUrl(url)) return url;
+  if (normalizeGithubPrefix(prefix) !== prefix) return url;
+  if (url.startsWith(prefix)) return url;
+  return `${prefix}${url}`;
 }
 
 async function checkGithubEndpoint(prefix: string): Promise<void> {
@@ -122,24 +152,54 @@ export async function createGithubEndpoint() {
   const storedPrefix =
     (await store.read(configEntries.githubAcceleratedPrefix)) ??
     DEFAULT_GITHUB_PREFIX;
-  const prefix = normalizeGithubPrefix(storedPrefix) ?? DEFAULT_GITHUB_PREFIX;
-
-  configureGithubEndpoint({ enabled, prefix });
+  // Hand the raw value over: configureGithubEndpoint owns validation so an
+  // invalid stored prefix is reported exactly once and never aborts boot.
+  configureGithubEndpoint({ enabled, prefix: storedPrefix });
   await log(
     githubEndpointConfig.enabled
       ? `Using github proxy ${githubEndpointConfig.prefix}`
       : "Github acceleration is disabled"
   );
 
-  function api(path: `/${string}`): Promise<unknown> {
-    return fetch(applyGithubPrefix(`https://api.github.com${path}`)).then(x => {
-      if (x.status == 200 || x.status == 301 || x.status == 302) {
-        return x.json();
-      }
-      return Promise.reject(
-        new GithubRequestError(x.status, x.statusText, x.url)
+  async function request(url: string): Promise<unknown> {
+    const response = await fetch(url);
+    if (
+      response.status == 200 ||
+      response.status == 301 ||
+      response.status == 302
+    ) {
+      return response.json();
+    }
+    return Promise.reject(
+      new GithubRequestError(response.status, response.statusText, response.url)
+    );
+  }
+
+  async function api(path: `/${string}`): Promise<unknown> {
+    const directUrl = `https://api.github.com${path}`;
+    const acceleratedUrl = applyGithubPrefix(directUrl);
+    if (acceleratedUrl === directUrl) return request(directUrl);
+
+    try {
+      return await request(acceleratedUrl);
+    } catch (error) {
+      // A failing accelerator is not a launcher failure: retry GitHub
+      // directly once and keep the session usable.
+      await log(
+        `GitHub request through the acceleration prefix failed (${String(
+          error
+        )}); retrying directly`
       );
-    });
+      try {
+        const result = await request(directUrl);
+        disableGithubAcceleration(`request through ${acceleratedUrl} failed`);
+        return result;
+      } catch {
+        // Both paths failed: surface the accelerated-path error unchanged so
+        // callers keep treating it as a recoverable update-check failure.
+        throw error;
+      }
+    }
   }
 
   function acceleratedPath(path: string) {
