@@ -5,8 +5,9 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 
 ## Project Structure & Module Organization
 - `src/` — Frontend source (TS/TSX): `clients/` per-channel game configs; `config/` launcher settings; `launcher/` game library, launch, and task-queue logic; `utils/` helpers with co-located tests; `locale/`, `icons/`, `assets/` for i18n, icons, and static assets.
-- `sophon_server/` — Swift sidecar source copy in `swift/` and legacy Python API source.
-- `sidecar/` — bundled binaries (aria2, 7z, hpatchz, xdelta, built Sophon server).
+- `sophon_server/` — development mirror of the Sophon source. Packaging does not compile or verify it.
+- `sophon.release` — pinned Sophon release downloaded by `build-sophon.sh`. Workflows do not select this version.
+- `sidecar/` — bundled binaries (aria2, 7z, hpatchz, xdelta, and runtime helpers).
 - `bin/`, `external/`, `dist/`, `dev/` — generated artifacts; gitignored, never commit them.
 - Build scripts: `configure.sh`, `build-app.js`, `build-sophon.sh`, `scripts/build-release.sh`.
 
@@ -29,16 +30,16 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 ## Commit & Pull Request Guidelines
 - Use Conventional Commits: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, `ci:`, `style:`; scope game-specific fixes (e.g., `fix(hk4e):`).
 - Never mention real game or company names in commits, issues, or PRs — use "The Anime Game" / "The Anime Company".
-- PRs to `main` must pass CI (`ci-pr.yaml` / `tests.yaml`: type check, lint, format, frontend tests, Swift and legacy Python tests, and coverage policies), including the required `check` status. Link the related issue, describe the change, and add screenshots for UI changes.
+- PRs to `main` must pass CI (`ci-pr.yaml` / `tests.yaml`: type check, lint, format, frontend tests, and the frontend coverage policy), including the required `check` status. A pull request that only changes `sophon_server/` does not run those tests. Link the related issue, describe the change, and add screenshots for UI changes.
 - Support questions belong on Discord; file issues only for technical problems with logs and system info.
 
 ## Required Branch and PR Workflow (IMPORTANT)
 
 1. Start every new task that changes repository files (including documentation, tests, configuration, and CI) on a new `codex/<task>` branch based on the latest remote `main`: `git fetch fork main`, then `git switch -c codex/<task> fork/main`. Keep follow-up fixes for that task on the same branch until its PR is merged. Do not make or commit changes directly on local `main`, and do not reuse an already merged task branch for a new task. Preserve unrelated working changes; do not reset or discard them to switch branches.
 2. Use the `fork` remote and target `MXJinjing/yet-another-anime-game-launcher`. The `upstream` remote is for reading upstream changes; do not push there or open a PR there unless explicitly requested.
-3. Make the requested changes and run appropriate tests. Use `pnpm run test:coverage` for frontend behavior, `pnpm run test:sophon` for sidecar behavior, or `pnpm run test:all` for both. Follow the local verification timing below; documentation-only changes do not require rebuilding the app.
+3. Make the requested changes and run appropriate tests. Use `pnpm run test:coverage` for frontend behavior. Sophon behavior is tested in `MXJinjing/sophon`, not in this repository's CI. Follow the local verification timing below; documentation-only changes do not require rebuilding the app.
 4. Review the diff and commit only files belonging to the task. Keep secrets, generated artifacts, reports, and unrelated files out of the commit. Push the task branch with `git push -u fork codex/<task>` and open a PR targeting the fork's `main`, for example `gh pr create --repo MXJinjing/yet-another-anime-game-launcher --base main --head codex/<task>`. Describe the final change and its validation in the PR.
-5. Wait for both shared test jobs and the required `check` status to succeed. Queued, missing, failed, cancelled, or skipped tests are not a pass. Fix failures on the PR branch and let CI run again. If `main` advances, update the branch and wait for checks against the updated code.
+5. Wait for the shared frontend test job and the required `check` status to succeed. A pull request that only changes the Sophon source mirror does not run frontend tests; `check` still must succeed. Queued, missing, failed, or cancelled tests are not a pass. Fix failures on the PR branch and let CI run again. If `main` advances, update the branch and wait for checks against the updated code.
 6. Merge through the protected PR after checks pass, matching the verified PR head (for example with `gh pr merge --merge --match-head-commit <verified-head-sha>`). Never push directly to `main`, use an administrator bypass, disable protection, or weaken coverage gates to get a change merged. After merging, fetch `fork/main` and fast-forward local `main`; do not force-reset local work.
 7. For a requested release, run `Build Release` manually from the tested `main` commit. Leave the version empty to use `package.json`, or enter a new tag such as `1.1.5` in the workflow form. The workflow creates that tag when it publishes the draft release. Do not push a tag to start packaging. Keep `Build Main` manual-only: merging or pushing to `main` must not automatically start a packaging build unless the user explicitly asks to restore that behavior.
 
@@ -51,10 +52,9 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 - Only run these local checks when the user explicitly asks to build (`pnpm build`, `pnpm run build-<channel>`, `node build-app.js`, `bash scripts/build-release.sh`, or similar), immediately before the build.
 - This timing restriction applies to local checks. Automatic PR and release CI must always run their configured checks and coverage policies.
 
-## Shared Sophon source maintenance
+## Sophon sidecar
 
-- Keep source-copy integration; do not convert Sophon to a Git submodule.
-- The canonical shared server lives in the sibling `sophon` repository (`MXJinjing/sophon`). Implement shared fixes there first, commit them, then run `python3 scripts/sync-sophon.py --source ../sophon --apply` here. The shared Swift package is `sophon-swift/` in the canonical repository.
-- `sophon_server/upstream-lock.json` pins the source commit and SHA-256 hashes. Use `--check` to verify synchronization; `--apply` refuses divergent local shared edits that have not been backported.
-- Copy only shared server source, protobuf schemas, license and server tests. Keep launcher UI, build adapters, dependency/test configuration, README and `test_launcher_*.py` local. Generated protobuf, environments, caches, build outputs and the standalone release packaging test are excluded.
-- Update the API references in both repositories for shared protocol changes. Commit the refreshed revision lock with each source synchronization.
+- Production packaging downloads the Swift CLI from the release named in `sophon.release`. Do not put that version in a workflow.
+- `sophon_server/` is a development mirror. CI does not compile, test, check, or synchronize it, and packaging does not read it.
+- Implement shared fixes in `MXJinjing/sophon`, publish a release there, then change `sophon.release` when the launcher should move to that build. An older pin keeps working after upstream publishes a newer release.
+- `SOPHON_FROM_SOURCE=1 ./build-sophon.sh` can compile the local mirror for development. Do not use that path in CI or release packaging.

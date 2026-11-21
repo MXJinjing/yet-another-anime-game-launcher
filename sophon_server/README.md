@@ -4,7 +4,7 @@
 
 ## 启动器集成
 
-此目录整体导入独立 Sophon 项目的服务端组件，来源及本地调整见 [UPSTREAM.md](UPSTREAM.md)。终端客户端不随启动器分发。
+此目录是独立 Sophon 项目的开发镜像，见 [UPSTREAM.md](UPSTREAM.md)。CI 不检查、不同步、也不编译这里的源码。启动器打包下载的是根目录 `sophon.release` 指定的 release。
 
 在启动器仓库根目录运行源码服务：
 
@@ -13,7 +13,7 @@ uv sync --project sophon_server --locked
 uv run --project sophon_server --locked python sophon_server/src/server.py --port 18765
 ```
 
-构建使用 `./build-sophon.sh`（arm64）或 `SOPHON_ARCH=x64 ./build-sophon.sh`；产物仍位于 `sophon_server/build/server.dist` 和 `sophon_server/build-x64/server.dist`，启动器打包入口保持兼容。构建器生成 protobuf，附带对应架构 hpatchz，并隔离 PyCURL 的 OpenSSL 动态库。
+`./build-sophon.sh` 下载 `sophon.release` 里的 Swift CLI，不编译本目录。产物位于 `sophon_server/dist/{arm64,x64}/`。
 
 `pnpm run test:sophon` 运行服务端测试及原有覆盖率门槛；源码按 `src/`、`proto/`、`tests/` 分开。更新源码后需等待现有任务结束再重启服务，任务 ID 不跨重启保留。
 
@@ -44,11 +44,11 @@ SOPHON_SERVER_URL 是客户端变量，不改变服务端监听地址。
 
 ## 构建
 
-从启动器根目录执行 `./build-sophon.sh`。可使用 `SOPHON_PYTHON` 指定已安装服务端依赖与 Nuitka 的 Python；x64 构建需要对应架构解释器。完整分发目录由启动器的 `build-app.js` 打入应用。
+启动器打包不编译本目录。从启动器根目录执行 `./build-sophon.sh` 会下载 `sophon.release` 指定的 Swift CLI，并由 `build-app.js` 打入应用。
 
 ## 结构和按需验证
 
-服务端源码位于 `src/`，协议位于 `proto/`，测试位于 `tests/`。构建入口为 `build.py`，启动器根目录 `build-sophon.sh` 负责选择架构和解释器。
+服务端源码位于 `src/`，协议位于 `proto/`，测试位于 `tests/`。这些文件只作为开发镜像保留。
 
 ```sh
 uv run --project sophon_server --locked python -m pytest sophon_server/tests/test_processing_progress.py

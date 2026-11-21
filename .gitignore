@@ -42,6 +42,7 @@ build-all.sh
 /coverage/
 
 # Sophon generated environments and distributions
+/sophon_server/dist/
 /sophon_server/.venv*/
 /sophon_server/.cache/
 /sophon_server/build/
