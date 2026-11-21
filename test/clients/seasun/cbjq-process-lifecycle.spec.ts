@@ -28,6 +28,7 @@ import { writeFile } from "@platform/neutralino";
 import type { TaskProgressCommand } from "@tasks/task-program";
 import type { Wine } from "@wine";
 import { launchGameProgram } from "@src/clients/seasun/cbjq/program-launch-game";
+import { GameAlreadyRunningError } from "@src/clients/launch-errors";
 import {
   patchProgram,
   patchRevertProgram,
@@ -149,17 +150,20 @@ describe("cbjq game process lifecycle", () => {
   it("rejects a duplicate before changing Wine or applying patches", async () => {
     const { wine, raw } = createWine({ alreadyRunning: true });
 
-    await expect(
-      collect(
-        launchGameProgram({
-          gameDir: "/game",
-          gameExecutable: "Game.exe",
-          wine,
-          config,
-          server,
-        })
-      )
-    ).rejects.toThrow("already running");
+    const error = await collect(
+      launchGameProgram({
+        gameDir: "/game",
+        gameExecutable: "Game.exe",
+        wine,
+        config,
+        server,
+      })
+    ).catch(caught => caught);
+
+    expect(error).toBeInstanceOf(GameAlreadyRunningError);
+    expect((error as GameAlreadyRunningError).executablePath).toBe(
+      "/game/Game.exe"
+    );
 
     expect(raw.setProps).not.toHaveBeenCalled();
     expect(patchProgram).not.toHaveBeenCalled();

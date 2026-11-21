@@ -2,6 +2,8 @@ import { readBinary } from "@platform/neutralino";
 import { binaryPatternSearch } from "@runtime/binary";
 import { md5 } from "@runtime/patching";
 import { join } from "path-browserify";
+import { GameVersionUnreadableError } from "../launch-errors";
+import { readGameVersion } from "../game-version";
 
 export async function getGameVersion(gameDataDir: string, offset = 0x88) {
   const ggmPath = join(gameDataDir, "globalgamemanagers");
@@ -14,13 +16,32 @@ export async function getGameVersion(gameDataDir: string, offset = 0x88) {
     ]
   );
   if (index == -1) {
-    throw new Error("pattern not found"); //FIXME
+    throw new GameVersionUnreadableError(
+      `Game version pattern not found in ${ggmPath}`
+    );
   } else {
     const len = index + offset;
     const v = new DataView(view.buffer);
     const strlen = v.getUint32(len, true);
     const str = String.fromCharCode(...view.slice(len + 4, len + strlen + 4));
     return str.split("_")[0];
+  }
+}
+
+/**
+ * Read the version with the legacy 0xac offset first, then the default 0x88
+ * offset. Some game builds only expose the version at one of the two places.
+ */
+export async function getGameVersionWithFallback(gameDataDir: string) {
+  const legacyOffset = await getGameVersion(gameDataDir, 0xac).catch(
+    () => undefined
+  );
+  if (readGameVersion(legacyOffset)) return legacyOffset as string;
+  try {
+    return await getGameVersion(gameDataDir);
+  } catch (error) {
+    if (legacyOffset !== undefined) return legacyOffset;
+    throw error;
   }
 }
 
@@ -62,7 +83,9 @@ export async function getGameVersion2019(gameDataDir: string) {
         );
       }
     }
-    throw new Error("Falied to parse version");
+    throw new GameVersionUnreadableError(
+      `Failed to parse the game version from ${ggmPath}`
+    );
   }
 }
 
@@ -75,12 +98,11 @@ export async function disableUnityFeature(ggmPath: string) {
       0x6f, 0x72, 0x79, 0x2e,
     ]
   );
-  if (index == -1) {
-    throw new Error("pattern not found"); //FIXME
-  } else {
-    const len = index + 24;
-    const v = new DataView(view.buffer);
-    v.setInt32(len, 0, true);
-    return view.buffer;
-  }
+  // Optional feature: a game build without the marker simply keeps the
+  // feature enabled instead of failing the launch.
+  if (index == -1) return undefined;
+  const len = index + 24;
+  const v = new DataView(view.buffer);
+  v.setInt32(len, 0, true);
+  return view.buffer;
 }

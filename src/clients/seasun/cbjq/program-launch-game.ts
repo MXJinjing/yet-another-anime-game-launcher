@@ -11,6 +11,7 @@ import { Config } from "@config";
 import { getCustomEnvironmentVariables } from "@config";
 import { normalizeHttpProxy } from "@config/proxy";
 import { patchProgram, patchRevertProgram } from "./program-patch-game";
+import { GameAlreadyRunningError } from "../../launch-errors";
 
 export async function* launchGameProgram({
   gameDir,
@@ -32,9 +33,7 @@ export async function* launchGameProgram({
     exitOnWindowClose: config.exitOnWindowClose === true,
   });
   if (await processMonitor.isRunning()) {
-    throw new Error(
-      `The game executable is already running: ${gameExecutablePath}`
-    );
+    throw new GameAlreadyRunningError(gameExecutablePath);
   }
   yield ["setUndeterminedProgress"];
   yield ["setStateText", "PATCHING"];
