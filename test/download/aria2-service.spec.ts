@@ -21,6 +21,7 @@ import { appendFile } from "@platform/neutralino/filesystem";
 import { addTerminationHook } from "@runtime/lifecycle";
 import {
   startAria2Service,
+  createUnavailableAria2,
   DownloadServiceUnavailableError,
 } from "@download/aria2-service";
 
@@ -144,6 +145,25 @@ describe("aria2 sidecar startup", () => {
     const endpoint = await reconnect();
     expect(spawn).toHaveBeenCalledTimes(2);
     expect(endpoint).toMatchObject({ host: "127.0.0.1" });
+  });
+  it("provides a facade whose downloads fail with the typed error", async () => {
+    const facade = createUnavailableAria2("download service offline");
+    expect(facade.version.version).toBe("unavailable");
+    await expect(facade.shutdown()).resolves.toBeUndefined();
+    await expect(
+      (async () => {
+        for await (const _ of facade.doStreamingDownload()) {
+          // The facade never yields.
+        }
+      })()
+    ).rejects.toThrow("download service offline");
+    await expect(
+      (async () => {
+        for await (const _ of createUnavailableAria2().doStreamingDownload()) {
+          // The default reason is used when none is provided.
+        }
+      })()
+    ).rejects.toBeInstanceOf(DownloadServiceUnavailableError);
   });
   it("does not fail shutdown if the process has already exited", async () => {
     await startAria2Service({ binaryPath: "/aria2" });
