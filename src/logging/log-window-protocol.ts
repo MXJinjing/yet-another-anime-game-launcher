@@ -118,6 +118,37 @@ export function posixSignalCommand(
   return `/bin/kill -${signal} ${pid}`;
 }
 
+/**
+ * Inspects the recorded window process instead of signalling it.
+ *
+ * Neutralino spawns the window with a background `execCommand`, and the core
+ * never waits for that child. A closed window therefore stays a zombie for as
+ * long as the launcher runs, and `kill -0` keeps reporting it as alive, which
+ * used to make the window impossible to reopen. `ps` exposes both the process
+ * state and the arguments, so a zombie or a recycled pid is no longer mistaken
+ * for a live log window.
+ */
+export function logWindowProcessStateCommand(pid: number): string | undefined {
+  if (!isPositiveInteger(pid)) return undefined;
+  return `/bin/ps -p ${pid} -ww -o stat= -o command=`;
+}
+
+export function isLogWindowProcessRunning(
+  output: string | undefined,
+  parentPid: number
+): boolean {
+  if (!output) return false;
+  const line = output.trim();
+  if (line === "") return false;
+  const [state, ...rest] = line.split(/\s+/);
+  if (!state || state.startsWith("Z")) return false;
+  const command = rest.join(" ");
+  return (
+    command.includes(LOG_WINDOW_FLAG) &&
+    command.includes(`${LOG_WINDOW_PARENT_PREFIX}${parentPid}`)
+  );
+}
+
 export function parseLauncherLogLine(line: string): ParsedLogLine | undefined {
   const match = LAUNCHER_LINE.exec(line.replace(/\r$/, ""));
   if (!match) return undefined;
