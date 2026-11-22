@@ -66,13 +66,14 @@ import { addCertsToWine } from "@wine/cert";
 import { installMediaFoundation } from "@wine/mf";
 import {
   assertD3DMetalHostSupported,
-  D3DMETAL_RUNTIME_ID,
   getD3DMetalRuntime,
   isD3DMetalRuntimePrepared,
   prepareD3DMetalWine,
   requireD3DMetalLicense,
   verifyD3DMetalArchive,
 } from "@wine/d3dmetal";
+
+const D3DMETAL_RUNTIME_ID = "d3dmetal-test";
 import {
   configureWineEnvironmentProgram,
   confirmWinePrefixReset,
