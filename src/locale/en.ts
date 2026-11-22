@@ -368,9 +368,8 @@ export const en: typeof zh_CN = {
   INIT_ENVIRONMENT_WINE_VERSION: "Wine Version",
   WINE_MISSING_TITLE: "Selected Wine is unavailable",
   WINE_MISSING_DESC:
-    "The Wine currently selected by the launcher ({0}) is no longer available. It may have been uninstalled, or this build no longer ships it. You can reuse an installed Wine or download the built-in one.",
-  WINE_MISSING_USE: "Use {0}",
-  WINE_MISSING_DOWNLOAD: "Download built-in Wine",
+    "The Wine currently selected by the launcher ({0}) is no longer available. It may have been uninstalled, or this build no longer ships it. Pick or install another version in Wine settings.",
+  WINE_MISSING_SETTINGS: "Open Wine Settings",
   SKIP: "Skip",
   DONT_REMIND_AGAIN: "Don't remind again",
   SETTING_WINE_STATUS: "Wine Status",

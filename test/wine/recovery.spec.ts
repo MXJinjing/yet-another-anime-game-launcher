@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  isSharedWineInitialized,
   listInstalledWineDistributions,
   planWineRecovery,
 } from "@src/wine/recovery";
@@ -12,6 +13,32 @@ const distro = (id: string): WineDistribution =>
     remoteUrl: "",
     attributes: {},
   } as WineDistribution);
+
+describe("isSharedWineInitialized", () => {
+  it.each(["", "update"])(
+    "keeps the normal setup flow when the recorded state is %j",
+    async state => {
+      const exists = vi.fn(async () => true);
+      expect(
+        await isSharedWineInitialized("/wineprefix", async () => state, exists)
+      ).toBe(false);
+      expect(exists).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([true, false])(
+    "with completed setup, relies on the shared prefix registry being present (%j)",
+    async present => {
+      const readSetting = vi.fn(async () => "ready");
+      const exists = vi.fn(async () => present);
+      expect(
+        await isSharedWineInitialized("/wineprefix", readSetting, exists)
+      ).toBe(present);
+      expect(readSetting).toHaveBeenCalledWith("wine_state", "");
+      expect(exists).toHaveBeenCalledWith("/wineprefix/system.reg");
+    }
+  );
+});
 
 describe("listInstalledWineDistributions", () => {
   it("keeps only distributions whose files are present", async () => {
@@ -52,6 +79,7 @@ describe("planWineRecovery", () => {
     expect(
       planWineRecovery({
         wineReady: true,
+        initialized: true,
         currentDistroId: "a",
         installed: [distro("b")],
       })
@@ -61,6 +89,7 @@ describe("planWineRecovery", () => {
   it("offers the other installed distributions when the selected one vanished", () => {
     const plan = planWineRecovery({
       wineReady: false,
+      initialized: true,
       currentDistroId: "system",
       installed: [distro("builtin-1"), distro("builtin-2")],
     });
@@ -78,6 +107,7 @@ describe("planWineRecovery", () => {
     expect(
       planWineRecovery({
         wineReady: false,
+        initialized: true,
         currentDistroId: "builtin-1",
         installed: [distro("builtin-1")],
       })
@@ -88,8 +118,22 @@ describe("planWineRecovery", () => {
     expect(
       planWineRecovery({
         wineReady: false,
+        initialized: true,
         currentDistroId: "system",
         installed: [],
+      })
+    ).toEqual({ kind: "none" });
+  });
+
+  it("does not prompt before the environment was ever initialized", () => {
+    // A first run has no prefix and never picked a Wine. Other distributions
+    // on disk are leftovers, not something the user lost.
+    expect(
+      planWineRecovery({
+        wineReady: false,
+        initialized: false,
+        currentDistroId: "system",
+        installed: [distro("builtin-1")],
       })
     ).toEqual({ kind: "none" });
   });

@@ -348,9 +348,8 @@ export const zh_CN = {
   INIT_ENVIRONMENT_WINE_VERSION: "Wine 版本",
   WINE_MISSING_TITLE: "当前 Wine 不可用",
   WINE_MISSING_DESC:
-    "启动器当前选择的 Wine（{0}）已不可用，可能是系统 Wine 被卸载，或该版本已不在支持列表中。你可以改用已安装的 Wine，也可以下载内置 Wine。",
-  WINE_MISSING_USE: "改用 {0}",
-  WINE_MISSING_DOWNLOAD: "下载内置 Wine",
+    "启动器当前选择的 Wine（{0}）已不可用，可能是系统 Wine 被卸载，或该版本已不在支持列表中。请前往 Wine 设置选择或安装其他版本。",
+  WINE_MISSING_SETTINGS: "打开 Wine 设置",
   SKIP: "跳过",
   DONT_REMIND_AGAIN: "不再提醒",
   SETTING_WINE_STATUS: "Wine 状态",
