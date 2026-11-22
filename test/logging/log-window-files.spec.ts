@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   closeMonitoredPath,
   gameLogTabLabel,
+  LAUNCHER_LOG_TAB,
+  layoutLogTabs,
   openMonitoredPaths,
   reopenMonitoredPath,
   selectionAfterClose,
+  validatePickedLogPaths,
 } from "@src/logging/log-window-files";
 
 const genshin = [
@@ -14,6 +17,51 @@ const genshin = [
 ];
 
 describe("game log tabs", () => {
+  it("folds excess and closed files without hiding the selected file", () => {
+    const paths = ["/one.log", "/two.log", "/three.log", "/closed.log"];
+    const closed = new Set([paths[3]]);
+    expect(layoutLogTabs(paths, closed, paths[2], 435)).toEqual({
+      visible: [paths[0], paths[2]],
+      folded: [paths[1], paths[3]],
+    });
+    expect(layoutLogTabs(paths, closed, paths[1], 1)).toEqual({
+      visible: [paths[1]],
+      folded: [paths[0], paths[2], paths[3]],
+    });
+    expect(layoutLogTabs(paths, closed, LAUNCHER_LOG_TAB, 580)).toEqual({
+      visible: paths.slice(0, 3),
+      folded: [paths[3]],
+    });
+  });
+
+  it("accepts distinct absolute regular files and ignores invalid selections", async () => {
+    const checked: string[] = [];
+    const isFile = async (path: string) => {
+      checked.push(path);
+      if (path === "/missing.log") throw new Error("not found");
+      return path !== "/directory";
+    };
+    expect(await validatePickedLogPaths([], isFile)).toEqual([]);
+    expect(
+      await validatePickedLogPaths(
+        [
+          "relative.log",
+          "/a/log.txt",
+          "/a/./log.txt",
+          "/missing.log",
+          "/directory",
+          "/b.log",
+        ],
+        isFile
+      )
+    ).toEqual(["/a/log.txt", "/b.log"]);
+    expect(checked).toEqual([
+      "/a/log.txt",
+      "/missing.log",
+      "/directory",
+      "/b.log",
+    ]);
+  });
   it("keeps a unique file name and disambiguates collisions with parent folders", () => {
     expect(gameLogTabLabel(genshin[2], genshin)).toBe("Player.log");
     expect(gameLogTabLabel(genshin[0], genshin)).toBe("原神/output_log.txt");

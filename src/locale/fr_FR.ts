@@ -438,6 +438,8 @@ export const fr_FR: typeof zh_CN = {
   LOG_VIEWER_TAB_LAUNCHER: "Lanceur",
   LOG_VIEWER_TAB_GAME: "Débogage du jeu",
   LOG_VIEWER_MONITORED: "Fichiers surveillés",
+  LOG_VIEWER_PICK_FILE: "Ajouter un fichier de log",
+  LOG_VIEWER_PICK_FAILED: "Impossible d’ajouter le fichier de log sélectionné.",
   LOG_VIEWER_CLOSE_TAB: "Fermer",
   LOG_VIEWER_REOPEN_TAB: "Ouvrir",
   LOG_VIEWER_NO_MONITORED_FILES: "Aucun journal de jeu à surveiller",

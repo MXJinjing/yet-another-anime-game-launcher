@@ -6,10 +6,8 @@ import { configEntries, type ConfigStore } from "@config";
 /**
  * Debug mode toggle shown in the game settings' "Launch" tab.
  *
- * When enabled, launching a game opens the game's configured runtime/error log
- * file in macOS Console.app. The preference is stored globally
- * (`config_debug_mode` is not namespaced), so it applies to
- * every game and stays active in release builds.
+ * When enabled, launching a game opens its logs in the launcher's log window.
+ * The preference is stored globally and stays active in release builds.
  */
 export async function createDebugModeConfig({
   locale,
@@ -32,8 +30,8 @@ export async function createDebugModeConfig({
         ? "调试模式"
         : "Debug mode";
       const description = locale.currentLanguage.startsWith("zh")
-        ? "启动游戏时使用 macOS「控制台」打开游戏日志以便调试。"
-        : "Open the game's runtime log in macOS Console when launching for troubleshooting.";
+        ? "启动游戏时，在启动器的日志界面打开游戏日志。"
+        : "Open the game logs in the launcher's log window when starting the game.";
       return (
         <SettingSwitch
           id="debugMode"
