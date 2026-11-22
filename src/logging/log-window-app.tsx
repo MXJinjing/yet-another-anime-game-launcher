@@ -6,7 +6,7 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { render } from "solid-js/web";
+import { Portal, render } from "solid-js/web";
 import { createGameLogTail } from "./game-log-tail";
 import { inferUnityLogLevel } from "./runtime-log";
 import { createLocale, type Locale } from "../locale";
@@ -26,6 +26,10 @@ import {
   reopenMonitoredPath,
   selectionAfterClose,
 } from "./log-window-files";
+import {
+  logWindowMenuPlacement,
+  type LogWindowMenuPlacement,
+} from "./log-window-menu";
 import {
   appendCapped,
   type LogWindowSession,
@@ -114,11 +118,15 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
   const [followScroll, setFollowScroll] = createSignal(true);
   const [pending, setPending] = createSignal(0);
   const [menuOpen, setMenuOpen] = createSignal(false);
+  const [menuPlacement, setMenuPlacement] =
+    createSignal<LogWindowMenuPlacement>();
   const [theme, setTheme] = createSignal<LogWindowTheme>(props.initialTheme);
   const accent = () =>
     normalizeLogWindowAccent(session()?.accent) ?? DEFAULT_LOG_WINDOW_ACCENT;
   let consoleEl: HTMLDivElement | undefined;
   let tabStripEl: HTMLDivElement | undefined;
+  let addButtonEl: HTMLButtonElement | undefined;
+  let menuEl: HTMLDivElement | undefined;
   let stickToBottom = true;
   let appliedNonce = -1;
   let preferGame = false;
@@ -189,6 +197,78 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
     setMenuOpen(false);
     revealTab(path);
   }
+
+  function placeMenu() {
+    const button = addButtonEl;
+    if (!button) return;
+    const rect = button.getBoundingClientRect();
+    const next = logWindowMenuPlacement(
+      { top: rect.top, right: rect.right, bottom: rect.bottom },
+      { width: window.innerWidth, height: window.innerHeight }
+    );
+    const current = menuPlacement();
+    if (
+      current &&
+      current.right === next.right &&
+      current.top === next.top &&
+      current.bottom === next.bottom &&
+      current.maxHeight === next.maxHeight
+    ) {
+      return;
+    }
+    setMenuPlacement(next);
+  }
+
+  function toggleMenu() {
+    if (menuOpen()) {
+      setMenuOpen(false);
+      return;
+    }
+    placeMenu();
+    setMenuOpen(true);
+  }
+
+  function menuStyle() {
+    const placement = menuPlacement();
+    return {
+      right: `${placement?.right ?? 0}px`,
+      ...(placement?.top !== undefined ? { top: `${placement.top}px` } : {}),
+      ...(placement?.bottom !== undefined
+        ? { bottom: `${placement.bottom}px` }
+        : {}),
+      "max-height": `${placement?.maxHeight ?? 0}px`,
+      "--lw-accent": accent(),
+      "--lw-accent-text": accentText(),
+    };
+  }
+
+  onMount(() => {
+    // The popup lives in a portal, so closing on outside clicks and keeping it
+    // anchored cannot rely on bubbling through the tab strip.
+    const onPointerDown = (event: PointerEvent) => {
+      if (!menuOpen()) return;
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (addButtonEl?.contains(target) || menuEl?.contains(target)) return;
+      setMenuOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    const reposition = () => {
+      if (menuOpen()) placeMenu();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    onCleanup(() => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    });
+  });
 
   onMount(() => {
     const stop = createLogWindowClient({
@@ -306,9 +386,150 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
       data-theme={theme()}
       style={{ "--lw-accent": accent(), "--lw-accent-text": accentText() }}
     >
-      <header class="log-window-header">
-        <h1 class="log-window-title">{props.locale.get("LOG_VIEWER_TITLE")}</h1>
-        <div class="log-window-header-actions">
+      <div class="log-window-panel">
+        <div class="log-window-tabs" role="tablist" ref={tabStripEl}>
+          <div class="log-window-tab-scroll">
+            <div
+              class="log-window-tab"
+              role="tab"
+              aria-selected={selected() === LAUNCHER_LOG_TAB}
+              data-tab-id={LAUNCHER_LOG_TAB}
+              title={props.locale.get("LOG_VIEWER_TAB_LAUNCHER")}
+            >
+              <button
+                class="log-window-tab-main"
+                type="button"
+                onClick={() => selectTab(LAUNCHER_LOG_TAB)}
+              >
+                <span class="log-window-tab-label">
+                  {props.locale.get("LOG_VIEWER_TAB_LAUNCHER")}
+                </span>
+                <span class="log-window-count">{launcherLines().length}</span>
+              </button>
+            </div>
+            <For each={openPaths()}>
+              {path => (
+                <div
+                  class="log-window-tab"
+                  role="tab"
+                  aria-selected={selected() === path}
+                  data-tab-id={path}
+                  title={path}
+                >
+                  <button
+                    class="log-window-tab-main"
+                    type="button"
+                    onClick={() => selectTab(path)}
+                  >
+                    <span class="log-window-tab-label">
+                      {gameLogTabLabel(path, monitored())}
+                    </span>
+                    <span class="log-window-count">
+                      {linesByPath()[path]?.length ?? 0}
+                    </span>
+                  </button>
+                  <button
+                    class="log-window-tab-close"
+                    type="button"
+                    aria-label={props.locale.get("LOG_VIEWER_CLOSE_TAB")}
+                    title={props.locale.get("LOG_VIEWER_CLOSE_TAB")}
+                    onClick={() => closeFile(path)}
+                  >
+                    <svg
+                      viewBox="0 0 12 12"
+                      width="10"
+                      height="10"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 3l6 6M9 3l-6 6" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </For>
+            <div class="log-window-menu">
+              <button
+                class="log-window-add"
+                type="button"
+                ref={addButtonEl}
+                aria-label={props.locale.get("LOG_VIEWER_MONITORED")}
+                title={props.locale.get("LOG_VIEWER_MONITORED")}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen()}
+                onClick={toggleMenu}
+              >
+                <svg
+                  viewBox="0 0 12 12"
+                  width="11"
+                  height="11"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M6 2.5v7M2.5 6h7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="log-window-tools">
+            <button
+              class="log-window-theme"
+              type="button"
+              aria-label={themeLabel()}
+              title={themeLabel()}
+              onClick={toggleTheme}
+            >
+              {theme() === "dark" ? <SunIcon /> : <MoonIcon />}
+            </button>
+          </div>
+        </div>
+        <section class="log-window-surface">
+          <Show when={selected() !== LAUNCHER_LOG_TAB}>
+            <div class="log-window-path" title={selected()}>
+              {selected()}
+            </div>
+          </Show>
+          <div class="log-viewer-shell">
+            <div
+              class="log-viewer-console"
+              ref={consoleEl}
+              onScroll={onConsoleScroll}
+              on:contextmenu={event => event.stopPropagation()}
+            >
+              <For
+                each={activeLines()}
+                fallback={
+                  <div class="log-viewer-empty">
+                    {selected() === LAUNCHER_LOG_TAB
+                      ? props.locale.get("LOG_VIEWER_EMPTY")
+                      : props.locale.get("LOG_VIEWER_GAME_EMPTY")}
+                  </div>
+                }
+              >
+                {entry => (
+                  <div class="log-viewer-line" data-level={entry.level}>
+                    <span class="log-viewer-time">
+                      {displayTime(entry.time)}
+                    </span>
+                    <span
+                      class={`log-viewer-level log-viewer-level--${entry.level.toLowerCase()}`}
+                    >
+                      {entry.level}
+                    </span>
+                    <span class="log-viewer-message">{entry.message}</span>
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+        </section>
+        <footer class="log-window-footer">
           <label class="log-window-follow">
             <input
               type="checkbox"
@@ -322,205 +543,77 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
             />
             {props.locale.get("LOG_VIEWER_FOLLOW_SCROLL")}
           </label>
-          <button
-            class="log-window-theme"
-            type="button"
-            aria-label={themeLabel()}
-            title={themeLabel()}
-            onClick={toggleTheme}
-          >
-            {theme() === "dark" ? <SunIcon /> : <MoonIcon />}
-          </button>
-        </div>
-      </header>
-      <div class="log-window-tabs" role="tablist" ref={tabStripEl}>
-        <div
-          class="log-window-tab"
-          role="tab"
-          aria-selected={selected() === LAUNCHER_LOG_TAB}
-          data-tab-id={LAUNCHER_LOG_TAB}
-          title={props.locale.get("LOG_VIEWER_TAB_LAUNCHER")}
-        >
-          <button
-            class="log-window-tab-main"
-            type="button"
-            onClick={() => selectTab(LAUNCHER_LOG_TAB)}
-          >
-            <span class="log-window-tab-label">
-              {props.locale.get("LOG_VIEWER_TAB_LAUNCHER")}
-            </span>
-            <span class="log-window-count">{launcherLines().length}</span>
-          </button>
-        </div>
-        <For each={openPaths()}>
-          {path => (
-            <div
-              class="log-window-tab"
-              role="tab"
-              aria-selected={selected() === path}
-              data-tab-id={path}
-              title={path}
+          <div class="log-window-actions">
+            <button
+              class="log-window-jump"
+              type="button"
+              style={{ display: pending() === 0 ? "none" : "inline-flex" }}
+              onClick={scrollToLatest}
             >
-              <button
-                class="log-window-tab-main"
-                type="button"
-                onClick={() => selectTab(path)}
-              >
-                <span class="log-window-tab-label">
-                  {gameLogTabLabel(path, monitored())}
-                </span>
-                <span class="log-window-count">
-                  {linesByPath()[path]?.length ?? 0}
-                </span>
-              </button>
-              <button
-                class="log-window-tab-close"
-                type="button"
-                aria-label={props.locale.get("LOG_VIEWER_CLOSE_TAB")}
-                title={props.locale.get("LOG_VIEWER_CLOSE_TAB")}
-                onClick={() => closeFile(path)}
-              >
-                <svg
-                  viewBox="0 0 12 12"
-                  width="10"
-                  height="10"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  aria-hidden="true"
-                >
-                  <path d="M3 3l6 6M9 3l-6 6" />
-                </svg>
-              </button>
-            </div>
-          )}
-        </For>
-        <div class="log-window-menu">
-          <button
-            class="log-window-add"
-            type="button"
-            aria-label={props.locale.get("LOG_VIEWER_MONITORED")}
-            title={props.locale.get("LOG_VIEWER_MONITORED")}
-            aria-expanded={menuOpen()}
-            onClick={() => setMenuOpen(open => !open)}
-          >
-            <svg
-              viewBox="0 0 12 12"
-              width="11"
-              height="11"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-              aria-hidden="true"
+              {props.locale.get("LOG_VIEWER_JUMP")}
+            </button>
+            <button
+              class="log-window-action"
+              type="button"
+              onClick={() => void copyLogs()}
             >
-              <path d="M6 2.5v7M2.5 6h7" />
-            </svg>
-          </button>
-          <Show when={menuOpen()}>
-            <div class="log-window-file-menu" role="menu">
-              <Show
-                when={monitored().length > 0}
-                fallback={
-                  <div class="log-window-file-empty">
-                    {props.locale.get("LOG_VIEWER_NO_MONITORED_FILES")}
-                  </div>
-                }
-              >
-                <For each={monitored()}>
-                  {path => {
-                    const opened = () => !closed().has(path);
-                    return (
-                      <div class="log-window-file-row" title={path}>
-                        <span class="log-window-file-name">
-                          {gameLogTabLabel(path, monitored())}
-                        </span>
-                        <button
-                          class="log-window-file-toggle"
-                          type="button"
-                          onClick={() =>
-                            opened() ? closeFile(path) : openFile(path)
-                          }
-                        >
-                          {opened()
-                            ? props.locale.get("LOG_VIEWER_CLOSE_TAB")
-                            : props.locale.get("LOG_VIEWER_REOPEN_TAB")}
-                        </button>
-                      </div>
-                    );
-                  }}
-                </For>
-              </Show>
-            </div>
-          </Show>
-        </div>
-      </div>
-      <section class="log-window-surface">
-        <Show when={selected() !== LAUNCHER_LOG_TAB}>
-          <div class="log-window-path" title={selected()}>
-            {selected()}
+              {props.locale.get("LOG_VIEWER_COPY")}
+            </button>
+            <button
+              class="log-window-action"
+              type="button"
+              disabled={selected() !== LAUNCHER_LOG_TAB && !selected()}
+              onClick={() => void openActiveFile()}
+            >
+              {props.locale.get("LOG_VIEWER_OPEN_FILE")}
+            </button>
           </div>
-        </Show>
-        <div class="log-viewer-shell">
+        </footer>
+      </div>
+      <Show when={menuOpen()}>
+        <Portal>
           <div
-            class="log-viewer-console"
-            ref={consoleEl}
-            onScroll={onConsoleScroll}
-            on:contextmenu={event => event.stopPropagation()}
+            class="log-window-portal log-window-file-menu"
+            role="menu"
+            ref={menuEl}
+            data-theme={theme()}
+            style={menuStyle()}
           >
-            <For
-              each={activeLines()}
+            <Show
+              when={monitored().length > 0}
               fallback={
-                <div class="log-viewer-empty">
-                  {selected() === LAUNCHER_LOG_TAB
-                    ? props.locale.get("LOG_VIEWER_EMPTY")
-                    : props.locale.get("LOG_VIEWER_GAME_EMPTY")}
+                <div class="log-window-file-empty">
+                  {props.locale.get("LOG_VIEWER_NO_MONITORED_FILES")}
                 </div>
               }
             >
-              {entry => (
-                <div class="log-viewer-line" data-level={entry.level}>
-                  <span class="log-viewer-time">{displayTime(entry.time)}</span>
-                  <span
-                    class={`log-viewer-level log-viewer-level--${entry.level.toLowerCase()}`}
-                  >
-                    {entry.level}
-                  </span>
-                  <span class="log-viewer-message">{entry.message}</span>
-                </div>
-              )}
-            </For>
+              <For each={monitored()}>
+                {path => {
+                  const opened = () => !closed().has(path);
+                  return (
+                    <div class="log-window-file-row" title={path}>
+                      <span class="log-window-file-name">
+                        {gameLogTabLabel(path, monitored())}
+                      </span>
+                      <button
+                        class="log-window-file-toggle"
+                        type="button"
+                        onClick={() =>
+                          opened() ? closeFile(path) : openFile(path)
+                        }
+                      >
+                        {opened()
+                          ? props.locale.get("LOG_VIEWER_CLOSE_TAB")
+                          : props.locale.get("LOG_VIEWER_REOPEN_TAB")}
+                      </button>
+                    </div>
+                  );
+                }}
+              </For>
+            </Show>
           </div>
-        </div>
-      </section>
-      <footer class="log-window-footer">
-        <button
-          class="log-window-jump"
-          type="button"
-          style={{ display: pending() === 0 ? "none" : "inline-flex" }}
-          onClick={scrollToLatest}
-        >
-          {props.locale.get("LOG_VIEWER_JUMP")}
-        </button>
-        <div class="log-window-actions">
-          <button
-            class="log-window-action"
-            type="button"
-            onClick={() => void copyLogs()}
-          >
-            {props.locale.get("LOG_VIEWER_COPY")}
-          </button>
-          <button
-            class="log-window-action"
-            type="button"
-            disabled={selected() !== LAUNCHER_LOG_TAB && !selected()}
-            onClick={() => void openActiveFile()}
-          >
-            {props.locale.get("LOG_VIEWER_OPEN_FILE")}
-          </button>
-        </div>
-      </footer>
+        </Portal>
+      </Show>
     </div>
   );
 }
