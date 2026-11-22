@@ -256,7 +256,7 @@ describe("dynamic log file tracking", () => {
     let resolveStats!: (stat: { isFile: boolean; size: number }) => void;
     getStats.mockImplementationOnce(
       () =>
-        new Promise(resolve => {
+        new Promise<{ isFile: boolean; size: number }>(resolve => {
           resolveStats = resolve;
         })
     );
