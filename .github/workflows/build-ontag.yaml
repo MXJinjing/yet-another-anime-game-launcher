@@ -7,6 +7,9 @@ on:
         description: Release tag, such as 1.1.5. Leave empty to use package.json.
         required: false
         type: string
+  push:
+    tags:
+      - "[0-9]*"
 
 permissions:
   contents: write
@@ -17,20 +20,27 @@ jobs:
     timeout-minutes: 5
     outputs:
       tag: ${{ steps.version.outputs.tag }}
+      sha: ${{ steps.version.outputs.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Resolve release tag
         id: version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_VERSION: ${{ inputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           tag="${INPUT_VERSION:-}"
-          tag="${tag#"${tag%%[![:space:]]*}"}"
-          tag="${tag%"${tag##*[![:space:]]}"}"
+          tag="$(printf '%s' "$tag" | tr -d '[:space:]')"
+          if [ -z "$tag" ] && [ "$EVENT_NAME" = "push" ]; then
+            tag="$REF_NAME"
+          fi
           if [ -z "$tag" ]; then
             tag="$(node -p "require('./package.json').version")"
           fi
@@ -40,7 +50,18 @@ jobs:
               exit 1
               ;;
           esac
-          sha="${{ github.sha }}"
+          sha="$(git rev-parse HEAD)"
+          if [ "$EVENT_NAME" = "push" ]; then
+            if ! git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null; then
+              echo "origin/main is not available, cannot verify that ${tag} is on main."
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$sha" refs/remotes/origin/main; then
+              echo "Tag ${tag} points at ${sha}, which is not merged into main."
+              echo "Merge the commit into main first, then push the version tag again."
+              exit 1
+            fi
+          fi
           if payload="$(gh api "repos/${{ github.repository }}/git/ref/tags/${tag}" 2>/dev/null)"; then
             existing="$(printf '%s' "$payload" | jq -r '.object.sha')"
             kind="$(printf '%s' "$payload" | jq -r '.object.type')"
@@ -49,7 +70,11 @@ jobs:
             fi
             if [ "$existing" != "$sha" ]; then
               echo "Tag ${tag} already points at ${existing}, not ${sha}."
-              echo "Enter a new version when starting Build Release."
+              if [ "$EVENT_NAME" = "push" ]; then
+                echo "Delete that tag and push it again at a commit on main, or push a new version tag."
+              else
+                echo "Enter a new version when starting Build Release."
+              fi
               exit 1
             fi
             echo "Tag ${tag} already points at this commit; the draft release will be updated."
@@ -57,6 +82,7 @@ jobs:
             echo "Tag ${tag} will be created on ${sha} when the draft release is published."
           fi
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
 
   tests:
     needs: resolve
@@ -95,6 +121,7 @@ jobs:
         run: bash scripts/update-hosts-helper-release.sh
         env:
           HELPER_RELEASE: latest
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download pinned Sophon release
         run: ./build-sophon.sh
@@ -133,7 +160,7 @@ jobs:
           name: Yaaglm ${{ needs.resolve.outputs.tag }} Release
           draft: true
           tag_name: ${{ needs.resolve.outputs.tag }}
-          target_commitish: ${{ github.sha }}
+          target_commitish: ${{ needs.resolve.outputs.sha }}
           preserve_order: true
           fail_on_unmatched_files: true
           body: |
