@@ -14,6 +14,11 @@ import { TaskFailedError } from "@tasks/task-program";
 import { isAuthorizationCancelledError } from "../../runtime/authorization";
 import { isConnectionError } from "../../services/connection-error";
 import { InitialWineSetupModal } from "../../modals/initial-wine-setup-modal";
+import { WineMissingModal } from "../../modals/wine-missing-modal";
+import {
+  listInstalledWineDistributions,
+  planWineRecovery,
+} from "@wine/recovery";
 import { applyRecommendedWineProgram } from "@wine/recommended-settings-program";
 import { Locale } from "@locale";
 import { downloadManagerText } from "../../locale/download-manager";
@@ -574,6 +579,31 @@ export async function createHypLauncher({
       game: HypGame;
       distributions: WineDistribution[];
     }>();
+    // The selected Wine can disappear between sessions: system Wine gets
+    // uninstalled, or a channel names a distribution the build no longer
+    // ships. When another distribution is already on disk, ask which one to
+    // use instead of pushing the user through a fresh download.
+    const [wineRecoveryChoice, setWineRecoveryChoice] = createSignal<{
+      missing: string;
+      installed: WineDistribution[];
+    }>();
+    onMount(() => {
+      if (wineInstalled()) return;
+      void (async () => {
+        const installed = await listInstalledWineDistributions();
+        const plan = planWineRecovery({
+          wineReady: wineInstalled(),
+          currentDistroId: wineDistroId,
+          installed,
+        });
+        if (plan.kind === "choose") {
+          setWineRecoveryChoice({
+            missing: plan.missing,
+            installed: plan.installed,
+          });
+        }
+      })().catch(error => log(`Wine recovery check failed: ${String(error)}`));
+    });
     onMount(() => {
       const hydrate = (game: HypGame) => {
         void game.client
@@ -2604,6 +2634,25 @@ export async function createHypLauncher({
             if (game) void openNativeSettings(game);
           }}
         />
+
+        <Show when={wineRecoveryChoice()} keyed>
+          {choice => (
+            <WineMissingModal
+              locale={locale}
+              missing={choice.missing}
+              installed={choice.installed}
+              onUseInstalled={distro => {
+                setWineRecoveryChoice();
+                startInitializeWine(distro);
+              }}
+              onDownloadBuiltin={() => {
+                setWineRecoveryChoice();
+                startInitializeWine(resolveRecommendedWineDistro());
+              }}
+              onCancel={() => setWineRecoveryChoice()}
+            />
+          )}
+        </Show>
 
         <Show when={initialWineSetup()} keyed>
           {setup => {
