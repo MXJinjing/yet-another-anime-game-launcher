@@ -153,6 +153,9 @@ const BG_TRANSITION_MS = 600;
 const BG_VIDEO_RETRY_LIMIT = 2;
 const BG_VIDEO_WATCHDOG_MS = 8000;
 const BG_VIDEO_RETRY_DELAY_MS = 1200;
+// WebKit can leave a looping clip parked on its last frame, so the playback
+// clock is polled instead of trusting the element's own loop/ended handling.
+const BG_VIDEO_MONITOR_MS = 1000;
 const LIBRARY_TRANSITION_MS = 360;
 const PREDOWNLOAD_STAGING_DIRECTORIES = [".ariatmp", ".tmp"];
 
@@ -758,19 +761,29 @@ export async function createHypLauncher({
     let bgTransitionTimer: ReturnType<typeof setTimeout> | undefined;
     let bgVideoWatchdog: ReturnType<typeof setTimeout> | undefined;
     let bgVideoAttempts = 0;
+    let bgVideoPlayLogged = false;
     function clearBgVideoWatchdog() {
       if (bgVideoWatchdog) {
         clearTimeout(bgVideoWatchdog);
         bgVideoWatchdog = undefined;
       }
     }
+    function playBgVideo(el: HTMLVideoElement) {
+      void el.play().catch(error => {
+        if (bgVideoPlayLogged) return;
+        bgVideoPlayLogged = true;
+        log(`[bg-video] play() rejected: ${String(error)}`);
+      });
+    }
     function markBgVideoReady(el: HTMLVideoElement) {
       clearBgVideoWatchdog();
       bgVideoAttempts = 0;
+      bgVideoPlayLogged = false;
       // Autoplay can be refused while the window is still hidden; retry the
       // playback itself rather than leaving a paused first frame on screen.
-      if (el.paused) void el.play().catch(() => undefined);
-      setVideoLoaded(true);
+      if (el.paused) playBgVideo(el);
+      // Reveal on the first frame that actually reaches the canvas.
+      paintBgCanvas();
     }
     function retryBgVideo(el: HTMLVideoElement, reason: string) {
       if (bgVideoAttempts >= BG_VIDEO_RETRY_LIMIT) {
@@ -810,6 +823,115 @@ export async function createHypLauncher({
         retryBgVideo(el, "clip never became ready");
       }, BG_VIDEO_WATCHDOG_MS);
     }
+    // WebKit parks a looping WebM on its final frame the second time around:
+    // `paused` stays false and `ended` never fires, so `loop` alone leaves a
+    // frozen frame on screen. It also suspends media for occluded windows.
+    // Watch the clock and restart the clip ourselves.
+    let bgVideoClock = -1;
+    let bgVideoStalls = 0;
+    let bgVideoStallLogged = false;
+    const bgVideoMonitor = setInterval(() => {
+      const el = baseVideoRef;
+      if (!el || !el.isConnected) {
+        bgVideoClock = -1;
+        bgVideoStalls = 0;
+        return;
+      }
+      if (el.readyState < 2) return;
+      if (el.paused) {
+        playBgVideo(el);
+        return;
+      }
+      if (el.currentTime !== bgVideoClock) {
+        bgVideoClock = el.currentTime;
+        bgVideoStalls = 0;
+        bgVideoStallLogged = false;
+        return;
+      }
+      bgVideoStalls += 1;
+      if (bgVideoStalls < 2) return;
+      // A hidden page is deliberately suspended; visibilitychange resumes it.
+      if (typeof document !== "undefined" && document.hidden) return;
+      bgVideoStalls = 0;
+      const duration = el.duration;
+      const nearEnd =
+        Number.isFinite(duration) && duration - el.currentTime < 0.5;
+      if (!bgVideoStallLogged) {
+        bgVideoStallLogged = true;
+        log(
+          `[bg-video] playback stalled at ${el.currentTime.toFixed(2)}s/${
+            Number.isFinite(duration) ? duration.toFixed(2) : "?"
+          }s; restarting`
+        );
+      }
+      if (nearEnd) el.currentTime = 0;
+      playBgVideo(el);
+    }, BG_VIDEO_MONITOR_MS);
+    // A WKWebView window can decode the clip and advance its clock without ever
+    // presenting a frame (seen with VP9/WebM on macOS 27: readyState 4, frames
+    // reported, nothing painted). Blitting the decoder output onto a canvas and
+    // showing that instead sidesteps the compositor path entirely.
+    let baseVideoCanvasRef: HTMLCanvasElement | undefined;
+    let bgCanvasPaint: number | undefined;
+    let bgCanvasLastTime = -1;
+    let bgCanvasLogged = false;
+    const [bgCanvasBlocked, setBgCanvasBlocked] = createSignal(false);
+    function paintBgCanvas() {
+      const video = baseVideoRef;
+      const canvas = baseVideoCanvasRef;
+      if (!video || !canvas || bgCanvasBlocked()) return;
+      if (video.readyState < 2 || !video.videoWidth || !video.videoHeight)
+        return;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
+      const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      // Mirror object-fit: cover.
+      const scale = Math.max(
+        width / video.videoWidth,
+        height / video.videoHeight
+      );
+      const sourceWidth = width / scale;
+      const sourceHeight = height / scale;
+      try {
+        context.drawImage(
+          video,
+          (video.videoWidth - sourceWidth) / 2,
+          (video.videoHeight - sourceHeight) / 2,
+          sourceWidth,
+          sourceHeight,
+          0,
+          0,
+          width,
+          height
+        );
+      } catch (error) {
+        if (!bgCanvasLogged) {
+          bgCanvasLogged = true;
+          log(
+            `[bg-video] canvas painting unavailable, showing the element instead: ${String(
+              error
+            )}`
+          );
+        }
+        setBgCanvasBlocked(true);
+        setVideoLoaded(true);
+        return;
+      }
+      if (!videoLoaded()) setVideoLoaded(true);
+    }
+    function bgCanvasLoop() {
+      bgCanvasPaint = requestAnimationFrame(bgCanvasLoop);
+      if (document.hidden) return;
+      const video = baseVideoRef;
+      if (!video) return;
+      if (video.currentTime === bgCanvasLastTime) return;
+      bgCanvasLastTime = video.currentTime;
+      paintBgCanvas();
+    }
     // WebKit suspends media for a hidden page, and this window starts hidden
     // until the shell shows it. Re-arm playback whenever it comes back.
     function resumeBgVideoOnVisibility() {
@@ -822,9 +944,14 @@ export async function createHypLauncher({
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", resumeBgVideoOnVisibility);
     }
+    onMount(() => {
+      bgCanvasPaint = requestAnimationFrame(bgCanvasLoop);
+    });
     onCleanup(() => {
       if (bgTransitionTimer) clearTimeout(bgTransitionTimer);
       clearBgVideoWatchdog();
+      clearInterval(bgVideoMonitor);
+      if (bgCanvasPaint !== undefined) cancelAnimationFrame(bgCanvasPaint);
       if (typeof document !== "undefined") {
         document.removeEventListener(
           "visibilitychange",
@@ -865,6 +992,11 @@ export async function createHypLauncher({
         () => {
           clearBgVideoWatchdog();
           bgVideoAttempts = 0;
+          bgVideoPlayLogged = false;
+          bgVideoClock = -1;
+          bgVideoStalls = 0;
+          bgVideoStallLogged = false;
+          bgCanvasLastTime = -1;
           setVideoLoaded(false);
           const el = baseVideoRef;
           if (el && el.isConnected) armBgVideoWatchdog(el);
@@ -1998,6 +2130,17 @@ export async function createHypLauncher({
                   );
                   retryBgVideo(el, "error event");
                 }}
+                // Only shown when the canvas path is unavailable; normally the
+                // element is the decode source and the canvas presents it.
+                style={{
+                  opacity: bgCanvasBlocked() && videoLoaded() ? 1 : 0,
+                }}
+              />
+              <canvas
+                ref={el => {
+                  baseVideoCanvasRef = el;
+                }}
+                class="hyp-video"
                 style={{ opacity: videoLoaded() ? 1 : 0 }}
               />
             </Show>
