@@ -15,7 +15,7 @@ import { dirname, join } from "path-browserify";
 import { log } from "../logging/logger";
 import { getWineDistributions } from "./distro";
 import { buildWinePropsScript } from "./wine-props";
-import { D3DMETAL_RUNTIME_ID } from "./d3dmetal";
+import { isD3DMetalRuntimeId } from "./d3dmetal";
 import type { WineDistribution } from "./distro";
 import { installWineEnvironmentProgram } from "./wine-install-program";
 import { createWinePrefixInitializationLog } from "./prefix-initialization-log";
@@ -242,7 +242,7 @@ export async function getMultiGameWineOptions(_currentTag: string) {
   const availableVersions = (
     await Promise.all(
       versions.map(async distro =>
-        distro.id === D3DMETAL_RUNTIME_ID ||
+        isD3DMetalRuntimeId(distro.id) ||
         (await isWineDistroInstalled(distro.id))
           ? distro
           : null

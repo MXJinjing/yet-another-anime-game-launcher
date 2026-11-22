@@ -35,6 +35,17 @@ vi.mock("@wine/cert", () => ({ addCertsToWine: vi.fn() }));
 vi.mock("@wine/d3dmetal", () => ({
   D3DMETAL_RUNTIME_ID: "d3dmetal-test",
   assertD3DMetalHostSupported: vi.fn(),
+  getD3DMetalRuntime: vi.fn((id: string) =>
+    id === "d3dmetal-test"
+      ? {
+          id,
+          size: 1,
+          sha256: "0".repeat(64),
+          bundledFramework: false,
+        }
+      : undefined
+  ),
+  isD3DMetalRuntimeId: (id: string) => id === "d3dmetal-test",
   isD3DMetalRuntimePrepared: vi.fn(async () => true),
   prepareD3DMetalWine: vi.fn(),
   requireD3DMetalLicense: vi.fn(),
@@ -55,12 +66,14 @@ import { addCertsToWine } from "@wine/cert";
 import { installMediaFoundation } from "@wine/mf";
 import {
   assertD3DMetalHostSupported,
-  D3DMETAL_RUNTIME_ID,
+  getD3DMetalRuntime,
   isD3DMetalRuntimePrepared,
   prepareD3DMetalWine,
   requireD3DMetalLicense,
   verifyD3DMetalArchive,
 } from "@wine/d3dmetal";
+
+const D3DMETAL_RUNTIME_ID = "d3dmetal-test";
 import {
   configureWineEnvironmentProgram,
   confirmWinePrefixReset,
@@ -557,7 +570,10 @@ describe("Experimental D3DMetal Wine installation", () => {
     expect(
       vi.mocked(requireD3DMetalLicense).mock.invocationCallOrder[0]
     ).toBeLessThan(download.mock.invocationCallOrder[0]);
-    expect(verifyD3DMetalArchive).toHaveBeenCalledWith(archive);
+    expect(verifyD3DMetalArchive).toHaveBeenCalledWith(
+      archive,
+      expect.objectContaining({ id: D3DMETAL_RUNTIME_ID })
+    );
     expect(tar_extract_directory).toHaveBeenCalledWith(
       archive,
       stage,
@@ -571,6 +587,22 @@ describe("Experimental D3DMetal Wine installation", () => {
     ).toBeLessThan(vi.mocked(createWine).mock.invocationCallOrder[0]);
     expect(exec).toHaveBeenCalledWith(["mv", stage, destination]);
     expect(setKey).toHaveBeenCalledWith("wine_tag", D3DMETAL_RUNTIME_ID);
+  });
+
+  it("activates a runtime that bundles the framework without preparing it", async () => {
+    vi.mocked(getD3DMetalRuntime).mockReturnValueOnce({
+      id: D3DMETAL_RUNTIME_ID,
+      displayName: "Bundled D3DMetal",
+      url: "https://example.invalid/wine.tar.xz",
+      sha256: "0".repeat(64),
+      size: 1,
+      bundledFramework: true,
+    });
+    await install();
+    expect(requireD3DMetalLicense).toHaveBeenCalledOnce();
+    expect(prepareD3DMetalWine).not.toHaveBeenCalled();
+    expect(isD3DMetalRuntimePrepared).toHaveBeenCalledWith(stage, true);
+    expect(exec).toHaveBeenCalledWith(["mv", stage, destination]);
   });
 
   it("lets overlapping requests fail without blocking the first installation", async () => {

@@ -18,7 +18,8 @@ import { fileOrDirExists, removeFileIfExists } from "@platform/neutralino";
 import { getKeyOrDefault, setKey } from "@runtime/storage";
 import {
   assertD3DMetalHostSupported,
-  D3DMETAL_ARCHIVE_SHA256,
+  D3DMETAL_RUNTIME_4_0B2,
+  D3DMETAL_RUNTIME_4_0B3,
   isD3DMetalRuntimePrepared,
   prepareD3DMetalWine,
   requireD3DMetalLicense,
@@ -63,8 +64,26 @@ describe("D3DMetal artifacts and consent", () => {
 
     vi.mocked(exec)
       .mockResolvedValueOnce(result("239444460\n"))
-      .mockResolvedValueOnce(result(`${D3DMETAL_ARCHIVE_SHA256}  /archive\n`));
+      .mockResolvedValueOnce(
+        result(`${D3DMETAL_RUNTIME_4_0B2.sha256}  /archive\n`)
+      );
     await expect(verifyD3DMetalArchive("/archive")).resolves.toBeUndefined();
+  });
+
+  it("verifies the newest runtime against its own pin", async () => {
+    vi.mocked(exec).mockResolvedValueOnce(result("239444460\n"));
+    await expect(
+      verifyD3DMetalArchive("/archive", D3DMETAL_RUNTIME_4_0B3)
+    ).rejects.toThrow("size");
+
+    vi.mocked(exec)
+      .mockResolvedValueOnce(result(`${D3DMETAL_RUNTIME_4_0B3.size}\n`))
+      .mockResolvedValueOnce(
+        result(`${D3DMETAL_RUNTIME_4_0B2.sha256}  /archive\n`)
+      );
+    await expect(
+      verifyD3DMetalArchive("/archive", D3DMETAL_RUNTIME_4_0B3)
+    ).rejects.toThrow("SHA-256");
   });
 
   it("never persists a decision without displaying verified license text", async () => {
@@ -160,5 +179,15 @@ describe("D3DMetal artifacts and consent", () => {
     await expect(isD3DMetalRuntimePrepared("/wine")).resolves.toBe(false);
     vi.mocked(fileOrDirExists).mockResolvedValue(true);
     await expect(isD3DMetalRuntimePrepared("/wine")).resolves.toBe(true);
+  });
+
+  it("accepts a bundled framework without a preparation manifest", async () => {
+    vi.mocked(fileOrDirExists)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    await expect(isD3DMetalRuntimePrepared("/wine", true)).resolves.toBe(true);
+
+    vi.mocked(fileOrDirExists).mockResolvedValueOnce(false);
+    await expect(isD3DMetalRuntimePrepared("/wine", true)).resolves.toBe(false);
   });
 });
