@@ -14,8 +14,10 @@ declare module "../../../config/config-def" {
   }
 }
 
-const MIN_FACTOR = 1.1;
-const MAX_FACTOR = 3.0;
+// DXMT documents d3d11.metalSpatialUpscaleFactor as a 1.0-2.0 factor; values
+// outside that window are not honored by the swapchain upscaler.
+const MIN_FACTOR = 1.0;
+const MAX_FACTOR = 2.0;
 const DEFAULT_FACTOR = 2.0;
 const STEP = 0.05;
 
