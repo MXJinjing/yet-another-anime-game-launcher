@@ -322,8 +322,9 @@ export async function createMultiGameLauncher({
           return globalWineLabel();
         },
         wineDataSupported: Boolean(spec.wineUserData),
-        // ZZZ uses the game's DLSS path (Game Porting Toolkit); all other
-        // clients use DXMT's own swapchain MetalFX upscale.
+        // ZZZ drives MetalFX through the game's own DLSS path on D3DMetal and
+        // through DXMT's bridge on DXMT; every other client only has the DXMT
+        // swapchain upscale.
         metalFxDxmtOnly: !spec.clientId.startsWith("nap"),
         onWineEnabledChange: (enabled, options) => {
           enqueueWineTask(async function* () {

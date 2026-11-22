@@ -142,8 +142,11 @@ export const ru_RU: typeof zh_CN = {
   SETTING_NAP_METALFX_DESC:
     "Использовать MetalFX вместо DLSS с поддержкой трассировки лучей.",
   SETTING_NAP_D3D12_REQUIREMENTS:
-    "Для DirectX 12 требуется Wine с D3DMetal или Game Porting Toolkit.",
-  SETTING_NAP_REQUIRES_GPTK3: "Требуется Game Porting Toolkit 3 (GPTK3).",
+    "Для DirectX 12 требуется Wine с D3DMetal или Game Porting Toolkit. Переключитесь на D3DMetal в настройках Wine.",
+  SETTING_NAP_METALFX_DXMT_NOTE:
+    "Работает через мост nvngx из состава Wine с DXMT; устанавливать ничего не нужно.",
+  SETTING_NAP_METALFX_RUNTIME_NOTE:
+    "Работает через мост nvngx-on-metalfx из состава Wine; встроенный D3DMetal уже его содержит.",
   SETTING_SAVE: "Сохранить",
   SETTING_CANCEL: "Отменить",
 

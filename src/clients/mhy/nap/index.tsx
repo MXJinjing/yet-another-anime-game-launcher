@@ -419,6 +419,7 @@ export async function createNAPChannelClient({
         locale,
         config,
         storage,
+        renderBackend: () => wine.attributes.renderBackend,
       });
 
       return {
