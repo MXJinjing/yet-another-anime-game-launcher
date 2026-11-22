@@ -1,4 +1,6 @@
 export * from "./wine";
+export * from "./global-props";
+export * from "./wine-props";
 export * from "./wine-install-program";
 export * from "./distro";
 export * from "./environment-service";
