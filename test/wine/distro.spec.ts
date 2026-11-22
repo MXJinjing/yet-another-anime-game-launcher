@@ -96,7 +96,12 @@ describe("Wine distribution discovery and activation", () => {
     const distributions = await getWineDistributions();
     expect(
       distributions.filter(d => d.attributes.supportsD3d12).map(d => d.id)
-    ).toEqual(["gptk3-system", "/local", "wine-11.17-d3dmetal-gptk4.0b2-10"]);
+    ).toEqual([
+      "gptk3-system",
+      "/local",
+      "wine-11.20-d3dmetal-gptk4.0b3-3",
+      "wine-11.17-d3dmetal-gptk4.0b2-10",
+    ]);
     expect(distributions.find(d => d.id === "/plain")?.systemWineRoot).toBe(
       "/plain"
     );

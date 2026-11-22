@@ -16,11 +16,7 @@ import {
   readCustomWineEntries,
   registerSystemWineRoot,
 } from "./system-wine";
-import {
-  D3DMETAL_ARCHIVE_SHA256,
-  D3DMETAL_RUNTIME_ID,
-  D3DMETAL_RUNTIME_URL,
-} from "./d3dmetal";
+import { D3DMETAL_RUNTIMES, isD3DMetalRuntimeId } from "./d3dmetal";
 
 export interface WineDistributionAttributes {
   renderBackend: "dxmt" | "d3dmetal";
@@ -117,17 +113,17 @@ const YAAGL_BUILTIN_WINE: WineDistribution[] = [
     },
   },
 
-  {
-    id: D3DMETAL_RUNTIME_ID,
-    displayName: "Wine 11.17 D3DMetal (GPTK 4.0b2, experimental)",
-    remoteUrl: D3DMETAL_RUNTIME_URL,
-    checksum: `sha-256=${D3DMETAL_ARCHIVE_SHA256}`,
+  ...D3DMETAL_RUNTIMES.map(runtime => ({
+    id: runtime.id,
+    displayName: runtime.displayName,
+    remoteUrl: runtime.url,
+    checksum: `sha-256=${runtime.sha256}` as const,
     attributes: {
-      renderBackend: "d3dmetal",
+      renderBackend: "d3dmetal" as const,
       supportsD3d12: true,
       winePath: "wine",
     },
-  },
+  })),
   {
     id: "9.9-dxmt",
     displayName: "Wine 9.9 DXMT",
@@ -300,7 +296,7 @@ export async function checkWine(
 
 async function migrateLegacyWineDir(distroId: string) {
   if (
-    distroId === D3DMETAL_RUNTIME_ID ||
+    isD3DMetalRuntimeId(distroId) ||
     distroId === GPTK_WINE_ID ||
     distroId.startsWith("custom-wine-")
   )

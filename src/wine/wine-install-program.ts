@@ -35,7 +35,8 @@ import { installMediaFoundation } from "./mf";
 import { WineDistribution } from "./distro";
 import {
   assertD3DMetalHostSupported,
-  D3DMETAL_RUNTIME_ID,
+  getD3DMetalRuntime,
+  isD3DMetalRuntimeId,
   isD3DMetalRuntimePrepared,
   prepareD3DMetalWine,
   requireD3DMetalLicense,
@@ -105,7 +106,7 @@ let d3dMetalInstallationActive = false;
 export async function* installWineEnvironmentProgram(
   options: WineInstallOptions
 ): TaskProgram {
-  if (options.wineDistro.id !== D3DMETAL_RUNTIME_ID) {
+  if (!isD3DMetalRuntimeId(options.wineDistro.id)) {
     yield* installWineBinariesAndConfigure(options);
     return;
   }
@@ -135,7 +136,8 @@ async function* installWineBinariesAndConfigure({
   removePrefix,
 }: WineInstallOptions): TaskProgram {
   const wineBinaryDir = getWineInstallDir(wineDistro.id);
-  const isD3DMetal = wineDistro.id === D3DMETAL_RUNTIME_ID;
+  const d3dMetalRuntime = getD3DMetalRuntime(wineDistro.id);
+  const isD3DMetal = d3dMetalRuntime !== undefined;
   const wineBinaryTmpDir = `${wineBinaryDir}.installing`;
   const installedBefore = await isWineDistroInstalled(wineDistro.id);
 
@@ -207,9 +209,9 @@ async function* installWineBinariesAndConfigure({
       throw error;
     }
     // aria2 can reuse completed results without rechecking the file on disk.
-    if (isD3DMetal) {
+    if (d3dMetalRuntime) {
       try {
-        await verifyD3DMetalArchive(wineTarPath);
+        await verifyD3DMetalArchive(wineTarPath, d3dMetalRuntime);
       } catch (error) {
         await removeFileIfExists(wineTarPath);
         throw new DownloadFailedError(String(error));
@@ -246,9 +248,16 @@ async function* installWineBinariesAndConfigure({
       }
       yield ["setStateText", "CONFIGURING_ENVIRONMENT"];
       yield ["setUndeterminedProgress"];
-      if (isD3DMetal) {
-        await prepareD3DMetalWine(wineBinaryTmpDir);
-        if (!(await isD3DMetalRuntimePrepared(wineBinaryTmpDir))) {
+      if (d3dMetalRuntime) {
+        if (!d3dMetalRuntime.bundledFramework) {
+          await prepareD3DMetalWine(wineBinaryTmpDir);
+        }
+        if (
+          !(await isD3DMetalRuntimePrepared(
+            wineBinaryTmpDir,
+            d3dMetalRuntime.bundledFramework
+          ))
+        ) {
           throw new TaskFailedError("D3DMetal Wine preparation is incomplete");
         }
       }

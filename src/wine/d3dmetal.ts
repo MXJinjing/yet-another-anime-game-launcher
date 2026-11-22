@@ -11,13 +11,53 @@ import { getKeyOrDefault, setKey } from "@runtime/storage";
 import { DownloadCancelledError } from "../download/control";
 import { TaskFailedError } from "@tasks/task-program";
 
-export const D3DMETAL_RUNTIME_ID = "wine-11.17-d3dmetal-gptk4.0b2-10";
-const D3DMETAL_ARCHIVE_NAME = "wine-11.17-d3dmetal-gptk4.0b2-macos26.tar.xz";
-export const D3DMETAL_RUNTIME_URL = `https://github.com/dbc-hbin/wine-yaagl-d3dmetal/releases/download/wine-11.17-gptk4.0b2-10/${D3DMETAL_ARCHIVE_NAME}`;
-// Pins from the independently published Wine release.
-export const D3DMETAL_ARCHIVE_SHA256 =
-  "5084a2ca19071f9269193c9b6f003a82eeb96f823b1121382aa317ae2fb50fd4";
-const D3DMETAL_ARCHIVE_SIZE = 239444460;
+export type D3DMetalRuntime = {
+  id: string;
+  displayName: string;
+  url: string;
+  sha256: string;
+  size: number;
+  /**
+   * Newer archives ship the D3DMetal framework and need no preparation step.
+   * The 4.0b2 archive contains the Wine build only, so a signed native helper
+   * assembles Apple's framework after download.
+   */
+  bundledFramework: boolean;
+};
+
+// Pins from the independently published Wine releases.
+export const D3DMETAL_RUNTIME_4_0B3: D3DMetalRuntime = {
+  id: "wine-11.20-d3dmetal-gptk4.0b3-3",
+  displayName: "Wine 11.20 D3DMetal (GPTK 4.0b3, experimental)",
+  url: "https://github.com/dbc-hbin/wine-yaagl-d3dmetal/releases/download/wine-11.20-gptk4.0b3-3/wine-11.20-d3dmetal-gptk4.0b3-macos26.tar.xz",
+  sha256: "afbfe46abe2ebe58c5ce04f245669cada42cde99deab8f85663ccb67eb01b0db",
+  size: 322652660,
+  bundledFramework: true,
+};
+
+export const D3DMETAL_RUNTIME_4_0B2: D3DMetalRuntime = {
+  id: "wine-11.17-d3dmetal-gptk4.0b2-10",
+  displayName: "Wine 11.17 D3DMetal (GPTK 4.0b2, experimental)",
+  url: "https://github.com/dbc-hbin/wine-yaagl-d3dmetal/releases/download/wine-11.17-gptk4.0b2-10/wine-11.17-d3dmetal-gptk4.0b2-macos26.tar.xz",
+  sha256: "5084a2ca19071f9269193c9b6f003a82eeb96f823b1121382aa317ae2fb50fd4",
+  size: 239444460,
+  bundledFramework: false,
+};
+
+/** Newest first, so the download list offers the latest build on top. */
+export const D3DMETAL_RUNTIMES = [
+  D3DMETAL_RUNTIME_4_0B3,
+  D3DMETAL_RUNTIME_4_0B2,
+] as const;
+
+export function getD3DMetalRuntime(id: string) {
+  return D3DMETAL_RUNTIMES.find(runtime => runtime.id === id);
+}
+
+export function isD3DMetalRuntimeId(id: string) {
+  return getD3DMetalRuntime(id) !== undefined;
+}
+
 const D3DMETAL_HELPER_SHA256 =
   "a21eb0f6de40d5a7f1c23f989644b0966b99c637a5d8f0d26b7b26a5fbffe00e";
 const REDISTRIBUTABLE_RELEASE =
@@ -66,12 +106,23 @@ export async function assertD3DMetalHostSupported() {
   }
 }
 
-export async function isD3DMetalRuntimePrepared(wineRoot: string) {
+export async function isD3DMetalRuntimePrepared(
+  wineRoot: string,
+  bundledFramework = false
+) {
   const output = join(wineRoot, "lib/external");
-  return (
-    (await fileOrDirExists(
+  if (
+    !(await fileOrDirExists(
       join(output, "D3DMetal.framework/Versions/A/D3DMetal")
-    )) && (await fileOrDirExists(join(output, "prepared-d3dmetal.json")))
+    ))
+  ) {
+    return false;
+  }
+  // Archives that ship the framework are ready once extracted. The 4.0b2
+  // archive is assembled by the helper, so its manifest is required.
+  return (
+    bundledFramework ||
+    (await fileOrDirExists(join(output, "prepared-d3dmetal.json")))
   );
 }
 
@@ -91,14 +142,17 @@ async function assertFileHash(path: string, expected: string) {
   }
 }
 
-export async function verifyD3DMetalArchive(path: string) {
+export async function verifyD3DMetalArchive(
+  path: string,
+  runtime: D3DMetalRuntime = D3DMETAL_RUNTIME_4_0B2
+) {
   const size = Number(
     (await exec(["/usr/bin/stat", "-f", "%z", path])).stdOut.trim()
   );
-  if (size !== D3DMETAL_ARCHIVE_SIZE) {
+  if (size !== runtime.size) {
     throw new Error("D3DMetal Wine archive size mismatch");
   }
-  await assertFileHash(path, D3DMETAL_ARCHIVE_SHA256);
+  await assertFileHash(path, runtime.sha256);
 }
 
 async function loadD3DMetalLicense(): Promise<string> {
