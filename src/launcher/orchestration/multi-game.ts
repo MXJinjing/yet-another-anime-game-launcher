@@ -324,8 +324,11 @@ export async function createMultiGameLauncher({
         wineDataSupported: Boolean(spec.wineUserData),
         // ZZZ drives MetalFX through the game's own DLSS path on D3DMetal and
         // through DXMT's bridge on DXMT; every other client only has the DXMT
-        // swapchain upscale.
+        // swapchain upscale, so its switch follows the selected backend.
         metalFxDxmtOnly: !spec.clientId.startsWith("nap"),
+        metalFxRenderBackend: () =>
+          (wineTag() === SHARED_WINE_TAG ? baseWine : wineRef.current)
+            .attributes.renderBackend,
         onWineEnabledChange: (enabled, options) => {
           enqueueWineTask(async function* () {
             if (enabled) {

@@ -6,6 +6,7 @@ import {
   METALFX_FACTOR_DEFAULT,
   normalizeMetalFxFactor,
 } from "@config/metalfx-factor";
+import { isMetalFxRuntimeUnavailable } from "@config/metalfx-runtime";
 import { SettingSwitch } from "../../../components/setting-switch";
 import { MetalFxFactorSlider } from "../../../components/metalfx-factor-slider";
 import { Config } from "../../../config/config-def";
@@ -22,12 +23,15 @@ export default async function ({
   config,
   store,
   dxmtOnly = false,
+  renderBackend,
 }: {
   config: Partial<Config>;
   locale: Locale;
   store: ConfigStore;
   /** True for clients whose MetalFX is DXMT's swapchain upscale. */
   dxmtOnly?: boolean;
+  /** Render backend of the Wine selected for this client, if known. */
+  renderBackend?: () => string | undefined;
 }) {
   try {
     config.metalFxEnable =
@@ -79,6 +83,12 @@ export default async function ({
     onSaveFactor(true);
   });
 
+  // These clients implement MetalFX with DXMT's swapchain upscale. Any other
+  // backend (D3DMetal, a custom Wine without DXMT) cannot apply the setting, so
+  // the switch is disabled instead of silently saving a value that never runs.
+  const runtimeDisabled = () =>
+    isMetalFxRuntimeUnavailable(dxmtOnly, renderBackend?.());
+
   return [
     function UI(opts?: { disabled?: boolean }) {
       const disabled = opts?.disabled ?? !config.advancedEnable;
@@ -89,9 +99,9 @@ export default async function ({
           label={locale.get("SETTING_METALFX_UPSCALE")}
           checked={enabled()}
           onChange={setEnabled}
-          disabled={disabled}
+          disabled={disabled || runtimeDisabled()}
         >
-          <Show when={dxmtOnly}>
+          <Show when={() => dxmtOnly && (!renderBackend || runtimeDisabled())}>
             <span class="setting-switch-requirement">
               {locale.get("SETTING_METALFX_DXMT_ONLY")}
             </span>
@@ -100,7 +110,7 @@ export default async function ({
             <MetalFxFactorSlider
               locale={locale}
               value={factor()}
-              disabled={disabled}
+              disabled={disabled || runtimeDisabled()}
               onChange={setFactor}
             />
           ) : null}
