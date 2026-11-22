@@ -422,6 +422,8 @@ export const th_TH: typeof zh_CN = {
   LOG_VIEWER_TAB_LAUNCHER: "ตัวเปิด",
   LOG_VIEWER_TAB_GAME: "ดีบักเกม",
   LOG_VIEWER_MONITORED: "ไฟล์ที่เฝ้าดู",
+  LOG_VIEWER_PICK_FILE: "เพิ่มไฟล์บันทึก",
+  LOG_VIEWER_PICK_FAILED: "ไม่สามารถเพิ่มไฟล์บันทึกที่เลือกได้",
   LOG_VIEWER_CLOSE_TAB: "ปิด",
   LOG_VIEWER_REOPEN_TAB: "เปิด",
   LOG_VIEWER_NO_MONITORED_FILES: "ไม่มีบันทึกเกมให้เฝ้าดู",

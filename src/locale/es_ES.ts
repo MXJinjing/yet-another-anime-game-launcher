@@ -430,6 +430,9 @@ export const es_ES: typeof zh_CN = {
   LOG_VIEWER_TAB_LAUNCHER: "Lanzador",
   LOG_VIEWER_TAB_GAME: "Depuración del juego",
   LOG_VIEWER_MONITORED: "Archivos supervisados",
+  LOG_VIEWER_PICK_FILE: "Añadir archivo de registro",
+  LOG_VIEWER_PICK_FAILED:
+    "No se pudo añadir el archivo de registro seleccionado.",
   LOG_VIEWER_CLOSE_TAB: "Cerrar",
   LOG_VIEWER_REOPEN_TAB: "Abrir",
   LOG_VIEWER_NO_MONITORED_FILES: "No hay logs del juego para supervisar",
