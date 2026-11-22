@@ -5,6 +5,10 @@ import { Config } from "@config/config-def";
 import { globalStorage, type Storage } from "@runtime/storage";
 import { removeFile, writeFile } from "@platform/neutralino";
 import { join } from "path-browserify";
+import {
+  readNapMetalFxEnabled,
+  writeNapMetalFxEnabled,
+} from "./metalfx-storage";
 
 declare module "@config/config-def" {
   interface Config {
@@ -12,7 +16,6 @@ declare module "@config/config-def" {
   }
 }
 
-const CONFIG_KEY = "config_nap_metalfx_enable";
 const GPUINFO =
   '{"LUID":1009,"VendorId":4318,"DeviceId":11141,"Revision":0,"SubSysId":0,"DedicatedVideoMemory":34359738368,"DedicatedSystemMemory":0,"SharedSystemMemory":34359738368,"Description":"NVIDIA GeForce RTX 5090"}';
 
@@ -41,23 +44,29 @@ export default async function ({
   locale,
   config,
   storage = globalStorage,
+  renderBackend,
 }: {
   config: Partial<Config>;
   locale: Locale;
   storage?: Storage;
+  /** Which bridge implements MetalFX for the selected Wine runtime. */
+  renderBackend?: () => "dxmt" | "d3dmetal" | undefined;
 }) {
-  try {
-    config.napMetalFxEnable = (await storage.getKey(CONFIG_KEY)) == "true";
-  } catch {
-    config.napMetalFxEnable = false;
-  }
+  config.napMetalFxEnable = await readNapMetalFxEnabled(storage);
   const [enabled, setEnabled] = createSignal(config.napMetalFxEnable);
 
   const onChange = async (next: boolean) => {
     config.napMetalFxEnable = next;
     setEnabled(next);
-    await storage.setKey(CONFIG_KEY, next ? "true" : "false");
+    await writeNapMetalFxEnabled(storage, next);
   };
+
+  // One switch drives both implementations: DXMT ships its own NGX bridge,
+  // while a D3DMetal runtime provides the DLSS-to-MetalFX bridge itself.
+  const requirement = () =>
+    renderBackend?.() == "dxmt"
+      ? locale.get("SETTING_NAP_METALFX_DXMT_NOTE")
+      : locale.get("SETTING_NAP_METALFX_RUNTIME_NOTE");
 
   return [
     function UI() {
@@ -69,9 +78,7 @@ export default async function ({
           checked={enabled()}
           onChange={value => void onChange(value)}
         >
-          <span class="setting-switch-requirement">
-            {locale.get("SETTING_NAP_REQUIRES_GPTK3")}
-          </span>
+          <span class="setting-switch-requirement">{requirement()}</span>
         </SettingSwitch>
       );
     },

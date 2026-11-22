@@ -1,4 +1,4 @@
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined } from "@runtime/assertions";
 import { globalStorage, type Storage } from "@runtime/storage";
@@ -61,9 +61,11 @@ export default async function ({
           disabled={!supported()}
           onChange={setValue}
         >
-          <span class="setting-switch-requirement">
-            {locale.get("SETTING_NAP_D3D12_REQUIREMENTS")}
-          </span>
+          <Show when={!supported()}>
+            <span class="setting-switch-requirement">
+              {locale.get("SETTING_NAP_D3D12_REQUIREMENTS")}
+            </span>
+          </Show>
         </SettingSwitch>
       );
     },

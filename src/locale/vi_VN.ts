@@ -144,8 +144,11 @@ export const vi_VN: typeof zh_CN = {
   SETTING_NAP_METALFX_DESC:
     "Sử dụng MetalFX thay cho DLSS, đồng thời hỗ trợ dò tia.",
   SETTING_NAP_D3D12_REQUIREMENTS:
-    "DirectX 12 yêu cầu Wine có D3DMetal hoặc Game Porting Toolkit.",
-  SETTING_NAP_REQUIRES_GPTK3: "Cần Game Porting Toolkit 3 (GPTK3).",
+    "DirectX 12 cần Wine có D3DMetal hoặc Game Porting Toolkit. Hãy chuyển sang runtime D3DMetal trong phần Wine.",
+  SETTING_NAP_METALFX_DXMT_NOTE:
+    "Chạy bằng cầu nối nvngx đi kèm runtime DXMT, không cần cài thêm.",
+  SETTING_NAP_METALFX_RUNTIME_NOTE:
+    "Chạy bằng cầu nối nvngx-on-metalfx đi kèm runtime Wine; runtime D3DMetal đi kèm đã có sẵn.",
   SETTING_SAVE: "Lưu",
   SETTING_CANCEL: "Huỷ",
 

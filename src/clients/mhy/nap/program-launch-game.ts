@@ -129,17 +129,18 @@ cd /d "${wine.toWinePath(gameDir)}"
     );
   }
   const wineLibNvngx = join(wine.wineRoot, "lib/wine/x86_64-windows/nvngx.dll");
-  const system32Nvngx = join(
-    wine.prefix,
-    "drive_c",
-    "windows",
-    "system32",
-    "nvngx.dll"
-  );
-  // The NVIDIA bridge only belongs to DXMT distributions. Other runtimes
-  // (e.g. Game Porting Toolkit D3DMetal) ship their own nvngx-on-metalfx and
-  // must never have it deleted here.
+  const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
+  const system32Nvngx = join(system32Dir, "nvngx.dll");
+  // The two runtimes reach MetalFX through different bridge files, while the
+  // prefix survives a Wine switch. Delete the files this launcher installs for
+  // the other runtime so a stale bridge cannot outlive toggling the switch.
+  // Only prefix copies are touched; the runtime's own files stay untouched.
+  const removeD3DMetalBridges = async () => {
+    await removeFileIfExists(join(system32Dir, "nvngx-on-metalfx.dll"));
+    await removeFileIfExists(join(system32Dir, "nvapi64.dll"));
+  };
   if (wine.attributes.renderBackend == "dxmt") {
+    await removeD3DMetalBridges();
     if (metalFxEnabled) {
       // Keep the bridge in sync with the MetalFX switch on every launch: the
       // cached file patch is not re-applied once recorded, so toggling
@@ -152,11 +153,10 @@ cd /d "${wine.toWinePath(gameDir)}"
     }
   } else if (metalFxEnabled) {
     // Apple's Game Porting Toolkit ships the DLSS-to-MetalFX bridge itself
-    // (nvngx-on-metalfx.dll + nvapi64.dll). The game loads nvngx.dll from
-    // System32, so install the toolkit's bridge there under both names and
-    // replace any DXMT bridge left over from an earlier DXMT run.
+    // (nvngx-on-metalfx.dll + nvapi64.dll) in the runtime directory. The game
+    // loads nvngx.dll from System32, so install the runtime's bridge there
+    // under both names and replace any DXMT bridge left from an earlier run.
     const gptkWindowsDir = join(wine.wineRoot, "lib/wine/x86_64-windows");
-    const system32Dir = join(wine.prefix, "drive_c", "windows", "system32");
     const metalfxBridge = join(gptkWindowsDir, "nvngx-on-metalfx.dll");
     try {
       if (await fileOrDirExists(metalfxBridge)) {
@@ -180,6 +180,13 @@ cd /d "${wine.toWinePath(gameDir)}"
         `Failed to install the Game Porting Toolkit NV bridge: ${String(error)}`
       );
     }
+  } else {
+    // MetalFX is off on a D3DMetal-based runtime: remove the bridge copies a
+    // previous launch installed. nvngx.dll is only deleted here because the
+    // D3DMetal branch is the one that wrote it. The DXMT branch owns that same
+    // path on DXMT and cleans it up there.
+    await removeFileIfExists(system32Nvngx);
+    await removeD3DMetalBridges();
   }
   let mhypBaseReplaced = false;
   try {
