@@ -420,6 +420,8 @@ export const ja_JP: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "ライブログを表示",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "自動スクロール",
+  LOG_VIEWER_THEME_TO_LIGHT: "ライトテーマに切り替え",
+  LOG_VIEWER_THEME_TO_DARK: "ダークテーマに切り替え",
   LOG_VIEWER_COPY: "ログをコピー",
   LOG_VIEWER_TAB_LAUNCHER: "ランチャー",
   LOG_VIEWER_TAB_GAME: "ゲームデバッグ",

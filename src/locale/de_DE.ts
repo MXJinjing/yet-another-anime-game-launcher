@@ -426,6 +426,8 @@ export const de_DE: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "Live-Logs anzeigen",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Automatisch scrollen",
+  LOG_VIEWER_THEME_TO_LIGHT: "Zum hellen Design wechseln",
+  LOG_VIEWER_THEME_TO_DARK: "Zum dunklen Design wechseln",
   LOG_VIEWER_COPY: "Logs kopieren",
   LOG_VIEWER_TAB_LAUNCHER: "Launcher",
   LOG_VIEWER_TAB_GAME: "Spiel-Debug",

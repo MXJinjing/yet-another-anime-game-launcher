@@ -428,6 +428,8 @@ export const en: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "View Live Logs",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Follow scroll",
+  LOG_VIEWER_THEME_TO_LIGHT: "Switch to light theme",
+  LOG_VIEWER_THEME_TO_DARK: "Switch to dark theme",
   LOG_VIEWER_COPY: "Copy Logs",
   LOG_VIEWER_TAB_LAUNCHER: "Launcher",
   LOG_VIEWER_TAB_GAME: "Game Debug",

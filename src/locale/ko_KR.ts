@@ -419,6 +419,8 @@ export const ko_KR: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "실시간 로그 보기",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "스크롤 따라가기",
+  LOG_VIEWER_THEME_TO_LIGHT: "라이트 테마로 전환",
+  LOG_VIEWER_THEME_TO_DARK: "다크 테마로 전환",
   LOG_VIEWER_COPY: "로그 복사",
   LOG_VIEWER_TAB_LAUNCHER: "런처",
   LOG_VIEWER_TAB_GAME: "게임 디버그",

@@ -1,4 +1,5 @@
 import type { GameLogLocation } from "../channel-client";
+import { normalizeLogWindowAccent } from "./log-window-accent";
 
 /**
  * Independent log window.
@@ -34,6 +35,8 @@ export interface LogWindowSession {
   tab: LogWindowTab;
   focusNonce: number;
   launcherLogPath: string;
+  /** Launcher theme accent, forwarded so the window matches the app. */
+  accent?: string;
   game?: LogWindowGameTarget;
 }
 
@@ -226,6 +229,8 @@ export function parseLogWindowSession(
     if (!windowPid) return undefined;
     session.windowPid = windowPid;
   }
+  const accent = normalizeLogWindowAccent(raw.accent);
+  if (accent) session.accent = accent;
   const game = normalizeGameTarget(raw.game);
   if (game) session.game = game;
   return session;

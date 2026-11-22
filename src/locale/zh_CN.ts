@@ -406,6 +406,8 @@ export const zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "查看实时日志",
   LOG_VIEWER_OPEN_FILE: "打开日志文件",
   LOG_VIEWER_FOLLOW_SCROLL: "跟随滚动",
+  LOG_VIEWER_THEME_TO_LIGHT: "切换到浅色主题",
+  LOG_VIEWER_THEME_TO_DARK: "切换到深色主题",
   LOG_VIEWER_COPY: "复制日志",
   LOG_VIEWER_TAB_LAUNCHER: "启动器",
   LOG_VIEWER_TAB_GAME: "游戏调试",

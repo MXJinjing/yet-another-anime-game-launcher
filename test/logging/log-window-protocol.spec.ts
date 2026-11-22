@@ -132,6 +132,7 @@ describe("log window protocol", () => {
       tab: "game" as const,
       focusNonce: 2,
       launcherLogPath: "/tmp/yaaglm.log",
+      accent: "#0091FF",
       game: {
         prefix: "/prefix",
         gameDir: "/game",
@@ -149,6 +150,24 @@ describe("log window protocol", () => {
     expect(parseLogWindowSession("{")).toBeUndefined();
     expect(
       parseLogWindowSession(JSON.stringify({ tab: "launcher" }))
+    ).toBeUndefined();
+  });
+
+  it("drops an accent that is not a plain hex colour", () => {
+    const base = {
+      parentPid: 4,
+      tab: "launcher",
+      focusNonce: 1,
+      launcherLogPath: "/tmp/yaaglm.log",
+    };
+    expect(
+      parseLogWindowSession(JSON.stringify({ ...base, accent: "#0091FF" }))
+        ?.accent
+    ).toBe("#0091FF");
+    expect(
+      parseLogWindowSession(
+        JSON.stringify({ ...base, accent: "url(http://example.com)" })
+      )?.accent
     ).toBeUndefined();
   });
 
