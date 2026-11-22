@@ -420,6 +420,8 @@ export const vi_VN: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "Xem log trực tiếp",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Tự cuộn theo",
+  LOG_VIEWER_THEME_TO_LIGHT: "Chuyển sang giao diện sáng",
+  LOG_VIEWER_THEME_TO_DARK: "Chuyển sang giao diện tối",
   LOG_VIEWER_COPY: "Sao chép log",
   LOG_VIEWER_TAB_LAUNCHER: "Trình khởi chạy",
   LOG_VIEWER_TAB_GAME: "Gỡ lỗi trò chơi",

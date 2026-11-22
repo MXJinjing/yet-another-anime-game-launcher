@@ -12,6 +12,11 @@ import { inferUnityLogLevel } from "./runtime-log";
 import { createLocale, type Locale } from "../locale";
 import { execCommand } from "../platform/neutralino/process";
 import { build } from "../platform/shell";
+import {
+  DEFAULT_LOG_WINDOW_ACCENT,
+  logWindowAccentText,
+  normalizeLogWindowAccent,
+} from "./log-window-accent";
 import { createLogWindowClient } from "./log-window-client";
 import {
   closeMonitoredPath,
@@ -27,6 +32,12 @@ import {
   type ParsedLogLine,
 } from "./log-window-protocol";
 import { readSharedLogWindowSession } from "./log-window-store";
+import {
+  nextLogWindowTheme,
+  readLogWindowTheme,
+  writeLogWindowTheme,
+  type LogWindowTheme,
+} from "./log-window-theme";
 import "./log-window.css";
 
 function displayTime(stamp: string) {
@@ -40,7 +51,10 @@ function lineText(entry: ParsedLogLine) {
 }
 
 export async function startLogWindow() {
-  const locale = await createLocale();
+  const [locale, theme] = await Promise.all([
+    createLocale(),
+    readLogWindowTheme(),
+  ]);
   try {
     await Neutralino.window.setTitle(locale.get("LOG_VIEWER_TITLE"));
     await Neutralino.window.show();
@@ -49,10 +63,46 @@ export async function startLogWindow() {
   }
   const root = document.getElementById("root");
   if (!root) return;
-  render(() => <LogWindowApp locale={locale} />, root);
+  render(() => <LogWindowApp locale={locale} initialTheme={theme} />, root);
 }
 
-function LogWindowApp(props: { locale: Locale }) {
+function SunIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.7"
+      stroke-linecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M5.2 18.8l1.4-1.4M17.4 6.6l1.4-1.4" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.7"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20.5 15.3A8.6 8.6 0 0 1 8.7 3.5a8.6 8.6 0 1 0 11.8 11.8Z" />
+    </svg>
+  );
+}
+
+function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
   const [session, setSession] = createSignal<LogWindowSession>();
   const [selected, setSelected] = createSignal(LAUNCHER_LOG_TAB);
   const [launcherLines, setLauncherLines] = createSignal<ParsedLogLine[]>([]);
@@ -64,7 +114,11 @@ function LogWindowApp(props: { locale: Locale }) {
   const [followScroll, setFollowScroll] = createSignal(true);
   const [pending, setPending] = createSignal(0);
   const [menuOpen, setMenuOpen] = createSignal(false);
+  const [theme, setTheme] = createSignal<LogWindowTheme>(props.initialTheme);
+  const accent = () =>
+    normalizeLogWindowAccent(session()?.accent) ?? DEFAULT_LOG_WINDOW_ACCENT;
   let consoleEl: HTMLDivElement | undefined;
+  let tabStripEl: HTMLDivElement | undefined;
   let stickToBottom = true;
   let appliedNonce = -1;
   let preferGame = false;
@@ -75,6 +129,29 @@ function LogWindowApp(props: { locale: Locale }) {
     if (current === LAUNCHER_LOG_TAB) return launcherLines();
     return linesByPath()[current] ?? [];
   };
+  const accentText = () => logWindowAccentText(accent());
+  const themeLabel = () =>
+    theme() === "dark"
+      ? props.locale.get("LOG_VIEWER_THEME_TO_LIGHT")
+      : props.locale.get("LOG_VIEWER_THEME_TO_DARK");
+
+  function toggleTheme() {
+    const next = nextLogWindowTheme(theme());
+    setTheme(next);
+    void writeLogWindowTheme(next);
+  }
+
+  function revealTab(id: string) {
+    queueMicrotask(() => {
+      tabStripEl
+        ?.querySelectorAll<HTMLElement>(".log-window-tab")
+        .forEach(node => {
+          if (node.dataset.tabId === id) {
+            node.scrollIntoView({ block: "nearest", inline: "nearest" });
+          }
+        });
+    });
+  }
 
   function rememberLines(current: ParsedLogLine[], incoming: ParsedLogLine[]) {
     if (!stickToBottom) setPending(count => count + incoming.length);
@@ -95,6 +172,7 @@ function LogWindowApp(props: { locale: Locale }) {
     setSelected(id);
     setMenuOpen(false);
     setPending(0);
+    revealTab(id);
   }
 
   function closeFile(path: string) {
@@ -109,6 +187,7 @@ function LogWindowApp(props: { locale: Locale }) {
     setClosed(current => reopenMonitoredPath(current, path));
     setSelected(path);
     setMenuOpen(false);
+    revealTab(path);
   }
 
   onMount(() => {
@@ -136,10 +215,14 @@ function LogWindowApp(props: { locale: Locale }) {
           if (next.tab === "game") {
             preferGame = true;
             const first = openPaths()[0];
-            if (first) setSelected(first);
+            if (first) {
+              setSelected(first);
+              revealTab(first);
+            }
           } else {
             preferGame = false;
             setSelected(LAUNCHER_LOG_TAB);
+            revealTab(LAUNCHER_LOG_TAB);
           }
         }
       },
@@ -181,7 +264,10 @@ function LogWindowApp(props: { locale: Locale }) {
   createEffect(() => {
     const paths = openPaths();
     if (!preferGame || paths.length === 0) return;
-    if (!paths.includes(selected())) setSelected(paths[0]);
+    if (!paths.includes(selected())) {
+      setSelected(paths[0]);
+      revealTab(paths[0]);
+    }
   });
 
   createEffect(() => {
@@ -215,35 +301,54 @@ function LogWindowApp(props: { locale: Locale }) {
   }
 
   return (
-    <div class="log-window">
+    <div
+      class="log-window"
+      data-theme={theme()}
+      style={{ "--lw-accent": accent(), "--lw-accent-text": accentText() }}
+    >
       <header class="log-window-header">
         <h1 class="log-window-title">{props.locale.get("LOG_VIEWER_TITLE")}</h1>
-        <label class="log-window-follow">
-          <input
-            type="checkbox"
-            checked={followScroll()}
-            onChange={event => {
-              const next = event.currentTarget.checked;
-              setFollowScroll(next);
-              stickToBottom = next;
-              if (next) scrollToLatest();
-            }}
-          />
-          {props.locale.get("LOG_VIEWER_FOLLOW_SCROLL")}
-        </label>
+        <div class="log-window-header-actions">
+          <label class="log-window-follow">
+            <input
+              type="checkbox"
+              checked={followScroll()}
+              onChange={event => {
+                const next = event.currentTarget.checked;
+                setFollowScroll(next);
+                stickToBottom = next;
+                if (next) scrollToLatest();
+              }}
+            />
+            {props.locale.get("LOG_VIEWER_FOLLOW_SCROLL")}
+          </label>
+          <button
+            class="log-window-theme"
+            type="button"
+            aria-label={themeLabel()}
+            title={themeLabel()}
+            onClick={toggleTheme}
+          >
+            {theme() === "dark" ? <SunIcon /> : <MoonIcon />}
+          </button>
+        </div>
       </header>
-      <div class="log-window-tabs" role="tablist">
+      <div class="log-window-tabs" role="tablist" ref={tabStripEl}>
         <div
           class="log-window-tab"
           role="tab"
           aria-selected={selected() === LAUNCHER_LOG_TAB}
+          data-tab-id={LAUNCHER_LOG_TAB}
+          title={props.locale.get("LOG_VIEWER_TAB_LAUNCHER")}
         >
           <button
             class="log-window-tab-main"
             type="button"
             onClick={() => selectTab(LAUNCHER_LOG_TAB)}
           >
-            {props.locale.get("LOG_VIEWER_TAB_LAUNCHER")}
+            <span class="log-window-tab-label">
+              {props.locale.get("LOG_VIEWER_TAB_LAUNCHER")}
+            </span>
             <span class="log-window-count">{launcherLines().length}</span>
           </button>
         </div>
@@ -253,6 +358,7 @@ function LogWindowApp(props: { locale: Locale }) {
               class="log-window-tab"
               role="tab"
               aria-selected={selected() === path}
+              data-tab-id={path}
               title={path}
             >
               <button
@@ -260,7 +366,9 @@ function LogWindowApp(props: { locale: Locale }) {
                 type="button"
                 onClick={() => selectTab(path)}
               >
-                {gameLogTabLabel(path, monitored())}
+                <span class="log-window-tab-label">
+                  {gameLogTabLabel(path, monitored())}
+                </span>
                 <span class="log-window-count">
                   {linesByPath()[path]?.length ?? 0}
                 </span>
@@ -272,7 +380,18 @@ function LogWindowApp(props: { locale: Locale }) {
                 title={props.locale.get("LOG_VIEWER_CLOSE_TAB")}
                 onClick={() => closeFile(path)}
               >
-                ×
+                <svg
+                  viewBox="0 0 12 12"
+                  width="10"
+                  height="10"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 3l6 6M9 3l-6 6" />
+                </svg>
               </button>
             </div>
           )}
@@ -281,10 +400,23 @@ function LogWindowApp(props: { locale: Locale }) {
           <button
             class="log-window-add"
             type="button"
+            aria-label={props.locale.get("LOG_VIEWER_MONITORED")}
+            title={props.locale.get("LOG_VIEWER_MONITORED")}
             aria-expanded={menuOpen()}
             onClick={() => setMenuOpen(open => !open)}
           >
-            {props.locale.get("LOG_VIEWER_MONITORED")}
+            <svg
+              viewBox="0 0 12 12"
+              width="11"
+              height="11"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 2.5v7M2.5 6h7" />
+            </svg>
           </button>
           <Show when={menuOpen()}>
             <div class="log-window-file-menu" role="menu">
@@ -324,42 +456,44 @@ function LogWindowApp(props: { locale: Locale }) {
           </Show>
         </div>
       </div>
-      <Show when={selected() !== LAUNCHER_LOG_TAB}>
-        <div class="log-window-path" title={selected()}>
-          {selected()}
-        </div>
-      </Show>
-      <div class="log-viewer-shell">
-        <div
-          class="log-viewer-console"
-          ref={consoleEl}
-          onScroll={onConsoleScroll}
-          on:contextmenu={event => event.stopPropagation()}
-        >
-          <For
-            each={activeLines()}
-            fallback={
-              <div class="log-viewer-empty">
-                {selected() === LAUNCHER_LOG_TAB
-                  ? props.locale.get("LOG_VIEWER_EMPTY")
-                  : props.locale.get("LOG_VIEWER_GAME_EMPTY")}
-              </div>
-            }
+      <section class="log-window-surface">
+        <Show when={selected() !== LAUNCHER_LOG_TAB}>
+          <div class="log-window-path" title={selected()}>
+            {selected()}
+          </div>
+        </Show>
+        <div class="log-viewer-shell">
+          <div
+            class="log-viewer-console"
+            ref={consoleEl}
+            onScroll={onConsoleScroll}
+            on:contextmenu={event => event.stopPropagation()}
           >
-            {entry => (
-              <div class="log-viewer-line" data-level={entry.level}>
-                <span class="log-viewer-time">{displayTime(entry.time)}</span>
-                <span
-                  class={`log-viewer-level log-viewer-level--${entry.level.toLowerCase()}`}
-                >
-                  {entry.level}
-                </span>
-                <span class="log-viewer-message">{entry.message}</span>
-              </div>
-            )}
-          </For>
+            <For
+              each={activeLines()}
+              fallback={
+                <div class="log-viewer-empty">
+                  {selected() === LAUNCHER_LOG_TAB
+                    ? props.locale.get("LOG_VIEWER_EMPTY")
+                    : props.locale.get("LOG_VIEWER_GAME_EMPTY")}
+                </div>
+              }
+            >
+              {entry => (
+                <div class="log-viewer-line" data-level={entry.level}>
+                  <span class="log-viewer-time">{displayTime(entry.time)}</span>
+                  <span
+                    class={`log-viewer-level log-viewer-level--${entry.level.toLowerCase()}`}
+                  >
+                    {entry.level}
+                  </span>
+                  <span class="log-viewer-message">{entry.message}</span>
+                </div>
+              )}
+            </For>
+          </div>
         </div>
-      </div>
+      </section>
       <footer class="log-window-footer">
         <button
           class="log-window-jump"

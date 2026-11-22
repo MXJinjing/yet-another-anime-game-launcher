@@ -8,9 +8,11 @@ function hostWith(options?: {
   window?: WindowState;
   pid?: number;
   parentPid?: number;
+  accent?: () => Promise<string>;
 }) {
   let stored: string | undefined;
   let windowState: WindowState = options?.window ?? "missing";
+  let accentProvider = options?.accent;
   const parentPid = options?.parentPid ?? 11;
   const commandLine = (state: string) =>
     `${state} /Applications/Yaaglm --url=/ --yaagl-window=logs ` +
@@ -39,6 +41,7 @@ function hostWith(options?: {
     },
     createWindow,
     exec,
+    accent: () => (accentProvider ? accentProvider() : Promise.resolve("")),
   });
   return {
     host,
@@ -47,6 +50,9 @@ function hostWith(options?: {
     stored: () => stored,
     setWindowState: (state: WindowState) => {
       windowState = state;
+    },
+    setAccent: (provider: () => Promise<string>) => {
+      accentProvider = provider;
     },
   };
 }
@@ -91,6 +97,27 @@ describe("log window host", () => {
     context.setWindowState("recycled");
     await context.host.open("launcher");
     expect(context.createWindow).toHaveBeenCalledTimes(2);
+  });
+
+  it("forwards the launcher accent and keeps it when reading fails", async () => {
+    const context = hostWith({ accent: async () => "#0091FF" });
+    await context.host.open("launcher");
+    expect(parseLogWindowSession(context.stored() ?? "")?.accent).toBe(
+      "#0091FF"
+    );
+    context.setAccent(async () => {
+      throw new Error("storage unavailable");
+    });
+    await context.host.open("launcher");
+    expect(parseLogWindowSession(context.stored() ?? "")?.accent).toBe(
+      "#0091FF"
+    );
+  });
+
+  it("ignores an invalid launcher accent", async () => {
+    const { host, stored } = hostWith({ accent: async () => "not-a-colour" });
+    await host.open("launcher");
+    expect(parseLogWindowSession(stored() ?? "")?.accent).toBeUndefined();
   });
 
   it("opens the game tab for a debug launch and replaces the generation", async () => {

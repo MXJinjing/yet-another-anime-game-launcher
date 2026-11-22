@@ -416,6 +416,8 @@ export const th_TH: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "ดูบันทึกสด",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "เลื่อนตามอัตโนมัติ",
+  LOG_VIEWER_THEME_TO_LIGHT: "สลับเป็นธีมสว่าง",
+  LOG_VIEWER_THEME_TO_DARK: "สลับเป็นธีมมืด",
   LOG_VIEWER_COPY: "คัดลอกบันทึก",
   LOG_VIEWER_TAB_LAUNCHER: "ตัวเปิด",
   LOG_VIEWER_TAB_GAME: "ดีบักเกม",

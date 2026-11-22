@@ -2,6 +2,7 @@ import { execCommand } from "../platform/neutralino/process";
 import { addBeforeCloseApp } from "../platform/neutralino/system";
 import { getRuntimeLogFilePath } from "./log-file";
 import { logerror } from "./logger";
+import { normalizeLogWindowAccent } from "./log-window-accent";
 import {
   isLogWindowProcessRunning,
   logWindowCreateRequest,
@@ -32,6 +33,8 @@ export interface LogWindowHostDependencies {
   writeSession: (text: string) => Promise<void>;
   createWindow: (processArgs: string) => Promise<{ pid: number }>;
   exec: (command: string) => Promise<{ exitCode: number; stdOut?: string }>;
+  /** Resolved launcher accent; the log window mirrors the app theme. */
+  accent?: () => Promise<string>;
 }
 
 export function createLogWindowHost(deps: LogWindowHostDependencies) {
@@ -82,14 +85,25 @@ export function createLogWindowHost(deps: LogWindowHostDependencies) {
     };
   }
 
+  async function accent(): Promise<string | undefined> {
+    if (!deps.accent) return undefined;
+    try {
+      return normalizeLogWindowAccent(await deps.accent());
+    } catch {
+      return undefined;
+    }
+  }
+
   async function open(tab: LogWindowTab, game?: LogWindowGameTarget) {
     const current = (await read()) ?? blank(tab, game);
     const nextGame = game ?? current.game;
+    const launcherAccent = await accent();
     const focused = withFocusedTab(
       {
         ...current,
         parentPid: deps.parentPid,
         launcherLogPath: deps.launcherLogPath,
+        ...(launcherAccent ? { accent: launcherAccent } : {}),
       },
       tab,
       nextGame
@@ -150,6 +164,7 @@ export function createLogWindowHost(deps: LogWindowHostDependencies) {
 
 let host: ReturnType<typeof createLogWindowHost> | undefined;
 let lifecycleInstalled = false;
+let accentProvider: (() => Promise<string>) | undefined;
 
 export function getLogWindowHost() {
   if (!host) {
@@ -188,14 +203,20 @@ export function getLogWindowHost() {
         return { pid: info.pid };
       },
       exec: command => execCommand(command),
+      accent: () => (accentProvider ? accentProvider() : Promise.resolve("")),
     });
   }
   return host;
 }
 
-export function installLogWindowLifecycle() {
+/**
+ * The launcher passes its theme colour provider here; the log window cannot
+ * import the settings layer itself.
+ */
+export function installLogWindowLifecycle(accent?: () => Promise<string>) {
   if (lifecycleInstalled) return;
   lifecycleInstalled = true;
+  if (accent) accentProvider = accent;
   addBeforeCloseApp(() => getLogWindowHost().close());
 }
 

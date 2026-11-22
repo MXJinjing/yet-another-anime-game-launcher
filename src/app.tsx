@@ -23,6 +23,7 @@ import { HostsHelperTokenRecoveryModal } from "./modals/hosts-helper-token-recov
 import { StartupNoticeBanner } from "./components/startup-notice-banner";
 import { closeApp } from "./platform/neutralino/system";
 import { installLogWindowLifecycle } from "./logging/log-window-host";
+import { getThemeColorHex } from "./settings/theme/color";
 import { resolve } from "./platform/neutralino/path";
 import {
   _safeRelaunch,
@@ -95,7 +96,7 @@ type HostsHelperReregisterMarker = {
  * not have to know how Neutralino processes, Wine or update UI are wired.
  */
 export async function createApp(bootPerformance?: BootPerformance) {
-  installLogWindowLifecycle();
+  installLogWindowLifecycle(getThemeColorHex);
   function measure<T>(name: string, operation: () => Promise<T>) {
     return bootPerformance
       ? bootPerformance.measure(name, operation)

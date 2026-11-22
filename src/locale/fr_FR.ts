@@ -432,6 +432,8 @@ export const fr_FR: typeof zh_CN = {
   LOG_VIEWER_OPEN_ACTION: "Voir les logs en direct",
   LOG_VIEWER_OPEN_FILE: "Open Log File",
   LOG_VIEWER_FOLLOW_SCROLL: "Défilement automatique",
+  LOG_VIEWER_THEME_TO_LIGHT: "Passer au thème clair",
+  LOG_VIEWER_THEME_TO_DARK: "Passer au thème sombre",
   LOG_VIEWER_COPY: "Copier les logs",
   LOG_VIEWER_TAB_LAUNCHER: "Lanceur",
   LOG_VIEWER_TAB_GAME: "Débogage du jeu",
