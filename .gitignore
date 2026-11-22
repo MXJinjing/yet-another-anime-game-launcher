@@ -10,6 +10,12 @@ neutralino.js
 
 node_modules
 
+# Local pnpm store, kept inside the checkout when installs run offline
+.pnpm-store/
+
+# Local agent workspace data (memory, scratch notes)
+.workbuddy/
+
 .tmp/
 
 *.app
