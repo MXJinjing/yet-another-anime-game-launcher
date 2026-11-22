@@ -56,6 +56,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  on,
   onCleanup,
   onMount,
 } from "solid-js";
@@ -66,6 +67,8 @@ import { createGameUninstallDialog } from "../../modals/game-uninstall-modal";
 import { GAME_BANNER_URLS } from "../data/game-assets";
 import {
   parseBackgroundPersistedState,
+  resolveBackgroundImage,
+  resolveBackgroundVideo,
   resolveInitialIndex,
 } from "../model/background-switcher";
 import { GameIcon } from "../components/game-icon";
@@ -144,6 +147,12 @@ export type {
 
 const BG_STORAGE_KEY = "hyp_bg";
 const BG_TRANSITION_MS = 600;
+// A background clip is decorative: give it a bounded number of fresh attempts
+// before falling back to the still artwork, otherwise a single dropped load
+// leaves the layer permanently blank.
+const BG_VIDEO_RETRY_LIMIT = 2;
+const BG_VIDEO_WATCHDOG_MS = 8000;
+const BG_VIDEO_RETRY_DELAY_MS = 1200;
 const LIBRARY_TRANSITION_MS = 360;
 const PREDOWNLOAD_STAGING_DIRECTORIES = [".ariatmp", ".tmp"];
 
@@ -747,8 +756,81 @@ export async function createHypLauncher({
     } | null>(null);
     let baseVideoRef: HTMLVideoElement | undefined;
     let bgTransitionTimer: ReturnType<typeof setTimeout> | undefined;
+    let bgVideoWatchdog: ReturnType<typeof setTimeout> | undefined;
+    let bgVideoAttempts = 0;
+    function clearBgVideoWatchdog() {
+      if (bgVideoWatchdog) {
+        clearTimeout(bgVideoWatchdog);
+        bgVideoWatchdog = undefined;
+      }
+    }
+    function markBgVideoReady(el: HTMLVideoElement) {
+      clearBgVideoWatchdog();
+      bgVideoAttempts = 0;
+      // Autoplay can be refused while the window is still hidden; retry the
+      // playback itself rather than leaving a paused first frame on screen.
+      if (el.paused) void el.play().catch(() => undefined);
+      setVideoLoaded(true);
+    }
+    function retryBgVideo(el: HTMLVideoElement, reason: string) {
+      if (bgVideoAttempts >= BG_VIDEO_RETRY_LIMIT) {
+        log(
+          `[bg-video] ${reason}; giving up after ${bgVideoAttempts} attempts, keeping still artwork: ${
+            el.currentSrc || el.src
+          }`
+        );
+        return;
+      }
+      bgVideoAttempts += 1;
+      log(
+        `[bg-video] ${reason}; retry ${bgVideoAttempts}/${BG_VIDEO_RETRY_LIMIT} (readyState=${
+          el.readyState
+        }, networkState=${el.networkState}): ${el.currentSrc || el.src}`
+      );
+      clearBgVideoWatchdog();
+      bgVideoWatchdog = setTimeout(() => {
+        bgVideoWatchdog = undefined;
+        if (baseVideoRef !== el || !el.isConnected) return;
+        try {
+          el.load();
+        } catch {
+          // Reloading a detached element throws; the next src change resets.
+        }
+        void el.play().catch(() => undefined);
+        armBgVideoWatchdog(el);
+      }, BG_VIDEO_RETRY_DELAY_MS);
+    }
+    function armBgVideoWatchdog(el: HTMLVideoElement) {
+      clearBgVideoWatchdog();
+      bgVideoWatchdog = setTimeout(() => {
+        bgVideoWatchdog = undefined;
+        if (baseVideoRef !== el || !el.isConnected) return;
+        // HAVE_CURRENT_DATA means a frame reached the compositor already.
+        if (el.readyState >= 2) return;
+        retryBgVideo(el, "clip never became ready");
+      }, BG_VIDEO_WATCHDOG_MS);
+    }
+    // WebKit suspends media for a hidden page, and this window starts hidden
+    // until the shell shows it. Re-arm playback whenever it comes back.
+    function resumeBgVideoOnVisibility() {
+      if (typeof document === "undefined" || document.hidden) return;
+      const el = baseVideoRef;
+      if (!el || !el.isConnected) return;
+      if (el.paused) void el.play().catch(() => undefined);
+      if (el.readyState < 2 && !bgVideoWatchdog) armBgVideoWatchdog(el);
+    }
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", resumeBgVideoOnVisibility);
+    }
     onCleanup(() => {
       if (bgTransitionTimer) clearTimeout(bgTransitionTimer);
+      clearBgVideoWatchdog();
+      if (typeof document !== "undefined") {
+        document.removeEventListener(
+          "visibilitychange",
+          resumeBgVideoOnVisibility
+        );
+      }
     });
     const currentBackgrounds = () =>
       selectedGame().client.uiContent.backgrounds ?? [];
@@ -759,17 +841,37 @@ export async function createHypLauncher({
     };
     const currentBg = () => currentBackgrounds()[currentBgIndex()];
     const currentBgImage = () =>
-      currentBg()?.background ?? selectedGame().client.uiContent.background;
-    const currentBgVideo = () => {
-      if (disableVideoBackground()) return undefined;
-      return (
-        currentBg()?.background_video ??
-        selectedGame().client.uiContent.background_video
+      resolveBackgroundImage(
+        currentBg(),
+        selectedGame().client.uiContent.background
       );
-    };
+    const currentBgVideo = createMemo(() =>
+      resolveBackgroundVideo(
+        currentBg(),
+        selectedGame().client.uiContent.background_video,
+        disableVideoBackground()
+      )
+    );
     const currentBgTheme = () =>
       currentBg()?.background_theme ??
       selectedGame().client.uiContent.background_theme;
+    // The readiness flag belongs to one clip: a new source (or re-enabling the
+    // setting) must start hidden and get its own readiness/retry cycle instead
+    // of inheriting the previous verdict. Keying off the memo keeps unrelated
+    // store updates from hiding an already playing clip.
+    createEffect(
+      on(
+        currentBgVideo,
+        () => {
+          clearBgVideoWatchdog();
+          bgVideoAttempts = 0;
+          setVideoLoaded(false);
+          const el = baseVideoRef;
+          if (el && el.isConnected) armBgVideoWatchdog(el);
+        },
+        { defer: true }
+      )
+    );
     const transitionTarget = () => {
       const t = bgTransition();
       if (!t || t.gameId !== selectedGame().id) return undefined;
@@ -792,6 +894,8 @@ export async function createHypLauncher({
         return;
       if (bgTransitionTimer) clearTimeout(bgTransitionTimer);
       setVideoLoaded(false);
+      clearBgVideoWatchdog();
+      bgVideoAttempts = 0;
       baseVideoRef?.pause();
       setBgTransition({ gameId: game.id, to });
       bgTransitionTimer = setTimeout(() => {
@@ -1855,20 +1959,23 @@ export async function createHypLauncher({
           "--hyp-accent-text": themeText(),
         }}
       >
-        <Show when={currentBgImage()}>
+        <Show when={currentBgImage() || currentBgVideo()}>
           <div
             classList={{
               "hyp-bg-layer": true,
               leaving: bgTransition()?.gameId === selectedGame().id,
             }}
             style={{
-              "background-image": `url(${currentBgImage()})`,
+              "background-image": currentBgImage()
+                ? `url(${currentBgImage()})`
+                : undefined,
             }}
           >
             <Show when={currentBgVideo()}>
               <video
                 ref={el => {
                   baseVideoRef = el;
+                  if (el) armBgVideoWatchdog(el);
                 }}
                 class="hyp-video"
                 src={currentBgVideo()}
@@ -1876,8 +1983,21 @@ export async function createHypLauncher({
                 loop
                 muted
                 playsinline
-                preload="metadata"
-                onLoadedData={() => setVideoLoaded(true)}
+                preload="auto"
+                onLoadedData={e => markBgVideoReady(e.currentTarget)}
+                onCanPlay={e => markBgVideoReady(e.currentTarget)}
+                onPlaying={e => markBgVideoReady(e.currentTarget)}
+                onError={e => {
+                  const el = e.currentTarget;
+                  log(
+                    `[bg-video] playback failed: code=${
+                      el.error?.code ?? "-"
+                    } message=${el.error?.message ?? "-"} src=${
+                      el.currentSrc || el.src
+                    }`
+                  );
+                  retryBgVideo(el, "error event");
+                }}
                 style={{ opacity: videoLoaded() ? 1 : 0 }}
               />
             </Show>
