@@ -130,6 +130,10 @@ export const fr_FR: typeof zh_CN = {
   SETTING_MTL_HUD: "HUD Metal",
   SETTING_RETINA: "Mode Retina",
   SETTING_LEFT_CMD: "Mapper CMD gauche à CTRL",
+  SETTING_CONTROLS: "Contrôles",
+  SETTING_GAME_CONTROLLER_FIX: "Correctif de manette",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "Force Wine à détecter les manettes via SDL plutôt que par HID brut. À essayer si une manette n’est pas détectée ou si ses boutons se comportent mal ; ne fonctionne pas avec toutes les manettes.",
   SETTING_TURN_OFF_AC_PATCH: "Désactiver le patch AC",
   SETTING_CUSTOM_RESOLUTION: "Résolution personnalisée",
   SETTING_DISPLAY_MODE: "Mode d’affichage du jeu",

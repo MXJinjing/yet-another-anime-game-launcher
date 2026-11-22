@@ -3,6 +3,7 @@ import { Tab } from "@hope-ui/solid";
 import { Locale } from "../locale";
 import { Wine } from "../wine";
 import { DownloadTab } from "./tabs/download-tab";
+import { ControlsTab } from "./tabs/controls-tab";
 import { GeneralTab } from "./tabs/general-tab";
 import { WineTab } from "./tabs/wine-tab";
 import { HostsHelperControl } from "./controls/general/hosts-helper";
@@ -34,6 +35,7 @@ export class GlobalSettings extends SettingsController<GlobalLoadedSettings> {
     return (
       <>
         <Tab>{this.locale.get("SETTING_GENERAL")}</Tab>
+        <Tab>{this.locale.get("SETTING_CONTROLS")}</Tab>
         <Tab>{this.locale.get("SETTING_DOWNLOAD")}</Tab>
         <Tab>Wine</Tab>
       </>
@@ -71,7 +73,6 @@ export class GlobalSettings extends SettingsController<GlobalLoadedSettings> {
       <>
         <GeneralTab
           DisableVideoBackgroundConfig={settings.disableVideoBackground}
-          LeftCmdConfig={settings.leftCmd}
           AutoUpdateConfig={settings.autoUpdate}
           LocaleConfig={settings.locale}
           ThemeColorConfig={settings.themeColor}
@@ -83,6 +84,10 @@ export class GlobalSettings extends SettingsController<GlobalLoadedSettings> {
               gameDirectories={this.options.gameDirectories}
             />
           )}
+        />
+        <ControlsTab
+          LeftCmdConfig={settings.leftCmd}
+          GameControllerFixConfig={settings.gameControllerFix}
         />
         <DownloadTab
           locale={this.locale}

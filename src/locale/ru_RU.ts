@@ -126,6 +126,10 @@ export const ru_RU: typeof zh_CN = {
   SETTING_DXVK_HUD_ALL: "Всё",
   SETTING_RETINA: "Режим Retina",
   SETTING_LEFT_CMD: "Назначить левый CMD как CTRL",
+  SETTING_CONTROLS: "Управление",
+  SETTING_GAME_CONTROLLER_FIX: "Исправление геймпада",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "Заставляет Wine определять геймпады через SDL, а не через необработанный HID. Попробуйте, если геймпад не определяется или кнопки работают неправильно; подходит не для всех геймпадов.",
   SETTING_TURN_OFF_AC_PATCH: "Отключить патч АЧ",
   SETTING_CUSTOM_RESOLUTION: "Пользовательское разрешение",
   SETTING_DISPLAY_MODE: "Режим отображения",

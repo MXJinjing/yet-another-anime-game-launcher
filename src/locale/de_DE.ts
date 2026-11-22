@@ -128,6 +128,10 @@ export const de_DE: typeof zh_CN = {
   SETTING_MTL_HUD: "Metal HUD",
   SETTING_RETINA: "Retina-Modus",
   SETTING_LEFT_CMD: "Linke CMD zu CTRL zuordnen",
+  SETTING_CONTROLS: "Steuerung",
+  SETTING_GAME_CONTROLLER_FIX: "Gamecontroller-Korrektur",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "Lässt Wine Controller über SDL statt über rohes HID erkennen. Hilfreich, wenn ein Controller nicht erkannt wird oder Tasten falsch reagieren; funktioniert nicht mit jedem Controller.",
   SETTING_TURN_OFF_AC_PATCH: "AC-Patch deaktivieren",
   SETTING_CUSTOM_RESOLUTION: "Benutzerdefinierte Auflösung",
   SETTING_DISPLAY_MODE: "Anzeigemodus",

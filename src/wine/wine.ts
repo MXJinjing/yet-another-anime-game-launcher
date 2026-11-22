@@ -17,6 +17,7 @@ import { rmrf_dangerously } from "@runtime/macos-filesystem";
 import { getKey, setKey } from "@runtime/storage";
 import { dirname, join } from "path-browserify";
 import { currentWineBinaryRoot } from "./binary-root";
+import { buildWinePropsScript, type WineProps } from "./wine-props";
 import type { WineDistribution, WineDistributionAttributes } from "./distro";
 import { D3DMETAL_RUNTIME_ID, isD3DMetalRuntimePrepared } from "./d3dmetal";
 import { getRegisteredSystemWineRoot, GPTK_WINE_ID } from "./system-wine";
@@ -567,17 +568,8 @@ export async function createWine(options: {
     await setKey("wine_netbiosname", netbiosname);
   }
 
-  async function setProps(props: { retina: boolean; leftCmd: boolean }) {
-    const cmd = `@echo off
-cd "%~dp0"
-reg add "HKEY_CURRENT_USER\\Software\\Wine\\Mac Driver" /v RetinaMode /t REG_SZ /d ${
-      props.retina ? "y" : "n"
-    } /f
-reg add "HKEY_CURRENT_USER\\Software\\Wine\\Mac Driver" /v LeftCommandIsCtrl /t REG_SZ /d ${
-      props.leftCmd ? "y" : "n"
-    } /f
-exit /b 0
-`;
+  async function setProps(props: WineProps) {
+    const cmd = buildWinePropsScript(props);
     await writeFile(resolve("winedrv_config.bat"), cmd);
     await exec(
       "cmd",

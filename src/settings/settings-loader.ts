@@ -13,6 +13,7 @@ import createDxmtRefreshRate from "./controls/video/dxmt-refresh-rate";
 import createMetalFxUpscale from "./controls/video/metal-fx-upscale";
 import createReShade from "./controls/video/reshade";
 import { createLeftCmdConfig } from "./controls/general/left-cmd";
+import { createGameControllerFixConfig } from "./controls/general/game-controller-fix";
 import { createAutoUpdateConfig } from "./controls/general/auto-update";
 import createLocaleConfig from "./controls/general/ui-locale";
 import createThemeColorConfig from "./controls/general/theme-color";
@@ -145,6 +146,11 @@ async function loadGlobalSettings(
     config,
     store: configStore,
   });
+  const [gameControllerFix] = await createGameControllerFixConfig({
+    locale: options.locale,
+    config,
+    store: configStore,
+  });
   const [autoUpdate] = await createAutoUpdateConfig({
     locale: options.locale,
     config,
@@ -184,6 +190,7 @@ async function loadGlobalSettings(
     wineDistro,
     wineDistroController,
     leftCmd,
+    gameControllerFix,
     autoUpdate,
     locale,
     downloadServer,

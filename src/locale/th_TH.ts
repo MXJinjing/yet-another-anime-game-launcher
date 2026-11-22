@@ -125,6 +125,10 @@ export const th_TH: typeof zh_CN = {
   SETTING_MTL_HUD: "Metal HUD",
   SETTING_RETINA: "โหมด Retina",
   SETTING_LEFT_CMD: "แมปปุ่ม CMD ซ้ายเป็น CTRL",
+  SETTING_CONTROLS: "การควบคุม",
+  SETTING_GAME_CONTROLLER_FIX: "แก้ไขตัวควบคุมเกม",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "ทำให้ Wine ตรวจจับตัวควบคุมผ่าน SDL แทน HID ดิบ ลองใช้เมื่อตัวควบคุมไม่ถูกตรวจพบหรือปุ่มทำงานผิดปกติ อาจไม่เหมาะกับตัวควบคุมทุกชนิด",
   SETTING_TURN_OFF_AC_PATCH: "ปิดการใช้งานแพตช์ AC",
   SETTING_CUSTOM_RESOLUTION: "ความละเอียดแบบกำหนดเอง",
   SETTING_DISPLAY_MODE: "โหมดแสดงผลของเกม",

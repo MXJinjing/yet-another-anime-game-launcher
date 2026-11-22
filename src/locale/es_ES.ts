@@ -129,6 +129,10 @@ export const es_ES: typeof zh_CN = {
   SETTING_DXVK_HUD_ALL: "Todo",
   SETTING_RETINA: "Modo Retina",
   SETTING_LEFT_CMD: "Asignar CMD izquierdo a CTRL",
+  SETTING_CONTROLS: "Controles",
+  SETTING_GAME_CONTROLLER_FIX: "Corrección del mando",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "Hace que Wine detecte los mandos mediante SDL en lugar de HID sin procesar. Úsalo si un mando no se detecta o sus botones fallan; puede no funcionar con todos los mandos.",
   SETTING_TURN_OFF_AC_PATCH: "Apagar el AC parche",
   SETTING_CUSTOM_RESOLUTION: "Resolución personalizada",
   SETTING_DISPLAY_MODE: "Modo de visualización del juego",
