@@ -431,6 +431,9 @@ export const de_DE: typeof zh_CN = {
   LOG_VIEWER_TAB_LAUNCHER: "Launcher",
   LOG_VIEWER_TAB_GAME: "Spiel-Debug",
   LOG_VIEWER_MONITORED: "Überwachte Dateien",
+  LOG_VIEWER_PICK_FILE: "Logdatei hinzufügen",
+  LOG_VIEWER_PICK_FAILED:
+    "Die ausgewählte Logdatei konnte nicht hinzugefügt werden.",
   LOG_VIEWER_CLOSE_TAB: "Schließen",
   LOG_VIEWER_REOPEN_TAB: "Öffnen",
   LOG_VIEWER_NO_MONITORED_FILES: "Keine Spiellogs zum Überwachen",

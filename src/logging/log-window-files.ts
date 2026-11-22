@@ -1,4 +1,43 @@
+import { isAbsolute, normalize } from "path-browserify";
+
 export const LAUNCHER_LOG_TAB = "launcher";
+const TAB_WIDTH = 145;
+
+/** Keep the active file next to the launcher even under tight width. */
+export function layoutLogTabs(
+  monitored: readonly string[],
+  closed: ReadonlySet<string>,
+  selected: string,
+  trackWidth: number
+) {
+  const slots = Math.max(1, Math.floor(trackWidth / TAB_WIDTH) - 1);
+  const open = openMonitoredPaths(monitored, closed);
+  const visible = open.slice(0, slots);
+  if (open.includes(selected) && !visible.includes(selected)) {
+    visible[visible.length - 1] = selected;
+  }
+  return {
+    visible,
+    folded: monitored.filter(path => !visible.includes(path)),
+  };
+}
+
+export async function validatePickedLogPaths(
+  picked: readonly string[],
+  isFile: (path: string) => Promise<boolean>
+) {
+  const paths = [...new Set(picked.filter(isAbsolute).map(normalize))];
+  const valid = await Promise.all(
+    paths.map(async path => {
+      try {
+        return await isFile(path);
+      } catch {
+        return false;
+      }
+    })
+  );
+  return paths.filter((_, index) => valid[index]);
+}
 
 /** Short tab title. Colliding file names keep enough parent folders to differ. */
 export function gameLogTabLabel(

@@ -20,8 +20,7 @@ export interface LogWindowClientDependencies {
   exit: () => Promise<void>;
   onSession: (session: LogWindowSession) => void;
   onLauncherLines: (lines: ParsedLogLine[]) => void;
-  onGameReset: () => void;
-  startGameTail: (game: LogWindowGameTarget) => () => void;
+  onGameChange: (game: LogWindowGameTarget | undefined) => void;
   pollMs?: number;
   parentMissesBeforeExit?: number;
 }
@@ -40,7 +39,6 @@ export function createLogWindowClient(deps: LogWindowClientDependencies) {
   let launcherBytes = -1;
   let launcherSeeded = false;
   let gameKey = "";
-  let stopGameTail: (() => void) | undefined;
 
   async function parentStillAlive() {
     const parentPid = parentPidFromArgs(deps.args) ?? sessionParentPid;
@@ -97,14 +95,11 @@ export function createLogWindowClient(deps: LogWindowClientDependencies) {
     if (consumed.entries.length > 0) deps.onLauncherLines(consumed.entries);
   }
 
-  function restartGameTail(game: LogWindowGameTarget | undefined) {
+  function updateGameTarget(game: LogWindowGameTarget | undefined) {
     const key = gameTailIdentity(game);
     if (key === gameKey) return;
-    stopGameTail?.();
-    stopGameTail = undefined;
     gameKey = key;
-    deps.onGameReset();
-    if (game) stopGameTail = deps.startGameTail(game);
+    deps.onGameChange(game);
   }
 
   async function tick() {
@@ -123,6 +118,7 @@ export function createLogWindowClient(deps: LogWindowClientDependencies) {
       parentMisses = 0;
     }
     if (!session || stopped) return;
+    updateGameTarget(session.game);
     deps.onSession(session);
     if (session.focusNonce !== seenNonce) {
       const shouldFocus = seenNonce >= 0;
@@ -136,7 +132,6 @@ export function createLogWindowClient(deps: LogWindowClientDependencies) {
       }
     }
     await pollLauncher(session.launcherLogPath);
-    restartGameTail(session.game);
   }
 
   async function run() {
@@ -151,8 +146,6 @@ export function createLogWindowClient(deps: LogWindowClientDependencies) {
 
   return () => {
     stopped = true;
-    stopGameTail?.();
-    stopGameTail = undefined;
     if (timer !== undefined) {
       clearTimeout(timer);
       timer = undefined;

@@ -22,8 +22,7 @@ function startClient(options?: {
   const exit = vi.fn(async () => undefined);
   const onSession = vi.fn();
   const onLauncherLines = vi.fn();
-  const onGameReset = vi.fn();
-  const startGameTail = vi.fn(() => vi.fn());
+  const onGameChange = vi.fn();
   const stop = createLogWindowClient({
     args: options?.args ?? ["--yaagl-window=logs", "--yaagl-parent-pid=11"],
     readSession: async () => options?.session ?? session,
@@ -35,8 +34,7 @@ function startClient(options?: {
     exit,
     onSession,
     onLauncherLines,
-    onGameReset,
-    startGameTail,
+    onGameChange,
     pollMs: 20,
     parentMissesBeforeExit: 2,
   });
@@ -47,8 +45,7 @@ function startClient(options?: {
     exit,
     onSession,
     onLauncherLines,
-    onGameReset,
-    startGameTail,
+    onGameChange,
   };
 }
 
@@ -81,8 +78,7 @@ describe("log window client", () => {
       exit: async () => undefined,
       onSession: () => undefined,
       onLauncherLines: () => undefined,
-      onGameReset: () => undefined,
-      startGameTail: () => () => undefined,
+      onGameChange: () => undefined,
       pollMs: 20,
     });
     await vi.advanceTimersByTimeAsync(0);
@@ -118,7 +114,7 @@ describe("log window client", () => {
     client.stop();
   });
 
-  it("restarts the game tail when the launch generation changes", async () => {
+  it("notifies the file tail only when the game target changes", async () => {
     vi.useFakeTimers();
     let current = serializeLogWindowSession({
       parentPid: 11,
@@ -132,8 +128,7 @@ describe("log window client", () => {
         locations: [],
       },
     });
-    const startGameTail = vi.fn(() => vi.fn());
-    const onGameReset = vi.fn();
+    const onGameChange = vi.fn();
     const stop = createLogWindowClient({
       args: ["--yaagl-parent-pid=11"],
       readSession: async () => current,
@@ -144,12 +139,15 @@ describe("log window client", () => {
       exit: async () => undefined,
       onSession: () => undefined,
       onLauncherLines: () => undefined,
-      onGameReset,
-      startGameTail,
+      onGameChange,
       pollMs: 20,
     });
     await vi.advanceTimersByTimeAsync(0);
-    expect(startGameTail).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(20);
+    expect(onGameChange).toHaveBeenCalledOnce();
+    expect(onGameChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ generation: 1 })
+    );
     current = serializeLogWindowSession({
       parentPid: 11,
       tab: "game",
@@ -163,8 +161,13 @@ describe("log window client", () => {
       },
     });
     await vi.advanceTimersByTimeAsync(20);
-    expect(startGameTail).toHaveBeenCalledTimes(2);
-    expect(onGameReset).toHaveBeenCalledTimes(2);
+    expect(onGameChange).toHaveBeenCalledTimes(2);
+    expect(onGameChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ generation: 2 })
+    );
+    current = session;
+    await vi.advanceTimersByTimeAsync(20);
+    expect(onGameChange).toHaveBeenLastCalledWith(undefined);
     stop();
   });
 });

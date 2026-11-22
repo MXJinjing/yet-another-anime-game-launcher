@@ -1,5 +1,7 @@
 import {
+  batch,
   createEffect,
+  createMemo,
   createSignal,
   For,
   onCleanup,
@@ -7,7 +9,7 @@ import {
   Show,
 } from "solid-js";
 import { Portal, render } from "solid-js/web";
-import { createGameLogTail } from "./game-log-tail";
+import { createLogFileTail } from "./game-log-tail";
 import { inferUnityLogLevel } from "./runtime-log";
 import { createLocale, type Locale } from "../locale";
 import { execCommand } from "../platform/neutralino/process";
@@ -22,9 +24,11 @@ import {
   closeMonitoredPath,
   gameLogTabLabel,
   LAUNCHER_LOG_TAB,
+  layoutLogTabs,
   openMonitoredPaths,
   reopenMonitoredPath,
   selectionAfterClose,
+  validatePickedLogPaths,
 } from "./log-window-files";
 import {
   logWindowMenuPlacement,
@@ -32,6 +36,7 @@ import {
 } from "./log-window-menu";
 import {
   appendCapped,
+  type LogWindowGameTarget,
   type LogWindowSession,
   type ParsedLogLine,
 } from "./log-window-protocol";
@@ -108,6 +113,11 @@ function MoonIcon() {
 
 function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
   const [session, setSession] = createSignal<LogWindowSession>();
+  const [gameTarget, setGameTarget] = createSignal<LogWindowGameTarget>();
+  const [manualPaths, setManualPaths] = createSignal<string[]>([]);
+  const [trackWidth, setTrackWidth] = createSignal(0);
+  const [picking, setPicking] = createSignal(false);
+  const [pickFailed, setPickFailed] = createSignal(false);
   const [selected, setSelected] = createSignal(LAUNCHER_LOG_TAB);
   const [launcherLines, setLauncherLines] = createSignal<ParsedLogLine[]>([]);
   const [monitored, setMonitored] = createSignal<string[]>([]);
@@ -124,14 +134,24 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
   const accent = () =>
     normalizeLogWindowAccent(session()?.accent) ?? DEFAULT_LOG_WINDOW_ACCENT;
   let consoleEl: HTMLDivElement | undefined;
-  let tabStripEl: HTMLDivElement | undefined;
-  let addButtonEl: HTMLButtonElement | undefined;
+  let tabTrackEl: HTMLDivElement | undefined;
+  let overflowEl: HTMLButtonElement | undefined;
   let menuEl: HTMLDivElement | undefined;
   let stickToBottom = true;
   let appliedNonce = -1;
   let preferGame = false;
+  let disposed = false;
+  onCleanup(() => {
+    disposed = true;
+  });
 
-  const openPaths = () => openMonitoredPaths(monitored(), closed());
+  const tabs = createMemo(() =>
+    layoutLogTabs(monitored(), closed(), selected(), trackWidth())
+  );
+  const firstAutoFile = () =>
+    openMonitoredPaths(monitored(), closed()).find(
+      path => !manualPaths().includes(path)
+    );
   const activeLines = () => {
     const current = selected();
     if (current === LAUNCHER_LOG_TAB) return launcherLines();
@@ -149,18 +169,6 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
     void writeLogWindowTheme(next);
   }
 
-  function revealTab(id: string) {
-    queueMicrotask(() => {
-      tabStripEl
-        ?.querySelectorAll<HTMLElement>(".log-window-tab")
-        .forEach(node => {
-          if (node.dataset.tabId === id) {
-            node.scrollIntoView({ block: "nearest", inline: "nearest" });
-          }
-        });
-    });
-  }
-
   function rememberLines(current: ParsedLogLine[], incoming: ParsedLogLine[]) {
     if (!stickToBottom) setPending(count => count + incoming.length);
     return appendCapped(current, incoming);
@@ -176,11 +184,20 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
   }
 
   function selectTab(id: string) {
-    if (id === LAUNCHER_LOG_TAB) preferGame = false;
+    preferGame = false;
     setSelected(id);
     setMenuOpen(false);
     setPending(0);
-    revealTab(id);
+  }
+
+  function focusSelectedTab() {
+    queueMicrotask(() => {
+      tabTrackEl
+        ?.querySelector<HTMLButtonElement>(
+          '[aria-selected="true"] .log-window-tab-main'
+        )
+        ?.focus();
+    });
   }
 
   function closeFile(path: string) {
@@ -192,14 +209,55 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
   }
 
   function openFile(path: string) {
-    setClosed(current => reopenMonitoredPath(current, path));
-    setSelected(path);
+    batch(() => {
+      setClosed(current => reopenMonitoredPath(current, path));
+      selectTab(path);
+    });
+    focusSelectedTab();
+  }
+
+  async function pickFiles() {
+    if (picking()) return;
     setMenuOpen(false);
-    revealTab(path);
+    setPickFailed(false);
+    setPicking(true);
+    try {
+      const picked = await Neutralino.os.showOpenDialog(
+        props.locale.get("LOG_VIEWER_PICK_FILE"),
+        { multiSelections: true }
+      );
+      if (disposed || picked.length === 0) return;
+      const paths = await validatePickedLogPaths(
+        picked,
+        async path => (await Neutralino.filesystem.getStats(path)).isFile
+      );
+      if (disposed) return;
+      if (paths.length === 0) {
+        setPickFailed(true);
+        return;
+      }
+      const launcherPath = session()?.launcherLogPath;
+      const additional = paths.filter(path => path !== launcherPath);
+      batch(() => {
+        setManualPaths(current => [...new Set([...current, ...additional])]);
+        setMonitored(current => [...new Set([...current, ...additional])]);
+        setClosed(current => {
+          const next = new Set(current);
+          for (const path of additional) next.delete(path);
+          return next;
+        });
+        selectTab(paths[0] === launcherPath ? LAUNCHER_LOG_TAB : paths[0]);
+      });
+      focusSelectedTab();
+    } catch {
+      if (!disposed) setPickFailed(true);
+    } finally {
+      if (!disposed) setPicking(false);
+    }
   }
 
   function placeMenu() {
-    const button = addButtonEl;
+    const button = overflowEl;
     if (!button) return;
     const rect = button.getBoundingClientRect();
     const next = logWindowMenuPlacement(
@@ -226,6 +284,11 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
     }
     placeMenu();
     setMenuOpen(true);
+    queueMicrotask(() => {
+      menuEl
+        ?.querySelector<HTMLButtonElement>(".log-window-file-select")
+        ?.focus();
+    });
   }
 
   function menuStyle() {
@@ -249,28 +312,61 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
       if (!menuOpen()) return;
       const target = event.target as Node | null;
       if (!target) return;
-      if (addButtonEl?.contains(target) || menuEl?.contains(target)) return;
+      if (overflowEl?.contains(target) || menuEl?.contains(target)) return;
       setMenuOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape" && menuOpen()) {
+        setMenuOpen(false);
+        overflowEl?.focus();
+      }
     };
     const reposition = () => {
       if (menuOpen()) placeMenu();
     };
+    const measureTrack = () => setTrackWidth(tabTrackEl?.clientWidth ?? 0);
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? undefined
+        : new ResizeObserver(measureTrack);
+    if (tabTrackEl) observer?.observe(tabTrackEl);
+    measureTrack();
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", reposition);
+    window.addEventListener("resize", measureTrack);
     window.addEventListener("scroll", reposition, true);
     onCleanup(() => {
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", reposition);
+      window.removeEventListener("resize", measureTrack);
+      observer?.disconnect();
       window.removeEventListener("scroll", reposition, true);
     });
   });
 
   onMount(() => {
+    const stopFiles = createLogFileTail({
+      getGameTarget: gameTarget,
+      getManualPaths: manualPaths,
+      onLine: () => undefined,
+      onPaths: paths =>
+        setMonitored([...new Set([...paths, ...manualPaths()])]),
+      onFileLine: (path, line) => {
+        const entry: ParsedLogLine = {
+          time: new Date().toISOString(),
+          level: inferUnityLogLevel(line),
+          message: line,
+        };
+        setLinesByPath(current => ({
+          ...current,
+          [path]: rememberLines(current[path] ?? [], [entry]),
+        }));
+      },
+    });
+    onCleanup(stopFiles);
+
     const stop = createLogWindowClient({
       args: typeof NL_ARGS === "undefined" ? [] : NL_ARGS,
       readSession: async () => {
@@ -292,61 +388,43 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
         setSession(next);
         if (next.focusNonce !== appliedNonce) {
           appliedNonce = next.focusNonce;
-          if (next.tab === "game") {
-            preferGame = true;
-            const first = openPaths()[0];
-            if (first) {
-              setSelected(first);
-              revealTab(first);
-            }
-          } else {
-            preferGame = false;
-            setSelected(LAUNCHER_LOG_TAB);
-            revealTab(LAUNCHER_LOG_TAB);
-          }
+          preferGame = next.tab === "game";
+          const first = preferGame ? firstAutoFile() : undefined;
+          setSelected(first ?? LAUNCHER_LOG_TAB);
         }
       },
       onLauncherLines: lines => {
         setLauncherLines(current => rememberLines(current, lines));
       },
-      onGameReset: () => {
-        setMonitored([]);
-        setClosed(new Set<string>());
-        setLinesByPath({});
-        if (selected() !== LAUNCHER_LOG_TAB) setSelected(LAUNCHER_LOG_TAB);
+      onGameChange: game => {
+        const manual = manualPaths();
+        batch(() => {
+          setGameTarget(game);
+          setMonitored([...manual]);
+          setClosed(
+            current => new Set(manual.filter(path => current.has(path)))
+          );
+          setLinesByPath(current =>
+            Object.fromEntries(manual.map(path => [path, current[path] ?? []]))
+          );
+          if (!manual.includes(selected())) setSelected(LAUNCHER_LOG_TAB);
+        });
       },
-      startGameTail: game =>
-        createGameLogTail({
-          prefix: game.prefix,
-          gameDir: game.gameDir,
-          locations: game.locations,
-          onLine: () => undefined,
-          onPaths: paths => setMonitored(paths),
-          onFileLine: (path, line) => {
-            const entry: ParsedLogLine = {
-              time: new Date().toISOString(),
-              level: inferUnityLogLevel(line),
-              message: line,
-            };
-            setLinesByPath(current => ({
-              ...current,
-              [path]: rememberLines(current[path] ?? [], [entry]),
-            }));
-            setMonitored(current =>
-              current.includes(path) ? current : [...current, path]
-            );
-          },
-        }),
     });
     onCleanup(stop);
   });
 
   createEffect(() => {
-    const paths = openPaths();
-    if (!preferGame || paths.length === 0) return;
-    if (!paths.includes(selected())) {
-      setSelected(paths[0]);
-      revealTab(paths[0]);
+    const first = firstAutoFile();
+    if (preferGame && first && selected() === LAUNCHER_LOG_TAB) {
+      setSelected(first);
+    }
+  });
+
+  createEffect(() => {
+    if (menuOpen() && tabs().folded.length === 0) {
+      setMenuOpen(false);
+      focusSelectedTab();
     }
   });
 
@@ -387,13 +465,12 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
       style={{ "--lw-accent": accent(), "--lw-accent-text": accentText() }}
     >
       <div class="log-window-panel">
-        <div class="log-window-tabs" role="tablist" ref={tabStripEl}>
-          <div class="log-window-tab-scroll">
+        <div class="log-window-tabs">
+          <div class="log-window-tab-track" role="tablist" ref={tabTrackEl}>
             <div
               class="log-window-tab"
               role="tab"
               aria-selected={selected() === LAUNCHER_LOG_TAB}
-              data-tab-id={LAUNCHER_LOG_TAB}
               title={props.locale.get("LOG_VIEWER_TAB_LAUNCHER")}
             >
               <button
@@ -407,13 +484,12 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
                 <span class="log-window-count">{launcherLines().length}</span>
               </button>
             </div>
-            <For each={openPaths()}>
+            <For each={tabs().visible}>
               {path => (
                 <div
                   class="log-window-tab"
                   role="tab"
                   aria-selected={selected() === path}
-                  data-tab-id={path}
                   title={path}
                 >
                   <button
@@ -451,33 +527,61 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
                 </div>
               )}
             </For>
-            <div class="log-window-menu">
-              <button
-                class="log-window-add"
-                type="button"
-                ref={addButtonEl}
-                aria-label={props.locale.get("LOG_VIEWER_MONITORED")}
-                title={props.locale.get("LOG_VIEWER_MONITORED")}
-                aria-haspopup="menu"
-                aria-expanded={menuOpen()}
-                onClick={toggleMenu}
-              >
-                <svg
-                  viewBox="0 0 12 12"
-                  width="11"
-                  height="11"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  aria-hidden="true"
-                >
-                  <path d="M6 2.5v7M2.5 6h7" />
-                </svg>
-              </button>
-            </div>
           </div>
           <div class="log-window-tools">
+            <button
+              class="log-window-overflow"
+              type="button"
+              ref={overflowEl}
+              disabled={tabs().folded.length === 0}
+              style={{
+                visibility: tabs().folded.length === 0 ? "hidden" : "visible",
+              }}
+              aria-label={props.locale.get("LOG_VIEWER_MONITORED")}
+              title={props.locale.get("LOG_VIEWER_MONITORED")}
+              aria-haspopup="dialog"
+              aria-controls={menuOpen() ? "log-window-folded-tabs" : undefined}
+              aria-expanded={menuOpen()}
+              onClick={toggleMenu}
+            >
+              <svg
+                viewBox="0 0 12 12"
+                width="12"
+                height="12"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m3 4.5 3 3 3-3" />
+              </svg>
+              <span class="log-window-overflow-count" aria-hidden="true">
+                {tabs().folded.length}
+              </span>
+            </button>
+            <button
+              class="log-window-add"
+              type="button"
+              disabled={picking()}
+              aria-label={props.locale.get("LOG_VIEWER_PICK_FILE")}
+              title={props.locale.get("LOG_VIEWER_PICK_FILE")}
+              onClick={() => void pickFiles()}
+            >
+              <svg
+                viewBox="0 0 12 12"
+                width="11"
+                height="11"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path d="M6 2.5v7M2.5 6h7" />
+              </svg>
+            </button>
             <button
               class="log-window-theme"
               type="button"
@@ -489,6 +593,11 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
             </button>
           </div>
         </div>
+        <Show when={pickFailed()}>
+          <div class="log-window-picker-error" role="alert">
+            {props.locale.get("LOG_VIEWER_PICK_FAILED")}
+          </div>
+        </Show>
         <section class="log-window-surface">
           <Show when={selected() !== LAUNCHER_LOG_TAB}>
             <div class="log-window-path" title={selected()}>
@@ -574,43 +683,40 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
         <Portal>
           <div
             class="log-window-portal log-window-file-menu"
-            role="menu"
+            id="log-window-folded-tabs"
+            role="dialog"
+            aria-label={props.locale.get("LOG_VIEWER_MONITORED")}
             ref={menuEl}
             data-theme={theme()}
             style={menuStyle()}
           >
-            <Show
-              when={monitored().length > 0}
-              fallback={
-                <div class="log-window-file-empty">
-                  {props.locale.get("LOG_VIEWER_NO_MONITORED_FILES")}
+            <div class="log-window-file-heading">
+              {props.locale.get("LOG_VIEWER_MONITORED")}
+            </div>
+            <For each={tabs().folded}>
+              {path => (
+                <div class="log-window-file-row" title={path}>
+                  <button
+                    class="log-window-file-select"
+                    type="button"
+                    onClick={() => openFile(path)}
+                  >
+                    <span class="log-window-file-name">
+                      {gameLogTabLabel(path, monitored())}
+                    </span>
+                  </button>
+                  <Show when={!closed().has(path)}>
+                    <button
+                      class="log-window-file-toggle"
+                      type="button"
+                      onClick={() => closeFile(path)}
+                    >
+                      {props.locale.get("LOG_VIEWER_CLOSE_TAB")}
+                    </button>
+                  </Show>
                 </div>
-              }
-            >
-              <For each={monitored()}>
-                {path => {
-                  const opened = () => !closed().has(path);
-                  return (
-                    <div class="log-window-file-row" title={path}>
-                      <span class="log-window-file-name">
-                        {gameLogTabLabel(path, monitored())}
-                      </span>
-                      <button
-                        class="log-window-file-toggle"
-                        type="button"
-                        onClick={() =>
-                          opened() ? closeFile(path) : openFile(path)
-                        }
-                      >
-                        {opened()
-                          ? props.locale.get("LOG_VIEWER_CLOSE_TAB")
-                          : props.locale.get("LOG_VIEWER_REOPEN_TAB")}
-                      </button>
-                    </div>
-                  );
-                }}
-              </For>
-            </Show>
+              )}
+            </For>
           </div>
         </Portal>
       </Show>

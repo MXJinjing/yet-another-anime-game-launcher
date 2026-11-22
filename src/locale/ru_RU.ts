@@ -429,6 +429,8 @@ export const ru_RU: typeof zh_CN = {
   LOG_VIEWER_TAB_LAUNCHER: "Лаунчер",
   LOG_VIEWER_TAB_GAME: "Отладка игры",
   LOG_VIEWER_MONITORED: "Отслеживаемые файлы",
+  LOG_VIEWER_PICK_FILE: "Добавить файл логов",
+  LOG_VIEWER_PICK_FAILED: "Не удалось добавить выбранный файл логов.",
   LOG_VIEWER_CLOSE_TAB: "Закрыть",
   LOG_VIEWER_REOPEN_TAB: "Открыть",
   LOG_VIEWER_NO_MONITORED_FILES: "Нет игровых логов для отслеживания",

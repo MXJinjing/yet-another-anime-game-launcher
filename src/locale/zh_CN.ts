@@ -411,6 +411,8 @@ export const zh_CN = {
   LOG_VIEWER_TAB_LAUNCHER: "启动器",
   LOG_VIEWER_TAB_GAME: "游戏调试",
   LOG_VIEWER_MONITORED: "监控文件",
+  LOG_VIEWER_PICK_FILE: "添加日志文件",
+  LOG_VIEWER_PICK_FAILED: "无法添加选中的日志文件。",
   LOG_VIEWER_CLOSE_TAB: "关闭",
   LOG_VIEWER_REOPEN_TAB: "打开",
   LOG_VIEWER_NO_MONITORED_FILES: "没有可监控的游戏日志",

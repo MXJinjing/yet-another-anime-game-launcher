@@ -424,6 +424,8 @@ export const ko_KR: typeof zh_CN = {
   LOG_VIEWER_TAB_LAUNCHER: "런처",
   LOG_VIEWER_TAB_GAME: "게임 디버그",
   LOG_VIEWER_MONITORED: "모니터링 파일",
+  LOG_VIEWER_PICK_FILE: "로그 파일 추가",
+  LOG_VIEWER_PICK_FAILED: "선택한 로그 파일을 추가할 수 없습니다.",
   LOG_VIEWER_CLOSE_TAB: "닫기",
   LOG_VIEWER_REOPEN_TAB: "열기",
   LOG_VIEWER_NO_MONITORED_FILES: "모니터링할 게임 로그가 없습니다",

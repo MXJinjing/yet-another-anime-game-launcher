@@ -47,7 +47,7 @@ import {
   getLatestLauncherContent,
   mapBackgroundsToUiContent,
 } from "../hyp-connect";
-import { HK4E_GAME_LOG_LOCATIONS } from "../../game-log-paths";
+import { getHK4EGameLogLocations } from "../../game-log-paths";
 import type { BootPerformance } from "../../../boot-performance";
 
 // no need to check supported version
@@ -213,7 +213,7 @@ export async function createHK4EChannelClient({
     showPredownloadPrompt,
     installDir: _gameInstallDir,
     gameExecutable: () => server.executable,
-    gameLogLocations: HK4E_GAME_LOG_LOCATIONS,
+    gameLogLocations: getHK4EGameLogLocations(releaseType),
     gameVersion: gameCurrentVersion,
     latestVersion,
     updateRequired,

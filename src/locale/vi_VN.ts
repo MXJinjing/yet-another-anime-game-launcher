@@ -425,6 +425,8 @@ export const vi_VN: typeof zh_CN = {
   LOG_VIEWER_TAB_LAUNCHER: "Trình khởi chạy",
   LOG_VIEWER_TAB_GAME: "Gỡ lỗi trò chơi",
   LOG_VIEWER_MONITORED: "Tệp đang theo dõi",
+  LOG_VIEWER_PICK_FILE: "Thêm tệp nhật ký",
+  LOG_VIEWER_PICK_FAILED: "Không thể thêm tệp nhật ký đã chọn.",
   LOG_VIEWER_CLOSE_TAB: "Đóng",
   LOG_VIEWER_REOPEN_TAB: "Mở",
   LOG_VIEWER_NO_MONITORED_FILES: "Không có log trò chơi để theo dõi",
