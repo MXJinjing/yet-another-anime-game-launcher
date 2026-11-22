@@ -71,18 +71,9 @@ async function findRecursiveLogFiles(
     const path = join(root, entry.entry);
     if (entry.type === "DIRECTORY") {
       found.push(...(await findRecursiveLogFiles(path, extensions, depth + 1)));
-    } else if (hasAllowedExtension(path, extensions)) {
+    } else if (entry.type === "FILE" && hasAllowedExtension(path, extensions)) {
       found.push(path);
     }
-  }
-  return found;
-}
-
-async function findLegacyUnityLogFiles(prefix: string): Promise<string[]> {
-  const users = await findWineUserDirectories(prefix);
-  const found: string[] = [];
-  for (const user of users) {
-    found.push(...(await findRecursiveLogFiles(user, ["output_log.txt"], 0)));
   }
   return found;
 }
@@ -91,14 +82,14 @@ export async function findGameLogFiles({
   prefix,
   gameDir,
   locations,
-  existingOnly = false,
 }: {
   prefix: string;
   gameDir: string;
   locations: readonly GameLogLocation[];
-  existingOnly?: boolean;
 }): Promise<string[]> {
-  const users = await findWineUserDirectories(prefix);
+  const users = locations.some(location => location.root === "wine-user")
+    ? await findWineUserDirectories(prefix)
+    : [];
   const found: string[] = [];
 
   for (const location of locations) {
@@ -113,16 +104,12 @@ export async function findGameLogFiles({
         found.push(
           ...(await findRecursiveLogFiles(path, location.extensions, 0))
         );
-      } else if (existingOnly) {
+      } else {
         try {
           if ((await stats(path)).isFile) found.push(path);
         } catch {
-          // The game may create this file after the next poll.
+          // The next discovery pass can pick up files created after launch.
         }
-      } else {
-        // Keep configured paths even before the file exists. This allows the
-        // tailer to observe a log created after debug mode has started.
-        found.push(path);
       }
     }
   }
@@ -137,7 +124,7 @@ export function createGameLogTail(options: {
   onLine: GameLogLineHandler;
   /** Attribute each emitted line to the file that produced it. */
   onFileLine?: (path: string, line: string) => void;
-  /** Configured and discovered files, including ones that do not exist yet. */
+  /** Files that have been found during this debug session. */
   onPaths?: (paths: string[]) => void;
   pollIntervalMs?: number;
   maxLinesPerPoll?: number;
@@ -171,6 +158,7 @@ export function createGameLogTail(options: {
     } catch {
       return; // file not available (yet)
     }
+    if (!stat.isFile) return;
 
     let state = states.get(path);
     if (!state) {
@@ -253,14 +241,12 @@ export function createGameLogTail(options: {
   }
 
   async function refreshPaths() {
-    const discovered =
-      locations.length > 0
-        ? await findGameLogFiles({
-            prefix: options.prefix,
-            gameDir: options.gameDir ?? "",
-            locations,
-          })
-        : await findLegacyUnityLogFiles(options.prefix);
+    const discovered = await findGameLogFiles({
+      prefix: options.prefix,
+      gameDir: options.gameDir ?? "",
+      locations,
+    });
+    if (stopped) return;
     const next = [...new Set([...paths, ...discovered])];
     const changed =
       next.length !== paths.length ||

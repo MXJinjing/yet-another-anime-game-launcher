@@ -9,15 +9,17 @@ import type { GameLogLocation } from "../channel-client";
  * names over time.
  */
 
-const UNITY_LOG_FALLBACK: GameLogLocation = {
-  root: "wine-user",
-  path: "AppData/LocalLow",
-  recursive: true,
-  extensions: ["output_log.txt", "Player.log"],
+const DRIVER_ERROR_LOG: GameLogLocation = {
+  root: "game-install",
+  path: "driverError.log",
 };
 
-export const HK4E_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
+const HK4E_CN_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
   { root: "wine-user", path: "AppData/LocalLow/miHoYo/原神/output_log.txt" },
+  DRIVER_ERROR_LOG,
+];
+
+const HK4E_OS_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
   {
     root: "wine-user",
     path: "AppData/LocalLow/miHoYo/Genshin Impact/output_log.txt",
@@ -26,8 +28,16 @@ export const HK4E_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
     root: "wine-user",
     path: "AppData/LocalLow/HoYoverse/Genshin Impact/Player.log",
   },
-  UNITY_LOG_FALLBACK,
+  DRIVER_ERROR_LOG,
 ];
+
+export function getHK4EGameLogLocations(
+  releaseType: "os" | "cn" | "bb"
+): readonly GameLogLocation[] {
+  return releaseType === "os"
+    ? HK4E_OS_GAME_LOG_LOCATIONS
+    : HK4E_CN_GAME_LOG_LOCATIONS;
+}
 
 export const HKRPG_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
   {
@@ -42,7 +52,7 @@ export const HKRPG_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
     root: "wine-user",
     path: "AppData/LocalLow/Cognosphere/Star Rail/Player.log",
   },
-  UNITY_LOG_FALLBACK,
+  DRIVER_ERROR_LOG,
 ];
 
 export const NAP_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
@@ -62,7 +72,7 @@ export const NAP_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
     root: "wine-user",
     path: "AppData/LocalLow/HoYoverse/ZenlessZoneZero/Player.log",
   },
-  UNITY_LOG_FALLBACK,
+  DRIVER_ERROR_LOG,
 ];
 
 export const BH3_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
@@ -80,7 +90,7 @@ export const BH3_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
     recursive: true,
     extensions: [".log", ".txt"],
   },
-  UNITY_LOG_FALLBACK,
+  DRIVER_ERROR_LOG,
 ];
 
 /** Snowbreak uses Unreal logs in the installed game directory. */
@@ -99,4 +109,5 @@ export const CBJQ_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
     root: "wine-user",
     path: "AppData/Local/Game/Saved/Logs/Game.log",
   },
+  DRIVER_ERROR_LOG,
 ];
