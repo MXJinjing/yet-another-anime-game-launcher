@@ -28,12 +28,21 @@ describe("wine props registry script", () => {
     expect(registryValue(script, "Enable SDL")).toBe("1");
   });
 
-  it("leaves winebus untouched when the fix is off", () => {
+  it("leaves the SDL backend alone when the fix is off", () => {
     const script = buildWinePropsScript({ retina: false, leftCmd: true });
 
-    expect(script).not.toContain("winebus");
-    expect(registryValue(script, "DisableHidraw")).toBeUndefined();
+    expect(registryValue(script, "Enable SDL")).toBeUndefined();
     expect(registryValue(script, "LeftCommandIsCtrl")).toBe("y");
+  });
+
+  it("restores the hidraw backend once the fix is turned off", () => {
+    const script = buildWinePropsScript({
+      retina: false,
+      leftCmd: false,
+      gameControllerFix: false,
+    });
+
+    expect(registryValue(script, "DisableHidraw")).toBe("0");
   });
 
   it("always ends with a clean exit code", () => {
