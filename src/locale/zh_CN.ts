@@ -121,6 +121,10 @@ export const zh_CN = {
   SETTING_MTL_HUD: "Metal HUD",
   SETTING_RETINA: "Retina 模式",
   SETTING_LEFT_CMD: "映射左 CMD 键为 CTRL 键",
+  SETTING_CONTROLS: "控制",
+  SETTING_GAME_CONTROLLER_FIX: "游戏手柄修复",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "让 Wine 通过 SDL 而不是原始 HID 识别手柄。手柄没有反应或按键错乱时可以试试，并非适用于所有手柄。",
   SETTING_TURN_OFF_AC_PATCH: "关闭 AC 补丁",
   SETTING_CUSTOM_RESOLUTION: "自定义分辨率",
   SETTING_DISPLAY_MODE: "游戏显示模式",

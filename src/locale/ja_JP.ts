@@ -126,6 +126,10 @@ export const ja_JP: typeof zh_CN = {
   SETTING_MTL_HUD: "Metal HUD",
   SETTING_RETINA: "Retinaモード",
   SETTING_LEFT_CMD: "左CMDキーをCTRLキーにマップ",
+  SETTING_CONTROLS: "コントロール",
+  SETTING_GAME_CONTROLLER_FIX: "ゲームコントローラーの修正",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "Wine が SDL 経由でコントローラーを認識するようにします。コントローラーが反応しない、またはボタンが正しく動かない場合にお試しください。すべてのコントローラーで効果があるとは限りません。",
   SETTING_TURN_OFF_AC_PATCH: "ACパッチを無効にする",
   SETTING_CUSTOM_RESOLUTION: "カスタム解像度",
   SETTING_DISPLAY_MODE: "ゲーム表示モード",

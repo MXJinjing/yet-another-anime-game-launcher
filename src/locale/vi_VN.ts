@@ -128,6 +128,10 @@ export const vi_VN: typeof zh_CN = {
   SETTING_MTL_HUD: "Metal HUD",
   SETTING_RETINA: "Chế độ Retina",
   SETTING_LEFT_CMD: "Ánh xạ CMD trái sang CTRL",
+  SETTING_CONTROLS: "Điều khiển",
+  SETTING_GAME_CONTROLLER_FIX: "Sửa lỗi tay cầm",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "Buộc Wine nhận diện tay cầm qua SDL thay vì HID thô. Hãy thử khi tay cầm không được nhận hoặc phím bấm sai; có thể không hiệu quả với mọi tay cầm.",
   SETTING_TURN_OFF_AC_PATCH: "tắt bản vá AC",
   SETTING_CUSTOM_RESOLUTION: "Độ phân giải tùy chỉnh",
   SETTING_DISPLAY_MODE: "Chế độ hiển thị trò chơi",
