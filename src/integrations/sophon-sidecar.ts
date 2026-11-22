@@ -55,18 +55,53 @@ async function startSidecar(): Promise<SidecarEndpoint> {
   throw new Error("Failed to start the Swift Sophon sidecar");
 }
 
-async function connectSidecar() {
+async function discardSidecar() {
+  const current = sidecar;
+  sidecar = undefined;
+  if (!current) return;
+  await updateSpawnedProcess(current.id, "exit").catch(() => undefined);
+}
+
+async function connectSidecarOnce() {
   if (sidecar) {
-    const { id, port, token } = sidecar;
+    const { port, token } = sidecar;
     const client = new SophonClient(host, port, "os", token);
     if (await client.healthCheck({ ...healthOptions, timeoutMs: 2000 })) {
       return sidecar;
     }
-    sidecar = undefined;
-    await updateSpawnedProcess(id, "exit").catch(() => undefined);
+    // The recorded endpoint stopped answering; kill it before starting a new
+    // process on a fresh port.
+    await discardSidecar();
   }
   sidecar = await startSidecar();
   return sidecar;
+}
+
+/**
+ * Connects to the Sophon sidecar, retrying once after killing a stale process.
+ * A missing/broken sidecar only fails the current task; callers report it as a
+ * task failure, so the launcher must not terminate here.
+ */
+async function connectSidecar() {
+  let lastError: unknown = new Error("Sophon sidecar did not start");
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await connectSidecarOnce();
+    } catch (error) {
+      lastError = error;
+      await log(
+        `Sophon sidecar connection attempt ${attempt + 1} failed: ${String(
+          error
+        )}`
+      );
+      await discardSidecar();
+    }
+  }
+  throw new Error(
+    `Failed to connect to the Sophon download service: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`
+  );
 }
 
 export async function getSophonClient(region: SophonRegion) {

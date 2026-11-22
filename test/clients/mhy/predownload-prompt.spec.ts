@@ -11,6 +11,7 @@ vi.mock("@wine/runtime-resources", () => ({
 }));
 vi.mock("@src/clients/mhy/unity", () => ({
   getGameVersion: async () => "1.0.0",
+  getGameVersionWithFallback: async () => "1.0.0",
 }));
 vi.mock("@src/clients/mhy/hyp-connect", () => ({
   getLatestLauncherContent: async () => {

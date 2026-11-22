@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@src/components/app-modal", () => ({
   AppModal: vi.fn((props: Record<string, unknown>) => props),
@@ -11,6 +11,10 @@ import {
   LaunchErrorModal,
   RuntimeReplacementErrorModal,
 } from "@src/modals/runtime-replacement-error-modal";
+import {
+  GameAlreadyRunningModal,
+  RuntimeReplacementPromptModal,
+} from "@src/modals/launch-decision-modal";
 
 const appModal = vi.mocked(AppModal);
 const appModalButton = vi.mocked(AppModalButton);
@@ -39,6 +43,11 @@ function latestModalProps() {
     footer: unknown;
   };
 }
+
+afterEach(() => {
+  // Avoid leaking the minimal document stub into suites that render Hope UI.
+  vi.unstubAllGlobals();
+});
 
 describe("LaunchErrorModal", () => {
   beforeEach(() => {
@@ -139,5 +148,63 @@ describe("modal wrappers", () => {
       "GAME_CRASHED_SETTINGS"
     );
     expect(appModalButton.mock.calls[1][0].onClick).toBe(onOpenSettings);
+  });
+
+  it("offers a destructive force-stop for a running game", () => {
+    const onCancel = vi.fn();
+    const onForceStop = vi.fn();
+    const bilingualLocale = {
+      get: (key: string) => key,
+      currentLanguage: "zh_cn",
+    } as never;
+
+    GameAlreadyRunningModal({
+      opened: true,
+      locale: bilingualLocale,
+      gameTitle: "Test Game",
+      executablePath: "/game/TargetGame.exe",
+      onCancel,
+      onForceStop,
+    });
+
+    const props = latestModalProps();
+    expect(props.title).toBe("游戏已在运行");
+    void props.footer;
+    const [cancelButton, forceButton] = appModalButton.mock.calls.map(
+      ([buttonProps]) => buttonProps as Record<string, unknown>
+    );
+    expect(cancelButton.children).toBe("取消启动");
+    expect(cancelButton.onClick).toBe(onCancel);
+    expect(forceButton.variant).toBe("danger");
+    expect(forceButton.children).toBe("强制结束后启动");
+    expect(forceButton.onClick).toBe(onForceStop);
+  });
+
+  it("asks before skipping a replacement and launching", () => {
+    const onCancel = vi.fn();
+    const onSkip = vi.fn();
+    const bilingualLocale = {
+      get: (key: string) => key,
+      currentLanguage: "en",
+    } as never;
+
+    RuntimeReplacementPromptModal({
+      opened: true,
+      locale: bilingualLocale,
+      gameTitle: "Test Game",
+      details: "temporary copy verification failed",
+      onCancel,
+      onSkip,
+    });
+
+    const props = latestModalProps();
+    expect(props.title).toBe("Runtime replacement unavailable");
+    void props.footer;
+    const [cancelButton, skipButton] = appModalButton.mock.calls.map(
+      ([buttonProps]) => buttonProps as Record<string, unknown>
+    );
+    expect(cancelButton.onClick).toBe(onCancel);
+    expect(skipButton.children).toBe("Skip replacement and launch");
+    expect(skipButton.onClick).toBe(onSkip);
   });
 });

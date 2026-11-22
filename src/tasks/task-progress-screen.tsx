@@ -7,7 +7,7 @@ import {
 import { openLogWindow } from "../logging/log-window-host";
 import { type Locale } from "@locale";
 import { log, logerror } from "../logging/logger";
-import { fatal } from "../runtime/fatal";
+import { fatal, isFatalError } from "../runtime/fatal";
 import {
   downloadPercent,
   formatDownloadSpeed,
@@ -151,8 +151,21 @@ export function createTaskProgressScreen({
           await logerror(
             error instanceof Error ? error.message : String(error)
           );
+          if (isFatalError(error)) {
+            await onSettled?.();
+            await fatal(error);
+            return;
+          }
+          // Any other unexpected error belongs to this task only. Report it
+          // and return to the launcher instead of terminating the process.
+          await locale.alert(
+            "NOTIFICATION_TASK_FAILED_TITLE",
+            "NOTIFICATION_TASK_FAILED",
+            [],
+            "danger"
+          );
           await onSettled?.();
-          await fatal(error);
+          await onFailed?.(error);
         }
       })();
     });

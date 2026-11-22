@@ -19,7 +19,11 @@ import { createAria2Retry } from "@aria2";
 import { exec, spawn } from "@runtime/command-runner";
 import { appendFile } from "@platform/neutralino/filesystem";
 import { addTerminationHook } from "@runtime/lifecycle";
-import { startAria2Service } from "@download/aria2-service";
+import {
+  startAria2Service,
+  createUnavailableAria2,
+  DownloadServiceUnavailableError,
+} from "@download/aria2-service";
 
 const aria2 = { version: { version: "1.0" } };
 beforeEach(() => {
@@ -58,6 +62,7 @@ describe("aria2 sidecar startup", () => {
       host: "127.0.0.1",
       port: 41000,
       secret: expect.stringMatching(/^[a-f0-9]{32}$/),
+      reconnect: expect.any(Function),
     });
     const shutdown = vi.mocked(addTerminationHook).mock.lastCall![0];
     await expect(shutdown(false)).resolves.toBe(true);
@@ -68,6 +73,16 @@ describe("aria2 sidecar startup", () => {
     const port = vi.mocked(createAria2Retry).mock.lastCall![0].port;
     expect(port).toBeGreaterThanOrEqual(40000);
     expect(port).toBeLessThanOrEqual(49999);
+  });
+  it("resolves the sidecar and session paths from its defaults", async () => {
+    await expect(startAria2Service()).resolves.toBe(aria2);
+    expect(spawn).toHaveBeenCalledWith(
+      expect.arrayContaining(["/sidecar/aria2c"])
+    );
+    expect(appendFile).toHaveBeenCalledWith(
+      expect.stringMatching(/^\.\/aria2\.session\./),
+      ""
+    );
   });
   it("kills a failed process and retains only the replacement for shutdown", async () => {
     vi.mocked(createAria2Retry)
@@ -90,7 +105,71 @@ describe("aria2 sidecar startup", () => {
     vi.mocked(createAria2Retry).mockRejectedValue(new Error("offline"));
     await expect(
       startAria2Service({ binaryPath: "/aria2", startupTimeoutMs: 100 })
-    ).rejects.toThrow("Failed to start download service");
+    ).rejects.toBeInstanceOf(DownloadServiceUnavailableError);
+  });
+  it("fails fast with the typed error when the binary cannot be launched", async () => {
+    vi.mocked(spawn).mockRejectedValue(new Error("ENOENT: aria2c missing"));
+    await expect(
+      startAria2Service({ binaryPath: "/missing", startupTimeoutMs: 100 })
+    ).rejects.toBeInstanceOf(DownloadServiceUnavailableError);
+    expect(createAria2Retry).not.toHaveBeenCalled();
+    expect(new DownloadServiceUnavailableError().message).toBe(
+      "Download service is unavailable"
+    );
+    // No process was ever spawned, so the shutdown hook is a no-op.
+    await expect(
+      vi.mocked(addTerminationHook).mock.lastCall![0](false)
+    ).resolves.toBe(true);
+  });
+  it("reconnects on a fresh port and replaces the tracked process", async () => {
+    await startAria2Service({ binaryPath: "/aria2" });
+    const reconnect = vi.mocked(createAria2Retry).mock.lastCall![0].reconnect!;
+    vi.mocked(spawn).mockResolvedValueOnce({ pid: 456 } as never);
+    const endpoint = await reconnect();
+    expect(exec).toHaveBeenCalledWith(["kill", "123"]);
+    expect(spawn).toHaveBeenCalledTimes(2);
+    expect(endpoint).toMatchObject({ host: "127.0.0.1" });
+    expect(endpoint.port).toBeGreaterThanOrEqual(40000);
+    expect(endpoint.port).toBeLessThanOrEqual(49999);
+    expect(endpoint.secret).toMatch(/^[a-f0-9]{32}$/);
+    const shutdown = vi.mocked(addTerminationHook).mock.lastCall![0];
+    await shutdown(false);
+    expect(exec).toHaveBeenLastCalledWith(["kill", "456"]);
+  });
+  it("reconnects without a stale process after a shutdown", async () => {
+    await startAria2Service({ binaryPath: "/aria2" });
+    const shutdown = vi.mocked(addTerminationHook).mock.lastCall![0];
+    await shutdown(false);
+    const reconnect = vi.mocked(createAria2Retry).mock.lastCall![0].reconnect!;
+    vi.mocked(spawn).mockResolvedValueOnce({ pid: 456 } as never);
+    const endpoint = await reconnect();
+    expect(spawn).toHaveBeenCalledTimes(2);
+    expect(endpoint).toMatchObject({ host: "127.0.0.1" });
+  });
+  it("provides a facade whose downloads fail with the typed error", async () => {
+    const facade = createUnavailableAria2("download service offline");
+    expect(facade.version.version).toBe("unavailable");
+    await expect(facade.shutdown()).resolves.toBe("");
+    await expect(
+      (async () => {
+        for await (const _ of facade.doStreamingDownload({
+          uri: "",
+          absDst: "",
+        })) {
+          // The facade never yields.
+        }
+      })()
+    ).rejects.toThrow("download service offline");
+    await expect(
+      (async () => {
+        for await (const _ of createUnavailableAria2().doStreamingDownload({
+          uri: "",
+          absDst: "",
+        })) {
+          // The default reason is used when none is provided.
+        }
+      })()
+    ).rejects.toBeInstanceOf(DownloadServiceUnavailableError);
   });
   it("does not fail shutdown if the process has already exited", async () => {
     await startAria2Service({ binaryPath: "/aria2" });

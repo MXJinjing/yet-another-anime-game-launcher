@@ -37,6 +37,23 @@ type Aria2ErrorStatus = {
   errorMessage?: string;
 };
 
+export type Aria2Endpoint = {
+  host: string;
+  port: number;
+  secret?: string;
+};
+
+export type Aria2ConnectOptions = Aria2Endpoint & {
+  /**
+   * Recreates the RPC backend after the WebSocket connection is lost. The
+   * owner is responsible for killing the stale process and returning a fresh
+   * port. Omitted when the caller cannot rebuild (e.g. tests).
+   */
+  reconnect?: () => Promise<Aria2Endpoint>;
+};
+
+const REBUILD_ATTEMPTS = 2;
+
 async function getDownloadOptions() {
   const downloadProxy = await getDownloadProxy();
   const downloadSpeedLimitEnabled =
@@ -70,13 +87,10 @@ export async function createAria2({
   host,
   port,
   secret,
-}: {
-  host: string;
-  port: number;
-  secret?: string;
-}) {
+  reconnect,
+}: Aria2ConnectOptions) {
   await wait(500); // FIXME:
-  const rpc = new RPC.Client({
+  let rpc = new RPC.Client({
     host,
     port,
     auth: secret ? { secret } : undefined,
@@ -94,6 +108,71 @@ export async function createAria2({
       "code" in error &&
       error["code"] == 1
     );
+  }
+
+  /**
+   * aria2 answers application errors with a JSON-RPC object carrying a numeric
+   * `code`. Anything else (socket closed, HTTP refused, timeout) means the RPC
+   * channel itself is gone and a rebuild is worth attempting.
+   */
+  function isRpcConnectionError(error: unknown) {
+    if (error instanceof DownloadCancelledError) return false;
+    if (error instanceof DownloadFailedError) return false;
+    if (isAria2TaskMissing(error)) return false;
+    return !(
+      typeof error == "object" &&
+      error != null &&
+      "code" in error &&
+      typeof error["code"] == "number"
+    );
+  }
+
+  /** Kill the old backend through `reconnect`, then validate the new socket.
+   * Retried once so a single bad port does not fail the whole download. */
+  async function rebuildConnection() {
+    if (!reconnect) return false;
+    for (let attempt = 0; attempt < REBUILD_ATTEMPTS; attempt++) {
+      try {
+        const endpoint = await reconnect();
+        const next = new RPC.Client({
+          host: endpoint.host,
+          port: endpoint.port,
+          auth: endpoint.secret ? { secret: endpoint.secret } : undefined,
+        });
+        await Promise.race([next.getVersion(), timeout(3000)]);
+        rpc = next;
+        await log(`aria2 RPC rebuilt on port ${endpoint.port}`);
+        return true;
+      } catch (error) {
+        await log(`aria2 RPC rebuild failed (${String(error)}); retrying`);
+      }
+    }
+    return false;
+  }
+
+  /** Runs one RPC call, rebuilding the backend once on a lost connection. If
+   * the channel still cannot be restored the current download fails with a
+   * `DownloadFailedError` instead of taking the launcher down. */
+  async function withRpcRecovery<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isRpcConnectionError(error)) throw error;
+      await log(`aria2 RPC connection lost (${String(error)}); rebuilding`);
+      if (!(await rebuildConnection())) {
+        throw new DownloadFailedError(
+          `Download service connection lost: ${String(error)}`
+        );
+      }
+      try {
+        return await operation();
+      } catch (retryError) {
+        if (retryError instanceof DownloadCancelledError) throw retryError;
+        throw new DownloadFailedError(
+          `Download failed after reconnecting: ${String(retryError)}`
+        );
+      }
+    }
   }
 
   function formatAria2DownloadError(status: Aria2ErrorStatus) {
@@ -114,7 +193,7 @@ export async function createAria2({
     while (true) {
       let status;
       try {
-        status = await rpc.tellStatus(gid);
+        status = await withRpcRecovery(() => rpc.tellStatus(gid));
       } catch (error) {
         if (isCancelled()) {
           throw new DownloadCancelledError();
@@ -174,7 +253,7 @@ export async function createAria2({
     let cancelled = false;
     let shouldAddDownload = false;
     try {
-      const status = await rpc.tellStatus(gid);
+      const status = await withRpcRecovery(() => rpc.tellStatus(gid));
       if (status.status == "paused") {
         await rpc.changeOption(gid, downloadOptions);
         await rpc.unpause(gid);
@@ -212,15 +291,17 @@ export async function createAria2({
       }
     }
     if (shouldAddDownload) {
-      await rpc.addUri(requestUri, {
-        gid,
-        "max-connection-per-server": 16,
-        out: options.absDst,
-        continue: false,
-        ...(options.checksum ? { checksum: options.checksum } : {}),
-        "allow-overwrite": true, // in case control file broken
-        ...downloadOptions,
-      });
+      await withRpcRecovery(() =>
+        rpc.addUri(requestUri, {
+          gid,
+          "max-connection-per-server": 16,
+          out: options.absDst,
+          continue: false,
+          ...(options.checksum ? { checksum: options.checksum } : {}),
+          "allow-overwrite": true, // in case control file broken
+          ...downloadOptions,
+        })
+      );
     }
     if (downloadOptions["all-proxy"]) {
       await log("下载代理已启用");
@@ -477,18 +558,12 @@ export class Aria2OverallProgress {
   }
 }
 
-export async function createAria2Retry({
-  host,
-  port,
-  secret,
-}: {
-  host: string;
-  port: number;
-  secret?: string;
-}): Promise<Aria2> {
+export async function createAria2Retry(
+  options: Aria2ConnectOptions
+): Promise<Aria2> {
   for (let i = 0; i < 30; i++) {
     try {
-      return await createAria2({ host, port, secret });
+      return await createAria2(options);
     } catch (e) {
       await log("Fail to create aria2 rpc, retrying... " + e);
     }

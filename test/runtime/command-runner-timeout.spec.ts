@@ -17,7 +17,31 @@ vi.mock("@platform/neutralino", () => ({
 }));
 
 import * as processMocks from "@platform/neutralino";
-import { exec2 } from "@runtime/command-runner";
+import { CommandFailedError, exec, exec2 } from "@runtime/command-runner";
+
+describe("command failure reporting", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("throws a typed error for a non-zero exit of exec", async () => {
+    vi.mocked(processMocks.execCommand).mockResolvedValueOnce({
+      pid: 1,
+      exitCode: 3,
+      stdOut: "partial",
+      stdErr: "broken",
+    });
+
+    const failure = exec(["false"]);
+    await expect(failure).rejects.toBeInstanceOf(CommandFailedError);
+    await expect(failure).rejects.toMatchObject({
+      exitCode: 3,
+      stdOut: "partial",
+      stdErr: "broken",
+    });
+    await expect(failure).rejects.toThrow("Command return non-zero code (3)");
+  });
+});
 
 describe("spawned command timeout", () => {
   afterEach(() => {

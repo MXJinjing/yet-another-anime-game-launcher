@@ -2,6 +2,7 @@ import { fileOrDirExists, resolve, stats } from "@platform/neutralino";
 import { join } from "path-browserify";
 import { exec } from "@runtime/command-runner";
 import { getKey, setKey } from "@runtime/storage";
+import { warn } from "@logging/logger";
 import {
   ensureActiveWineCompatLink,
   getWineInstallDir,
@@ -229,9 +230,16 @@ export async function checkWine(
   const wine_versions = await getWineDistributions();
   const defaultDistro = wine_versions.find(x => x.id == defaultWineDistroTag);
   if (!defaultDistro) {
-    throw new Error(
-      "can not find default wine version: " + defaultWineDistroTag
+    // A channel can name a distribution that this build no longer ships.
+    // Treat it as "Wine not installed" and offer the recommended build, so
+    // boot shows the existing initialization flow instead of exiting.
+    await warn(
+      `can not find default wine version: ${defaultWineDistroTag}; falling back to ${RECOMMENDED_WINE_DISTRO_ID}`
     );
+    return {
+      wineReady: false,
+      wineDistribution: resolveRecommendedWineDistro(),
+    };
   }
   try {
     const wineState = await getKey("wine_state");

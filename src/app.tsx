@@ -20,6 +20,7 @@ import { setD3DMetalLicensePrompt } from "./wine/d3dmetal";
 import { CloseConfirmationModal } from "./modals/close-confirmation-modal";
 import { LauncherUpdateModal } from "./modals/launcher-update-modal";
 import { HostsHelperTokenRecoveryModal } from "./modals/hosts-helper-token-recovery-modal";
+import { StartupNoticeBanner } from "./components/startup-notice-banner";
 import { closeApp } from "./platform/neutralino/system";
 import { installLogWindowLifecycle } from "./logging/log-window-host";
 import { resolve } from "./platform/neutralino/path";
@@ -33,7 +34,8 @@ import {
 import { createWindowCloseController } from "./services/window-close-controller";
 import { createTaskProgressScreen } from "./tasks/task-progress-screen";
 import type { TaskProgram } from "./tasks/task-program";
-import { startAria2Service } from "./download/aria2-service";
+import { startDownloadService } from "./boot/download-service";
+import { resolveWineStatus } from "./boot/wine-status";
 import {
   cancelControlledDownload,
   hasActiveDownloads,
@@ -56,7 +58,6 @@ import {
   upgradePrivilegedHostsHelperIfNeeded,
 } from "./system/privileged-hosts";
 import {
-  checkWineEnvironment,
   createWine,
   createWineEnvironmentService,
   type Wine,
@@ -114,7 +115,9 @@ export async function createApp(bootPerformance?: BootPerformance) {
   setBootProgressLocale(locale);
   reportBootProgress("BOOT_LOADING_LOCAL_SETTINGS", 8);
   const github = await measure("github-endpoint", createGithubEndpoint);
-  const aria2 = await measure("aria2-startup", startAria2Service);
+  // A failed aria2 start degrades to a download-only outage instead of aborting
+  // boot: installed games remain launchable.
+  const aria2 = await measure("aria2-startup", () => startDownloadService());
   reportBootProgress("BOOT_STARTING_DOWNLOAD_SERVICE", 26);
 
   const initialUpdateCheck = await measure("launcher-update-check", () =>
@@ -125,7 +128,7 @@ export async function createApp(bootPerformance?: BootPerformance) {
 
   await measure("wine-binary-root", loadWineBinaryRoot);
   const wineStatus = await measure("wine-environment-check", () =>
-    checkWineEnvironment(DEFAULT_WINE_DISTRO_TAG)
+    resolveWineStatus(DEFAULT_WINE_DISTRO_TAG)
   );
   reportBootProgress("BOOT_CHECKING_WINE_ENVIRONMENT", 48);
   const prefixPath = resolve("./wineprefix");
@@ -525,6 +528,7 @@ export async function createApp(bootPerformance?: BootPerformance) {
 
     return (
       <>
+        <StartupNoticeBanner locale={locale} />
         <Show when={updaterComponent()}>{component => component()()}</Show>
         <Show when={!updaterComponent()}>
           <MainApp />

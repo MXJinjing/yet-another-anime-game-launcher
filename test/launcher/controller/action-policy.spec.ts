@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isDownloadDependentAction,
   resolveIntegrityAction,
   resolvePrimaryLauncherAction,
 } from "@src/launcher/controller/action-policy";
@@ -95,5 +96,13 @@ describe("launcher primary-action policy", () => {
   it("prompts for an update before integrity checking when necessary", () => {
     expect(resolveIntegrityAction(true)).toBe("prompt-update");
     expect(resolveIntegrityAction(false)).toBe("check-integrity");
+  });
+
+  it("only gates actions that need the download service", () => {
+    expect(isDownloadDependentAction("install")).toBe(true);
+    expect(isDownloadDependentAction("continue-install")).toBe(true);
+    expect(isDownloadDependentAction("update")).toBe(true);
+    expect(isDownloadDependentAction("launch")).toBe(false);
+    expect(isDownloadDependentAction("initialize-wine")).toBe(false);
   });
 });

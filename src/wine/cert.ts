@@ -1,5 +1,6 @@
 import { WINE_INF_CERT_STR } from "../clients/secret";
 import { readAllLines, writeFile } from "@platform/neutralino";
+import { warn } from "@logging/logger";
 
 export async function addCertsToWine(wineBinaryDir: string) {
   const searchLoc = "; URL Associations";
@@ -14,8 +15,14 @@ export async function addCertsToWine(wineBinaryDir: string) {
     }
   }
 
+  // Certificate injection is an enhancement, not a prerequisite. A Wine build
+  // without this section (or with a different layout) still configures and
+  // launches games, so skip it instead of failing the whole environment task.
   if (found < 0) {
-    throw new Error("Could not find URL Associations section in wine.inf");
+    await warn(
+      `Could not find URL Associations section in ${wineInfPath}; skipping certificate injection`
+    );
+    return;
   }
 
   let nextBlockLoc = found;
@@ -27,9 +34,10 @@ export async function addCertsToWine(wineBinaryDir: string) {
   }
 
   if (nextBlockLoc === found) {
-    throw new Error(
-      "Could not find the end of URL Associations section in wine.inf"
+    await warn(
+      `Could not find the end of URL Associations section in ${wineInfPath}; skipping certificate injection`
     );
+    return;
   }
 
   wineInfContents = [

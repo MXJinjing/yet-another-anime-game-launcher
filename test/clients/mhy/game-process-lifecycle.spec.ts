@@ -31,7 +31,7 @@ vi.mock("@src/clients/mhy/patch", () => ({
     yield ["setRawStateText", "mock revert"];
   }),
   applyMhypBaseReplacement: vi.fn(async () => false),
-  isRuntimeReplacementFileMissingError: vi.fn(() => false),
+  isRuntimeReplacementError: vi.fn(() => false),
   revertMhypBaseReplacement: vi.fn(async () => undefined),
 }));
 
@@ -43,9 +43,10 @@ import type { Wine } from "@wine";
 import { launchGameProgram as launchHk4e } from "@src/clients/mhy/hk4e/program-launch-game";
 import { launchGameProgram as launchHkrpg } from "@src/clients/mhy/hkrpg/program-launch-game";
 import { launchGameProgram as launchNap } from "@src/clients/mhy/nap/program-launch-game";
+import { GameAlreadyRunningError } from "@src/clients/launch-errors";
 import {
   applyMhypBaseReplacement,
-  isRuntimeReplacementFileMissingError,
+  isRuntimeReplacementError,
   revertMhypBaseReplacement,
 } from "@src/clients/mhy/patch";
 import {
@@ -337,7 +338,7 @@ describe("game launch process-monitor integration", () => {
       vi.mocked(applyMhypBaseReplacement).mockRejectedValueOnce(
         replacementError
       );
-      vi.mocked(isRuntimeReplacementFileMissingError).mockReturnValueOnce(true);
+      vi.mocked(isRuntimeReplacementError).mockReturnValueOnce(true);
 
       await expect(
         collect(
@@ -439,20 +440,49 @@ describe("game launch process-monitor integration", () => {
   it("rejects a duplicate hk4e launch before changing Wine or game files", async () => {
     const { wine, raw } = createWine({ alreadyRunning: true });
 
-    await expect(
-      collect(
-        launchHk4e({
+    const error = await collect(
+      launchHk4e({
+        gameDir: "/game",
+        gameExecutable: "TargetGame.exe",
+        wine,
+        config,
+        server: server("hk4e_cn", "TargetGame.exe"),
+      })
+    ).catch(caught => caught);
+
+    expect(error).toBeInstanceOf(GameAlreadyRunningError);
+    expect((error as GameAlreadyRunningError).executablePath).toBe(
+      "/game/TargetGame.exe"
+    );
+    expect(raw.setProps).not.toHaveBeenCalled();
+    expect(raw.exec2).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["hkrpg", launchHkrpg, "hkrpg_cn"],
+    ["nap", launchNap, "nap_cn"],
+  ] as const)(
+    "rejects a duplicate %s launch with the typed error",
+    async (_name, launch, region) => {
+      const { wine, raw } = createWine({ alreadyRunning: true });
+      const error = await collect(
+        launch({
           gameDir: "/game",
           gameExecutable: "TargetGame.exe",
           wine,
           config,
-          server: server("hk4e_cn", "TargetGame.exe"),
+          server: server(region, "TargetGame.exe"),
         })
-      )
-    ).rejects.toThrow("already running");
-    expect(raw.setProps).not.toHaveBeenCalled();
-    expect(raw.exec2).not.toHaveBeenCalled();
-  });
+      ).catch(caught => caught);
+
+      expect(error).toBeInstanceOf(GameAlreadyRunningError);
+      expect((error as GameAlreadyRunningError).executablePath).toBe(
+        "/game/TargetGame.exe"
+      );
+      expect(raw.setProps).not.toHaveBeenCalled();
+      expect(raw.exec2).not.toHaveBeenCalled();
+    }
+  );
 
   it("kills the prefix before restoring after an hk4e startup timeout", async () => {
     const { wine, raw, monitor } = createWine({ startState: "timed-out" });

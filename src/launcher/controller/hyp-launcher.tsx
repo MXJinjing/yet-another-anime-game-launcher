@@ -14,11 +14,16 @@ import { TaskFailedError } from "@tasks/task-program";
 import { isAuthorizationCancelledError } from "../../runtime/authorization";
 import { isConnectionError } from "../../services/connection-error";
 import { InitialWineSetupModal } from "../../modals/initial-wine-setup-modal";
+import { WineMissingModal } from "../../modals/wine-missing-modal";
+import {
+  listInstalledWineDistributions,
+  planWineRecovery,
+} from "@wine/recovery";
 import { applyRecommendedWineProgram } from "@wine/recommended-settings-program";
 import { Locale } from "@locale";
 import { downloadManagerText } from "../../locale/download-manager";
 import { hopeTaskNotifier } from "@tasks/task-notifications";
-import { exec2, fatal, getKeyOrDefault, setKey } from "@runtime";
+import { exec2, getKeyOrDefault, setKey } from "@runtime";
 import { log } from "@logging/logger";
 import {
   fileOrDirExists,
@@ -96,7 +101,11 @@ import {
   LaunchErrorModal,
   RuntimeReplacementErrorModal,
 } from "../../modals/runtime-replacement-error-modal";
-import { isRuntimeReplacementFileMissingError } from "../../clients/mhy/patch";
+import {
+  GameAlreadyRunningModal,
+  RuntimeReplacementPromptModal,
+} from "../../modals/launch-decision-modal";
+import { isDownloadServiceAvailable } from "@download/service-status";
 import cloudDownloadIcon from "../../assets/icons/cloud-download.svg";
 import cloudCheckIcon from "../../assets/icons/cloud-check.svg";
 import { humanFileSize } from "../../runtime/format";
@@ -113,9 +122,13 @@ import {
   gameProgram,
 } from "./hyp-controller";
 import {
+  isDownloadDependentAction,
   resolveIntegrityAction,
   resolvePrimaryLauncherAction,
 } from "./action-policy";
+import { resolveLaunchFailure } from "./launch-failure-policy";
+import { reportActionFailure } from "./action-failure";
+import { forceStopThenLaunch } from "./force-stop-launch";
 import type {
   HypGame,
   HypGameWineTaskRequest,
@@ -273,7 +286,9 @@ function ProgressPanel({
             data-tooltip={locale.get("CANCEL_DOWNLOAD")}
             disabled={current().cancelDisabled}
             onClick={() => {
-              void cancelControlledDownload(current().namespace).catch(fatal);
+              void cancelControlledDownload(current().namespace).catch(error =>
+                reportActionFailure(locale, "CANCEL_DOWNLOAD", error)
+              );
             }}
           >
             <span class="hyp-download-cancel-icon" aria-hidden="true" />
@@ -549,6 +564,7 @@ export async function createHypLauncher({
       directory: string,
       selection?: SophonInstallSelection
     ) {
+      if (!ensureDownloadService()) return;
       await log(`Game installation requested: ${directory}`);
       taskQueue.enqueue({
         key: game.id,
@@ -563,6 +579,31 @@ export async function createHypLauncher({
       game: HypGame;
       distributions: WineDistribution[];
     }>();
+    // The selected Wine can disappear between sessions: system Wine gets
+    // uninstalled, or a channel names a distribution the build no longer
+    // ships. When another distribution is already on disk, ask which one to
+    // use instead of pushing the user through a fresh download.
+    const [wineRecoveryChoice, setWineRecoveryChoice] = createSignal<{
+      missing: string;
+      installed: WineDistribution[];
+    }>();
+    onMount(() => {
+      if (wineInstalled()) return;
+      void (async () => {
+        const installed = await listInstalledWineDistributions();
+        const plan = planWineRecovery({
+          wineReady: wineInstalled(),
+          currentDistroId: wineDistroId,
+          installed,
+        });
+        if (plan.kind === "choose") {
+          setWineRecoveryChoice({
+            missing: plan.missing,
+            installed: plan.installed,
+          });
+        }
+      })().catch(error => log(`Wine recovery check failed: ${String(error)}`));
+    });
     onMount(() => {
       const hydrate = (game: HypGame) => {
         void game.client
@@ -786,6 +827,15 @@ export async function createHypLauncher({
       game: HypGame;
       details: string;
     }>();
+    const [runtimeReplacementPrompt, setRuntimeReplacementPrompt] =
+      createSignal<{
+        game: HypGame;
+        details: string;
+      }>();
+    const [alreadyRunningGame, setAlreadyRunningGame] = createSignal<{
+      game: HypGame;
+      executablePath: string;
+    }>();
     const pendingCrashKeys = new Set<string>();
     let restoreNativeSettingsNamespace: (() => void) | undefined;
     const taskQueue = createConcurrentTaskQueueState({
@@ -822,18 +872,52 @@ export async function createHypLauncher({
       notifier: {
         ...hopeTaskNotifier,
         taskFailed: (taskLocale, taskName, error, taskKey) => {
-          if (
-            taskName === "LAUNCH" &&
-            isRuntimeReplacementFileMissingError(error)
-          ) {
-            const game = games.find(candidate => candidate.id === taskKey);
-            if (game) {
-              setRuntimeReplacementError({
+          const resolution = resolveLaunchFailure(error, taskName);
+          const game =
+            resolution.kind !== "default" && taskKey
+              ? games.find(candidate => candidate.id === taskKey)
+              : undefined;
+          if (!game) {
+            hopeTaskNotifier.taskFailed(taskLocale, taskName, error);
+            return;
+          }
+          switch (resolution.kind) {
+            case "replacement-error":
+              setRuntimeReplacementError({ game, details: resolution.details });
+              return;
+            case "replacement-prompt":
+              setRuntimeReplacementPrompt({
                 game,
-                details: error.message,
+                details: resolution.details,
               });
               return;
+            case "replacement-skip": {
+              notificationService.show({
+                status: "warning",
+                title: locale.currentLanguage.startsWith("zh")
+                  ? "运行时替换已跳过"
+                  : "Runtime replacement skipped",
+                description: `${resolution.details}\n${
+                  locale.currentLanguage.startsWith("zh")
+                    ? "游戏将在跳过替换的情况下启动。"
+                    : "The game will launch without the replacement."
+                }`,
+              });
+              void startGameLaunch(game, {
+                skipRuntimeReplacements: true,
+              }).catch(startError =>
+                reportActionFailure(locale, "LAUNCH", startError)
+              );
+              return;
             }
+            case "already-running":
+              setAlreadyRunningGame({
+                game,
+                executablePath: resolution.executablePath,
+              });
+              return;
+            default:
+              break;
           }
           hopeTaskNotifier.taskFailed(taskLocale, taskName, error);
         },
@@ -1389,6 +1473,24 @@ export async function createHypLauncher({
       });
     }
 
+    function notifyDownloadServiceUnavailable() {
+      notificationService.show({
+        status: "danger",
+        title: locale.currentLanguage.startsWith("zh")
+          ? "下载服务不可用"
+          : "Download service unavailable",
+        description: locale.currentLanguage.startsWith("zh")
+          ? "下载服务未能启动，暂时无法安装、更新或预下载。请重启启动器后再试。"
+          : "The download service did not start, so install, update, and predownload are unavailable. Restart the launcher and try again.",
+      });
+    }
+
+    function ensureDownloadService() {
+      if (isDownloadServiceAvailable()) return true;
+      notifyDownloadServiceUnavailable();
+      return false;
+    }
+
     async function onPrimaryAction() {
       const download = selectedDownloadControl();
       const game = selectedGame();
@@ -1400,6 +1502,9 @@ export async function createHypLauncher({
         updateRequired: game.client.updateRequired(),
         runtimeReady: game.client.runtimeReady(),
       });
+      if (isDownloadDependentAction(action) && !ensureDownloadService()) {
+        return;
+      }
       switch (action) {
         case "none":
           return;
@@ -1501,7 +1606,10 @@ export async function createHypLauncher({
       });
     }
 
-    async function startGameLaunch(game: HypGame) {
+    async function startGameLaunch(
+      game: HypGame,
+      options: { skipRuntimeReplacements?: boolean } = {}
+    ) {
       await log(`Game launch requested: ${game.id}`);
       if (!(await isGameExecutableAvailable(game))) {
         setMissingGameExecutableGame(game);
@@ -1517,6 +1625,7 @@ export async function createHypLauncher({
           createGameLaunchProgram({
             game,
             baseWine,
+            skipRuntimeReplacements: options.skipRuntimeReplacements,
             onDebugLogs: async target => {
               try {
                 await openLogWindow("game", target);
@@ -1618,6 +1727,7 @@ export async function createHypLauncher({
     }
 
     function onPredownload() {
+      if (!ensureDownloadService()) return;
       const game = selectedGame();
       taskQueue.enqueue({
         key: game.id,
@@ -1636,6 +1746,7 @@ export async function createHypLauncher({
     }
 
     function enqueueGameUpdate(game: HypGame) {
+      if (!ensureDownloadService()) return;
       taskQueue.enqueue({
         key: game.id,
         fn: async function* () {
@@ -2131,7 +2242,15 @@ export async function createHypLauncher({
                 }
                 title={primaryButtonLabel()}
                 disabled={actionDisabled()}
-                onClick={() => onPrimaryAction().catch(fatal)}
+                onClick={() =>
+                  onPrimaryAction().catch(error =>
+                    reportActionFailure(
+                      locale,
+                      "NOTIFICATION_TASK_FAILED_TITLE",
+                      error
+                    )
+                  )
+                }
                 style={
                   {
                     "--hyp-accent": themeHex(),
@@ -2351,7 +2470,7 @@ export async function createHypLauncher({
                   enqueueCheckIntegrity(prompt.game, directory, selection);
                 } else {
                   void enqueueInstall(prompt.game, directory, selection).catch(
-                    fatal
+                    error => reportActionFailure(locale, "INSTALL", error)
                   );
                 }
               }}
@@ -2378,6 +2497,49 @@ export async function createHypLauncher({
             const failure = runtimeReplacementError();
             setRuntimeReplacementError();
             if (failure) void openNativeSettings(failure.game);
+          }}
+        />
+
+        <RuntimeReplacementPromptModal
+          opened={runtimeReplacementPrompt() != undefined}
+          locale={locale}
+          gameTitle={runtimeReplacementPrompt()?.game.title}
+          details={runtimeReplacementPrompt()?.details ?? ""}
+          onCancel={() => setRuntimeReplacementPrompt()}
+          onSkip={() => {
+            const failure = runtimeReplacementPrompt();
+            setRuntimeReplacementPrompt();
+            if (!failure) return;
+            void startGameLaunch(failure.game, {
+              skipRuntimeReplacements: true,
+            }).catch(error => reportActionFailure(locale, "LAUNCH", error));
+          }}
+        />
+
+        <GameAlreadyRunningModal
+          opened={alreadyRunningGame() != undefined}
+          locale={locale}
+          gameTitle={alreadyRunningGame()?.game.title}
+          executablePath={alreadyRunningGame()?.executablePath ?? ""}
+          onCancel={() => setAlreadyRunningGame()}
+          onForceStop={() => {
+            const running = alreadyRunningGame();
+            setAlreadyRunningGame();
+            if (!running) return;
+            void (async () => {
+              try {
+                // Destructive on purpose: this stops every Wine process in
+                // the game's prefix, as the user explicitly asked. Wait for
+                // the server to settle before relaunching so the new launch
+                // does not immediately see the dying processes.
+                await forceStopThenLaunch(
+                  running.game.wineRef?.current ?? baseWine,
+                  () => startGameLaunch(running.game)
+                );
+              } catch (error) {
+                await reportActionFailure(locale, "LAUNCH", error);
+              }
+            })();
           }}
         />
 
@@ -2472,6 +2634,25 @@ export async function createHypLauncher({
             if (game) void openNativeSettings(game);
           }}
         />
+
+        <Show when={wineRecoveryChoice()} keyed>
+          {choice => (
+            <WineMissingModal
+              locale={locale}
+              missing={choice.missing}
+              installed={choice.installed}
+              onUseInstalled={distro => {
+                setWineRecoveryChoice();
+                startInitializeWine(distro);
+              }}
+              onDownloadBuiltin={() => {
+                setWineRecoveryChoice();
+                startInitializeWine(resolveRecommendedWineDistro());
+              }}
+              onCancel={() => setWineRecoveryChoice()}
+            />
+          )}
+        </Show>
 
         <Show when={initialWineSetup()} keyed>
           {setup => {

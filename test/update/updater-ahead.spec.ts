@@ -19,6 +19,7 @@ vi.mock("@logging/logger", () => ({
 }));
 
 import { getKey } from "@runtime/storage";
+import { GithubRequestError } from "@src/integrations/github";
 import { createUpdater } from "@src/update/updater";
 
 const mockedGetKey = vi.mocked(getKey);
@@ -79,5 +80,25 @@ describe("createUpdater version comparison", () => {
     if (result.latest === false) {
       expect(result.version).toBe("1.2.0");
     }
+  });
+
+  it("returns an error status instead of throwing when the release API fails", async () => {
+    const github = {
+      api: vi.fn(async () => {
+        throw new GithubRequestError(
+          500,
+          "Internal Server Error",
+          "https://api.github.com/repos/example/releases/latest"
+        );
+      }),
+    };
+
+    await expect(
+      createUpdater({
+        github: github as never,
+        aria2: {} as never,
+        automatic: false,
+      })
+    ).resolves.toEqual({ latest: undefined, errorStatus: 500 });
   });
 });

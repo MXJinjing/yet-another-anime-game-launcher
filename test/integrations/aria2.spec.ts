@@ -296,6 +296,72 @@ describe("aria2 download lifecycle", () => {
     ).rejects.toThrow("Fail to create aria2 rpc");
     expect(RPC.Client).toHaveBeenCalledTimes(30);
   });
+
+  it("rebuilds the RPC connection and resumes a download after a mid-task loss", async () => {
+    const reconnect = vi.fn(async () => ({
+      host: "localhost",
+      port: 40001,
+      secret: "rebuilt-secret",
+    }));
+    const aria2 = await createAria2({
+      host: "localhost",
+      port: 40000,
+      secret: "test-secret",
+      reconnect,
+    });
+    rpc.tellStatus
+      .mockRejectedValueOnce({ code: 1 })
+      .mockResolvedValueOnce(status())
+      .mockRejectedValueOnce(new Error("connection lost"))
+      .mockResolvedValueOnce(status("complete"));
+    await expect(collect(aria2.doStreamingDownload(request))).resolves.toEqual([
+      status(),
+    ]);
+    expect(reconnect).toHaveBeenCalledTimes(1);
+    expect(RPC.Client).toHaveBeenCalledTimes(2);
+    expect(RPC.Client).toHaveBeenLastCalledWith({
+      host: "localhost",
+      port: 40001,
+      auth: { secret: "rebuilt-secret" },
+    });
+  });
+
+  it("retries a failed rebuild once with a fresh endpoint", async () => {
+    const reconnect = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("no port"))
+      .mockResolvedValueOnce({ host: "localhost", port: 40002 });
+    const aria2 = await createAria2({
+      host: "localhost",
+      port: 40000,
+      reconnect,
+    });
+    rpc.tellStatus
+      .mockRejectedValueOnce({ code: 1 })
+      .mockRejectedValueOnce(new Error("connection lost"))
+      .mockResolvedValueOnce(status("complete"));
+    await expect(collect(aria2.doStreamingDownload(request))).resolves.toEqual(
+      []
+    );
+    expect(reconnect).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails only the current download when the RPC cannot be rebuilt", async () => {
+    const reconnect = vi.fn().mockRejectedValue(new Error("no port"));
+    const aria2 = await createAria2({
+      host: "localhost",
+      port: 40000,
+      reconnect,
+    });
+    rpc.tellStatus
+      .mockRejectedValueOnce({ code: 1 })
+      .mockRejectedValueOnce(new Error("connection lost"));
+    await expect(
+      collect(aria2.doStreamingDownload(request))
+    ).rejects.toBeInstanceOf(DownloadFailedError);
+    expect(reconnect).toHaveBeenCalledTimes(2);
+    expect(unregisterStream).toHaveBeenCalledWith("aria2:gid");
+  });
 });
 
 describe("aggregate aria2 progress", () => {

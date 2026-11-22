@@ -19,6 +19,7 @@ import { join } from "path-browserify";
 import {
   isNewerGameVersion,
   readGameVersion,
+  readInstalledGameVersion,
   requireGameVersion,
 } from "../../game-version";
 import { Config } from "@config";
@@ -296,11 +297,15 @@ export async function createBH3ChannelClient({
         await setKey("game_install_dir", selection);
         return;
       }
-      const gameVersion = await getGameVersion(join(selection, server.dataDir));
-      if (!readGameVersion(gameVersion)) {
+      const versionRead = await readInstalledGameVersion(() =>
+        getGameVersion(join(selection, server.dataDir))
+      );
+      if (versionRead.status === "missing") throw versionRead.error;
+      if (versionRead.status === "unavailable") {
         await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
         return;
       }
+      const gameVersion = versionRead.version;
       if (isNewerGameVersion(gameVersion, CURRENT_SUPPORTED_VERSION)) {
         await locale.alert(
           "UNSUPPORTED_VERSION",
@@ -500,11 +505,14 @@ export async function createBH3ChannelClient({
       });
 
       if (gameCurrentVersion() === "0.0.0") {
-        setGameVersion(
-          readGameVersion(
-            await getGameVersion(join(_gameInstallDir(), server.dataDir))
-          ) ?? "0.0.0"
+        const result = await readInstalledGameVersion(() =>
+          getGameVersion(join(_gameInstallDir(), server.dataDir))
         );
+        if (result.status === "missing") throw result.error;
+        if (result.status === "version") setGameVersion(result.version);
+        if (result.status === "unavailable") {
+          await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+        }
       }
     },
     async changeInstallDir(selection: string) {
@@ -517,26 +525,27 @@ export async function createBH3ChannelClient({
         await setKey("game_install_dir", null);
         return;
       }
-      try {
-        const gameVersion = await getGameVersion(
-          join(selection, server.dataDir)
-        );
-        batch(() => {
-          setInstalled("INSTALLED");
-          setGameInstallDir(selection);
-          setGameVersion(readGameVersion(gameVersion) ?? "0.0.0");
-        });
-        if (gameCurrentVersion() === "0.0.0") {
-          await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
-        }
-      } catch {
+      const result = await readInstalledGameVersion(() =>
+        getGameVersion(join(selection, server.dataDir))
+      );
+      if (result.status === "missing") {
         batch(() => {
           setInstalled("NOT_INSTALLED");
           setGameInstallDir(selection);
           setGameVersion("0.0.0");
         });
+        await setKey("game_install_dir", selection);
+        return;
       }
+      batch(() => {
+        setInstalled("INSTALLED");
+        setGameInstallDir(selection);
+        setGameVersion(result.status === "version" ? result.version : "0.0.0");
+      });
       await setKey("game_install_dir", selection);
+      if (result.status === "unavailable") {
+        await locale.alert("GAME_VERSION_INVALID", "GAME_VERSION_UNREADABLE");
+      }
     },
     async *init(config: Config) {
       setRuntimeReady(await isDXMTInstalled());
@@ -584,18 +593,19 @@ async function checkGameState(
       gameInstalled: false,
     } as const;
   }
-  try {
-    return {
-      gameInstalled: true,
-      gameInstallDir: gameDir,
-      gameVersion:
-        (await getGameVersion(join(gameDir, server.dataDir))) || "0.0.0",
-    } as const;
-  } catch {
+  const result = await readInstalledGameVersion(() =>
+    getGameVersion(join(gameDir, server.dataDir))
+  );
+  if (result.status === "missing") {
     return {
       gameInstalled: false,
     } as const;
   }
+  return {
+    gameInstalled: true,
+    gameInstallDir: gameDir,
+    gameVersion: result.status === "version" ? result.version : "0.0.0",
+  } as const;
 }
 
 async function getLatestVersionInfo(

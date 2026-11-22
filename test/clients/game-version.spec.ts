@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   isNewerGameVersion,
   readGameVersion,
+  readInstalledGameVersion,
   requireGameVersion,
 } from "../../src/clients/game-version";
+import { GameVersionUnreadableError } from "../../src/clients/launch-errors";
 
 describe("game versions", () => {
   it.each([
@@ -31,5 +33,34 @@ describe("game versions", () => {
     expect(isNewerGameVersion("1.2.4-beta.1", version)).toBe(true);
     expect(isNewerGameVersion("1.2.3", version)).toBe(false);
     expect(isNewerGameVersion("1.2.2", version)).toBe(false);
+  });
+
+  it("reports a readable installed version", async () => {
+    await expect(
+      readInstalledGameVersion(async () => "1.2.3")
+    ).resolves.toEqual({ status: "version", version: "1.2.3" });
+  });
+
+  it("reports an unusable version value as unavailable", async () => {
+    await expect(
+      readInstalledGameVersion(async () => "corrupt")
+    ).resolves.toEqual({ status: "unavailable" });
+  });
+
+  it("reports a typed read failure as unavailable", async () => {
+    await expect(
+      readInstalledGameVersion(async () => {
+        throw new GameVersionUnreadableError("pattern not found");
+      })
+    ).resolves.toEqual({ status: "unavailable" });
+  });
+
+  it("keeps other read failures as missing files", async () => {
+    const error = new Error("ENOENT");
+    await expect(
+      readInstalledGameVersion(async () => {
+        throw error;
+      })
+    ).resolves.toEqual({ status: "missing", error });
   });
 });

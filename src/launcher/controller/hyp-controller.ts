@@ -5,6 +5,7 @@ import { getKeyOrDefault } from "@runtime/storage";
 import { ensureMultiGameGameWine } from "@wine/multi-game";
 import type { GameLogLocation } from "../../channel-client";
 import type { HypGame } from "./launcher-types";
+import { withoutRuntimeReplacements } from "../../clients/mhy/patch";
 
 /** Wrap a game operation with its per-game Wine selection. */
 export function gameProgram(
@@ -50,15 +51,22 @@ export function createGameLaunchProgram({
   game,
   baseWine,
   onDebugLogs,
+  skipRuntimeReplacements,
 }: {
   game: HypGame;
   baseWine: import("../../wine").Wine;
   onDebugLogs?: (target: GameDebugLogTarget) => void | Promise<void>;
+  skipRuntimeReplacements?: boolean;
 }): TaskProgram {
   return (async function* () {
-    const config = game.config.advancedEnable
+    const baseConfig = game.config.advancedEnable
       ? game.config
       : { ...game.config, reshade: false, metalFxEnable: false };
+    // The user asked to launch anyway after a replacement problem. Disable
+    // every replacement source so the retry cannot fail the same way again.
+    const config = skipRuntimeReplacements
+      ? withoutRuntimeReplacements(baseConfig)
+      : baseConfig;
     if (
       (await getKeyOrDefault("config_debug_mode", "false")) === "true" &&
       game.client.installState() === "INSTALLED"
