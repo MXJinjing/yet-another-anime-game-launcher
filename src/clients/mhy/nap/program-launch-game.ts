@@ -35,7 +35,10 @@ import {
   legacyBlockHosts,
 } from "../../../system/privileged-hosts";
 import { gt } from "semver";
-import { removeMetalFxGpuInfo, writeMetalFxGpuInfo } from "./config/metalfx";
+import {
+  removeMetalFxGpuInfo,
+  writeMetalFxGpuInfo,
+} from "./config/metalfx-prefix";
 
 async function logInternalProgress(program: TaskProgram) {
   for await (const command of program) {
