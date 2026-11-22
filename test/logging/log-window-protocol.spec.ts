@@ -5,8 +5,10 @@ import {
   consumeLauncherLogText,
   gameTailIdentity,
   isLogWindowArgs,
+  isLogWindowProcessRunning,
   logWindowCreateRequest,
   logWindowProcessArgs,
+  logWindowProcessStateCommand,
   parentPidFromArgs,
   parseLauncherLogLine,
   parseLogWindowSession,
@@ -57,6 +59,32 @@ describe("log window protocol", () => {
     expect(posixSignalCommand(15, "KILL")).toBe("/bin/kill -KILL 15");
     expect(posixSignalCommand(0, "KILL")).toBeUndefined();
     expect(posixSignalCommand(Number.NaN, "KILL")).toBeUndefined();
+  });
+
+  it("inspects the logged window process instead of signalling it", () => {
+    expect(logWindowProcessStateCommand(15)).toBe(
+      "/bin/ps -p 15 -ww -o stat= -o command="
+    );
+    expect(logWindowProcessStateCommand(0)).toBeUndefined();
+    expect(logWindowProcessStateCommand(Number.NaN)).toBeUndefined();
+  });
+
+  it("treats zombies, recycled pids and empty output as closed windows", () => {
+    const running =
+      "S+ /Applications/Yaaglm.app/Contents/MacOS/Yaaglm --url=/ " +
+      "--yaagl-window=logs --yaagl-parent-pid=42";
+    expect(isLogWindowProcessRunning(running, 42)).toBe(true);
+    expect(isLogWindowProcessRunning(running, 43)).toBe(false);
+    // A closed window keeps its pid as a zombie until the launcher exits.
+    expect(isLogWindowProcessRunning(running.replace("S+", "Z+"), 42)).toBe(
+      false
+    );
+    // The pid may be reused by an unrelated process after a restart.
+    expect(isLogWindowProcessRunning("S /usr/bin/other --flag", 42)).toBe(
+      false
+    );
+    expect(isLogWindowProcessRunning("", 42)).toBe(false);
+    expect(isLogWindowProcessRunning(undefined, 42)).toBe(false);
   });
 
   it("parses launcher log lines and keeps a partial trailing line", () => {

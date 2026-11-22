@@ -3,7 +3,9 @@ import { addBeforeCloseApp } from "../platform/neutralino/system";
 import { getRuntimeLogFilePath } from "./log-file";
 import { logerror } from "./logger";
 import {
+  isLogWindowProcessRunning,
   logWindowCreateRequest,
+  logWindowProcessStateCommand,
   parseLogWindowSession,
   posixSignalCommand,
   serializeLogWindowSession,
@@ -29,7 +31,7 @@ export interface LogWindowHostDependencies {
   readSession: () => Promise<string | undefined>;
   writeSession: (text: string) => Promise<void>;
   createWindow: (processArgs: string) => Promise<{ pid: number }>;
-  exec: (command: string) => Promise<{ exitCode: number }>;
+  exec: (command: string) => Promise<{ exitCode: number; stdOut?: string }>;
 }
 
 export function createLogWindowHost(deps: LogWindowHostDependencies) {
@@ -56,10 +58,12 @@ export function createLogWindowHost(deps: LogWindowHostDependencies) {
 
   async function alive(pid: number | undefined) {
     const command =
-      pid === undefined ? undefined : posixSignalCommand(pid, "0");
+      pid === undefined ? undefined : logWindowProcessStateCommand(pid);
     if (!command) return false;
     try {
-      return (await deps.exec(command)).exitCode === 0;
+      const result = await deps.exec(command);
+      if (result.exitCode !== 0) return false;
+      return isLogWindowProcessRunning(result.stdOut, deps.parentPid);
     } catch {
       return false;
     }

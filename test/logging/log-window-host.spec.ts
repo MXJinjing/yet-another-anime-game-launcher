@@ -2,18 +2,36 @@ import { describe, expect, it, vi } from "vitest";
 import { createLogWindowHost } from "@src/logging/log-window-host";
 import { parseLogWindowSession } from "@src/logging/log-window-protocol";
 
+type WindowState = "running" | "zombie" | "missing" | "recycled";
+
 function hostWith(options?: {
-  alive?: boolean;
+  window?: WindowState;
   pid?: number;
   parentPid?: number;
 }) {
   let stored: string | undefined;
-  const exec = vi.fn(async (command: string) => ({
-    exitCode: command.includes(" -0 ") && options?.alive === false ? 1 : 0,
-  }));
+  let windowState: WindowState = options?.window ?? "missing";
+  const parentPid = options?.parentPid ?? 11;
+  const commandLine = (state: string) =>
+    `${state} /Applications/Yaaglm --url=/ --yaagl-window=logs ` +
+    `--yaagl-parent-pid=${parentPid}`;
+  const exec = vi.fn(async (command: string) => {
+    if (!command.startsWith("/bin/ps ")) return { exitCode: 0, stdOut: "" };
+    switch (windowState) {
+      case "running":
+        return { exitCode: 0, stdOut: commandLine("S+") };
+      // A closed window stays a zombie until the launcher exits.
+      case "zombie":
+        return { exitCode: 0, stdOut: commandLine("Z+") };
+      case "recycled":
+        return { exitCode: 0, stdOut: "S /usr/bin/unrelated" };
+      default:
+        return { exitCode: 1, stdOut: "" };
+    }
+  });
   const createWindow = vi.fn(async () => ({ pid: options?.pid ?? 77 }));
   const host = createLogWindowHost({
-    parentPid: options?.parentPid ?? 11,
+    parentPid,
     launcherLogPath: "/tmp/yaaglm.log",
     readSession: async () => stored,
     writeSession: async text => {
@@ -22,7 +40,15 @@ function hostWith(options?: {
     createWindow,
     exec,
   });
-  return { host, exec, createWindow, stored: () => stored };
+  return {
+    host,
+    exec,
+    createWindow,
+    stored: () => stored,
+    setWindowState: (state: WindowState) => {
+      windowState = state;
+    },
+  };
 }
 
 describe("log window host", () => {
@@ -41,15 +67,34 @@ describe("log window host", () => {
   });
 
   it("focuses an existing window instead of creating another", async () => {
-    const { host, createWindow, stored } = hostWith({ alive: true });
+    const { host, createWindow, stored } = hostWith({ window: "running" });
     await host.open("launcher");
     await host.open("launcher");
     expect(createWindow).toHaveBeenCalledOnce();
     expect(parseLogWindowSession(stored() ?? "")?.focusNonce).toBe(2);
   });
 
+  it("reopens the window after it was closed", async () => {
+    const context = hostWith();
+    await context.host.open("launcher");
+    // Closing the window kills the process, but Neutralino never reaps it, so
+    // it lingers as a zombie for the rest of the launcher session.
+    context.setWindowState("zombie");
+    await context.host.open("launcher");
+    expect(context.createWindow).toHaveBeenCalledTimes(2);
+    expect(parseLogWindowSession(context.stored() ?? "")?.windowPid).toBe(77);
+  });
+
+  it("does not reuse a pid that now belongs to another process", async () => {
+    const context = hostWith();
+    await context.host.open("launcher");
+    context.setWindowState("recycled");
+    await context.host.open("launcher");
+    expect(context.createWindow).toHaveBeenCalledTimes(2);
+  });
+
   it("opens the game tab for a debug launch and replaces the generation", async () => {
-    const { host, stored } = hostWith({ alive: true });
+    const { host, stored } = hostWith({ window: "running" });
     await host.publishGame({
       prefix: "/prefix",
       gameDir: "/game",
@@ -66,7 +111,7 @@ describe("log window host", () => {
   });
 
   it("kills the recorded window when the launcher exits", async () => {
-    const { host, exec, stored } = hostWith({ alive: true });
+    const { host, exec, stored } = hostWith({ window: "running" });
     await host.open("launcher");
     exec.mockClear();
     await host.close();
@@ -75,7 +120,7 @@ describe("log window host", () => {
   });
 
   it("does not kill a window that has already exited", async () => {
-    const { host, exec } = hostWith({ alive: false });
+    const { host, exec } = hostWith({ window: "zombie" });
     await host.open("launcher");
     exec.mockClear();
     await host.close();
