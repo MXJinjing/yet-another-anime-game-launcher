@@ -52,8 +52,9 @@ export default async function ({
 
   // One switch drives both implementations: DXMT ships its own NGX bridge,
   // while a D3DMetal runtime provides the DLSS-to-MetalFX bridge itself.
+  const dxmtSelected = () => renderBackend?.() == "dxmt";
   const requirement = () =>
-    renderBackend?.() == "dxmt"
+    dxmtSelected()
       ? locale.get("SETTING_NAP_METALFX_DXMT_NOTE")
       : locale.get("SETTING_NAP_METALFX_RUNTIME_NOTE");
 
@@ -68,10 +69,16 @@ export default async function ({
           onChange={value => void onChange(value)}
         >
           <span class="setting-switch-requirement">{requirement()}</span>
-          <Show when={enabled() && renderBackend?.() == "dxmt"}>
+          <Show when={enabled()}>
             <MetalFxFactorSlider
               locale={locale}
               value={factor()}
+              disabled={!dxmtSelected()}
+              note={
+                dxmtSelected()
+                  ? undefined
+                  : locale.get("SETTING_METALFX_DXMT_ONLY")
+              }
               onChange={value => void onFactorChange(value)}
             />
           </Show>

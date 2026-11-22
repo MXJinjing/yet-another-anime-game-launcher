@@ -1,4 +1,5 @@
 import { Box, HStack, IconButton, Text, createIcon } from "@hope-ui/solid";
+import { JSXElement, Show } from "solid-js";
 import { Locale } from "@locale";
 import {
   METALFX_FACTOR_DEFAULT,
@@ -29,6 +30,8 @@ export function MetalFxFactorSlider(props: {
   locale: Locale;
   value: number;
   disabled?: boolean;
+  /** Extra line under the slider, for example why it is currently inert. */
+  note?: JSXElement;
   onChange: (value: number) => void;
 }) {
   // Built here instead of at module scope so importing this file (for example
@@ -65,6 +68,9 @@ export function MetalFxFactorSlider(props: {
         disabled={props.disabled}
         style={{ width: "100%" }}
       />
+      <Show when={props.note}>
+        <Text class="setting-switch-description">{props.note}</Text>
+      </Show>
     </Box>
   );
 }
