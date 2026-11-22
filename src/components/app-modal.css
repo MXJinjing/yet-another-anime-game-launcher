@@ -43,9 +43,10 @@
 
 .app-modal-content .hope-modal__footer {
   display: flex !important;
+  flex-wrap: wrap !important;
   align-items: center !important;
   justify-content: flex-end !important;
-  gap: 10px !important;
+  gap: 12px !important;
   padding: 4px 24px 22px !important;
 }
 
@@ -125,6 +126,20 @@
   background: rgba(255, 255, 255, 0.08) !important;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
   color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.initial-wine-distro-select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background-color: #0b0d12;
+  color: #fff;
+  color-scheme: dark;
+  font: inherit;
+  font-weight: 700;
 }
 
 .app-modal-content input[type="number"] {
@@ -281,8 +296,11 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
+/* Labels must never break mid-word when three actions share one row: the
+   footer wraps to a second row instead, so each button keeps a single line. */
 .app-modal-button {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   min-width: 92px;
@@ -295,6 +313,7 @@
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0;
+  white-space: nowrap;
   transition: transform 160ms ease, filter 160ms ease,
     background-color 160ms ease;
 }

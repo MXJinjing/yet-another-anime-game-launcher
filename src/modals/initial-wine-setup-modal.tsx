@@ -1,9 +1,8 @@
 import { Text, VStack } from "@hope-ui/solid";
-import { createSignal, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import type { Locale } from "@locale";
 import type { WineDistribution } from "@wine";
 import { AppModal, AppModalButton } from "../components/app-modal";
-import { AppSelect } from "../components/app-select";
 
 export function InitialWineSetupModal(props: {
   locale: Locale;
@@ -74,15 +73,20 @@ export function InitialWineSetupModal(props: {
           <label for="initial-wine-distro">
             {locale.get("INIT_ENVIRONMENT_WINE_VERSION")}
           </label>
-          <AppSelect
+          {/* The native menu opens outside the modal's scrollable body. */}
+          <select
             id="initial-wine-distro"
-            value={selectedId()}
-            onChange={setSelectedId}
-            options={props.distributions.map(distro => ({
-              value: distro.id,
-              label: distro.displayName,
-            }))}
-          />
+            class="initial-wine-distro-select"
+            onChange={event => setSelectedId(event.currentTarget.value)}
+          >
+            <For each={props.distributions}>
+              {distro => (
+                <option value={distro.id} selected={distro.id === selectedId()}>
+                  {distro.displayName}
+                </option>
+              )}
+            </For>
+          </select>
         </Show>
       </VStack>
     </AppModal>

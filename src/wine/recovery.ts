@@ -1,5 +1,21 @@
+import { fileOrDirExists } from "@platform/neutralino";
+import { getKeyOrDefault } from "@runtime/storage";
+import { join } from "path-browserify";
 import { getWineDistributions, type WineDistribution } from "./distro";
 import { isWineDistroInstalled } from "./wine";
+
+export async function isSharedWineInitialized(
+  prefix: string,
+  readSetting = getKeyOrDefault,
+  exists = fileOrDirExists
+): Promise<boolean> {
+  // Setup only writes "ready" on success. Reset can leave that marker behind
+  // after deleting the prefix, and an empty prefix folder is not usable.
+  return (
+    (await readSetting("wine_state", "")) === "ready" &&
+    (await exists(join(prefix, "system.reg")))
+  );
+}
 
 /**
  * Answers "is this distribution usable right now?".
@@ -40,20 +56,31 @@ export type WineRecoveryPlan =
  * uninstalled, or a channel's tag no longer matches the shipped list. The
  * existing initialization flow can download a fresh Wine, but when a usable
  * distribution already exists on disk the user should be asked instead of
- * being pushed into another download. Everything else -- a healthy Wine, a
- * pending distribution update, or nothing installed at all -- keeps the
- * ordinary flow, which is why those cases resolve to "none" here.
+ * being pushed into another download. Everything else -- a healthy Wine, an
+ * environment that was never initialized, a pending distribution update, or
+ * nothing installed at all -- keeps the ordinary flow, which is why those
+ * cases resolve to "none" here.
  */
 export function planWineRecovery({
   wineReady,
+  initialized,
   currentDistroId,
   installed,
 }: {
   wineReady: boolean;
+  /**
+   * Whether setup completed and the shared prefix still exists. First run
+   * also reports `wineReady: false`, but there is nothing to recover.
+   */
+  initialized: boolean;
   currentDistroId: string;
   installed: WineDistribution[];
 }): WineRecoveryPlan {
   if (wineReady) return { kind: "none" };
+  // Before the first setup there is no prefix and no Wine the user ever
+  // picked, so the ordinary initialization flow still owns the decision.
+  // Prompting here would claim a Wine is "unavailable" when none was chosen.
+  if (!initialized) return { kind: "none" };
   if (installed.some(distro => distro.id === currentDistroId)) {
     // The selected distribution is still on disk, so "not ready" means a
     // pending update or an unfinished setup rather than a vanished Wine.

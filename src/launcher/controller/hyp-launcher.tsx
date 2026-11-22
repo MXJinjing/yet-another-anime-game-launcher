@@ -16,6 +16,7 @@ import { isConnectionError } from "../../services/connection-error";
 import { InitialWineSetupModal } from "../../modals/initial-wine-setup-modal";
 import { WineMissingModal } from "../../modals/wine-missing-modal";
 import {
+  isSharedWineInitialized,
   listInstalledWineDistributions,
   planWineRecovery,
 } from "@wine/recovery";
@@ -581,26 +582,27 @@ export async function createHypLauncher({
     }>();
     // The selected Wine can disappear between sessions: system Wine gets
     // uninstalled, or a channel names a distribution the build no longer
-    // ships. When another distribution is already on disk, ask which one to
-    // use instead of pushing the user through a fresh download.
-    const [wineRecoveryChoice, setWineRecoveryChoice] = createSignal<{
-      missing: string;
-      installed: WineDistribution[];
-    }>();
+    // ships. Rather than silently reinstalling something, point the user at
+    // the Wine settings page, where versions are picked and downloaded.
+    const [wineRecoveryChoice, setWineRecoveryChoice] = createSignal<string>();
     onMount(() => {
       if (wineInstalled()) return;
       void (async () => {
-        const installed = await listInstalledWineDistributions();
+        const initialized = await isSharedWineInitialized(baseWine.prefix);
+        const currentDistroId = initialized
+          ? await getKeyOrDefault("wine_tag", wineDistroId)
+          : wineDistroId;
+        const installed = initialized
+          ? await listInstalledWineDistributions()
+          : [];
         const plan = planWineRecovery({
           wineReady: wineInstalled(),
-          currentDistroId: wineDistroId,
+          initialized,
+          currentDistroId,
           installed,
         });
         if (plan.kind === "choose") {
-          setWineRecoveryChoice({
-            missing: plan.missing,
-            installed: plan.installed,
-          });
+          setWineRecoveryChoice(plan.missing);
         }
       })().catch(error => log(`Wine recovery check failed: ${String(error)}`));
     });
@@ -2636,18 +2638,15 @@ export async function createHypLauncher({
         />
 
         <Show when={wineRecoveryChoice()} keyed>
-          {choice => (
+          {missing => (
             <WineMissingModal
               locale={locale}
-              missing={choice.missing}
-              installed={choice.installed}
-              onUseInstalled={distro => {
+              missing={missing}
+              onOpenSettings={() => {
                 setWineRecoveryChoice();
-                startInitializeWine(distro);
-              }}
-              onDownloadBuiltin={() => {
-                setWineRecoveryChoice();
-                startInitializeWine(resolveRecommendedWineDistro());
+                closeNativeSettings();
+                setGlobalSettingsInitialTab(2);
+                setGlobalModalRoute("settings");
               }}
               onCancel={() => setWineRecoveryChoice()}
             />
