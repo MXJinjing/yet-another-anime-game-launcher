@@ -77,7 +77,7 @@ describe("instance storage", () => {
   });
 
   it("reads game-owned keys from the game scope only", async () => {
-    const chinaGame = createStorage("hpcngenshin");
+    const chinaGame = createStorage("hpcnhk4e");
 
     readFile.mockRejectedValueOnce(new Error("missing game preference"));
     await expect(chinaGame.getKey("config_preferred_max_fps")).rejects.toThrow(
@@ -85,7 +85,7 @@ describe("instance storage", () => {
     );
     expect(readFile).toHaveBeenCalledTimes(1);
     expect(readFile).toHaveBeenCalledWith(
-      ".storage/hpcngenshin_config_preferred_max_fps.neustorage"
+      ".storage/hpcnhk4e_config_preferred_max_fps.neustorage"
     );
     expect(writeFile).not.toHaveBeenCalled();
   });

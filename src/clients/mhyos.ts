@@ -1,9 +1,9 @@
-// Merged "Yaaglm OS" channel: the four mihoyo global games share one
+// Merged "Yaaglm OS" channel: the four global games share one
 // launcher UI (see src/launcher/multi-game.tsx). The actual per-game clients
 // are created from their individual client modules; this stub exists so the
 // channel-switcher build (vite.config.ts) and src/wine/distro.ts can resolve
 // the merged channel as a regular client entry.
-import { createClient as createGenshinOsClient } from "./hk4eos";
+import { createClient as createHk4eOsClient } from "./hk4eos";
 import type { CreateClientOptions } from "./shared";
 import s from "../assets/Nahida.cr.png";
 
@@ -13,9 +13,9 @@ export const DEFAULT_WINE_DISTRO_TAG = "11.0-1-crossover-signed-experimental";
 
 export function createClient(options: CreateClientOptions) {
   // The merged launcher builds its own per-game clients; keep this stub
-  // functional (delegating to Genshin OS) so nothing breaks if some code
+  // functional (delegating to HK4E OS) so nothing breaks if some code
   // path still resolves the default channel client.
-  return createGenshinOsClient(options);
+  return createHk4eOsClient(options);
 }
 
 export const UPDATE_UI_IMAGE = s;

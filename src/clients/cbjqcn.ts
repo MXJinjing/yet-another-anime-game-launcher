@@ -1,3 +1,9 @@
+import {
+  CBJQ_CN_MANIFEST,
+  CBJQ_CN_DLC,
+  CBJQ_CN_CHANNEL,
+  CBJQ_CN_BACKGROUND_URL,
+} from "./secret";
 import { Server } from "./seasun/server";
 
 import s from "../assets/Nahida.cr.png";
@@ -12,11 +18,10 @@ export const DEFAULT_WINE_DISTRO_TAG = "11.0-dxmt-signed-with-patches";
 /** It's broken due to AntiCheat */
 const SERVER_DEFINITION: Server = {
   id: "CBJQCN",
-  manifest: "https://cbjq.xoyocdn.com/DLC7/PC/updates/manifest.json",
-  dlc: "https://cbjq.xoyocdn.com/DLC7/PC/updates",
-  channel: "jinshan",
-  background_url:
-    "https://cdn1.epicgames.com/spt-assets/e55df6d332b24ee18fb52af2bc530caa/snowbreak-containment-zone-aeglp.jpg",
+  manifest: CBJQ_CN_MANIFEST,
+  dlc: CBJQ_CN_DLC,
+  channel: CBJQ_CN_CHANNEL,
+  background_url: CBJQ_CN_BACKGROUND_URL,
 };
 
 export function createClient(options: CreateClientOptions) {

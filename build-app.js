@@ -1,3 +1,4 @@
+const { bh3GlobalSuffix } = require("./src/constants/yaaglm-config.secret.json");
 const execa = require("execa");
 const crypto = require("crypto");
 const fs = require("fs-extra");
@@ -73,7 +74,7 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
       break;
     case "bh3glb":
       bundleId = config.applicationId + ".bh3.glb";
-      appDistributionName = config.cli.binaryName + " Honkai Global";
+      appDistributionName = config.cli.binaryName + ` ${bh3GlobalSuffix}`;
       config.modes.window.icon = "/src/assets/Elysia.cr.png";
       break;
     case "cbjq":

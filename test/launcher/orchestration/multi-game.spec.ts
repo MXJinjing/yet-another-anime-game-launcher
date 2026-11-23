@@ -35,6 +35,11 @@ vi.mock("@wine/multi-game", () => ({
 import { createGameSettings } from "@settings";
 import { getKeyOrDefault } from "@runtime/storage";
 import { getWineDistributions } from "@wine";
+import {
+  getGameRegistryKey,
+  getWineUserData,
+} from "@src/clients/game-data-paths";
+import { HK4E_CN_USER_DATA_PATH, SDK_REGISTRY_KEY } from "@src/clients/secret";
 import { getLatestGameDisplays } from "@src/clients/mhy/hyp-connect";
 import { createHypLauncher } from "@src/launcher/controller/hyp-launcher";
 import { fileOrDirExists } from "@platform/neutralino";
@@ -247,6 +252,45 @@ describe("multi-game launcher orchestration", () => {
     expect(setMultiGameGameWineEnabled).toHaveBeenCalledWith("first", false);
     expect(settings.wineEnabled!()).toBe(false);
   });
+  it("uses generated Wine paths when migrating to a different runtime", async () => {
+    const game = spec("first");
+    game.wineUserData = getWineUserData(HK4E_CN_USER_DATA_PATH);
+    await createMultiGameLauncher(options([game]));
+    const settings = vi.mocked(createGameSettings).mock.lastCall![0];
+    const launcher = vi.mocked(createHypLauncher).mock.lastCall![0];
+    const queued: { fn: () => AsyncGenerator<unknown> }[] = [];
+    launcher.gameWineTaskDispatcher!.current = request => {
+      queued.push(request);
+    };
+
+    expect(settings.wineDataSupported).toBe(true);
+    settings.onWineTagChange!("custom", { migrate: true });
+    for await (const _command of queued[0].fn()) {
+      /* consume task */
+    }
+
+    const registryKey = getGameRegistryKey("hk4e_cn");
+    expect(registryKey).toMatch(
+      /^HKEY_CURRENT_USER\\Software\\[^\\]+\\[^\\]+$/
+    );
+    expect(getGameRegistryKey("unsupported")).toBeUndefined();
+    expect(prepareMultiGameGameWine).toHaveBeenCalledWith(
+      expect.objectContaining({
+        migrate: true,
+        descriptor: {
+          registryKeys: [
+            registryKey?.replace("HKEY_CURRENT_USER\\", ""),
+            SDK_REGISTRY_KEY,
+          ],
+          prefixDirs: [
+            `drive_c/users/*/AppData/LocalLow/${HK4E_CN_USER_DATA_PATH}`,
+          ],
+        },
+        wineTag: "custom",
+      })
+    );
+  });
+
   it("rejects removal while a per-game environment is enabled", async () => {
     await createMultiGameLauncher(options([spec("first")]));
     const settings = vi.mocked(createGameSettings).mock.lastCall![0];

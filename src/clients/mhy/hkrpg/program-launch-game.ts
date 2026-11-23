@@ -26,7 +26,13 @@ import {
   revertMhypBaseReplacement,
 } from "../patch";
 import { GameAlreadyRunningError } from "../../launch-errors";
-import { HKRPG_CN_BLOCK_URL, HKRPG_OS_BLOCK_URL } from "../../secret";
+import {
+  HKRPG_CN_BLOCK_URL,
+  HKRPG_OS_BLOCK_URL,
+  WEBVIEW_RENDER_METHOD_VALUE,
+  WEBVIEW_RENDER_METHOD_ABTEST_PREFIX,
+} from "../../secret";
+import { getGameRegistryKey } from "../../game-data-paths";
 import { buildBlockHosts } from "../block-hosts";
 import {
   blockPrivilegedHosts,
@@ -181,22 +187,14 @@ cd /d "${wine.toWinePath(gameDir)}"
 }
 
 async function fixWebview(wine: Wine, server: Server) {
-  let key = "HKEY_CURRENT_USER\\Software\\";
-  if (server.id === "hkrpg_cn") {
-    key +=
-      "\x6d\x69\x48\x6f\x59\x6f\\\u5d29\u574f\uff1a\u661f\u7a79\u94c1\u9053";
-  } else if (server.id === "hkrpg_global") {
-    key +=
-      "\x43\x6f\x67\x6e\x6f\x73\x70\x68\x65\x72\x65\\\x53\x74\x61\x72\x20\x52\x61\x69\x6c";
-  } else {
-    return;
-  }
+  const key = getGameRegistryKey(server.id);
+  if (!key) return;
 
   const reg = [
     `Windows Registry Editor Version 5.00`,
     ``,
     `[${key}]`,
-    `"MIHOYOSDK_WEBVIEW_RENDER_METHOD_h1573598267"=-`,
+    `"${WEBVIEW_RENDER_METHOD_VALUE}"=-`,
   ];
 
   try {
@@ -208,7 +206,7 @@ async function fixWebview(wine: Wine, server: Server) {
 
     for (let line of output.split("\n")) {
       line = line.trim();
-      if (line.startsWith("HOYO_WEBVIEW_RENDER_METHOD_ABTEST_")) {
+      if (line.startsWith(WEBVIEW_RENDER_METHOD_ABTEST_PREFIX)) {
         const abtest = line.split(" ", 2)[0];
         reg.push(`"${abtest}"=-`);
       }

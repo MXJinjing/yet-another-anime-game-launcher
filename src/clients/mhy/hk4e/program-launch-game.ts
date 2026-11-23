@@ -26,19 +26,13 @@ import {
 } from "../patch";
 import { GameAlreadyRunningError } from "../../launch-errors";
 import { CN_BLOCK_URL, OS_BLOCK_URL } from "../../secret";
+import { getGameRegistryKey } from "../../game-data-paths";
 import { buildBlockHosts } from "../block-hosts";
 import {
   blockPrivilegedHosts,
   legacyBlockHosts,
 } from "../../../system/privileged-hosts";
-import hk4eHDRGlobalReg from "../../../constants/hk4e_hdr_os.reg?raw";
-import hk4eHDRCnReg from "../../../constants/hk4e_hdr_cn.reg?raw";
 import { gt } from "semver";
-
-const HDR_REGISTRY_FILES = {
-  hk4e_global: hk4eHDRGlobalReg,
-  hk4e_cn: hk4eHDRCnReg,
-} as const;
 
 async function applyHDRRegistry({
   wine,
@@ -47,9 +41,15 @@ async function applyHDRRegistry({
   wine: Wine;
   server: Server;
 }) {
-  const regContent =
-    HDR_REGISTRY_FILES[server.id as keyof typeof HDR_REGISTRY_FILES];
-  if (!regContent) return;
+  const key = getGameRegistryKey(server.id);
+  if (!key) return;
+  const regContent = [
+    "Windows Registry Editor Version 5.00",
+    "",
+    `[${key.replace("\\Software\\", "\\SOFTWARE\\")}]`,
+    '"WINDOWS_HDR_ON_h3132281285"=dword:00000001',
+    "",
+  ].join("\n");
 
   const regPath = resolve("./hk4e_enable_hdr.reg");
   await writeFile(regPath, regContent);
@@ -65,14 +65,8 @@ async function applyDisplayModeRegistry(
   server: Server,
   config: Config
 ) {
-  let key = "HKEY_CURRENT_USER\\Software\\\x6d\x69\x48\x6f\x59\x6f\\";
-  if (server.id === "hk4e_cn") {
-    key += "\u539f\u795e";
-  } else if (server.id === "hk4e_global") {
-    key += "\x47\x65\x6e\x73\x68\x69\x6e\x20\x49\x6d\x70\x61\x63\x74";
-  } else {
-    return;
-  }
+  const key = getGameRegistryKey(server.id);
+  if (!key) return;
 
   const lines = [
     `Windows Registry Editor Version 5.00`,
@@ -317,14 +311,8 @@ async function revertHDRRegistry({
   wine: Wine;
   server: Server;
 }) {
-  let key = "HKEY_CURRENT_USER\\Software\\\x6d\x69\x48\x6f\x59\x6f\\";
-  if (server.id === "hk4e_cn") {
-    key += "\u539f\u795e";
-  } else if (server.id === "hk4e_global") {
-    key += "\x47\x65\x6e\x73\x68\x69\x6e\x20\x49\x6d\x70\x61\x63\x74";
-  } else {
-    return;
-  }
+  const key = getGameRegistryKey(server.id);
+  if (!key) return;
 
   const reg = [
     `Windows Registry Editor Version 5.00`,
@@ -345,14 +333,8 @@ async function revertHDRRegistry({
 }
 
 async function revertResolutionRegistry(wine: Wine, server: Server) {
-  let key = "HKEY_CURRENT_USER\\Software\\\x6d\x69\x48\x6f\x59\x6f\\";
-  if (server.id === "hk4e_cn") {
-    key += "\u539f\u795e";
-  } else if (server.id === "hk4e_global") {
-    key += "\x47\x65\x6e\x73\x68\x69\x6e\x20\x49\x6d\x70\x61\x63\x74";
-  } else {
-    return;
-  }
+  const key = getGameRegistryKey(server.id);
+  if (!key) return;
 
   const lines = [
     `Windows Registry Editor Version 5.00`,

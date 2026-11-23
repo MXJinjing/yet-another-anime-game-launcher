@@ -1,3 +1,9 @@
+import {
+  CBJQ_OS_MANIFEST,
+  CBJQ_OS_DLC,
+  CBJQ_OS_CHANNEL,
+  CBJQ_OS_BACKGROUND_URL,
+} from "./secret";
 import { Server } from "./seasun/server";
 
 import s from "../assets/Nahida.cr.png";
@@ -10,12 +16,10 @@ export const DEFAULT_WINE_DISTRO_URL =
 export const DEFAULT_WINE_DISTRO_TAG = "11.0-dxmt-signed-with-patches";
 const SERVER_DEFINITION: Server = {
   id: "CBJQ",
-  manifest:
-    "https://snowbreak-dl.amazingseasuncdn.com/6e5452634164107ee3c3cfd6efcdf55f/PC/updates/manifest.json",
-  dlc: "https://snowbreak-dl.amazingseasuncdn.com/6e5452634164107ee3c3cfd6efcdf55f/PC/updates/",
-  channel: "seasun",
-  background_url:
-    "https://cdn1.epicgames.com/spt-assets/e55df6d332b24ee18fb52af2bc530caa/snowbreak-containment-zone-1asa4.jpg",
+  manifest: CBJQ_OS_MANIFEST,
+  dlc: CBJQ_OS_DLC,
+  channel: CBJQ_OS_CHANNEL,
+  background_url: CBJQ_OS_BACKGROUND_URL,
 };
 
 export function createClient(options: CreateClientOptions) {

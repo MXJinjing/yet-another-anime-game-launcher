@@ -1,3 +1,4 @@
+import yaaglmConfig from "../constants/yaaglm-config.secret.json";
 import { Aria2 } from "@aria2";
 import { configEntries, createConfigStore } from "@config";
 import {
@@ -34,10 +35,13 @@ import { TaskFailedError, type TaskProgram } from "../tasks/task-program";
 const owner = "MXJinjing";
 const repo = "yet-another-anime-game-launcher";
 
+const bh3GlobalAppName = `Yaaglm ${yaaglmConfig.bh3GlobalSuffix}.app`;
+const bh3GlobalArchiveBase = bh3GlobalAppName.replace(/ /g, ".");
+
 const RELEASE_APP_ARCHIVES: Record<string, string> = {
   hk4ecn: "Yaaglm.GI.CN.app.tar.gz",
   hk4eos: "Yaaglm.GI.OS.app.tar.gz",
-  bh3glb: "Yaaglm.Honkai.Global.app.tar.gz",
+  bh3glb: `${bh3GlobalArchiveBase}.tar.gz`,
   hkrpgcn: "Yaaglm.HSR.app.tar.gz",
   hkrpgos: "Yaaglm.HSR.OS.app.tar.gz",
   napcn: "Yaaglm.ZZZ.app.tar.gz",
@@ -52,7 +56,7 @@ const RELEASE_APP_ARCHIVES: Record<string, string> = {
 const RELEASE_APP_TOP_LEVEL_DIRS: Record<string, string> = {
   "Yaaglm.GI.CN.app": "Yaaglm GI CN.app",
   "Yaaglm.GI.OS.app": "Yaaglm GI OS.app",
-  "Yaaglm.Honkai.Global.app": "Yaaglm Honkai Global.app",
+  [bh3GlobalArchiveBase]: bh3GlobalAppName,
   "Yaaglm.HSR.app": "Yaaglm HSR.app",
   "Yaaglm.HSR.OS.app": "Yaaglm HSR OS.app",
   "Yaaglm.ZZZ.app": "Yaaglm ZZZ.app",

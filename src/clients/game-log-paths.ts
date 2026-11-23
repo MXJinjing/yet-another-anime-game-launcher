@@ -1,3 +1,19 @@
+import {
+  HK4E_CN_OUTPUT_LOG,
+  HK4E_OS_OUTPUT_LOG,
+  HK4E_OS_PLAYER_LOG,
+  HKRPG_CN_PLAYER_LOG,
+  HKRPG_OS_LEGACY_PLAYER_LOG,
+  HKRPG_OS_PLAYER_LOG,
+  NAP_CN_PLAYER_LOG,
+  NAP_OS_LEGACY_PLAYER_LOG,
+  NAP_OS_OUTPUT_LOG,
+  NAP_OS_PLAYER_LOG,
+  BH3_CN_OUTPUT_LOG,
+  BH3_OS_OUTPUT_LOG,
+  BH3_OS_CRASH_DIR,
+  CBJQ_WEBVIEW_LOG,
+} from "./secret";
 import type { GameLogLocation } from "../channel-client";
 
 /**
@@ -15,18 +31,18 @@ const DRIVER_ERROR_LOG: GameLogLocation = {
 };
 
 const HK4E_CN_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
-  { root: "wine-user", path: "AppData/LocalLow/miHoYo/原神/output_log.txt" },
+  { root: "wine-user", path: HK4E_CN_OUTPUT_LOG },
   DRIVER_ERROR_LOG,
 ];
 
 const HK4E_OS_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
   {
     root: "wine-user",
-    path: "AppData/LocalLow/miHoYo/Genshin Impact/output_log.txt",
+    path: HK4E_OS_OUTPUT_LOG,
   },
   {
     root: "wine-user",
-    path: "AppData/LocalLow/HoYoverse/Genshin Impact/Player.log",
+    path: HK4E_OS_PLAYER_LOG,
   },
   DRIVER_ERROR_LOG,
 ];
@@ -42,15 +58,15 @@ export function getHK4EGameLogLocations(
 export const HKRPG_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
   {
     root: "wine-user",
-    path: "AppData/LocalLow/miHoYo/崩坏：星穹铁道/Player.log",
+    path: HKRPG_CN_PLAYER_LOG,
   },
   {
     root: "wine-user",
-    path: "AppData/LocalLow/miHoYo/Honkai Star Rail/Player.log",
+    path: HKRPG_OS_LEGACY_PLAYER_LOG,
   },
   {
     root: "wine-user",
-    path: "AppData/LocalLow/Cognosphere/Star Rail/Player.log",
+    path: HKRPG_OS_PLAYER_LOG,
   },
   DRIVER_ERROR_LOG,
 ];
@@ -58,19 +74,19 @@ export const HKRPG_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
 export const NAP_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
   {
     root: "wine-user",
-    path: "AppData/LocalLow/miHoYo/绝区零/Player.log",
+    path: NAP_CN_PLAYER_LOG,
   },
   {
     root: "wine-user",
-    path: "AppData/LocalLow/miHoYo/ZenlessZoneZero/Player.log",
+    path: NAP_OS_LEGACY_PLAYER_LOG,
   },
   {
     root: "wine-user",
-    path: "AppData/LocalLow/miHoYo/ZenlessZoneZero/output_log.txt",
+    path: NAP_OS_OUTPUT_LOG,
   },
   {
     root: "wine-user",
-    path: "AppData/LocalLow/HoYoverse/ZenlessZoneZero/Player.log",
+    path: NAP_OS_PLAYER_LOG,
   },
   DRIVER_ERROR_LOG,
 ];
@@ -78,22 +94,22 @@ export const NAP_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
 export const BH3_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
   {
     root: "wine-user",
-    path: "AppData/LocalLow/miHoYo/崩坏3/output_log.txt",
+    path: BH3_CN_OUTPUT_LOG,
   },
   {
     root: "wine-user",
-    path: "AppData/LocalLow/miHoYo/Honkai Impact 3rd/output_log.txt",
+    path: BH3_OS_OUTPUT_LOG,
   },
   {
     root: "wine-user",
-    path: "AppData/LocalLow/miHoYo/Honkai Impact 3rd/Crashes",
+    path: BH3_OS_CRASH_DIR,
     recursive: true,
     extensions: [".log", ".txt"],
   },
   DRIVER_ERROR_LOG,
 ];
 
-/** Snowbreak uses Unreal logs in the installed game directory. */
+/** The CBJQ channel uses Unreal logs in the installed game directory. */
 export const CBJQ_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
   {
     root: "game-install",
@@ -103,7 +119,7 @@ export const CBJQ_GAME_LOG_LOCATIONS: readonly GameLogLocation[] = [
   },
   {
     root: "game-install",
-    path: "Game/Plugins/XGSDKSeasun/Source/Libs/seasun/win64/cef_temp/cef.log",
+    path: CBJQ_WEBVIEW_LOG,
   },
   {
     root: "wine-user",

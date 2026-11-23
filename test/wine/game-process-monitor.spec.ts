@@ -83,19 +83,19 @@ describe("Wine game process monitor", () => {
   it("matches the direct DXMT game process by install path, not its Steam wrapper", () => {
     expect(
       parseMacWineProcesses(
-        " 10 C:\\windows\\system32\\steam.exe Z:\\Users\\wjj\\GI\\YuanShen.exe\n" +
-          " 11 Z:\\Users\\wjj\\GI\\YuanShen.exe -platform_type CLOUD_THIRD_PARTY_PC\n" +
-          " 12 Z:\\Users\\wjj\\Other\\YuanShen.exe\n" +
-          " 13 /bin/sh -c Z:\\Users\\wjj\\GI\\YuanShen.exe\n",
+        " 10 C:\\windows\\system32\\steam.exe Z:\\Users\\wjj\\GI\\ExampleGame.exe\n" +
+          " 11 Z:\\Users\\wjj\\GI\\ExampleGame.exe -platform_type CLOUD_THIRD_PARTY_PC\n" +
+          " 12 Z:\\Users\\wjj\\Other\\ExampleGame.exe\n" +
+          " 13 /bin/sh -c Z:\\Users\\wjj\\GI\\ExampleGame.exe\n",
         "/wine/bin/wine",
-        "/Users/wjj/GI/YuanShen.exe"
+        "/Users/wjj/GI/ExampleGame.exe"
       )
     ).toEqual([
       {
         pid: "11",
-        name: "Z:\\Users\\wjj\\GI\\YuanShen.exe",
+        name: "Z:\\Users\\wjj\\GI\\ExampleGame.exe",
         command:
-          "Z:\\Users\\wjj\\GI\\YuanShen.exe -platform_type CLOUD_THIRD_PARTY_PC",
+          "Z:\\Users\\wjj\\GI\\ExampleGame.exe -platform_type CLOUD_THIRD_PARTY_PC",
       },
     ]);
   });
@@ -152,7 +152,7 @@ describe("Wine game process monitor", () => {
 
   it("treats a failed pre-check as not running instead of aborting the launch", async () => {
     const monitor = createGameProcessMonitor({
-      executable: "ZenlessZoneZero.exe",
+      executable: "ExampleGame.exe",
       listProcesses: async () => {
         throw new Error("Wine process enumeration timed out after 10000ms");
       },

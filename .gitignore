@@ -31,6 +31,7 @@ node_modules
 
 server_secret.ts
 **/*.secret.ts
+/src/constants/yaaglm-config.secret.json
 **/secret.ts
 
 /dev/
