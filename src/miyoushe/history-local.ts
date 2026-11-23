@@ -2,48 +2,61 @@ import { join } from "path-browserify";
 import { getGameUserDataFolder } from "@src/clients/game-data-paths";
 import { readDirectory, resolve, resolveResource } from "@platform/neutralino";
 import { build } from "@platform/shell";
-import type { Reply } from "./account";
+import type { Pull } from "./uigf";
+
+type HistoryRequest =
+  | { mode: "authorized" }
+  | { mode: "sync"; uid: string; heads?: Readonly<Record<string, string>> };
+
+type HistoryReply =
+  | {
+      state: "ok";
+      source: "cache" | "remote";
+      history: { uid: string; list: Pull[] };
+    }
+  | {
+      state:
+        | "no-history"
+        | "history-expired"
+        | "history-mismatch"
+        | "manual"
+        | "limited"
+        | "invalid"
+        | "network"
+        | "unavailable";
+    };
 
 export async function readGameHistory(
   installDir: string | undefined,
   winePrefix: string | undefined,
-  mode: "cached" | "authorized",
-  uid?: string
-): Promise<Reply> {
+  request: HistoryRequest
+): Promise<HistoryReply> {
   try {
     const helper = resolveResource("sidecar/miyoushe-history");
     const users = winePrefix && join(winePrefix, "drive_c/users");
     const folder = getGameUserDataFolder("hk4e_cn");
-    const candidates = [""];
+    const directories: string[] = [];
     if (users && folder) {
       const entries = await readDirectory(users).catch(() => []);
       for (const { entry, type } of entries) {
         if (type === "DIRECTORY" && ![".", "..", "Public"].includes(entry))
-          candidates.push(
+          directories.push(
             resolve(join(users, entry, "AppData/LocalLow", folder))
           );
       }
     }
-    // The helper gets filesystem locations, scope and an optional expected UID.
-    // The expiring authorization itself stays in its process.
-    let failure: Reply = { state: "no-history" };
-    for (const directory of candidates) {
-      const result = await Neutralino.os.execCommand(
-        build([
-          helper,
-          mode,
-          !directory && installDir ? resolve(installDir) : "",
-          directory,
-          uid ?? "",
-        ]),
-        {}
-      );
-      if (result.exitCode !== 0) return { state: "unavailable" };
-      const reply: Reply = JSON.parse(result.stdOut);
-      if (reply.state === "history-expired") failure = reply;
-      else if (reply.state !== "no-history") return reply;
-    }
-    return failure;
+    // The expiring authorization stays in the helper process.
+    const payload = JSON.stringify({
+      ...request,
+      install: installDir ? resolve(installDir) : undefined,
+      directories,
+    });
+    const result = await Neutralino.os.execCommand(build([helper]), {
+      stdIn: payload,
+    });
+    return result.exitCode === 0
+      ? JSON.parse(result.stdOut)
+      : { state: "unavailable" };
   } catch {
     return { state: "unavailable" };
   }

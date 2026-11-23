@@ -53,9 +53,14 @@ const poolNames: Record<MiyousheGame, Record<string, [string, string]>> = {
   },
 };
 
-const views: ReadonlyArray<readonly [View, string, string]> = [
-  ["bars", "柱形图", "Bar chart"],
-  ["list", "全部记录", "All records"],
+const views: ReadonlyArray<readonly [View, string, string, string]> = [
+  ["bars", "柱形图", "Bar chart", "M2 2v12M5 4h9M5 8h5m-5 4h7"],
+  [
+    "list",
+    "全部记录",
+    "All records",
+    "M2 4h.5m3 0H14M2 8h.5m3 0H14M2 12h.5m3 0H14",
+  ],
 ];
 
 function average(values: number[]) {
@@ -82,7 +87,6 @@ export function PullDashboard(props: {
   const [view, setView] = createSignal<View>("bars");
   const [showFour, setShowFour] = createSignal(false);
   const [page, setPage] = createSignal(1);
-  const [pageSize, setPageSize] = createSignal<5 | 10>(10);
   createEffect(
     on(
       () => [props.game, props.account.uid, props.pool?.type] as const,
@@ -134,7 +138,7 @@ export function PullDashboard(props: {
       )
   );
   const listPage = createMemo(() =>
-    pagePullHistory(pool()?.rows ?? [], page(), pageSize())
+    pagePullHistory(pool()?.rows ?? [], page())
   );
   const rule = () =>
     props.game === "hk4e"
@@ -390,28 +394,13 @@ export function PullDashboard(props: {
                       props.onPoolChange(entry.type);
                     }}
                   >
-                    {poolLabel(entry.type)}{" "}
-                    <span
-                      title={
-                        view() === "bars"
-                          ? t("最高稀有度次数", "Top-rank pulls")
-                          : t("记录数", "Record count")
-                      }
-                    >
-                      {count.format(
-                        view() === "bars"
-                          ? report().pools.find(
-                              pool => pool.type === entry.type
-                            )?.topRankCount ?? 0
-                          : entry.pulls.length
-                      )}
-                    </span>
+                    {poolLabel(entry.type)}
                   </button>
                 )}
               </For>
             </div>
             <section class="miyoushe-card miyoushe-history">
-              <Show when={view() === "bars"}>
+              <div class="miyoushe-history-heading">
                 <dl class="miyoushe-pool-metrics">
                   <div>
                     <dt>
@@ -450,40 +439,50 @@ export function PullDashboard(props: {
                     </div>
                   </Show>
                 </dl>
-              </Show>
-              <div class="miyoushe-history-toolbar">
                 <div
-                  class="miyoushe-pool-picker"
+                  class="miyoushe-pool-picker miyoushe-view-picker"
                   role="group"
                   aria-label={t("显示方式", "View mode")}
                 >
                   <For each={views}>
-                    {([id, zh, en]) => (
+                    {([id, zh, en, icon]) => (
                       <button
                         type="button"
                         aria-pressed={view() === id}
                         onClick={() => setView(id)}
                       >
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 16 16"
+                          width="14"
+                          height="14"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                          stroke-linecap="round"
+                        >
+                          <path d={icon} />
+                        </svg>
                         {t(zh, en)}
                       </button>
                     )}
                   </For>
                 </div>
-                <Show when={view() === "bars" && fourthCount()}>
-                  <button
-                    type="button"
-                    class="miyoushe-four-toggle"
-                    aria-expanded={showFour()}
-                    aria-controls="miyoushe-pull-cycles"
-                    onClick={() => setShowFour(value => !value)}
-                  >
-                    {showFour()
-                      ? t("收起四星", "Hide four-star pulls")
-                      : t("显示四星", "Show four-star pulls")}
-                    <span>{fourthCount()}</span>
-                  </button>
-                </Show>
               </div>
+              <Show when={view() === "bars" && fourthCount()}>
+                <button
+                  type="button"
+                  class="miyoushe-four-toggle"
+                  aria-expanded={showFour()}
+                  aria-controls="miyoushe-pull-cycles"
+                  onClick={() => setShowFour(value => !value)}
+                >
+                  {showFour()
+                    ? t("收起四星", "Hide four-star pulls")
+                    : t("显示四星", "Show four-star pulls")}
+                  <span>{fourthCount()}</span>
+                </button>
+              </Show>
               <Switch>
                 <Match when={view() === "bars"}>
                   <ol
@@ -633,21 +632,6 @@ export function PullDashboard(props: {
                     role="group"
                     aria-label={t("抽卡记录分页", "History pagination")}
                   >
-                    <label class="miyoushe-field">
-                      {t("每页", "Per page")}
-                      <select
-                        value={pageSize()}
-                        onChange={event => {
-                          setPageSize(
-                            event.currentTarget.value === "5" ? 5 : 10
-                          );
-                          setPage(1);
-                        }}
-                      >
-                        <option value={5}>5</option>
-                        <option value={10}>10</option>
-                      </select>
-                    </label>
                     <div class="miyoushe-page-controls">
                       <AppModalButton
                         disabled={listPage().page <= 1}

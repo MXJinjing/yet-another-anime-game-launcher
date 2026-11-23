@@ -124,7 +124,7 @@ describe("pull report", () => {
     });
   });
 
-  it("pages the chosen pool newest first in groups of five or ten", () => {
+  it("pages the chosen pool newest first in groups of ten", () => {
     const records = Array.from({ length: 12 }, (_, index) =>
       pull(String(index + 1), "3")
     );
@@ -134,19 +134,24 @@ describe("pull report", () => {
     ).pools;
     const pageIds = (data: ReturnType<typeof pagePullHistory>) =>
       data.rows.map(row => row.pull.id);
-    expect(pageIds(pagePullHistory(weapon.rows, 1, 5))).toEqual([
+    expect(pageIds(pagePullHistory(weapon.rows, 1))).toEqual([
       "12",
       "11",
       "10",
       "9",
       "8",
+      "7",
+      "6",
+      "5",
+      "4",
+      "3",
     ]);
-    expect(pageIds(pagePullHistory(weapon.rows, 2, 10))).toEqual(["2", "1"]);
-    expect(pagePullHistory(weapon.rows, 30, 5)).toMatchObject({
-      page: 3,
-      pageCount: 3,
+    expect(pageIds(pagePullHistory(weapon.rows, 2))).toEqual(["2", "1"]);
+    expect(pagePullHistory(weapon.rows, 30)).toMatchObject({
+      page: 2,
+      pageCount: 2,
     });
-    expect(pageIds(pagePullHistory(character.rows, 1, 10))).toEqual(["13"]);
+    expect(pageIds(pagePullHistory(character.rows, 1))).toEqual(["13"]);
     expect(weapon.rows.map(row => row.pull.id).slice(0, 2)).toEqual(["1", "2"]);
   });
 
@@ -162,7 +167,6 @@ describe("pull report", () => {
     const [pool] = createPullReport(record, "hk4e").pools;
     expect(pool.hits).toBe(3);
     expect(pool.classified).toBe(4);
-    expect(pool.topRankCount).toBe(5);
     expect(pool.featuredIntervals).toEqual([2]);
     expect(pool.rows.at(-1)?.featured).toBeUndefined();
     expect(pool.nextGuaranteed).toBeUndefined();

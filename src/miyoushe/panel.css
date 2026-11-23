@@ -209,12 +209,6 @@
   background: #23262c;
 }
 
-.miyoushe-pool-picker button span {
-  color: var(--miyo-muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
 .miyoushe-history,
 .miyoushe-account {
   display: grid;
@@ -399,7 +393,7 @@
 }
 
 .miyoushe-list-pagination {
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 
 .miyoushe-page-controls .app-modal-button {
@@ -417,7 +411,7 @@
 
 .miyoushe-history th,
 .miyoushe-history td {
-  padding: 8px 6px;
+  padding: 6px;
   border-bottom: 1px solid var(--miyo-line);
 }
 
@@ -435,7 +429,7 @@
 }
 
 .miyoushe-report-source,
-.miyoushe-history-toolbar {
+.miyoushe-history-heading {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -455,8 +449,6 @@
   flex-wrap: wrap;
   gap: 4px 16px;
   margin: 0;
-  padding-bottom: 7px;
-  border-bottom: 1px solid var(--miyo-line);
 }
 
 .miyoushe-pool-metrics > div {
@@ -478,18 +470,27 @@
   font-variant-numeric: tabular-nums;
 }
 
-.miyoushe-history-toolbar {
-  justify-content: flex-start;
-  gap: 6px 12px;
+.miyoushe-history-heading {
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--miyo-line);
 }
 
-.miyoushe-history-toolbar .miyoushe-pool-picker {
+.miyoushe-view-picker {
   gap: 5px;
+  margin-inline-start: auto;
 }
 
-.miyoushe-history-toolbar .miyoushe-pool-picker button {
+.miyoushe-view-picker button {
+  gap: 5px;
   padding: 4px 9px;
   font-size: 12px;
+  white-space: nowrap;
+}
+
+.miyoushe-history > .miyoushe-four-toggle {
+  justify-self: start;
 }
 
 .miyoushe-featured-tag {

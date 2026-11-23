@@ -83,11 +83,18 @@ export function MiyoushePanel(props: {
   const [storageError, setStorageError] = createSignal(false);
   const [importBusy, setImportBusy] = createSignal(false);
   const [fileNotice, setFileNotice] = createSignal("");
+  const [historyNotice, setHistoryNotice] = createSignal<{
+    uid?: string;
+    text: string;
+  }>();
+  const [syncing, setSyncing] = createSignal(false);
   const [catalog, setCatalog] = createSignal(initialCatalog);
   const catalogItems = createMemo(
     () => new Map(catalog().items.map(item => [item.id, item]))
   );
   const historyChecked = new Map<string, number>();
+  const historyHeads = new Map<string, Record<string, string>>();
+  let historyBinding = 0;
   const [selectedUid, setSelectedUid] = createSignal("");
   const [linkError, setLinkError] = createSignal(false);
   const [poolType, setPoolType] = createSignal("");
@@ -108,6 +115,14 @@ export function MiyoushePanel(props: {
       roles().find(role => key(role) === preferences()[props.game]?.role) ??
       (roles().length === 1 ? roles()[0] : undefined)
   );
+  const historyUid = () =>
+    props.game === "hk4e" && bound() && selectedRole()?.region === "cn_gf01"
+      ? selectedRole()?.uid
+      : undefined;
+  const historyAvailable = () =>
+    usingMiyoushePrototype &&
+    props.game === "hk4e" &&
+    Boolean(props.installDir || props.winePrefix);
   const [working, setWorking] = createSignal(false);
   const [notice, setNotice] = createSignal<CheckInResult | "cancelled">();
   const [qr, setQr] = createSignal<{ image: string; scanned: boolean }>();
@@ -136,7 +151,9 @@ export function MiyoushePanel(props: {
   const accounts = () => archive()[props.game] ?? [];
   const active = createMemo(
     () =>
-      accounts().find(account => account.uid === selectedUid()) ?? accounts()[0]
+      accounts().find(account => account.uid === selectedUid()) ??
+      accounts().find(account => account.uid === historyUid()) ??
+      accounts()[0]
   );
   const summary = createMemo(() => {
     const account = active();
@@ -300,6 +317,8 @@ export function MiyoushePanel(props: {
         () => setQrFinishing(true)
       );
       if (state === "ok") {
+        historyBinding++;
+        setHistoryNotice(undefined);
         setProfile(undefined);
         persistPreferences({});
         await refreshRoles(props.game, props.dialog === "account");
@@ -323,6 +342,8 @@ export function MiyoushePanel(props: {
     try {
       const { state } = await runMiyoushePrototype("unbind");
       if (state === "ok") {
+        historyBinding++;
+        setHistoryNotice(undefined);
         setBindingStatus("unbound");
         setRoles([]);
         setRoleError(undefined);
@@ -389,70 +410,96 @@ export function MiyoushePanel(props: {
       () =>
         [
           props.dialog,
-          props.game,
-          bound() ? selectedRole()?.uid : undefined,
+          historyAvailable(),
+          historyUid(),
+          importBusy() || working(),
         ] as const,
-      ([dialog, game, uid]) => {
+      ([dialog, available, uid, busy]) => {
         if (
           (dialog === "pulls" || dialog === "account") &&
-          game === "hk4e" &&
+          available &&
           uid &&
-          usingMiyoushePrototype
+          !busy
         )
-          void importGame("cached", uid);
+          void importGame(uid, true);
       }
     )
   );
 
-  async function mergeIncoming(incoming: GachaArchive, uid?: string) {
+  async function mergeIncoming(incoming: GachaArchive) {
     const merged = await mergeLocalArchive(incoming);
     setArchive(merged);
     setArchiveLoaded(true);
     setStorageError(false);
-    if (uid) setSelectedUid(uid);
     setVisiblePulls(50);
   }
 
-  async function importGame(mode: "cached" | "authorized", uid?: string) {
+  async function importGame(uid?: string, automatic = false) {
     if (importBusy()) return;
-    if (mode === "cached" && uid) {
+    if (uid) {
       const now = Date.now();
-      if (now - (historyChecked.get(uid) ?? 0) < 5 * 60 * 1000) return;
+      if (automatic && now - (historyChecked.get(uid) ?? 0) < 300_000) return;
       historyChecked.set(uid, now);
     }
+    const binding = historyBinding;
+    const status = (text: string) => {
+      if (binding === historyBinding) setHistoryNotice({ uid, text });
+    };
     setImportBusy(true);
+    setSyncing(true);
+    setHistoryNotice(undefined);
+    if (!automatic) setFileNotice("");
     try {
       const reply = await readGameHistory(
         props.installDir,
         props.winePrefix,
-        mode,
         uid
+          ? {
+              mode: "sync",
+              uid,
+              heads: automatic ? historyHeads.get(uid) : undefined,
+            }
+          : { mode: "authorized" }
       );
-      if (reply.state !== "ok" || !reply.history) {
-        if (mode === "cached") return;
-        if (reply.state === "no-history" || reply.state === "history-expired") {
-          setFileNotice(
-            t(
-              "请在游戏内打开祈愿历史后重试，或导入 UIGF 文件。",
-              "Open Wish History in the game and try again, or import a UIGF file."
-            )
-          );
-        } else if (reply.state === "manual" || reply.state === "limited") {
-          setFileNotice(
-            t(
-              "官方服务暂时限制读取。请在游戏内查看祈愿历史后再试。",
-              "The official service restricted access. Check Wish History in the game before retrying."
-            )
-          );
-        } else {
-          setFileNotice(
-            t("暂时无法读取游戏记录。", "Could not read game history.")
-          );
-        }
+      if (binding !== historyBinding) return;
+      if (reply.state !== "ok") {
+        const openHistory = t(
+          "请在游戏内打开祈愿历史后重试，或导入 UIGF 文件。",
+          "Open Wish History in the game and try again, or import a UIGF file."
+        );
+        const errors = {
+          "no-history": openHistory,
+          "history-expired": openHistory,
+          "history-mismatch": t(
+            "游戏缓存属于另一个 UID。请用所选角色打开祈愿历史后重试。",
+            "The game cache belongs to another UID. Open Wish History for the selected character and try again."
+          ),
+          manual: t(
+            "需要人工验证。请在游戏内处理后再试。",
+            "Verification required. Complete it in the game before retrying."
+          ),
+          limited: t(
+            "读取请求受限，请稍后再试。",
+            "Rate limited. Try again later."
+          ),
+          invalid: t(
+            "祈愿服务返回了无法识别的数据。",
+            "Unrecognized data from Wish History."
+          ),
+          network: t(
+            "暂时无法连接祈愿服务。",
+            "Could not reach the Wish History service."
+          ),
+          unavailable: t(
+            "暂时无法读取游戏记录。",
+            "Could not read game history."
+          ),
+        };
+        status(errors[reply.state]);
         return;
       }
       const { uid: historyUid, list } = reply.history;
-      if (uid && uid !== historyUid) return;
+      if (uid && uid !== historyUid) throw new Error("Unexpected history UID");
       const catalogByName = new Map(
         catalog().items.map(item => [item.name, item.id])
       );
@@ -477,21 +524,44 @@ export function MiyoushePanel(props: {
         ),
         true
       );
-      await mergeIncoming(
-        incoming,
-        props.game === "hk4e" ? historyUid : undefined
-      );
-      if (props.game === "hk4e")
-        setFileNotice(t("已更新游戏记录。", "Game history updated."));
-    } catch {
-      if (mode === "authorized")
-        setFileNotice(
+      await mergeIncoming(incoming);
+      if (binding !== historyBinding) return;
+      if (
+        !automatic &&
+        props.game === "hk4e" &&
+        (!uid || uid === selectedRole()?.uid)
+      )
+        setSelectedUid(historyUid);
+      if (reply.source === "remote" && uid) {
+        // Rows arrive newest first per pool. Resume from the first row next time.
+        const heads: Record<string, string> = {};
+        for (const pull of list) {
+          const pool = pull.uigf_gacha_type ?? pull.gacha_type;
+          heads[pool] ??= pull.id;
+        }
+        historyHeads.set(uid, { ...historyHeads.get(uid), ...heads });
+      }
+      if (uid && reply.source === "cache") {
+        status(
           t(
-            "游戏记录无法导入，原有档案已保留。",
-            "Game history import failed. Your archive is intact."
+            "已合并本地缓存。请在游戏内打开祈愿历史以同步最新记录。",
+            "Local cache merged. Open Wish History in the game to sync recent pulls."
           )
         );
+      } else {
+        status(
+          t("已更新本地祈愿档案。", "Local Wish History archive updated.")
+        );
+      }
+    } catch {
+      status(
+        t(
+          "游戏记录无法导入，原有档案已保留。",
+          "Game history import failed. Your archive is intact."
+        )
+      );
     } finally {
+      setSyncing(false);
       setImportBusy(false);
     }
   }
@@ -563,14 +633,6 @@ export function MiyoushePanel(props: {
     unbound: t(
       "登录已过期，请重新扫码。",
       "Session expired. Scan again to reconnect."
-    ),
-    "no-history": t(
-      "游戏尚未缓存抽卡记录。",
-      "No pull history was cached by the game."
-    ),
-    "history-expired": t(
-      "游戏缓存授权已过期。",
-      "The cached game authorization expired."
     ),
     network: t("暂时无法连接米游社。", "Could not reach Miyoushe."),
     limited: t(
@@ -715,23 +777,21 @@ export function MiyoushePanel(props: {
               >
                 UIGF <span aria-hidden="true">↗</span>
               </button>
-              <Show
-                when={
-                  props.game === "hk4e" &&
-                  usingMiyoushePrototype &&
-                  props.installDir
-                }
-              >
+              <Show when={historyAvailable()}>
                 <AppModalButton
-                  disabled={importBusy()}
-                  onClick={() =>
-                    void importGame(
-                      "authorized",
-                      bound() ? selectedRole()?.uid : undefined
-                    )
+                  disabled={
+                    importBusy() ||
+                    rolesLoading() ||
+                    bindingStatus() === "loading" ||
+                    (bound() && !historyUid())
                   }
+                  onClick={() => void importGame(historyUid())}
                 >
-                  {t("从游戏读取", "Read from game")}
+                  {syncing()
+                    ? t("正在读取…", "Reading…")
+                    : bound()
+                    ? t("同步记录", "Sync history")
+                    : t("从游戏读取", "Read from game")}
                 </AppModalButton>
               </Show>
               <Show when={active()}>
@@ -767,6 +827,32 @@ export function MiyoushePanel(props: {
             <p class="miyoushe-file-notice" role="status">
               {fileNotice()}
             </p>
+          </Show>
+          <Show when={historyAvailable()}>
+            <Show
+              when={bound() && !rolesLoading() && !historyUid()}
+              fallback={
+                <Show
+                  when={
+                    historyNotice()?.uid === historyUid() &&
+                    historyNotice()?.text
+                  }
+                >
+                  {message => (
+                    <p class="miyoushe-file-notice" role="status">
+                      {message()}
+                    </p>
+                  )}
+                </Show>
+              }
+            >
+              <p class="miyoushe-file-notice" role="status">
+                {t(
+                  "请先从侧栏头像进入账号面板，选择要同步的官服角色。",
+                  "Open the account panel from the sidebar avatar and select a CN character to sync."
+                )}
+              </p>
+            </Show>
           </Show>
           <Show
             when={active()}

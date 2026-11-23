@@ -36,7 +36,6 @@ export function createPullReport(
     let sinceFeatured: number | undefined;
     let hits = 0;
     let classified = 0;
-    let topRankCount = 0;
     let nextGuaranteed: boolean | undefined;
     const featuredIntervals: number[] = [];
     const rows = pool.pulls.map(pull => {
@@ -58,7 +57,6 @@ export function createPullReport(
       if (pull.rank_type !== "5") return row;
 
       sinceTop = 0;
-      topRankCount++;
       row.guaranteed = nextGuaranteed;
       if (game === "hk4e")
         row.featured = genshinFeatured(pull, account.timezone);
@@ -82,7 +80,6 @@ export function createPullReport(
       rows,
       hits,
       classified,
-      topRankCount,
       featuredIntervals,
       nextGuaranteed,
     };
@@ -126,11 +123,8 @@ export function groupPullCycles(rows: PullReportRow[]) {
   return { cycles, ongoing: { count, complete, fourths } };
 }
 
-export function pagePullHistory(
-  rows: PullReportRow[],
-  requestedPage: number,
-  pageSize: 5 | 10
-) {
+export function pagePullHistory(rows: PullReportRow[], requestedPage: number) {
+  const pageSize = 10;
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const page = Math.max(1, Math.min(requestedPage, pageCount));
   // Pool rows are oldest first. Take only the requested window before reversing.

@@ -6,6 +6,7 @@ private enum Failure: String, Error {
     case invalid, unavailable, network, limited, manual
     case noHistory = "no-history"
     case historyExpired = "history-expired"
+    case historyMismatch = "history-mismatch"
 }
 
 private let poolTypes = ["100", "200", "301", "302", "500"]
@@ -44,7 +45,7 @@ private struct History {
                              options: .regularExpression) != nil,
                   let rank = digits(row["rank_type"]), ["3", "4", "5"].contains(rank)
             else { throw Failure.invalid }
-            guard batchUID == nil || role == batchUID else { throw Failure.invalid }
+            guard batchUID == nil || role == batchUID else { throw Failure.historyMismatch }
             batchUID = role
             let normalized = type == "400" ? "301" : type
             guard poolTypes.contains(normalized), pool == nil || normalized == pool
@@ -64,20 +65,20 @@ private struct History {
         }
     }
 
-    func result() throws -> Fields {
+    func result(source: String) throws -> Fields {
         guard let uid = uid, !pulls.isEmpty else { throw Failure.noHistory }
-        return ["state": "ok", "history": ["uid": uid, "list": pulls]]
+        return ["state": "ok", "source": source, "history": ["uid": uid, "list": pulls]]
     }
 }
 
-private func cacheFiles(install: String, userData: String) -> [URL] {
+private func cacheFiles(install: String, userData: [String]) -> [URL] {
     let files = FileManager.default
     var roots: [(base: URL, cache: String)] = []
     if install.hasPrefix("/") && install != "/" {
         roots.append((URL(fileURLWithPath: install), "YuanShen_Data/webCaches"))
     }
-    if userData.hasPrefix("/") && userData != "/" {
-        roots.append((URL(fileURLWithPath: userData), "webCaches"))
+    for directory in userData where directory.hasPrefix("/") && directory != "/" {
+        roots.append((URL(fileURLWithPath: directory), "webCaches"))
     }
     let keys: Set<URLResourceKey> = [.isRegularFileKey, .contentModificationDateKey, .fileSizeKey]
     var candidates: [(URL, Date)] = []
@@ -167,7 +168,7 @@ private func searchRecordLink(_ data: Data) -> URLComponents? {
     return nil
 }
 
-private func fetchHistory(_ link: URLComponents, expectedUID: String?) async throws -> History {
+private func fetchHistory(_ link: URLComponents, expectedUID: String?, heads: [String: String]) async throws -> History {
     let config = URLSessionConfiguration.ephemeral
     config.httpShouldSetCookies = false
     config.timeoutIntervalForRequest = 12
@@ -206,7 +207,9 @@ private func fetchHistory(_ link: URLComponents, expectedUID: String?) async thr
             guard let envelope = (try? JSONSerialization.jsonObject(with: data)) as? Fields,
                   let code = envelope["retcode"] as? Int else { throw Failure.invalid }
             let body = envelope["data"] as? Fields
-            if code == 1034 || code == -3503 || body?["challenge"] != nil || body?["gt"] != nil {
+            if code == 1034 || code == -3503 || ["challenge", "gt"].contains(where: {
+                (body?[$0] as? String)?.isEmpty == false
+            }) {
                 throw Failure.manual
             }
             if [-100, -101, -111].contains(code) { throw Failure.historyExpired }
@@ -218,6 +221,7 @@ private func fetchHistory(_ link: URLComponents, expectedUID: String?) async thr
             }
             try history.append(rows, pool: pool, expectedUID: expectedUID)
             if rows.count < 20 { break }
+            if let head = heads[pool], rows.contains(where: { digits($0["id"]) == head }) { break }
             guard let next = digits(rows.last?["id"]), let current = UInt64(cursor),
                   let earlier = UInt64(next), earlier > 0, current == 0 || earlier < current
             else { throw Failure.invalid }
@@ -225,34 +229,55 @@ private func fetchHistory(_ link: URLComponents, expectedUID: String?) async thr
             pageNumber += 1
             try await Task.sleep(nanoseconds: 700_000_000)
         }
-        try await Task.sleep(nanoseconds: 700_000_000)
+        if pool != poolTypes.last { try await Task.sleep(nanoseconds: 700_000_000) }
     }
     return history
 }
 
 @main
 private enum Main {
+    private struct Request: Decodable {
+        let mode: String
+        let install: String?
+        let directories: [String]
+        let uid: String?
+        let heads: [String: String]?
+    }
+
     static func main() async throws {
-        let args = Array(CommandLine.arguments.dropFirst())
         var reply: Fields
         do {
-            guard args.count == 4, ["cached", "authorized"].contains(args[0]),
-                  args[3].isEmpty || digits(args[3]) != nil else { throw Failure.invalid }
-            let expectedUID = args[3].isEmpty ? nil : args[3]
+            let input = FileHandle.standardInput.readDataToEndOfFile()
+            guard let request = try? JSONDecoder().decode(Request.self, from: input),
+                  ["sync", "authorized"].contains(request.mode),
+                  request.mode == "sync" ? digits(request.uid) != nil : request.uid == nil
+            else { throw Failure.invalid }
+            let heads = request.heads ?? [:]
+            guard heads.allSatisfy({ poolTypes.contains($0.key) && digits($0.value) != nil })
+            else { throw Failure.invalid }
+            let sync = request.mode == "sync"
             var history = History()
             var link: URLComponents?
             var remaining = 64 * 1024 * 1024
-            for file in cacheFiles(install: args[1], userData: args[2]) {
+            for file in cacheFiles(install: request.install ?? "", userData: request.directories) {
                 guard remaining > 0, let data = try? Data(contentsOf: file, options: .mappedIfSafe)
                 else { continue }
                 remaining -= data.count
-                cacheHistory(data, history: &history, expectedUID: expectedUID)
-                if args[0] == "authorized" && link == nil { link = searchRecordLink(data) }
+                cacheHistory(data, history: &history, expectedUID: request.uid)
+                if link == nil && (sync || history.pulls.isEmpty) {
+                    link = searchRecordLink(data)
+                }
             }
-            if history.pulls.isEmpty, let link = link {
-                history = try await fetchHistory(link, expectedUID: expectedUID)
+            if let link = link, sync || history.pulls.isEmpty {
+                do {
+                    let remote = try await fetchHistory(link, expectedUID: request.uid, heads: heads)
+                    reply = try remote.result(source: "remote")
+                } catch Failure.historyExpired where !history.pulls.isEmpty {
+                    reply = try history.result(source: "cache")
+                }
+            } else {
+                reply = try history.result(source: "cache")
             }
-            reply = try history.result()
         } catch let failure as Failure {
             reply = ["state": failure.rawValue]
         } catch {

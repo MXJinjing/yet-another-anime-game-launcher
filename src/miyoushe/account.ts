@@ -1,5 +1,4 @@
 import type { MiyousheGame } from "./games";
-import type { Pull } from "./uigf";
 
 export type GameRole = {
   uid: string;
@@ -14,8 +13,6 @@ export type Failure =
   | "manual"
   | "first-check-in"
   | "unbound"
-  | "no-history"
-  | "history-expired"
   | "invalid";
 
 export type Reply = {
@@ -32,7 +29,6 @@ export type Reply = {
   qr?: string;
   roles?: GameRole[];
   profile?: { nickname?: string; maskedId: string; avatar?: string };
-  history?: { uid: string; list: Pull[] };
   code?: number;
 };
 
