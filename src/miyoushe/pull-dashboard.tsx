@@ -333,14 +333,6 @@ export function PullDashboard(props: {
     );
   }
 
-  const timingLabel = (timing: ReturnType<typeof pullTiming>) =>
-    ({
-      early: t("早出", "Early"),
-      middle: t("中段", "Middle"),
-      late: t("接近保底", "Near hard pity"),
-      unknown: t("抽数或保底未知", "Unknown timing"),
-    }[timing]);
-
   return (
     <>
       <div class="miyoushe-scope">
@@ -553,38 +545,37 @@ export function PullDashboard(props: {
                     <For each={cycles().slice(0, props.visiblePulls)}>
                       {cycle => {
                         const row = cycle.result;
-                        const timing = () =>
-                          pullTiming(row.interval, rule()?.hardPity);
                         return (
-                          <li data-timing={timing()}>
+                          <li
+                            data-timing={pullTiming(
+                              row.interval,
+                              rule()?.hardPity
+                            )}
+                          >
                             <ItemImage row={row} />
                             <div class="miyoushe-chart-row">
                               <div class="miyoushe-chart-label">
                                 <strong title={name(row)}>{name(row)}</strong>
                                 <Featured row={row} uid={props.account.uid} />
+                                <span class="miyoushe-chart-count">
+                                  {row.interval ?? "—"}
+                                  {row.interval === undefined
+                                    ? ""
+                                    : t(" 抽", " pulls")}
+                                </span>
                               </div>
                               <div
                                 class="miyoushe-chart-meter"
-                                title={timingLabel(timing())}
+                                aria-hidden="true"
                               >
                                 <span
                                   class="miyoushe-chart-fill"
-                                  aria-hidden="true"
                                   style={{
                                     width:
                                       ((row.interval ?? 0) / barMax()) * 100 +
                                       "%",
                                   }}
                                 />
-                                <span class="miyoushe-chart-value">
-                                  {row.interval ?? "—"}
-                                  {row.interval === undefined
-                                    ? ""
-                                    : t(" 抽", " pulls")}
-                                  <Show when={timing() !== "unknown"}>
-                                    <small>{timingLabel(timing())}</small>
-                                  </Show>
-                                </span>
                               </div>
                             </div>
                             <FourCards rows={cycle.fourths} />

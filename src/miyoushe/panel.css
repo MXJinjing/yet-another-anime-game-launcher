@@ -311,16 +311,20 @@
   border-radius: 4px;
 }
 
-.miyoushe-chart-value {
-  z-index: 0;
-  padding-inline: 7px;
+.miyoushe-chart-value,
+.miyoushe-chart-count {
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 
-.miyoushe-chart-value small {
-  margin-inline-start: 6px;
-  font-weight: 500;
+.miyoushe-chart-value {
+  z-index: 0;
+  padding-inline: 7px;
+}
+
+.miyoushe-chart-count {
+  margin-inline-start: auto;
+  white-space: nowrap;
 }
 
 .miyoushe-radiance-mark {
