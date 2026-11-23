@@ -129,8 +129,8 @@ export function PullDashboard(props: {
         : comparePulls(a.row.pull, b.row.pull)
     );
   });
-  const rows = () =>
-    view() === "bars" ? fifths() : allRows().map(entry => entry.row);
+  const rowCount = () =>
+    view() === "bars" ? fifths().length : allRows().length;
   const completedIntervals = createMemo(() =>
     report().pools.flatMap(entry => entry.intervals)
   );
@@ -197,11 +197,7 @@ export function PullDashboard(props: {
     }
   }
 
-  function Featured(props: {
-    row: PullReportRow;
-    annotate?: boolean;
-    uid: string;
-  }) {
+  function Featured(props: { row: PullReportRow; uid: string }) {
     const key = () => props.uid + ":" + props.row.pull.id;
     const marked = () => canMarkRadiance(props.row) && radiance().has(key());
     return (
@@ -228,16 +224,7 @@ export function PullDashboard(props: {
               : t("小保底", "Non-guaranteed UP")}
           </span>
         </Show>
-        <Show
-          when={props.annotate && canMarkRadiance(props.row)}
-          fallback={
-            <Show when={marked()}>
-              <span class="miyoushe-radiance-mark">
-                {t("捕获明光", "Capturing Radiance")}
-              </span>
-            </Show>
-          }
-        >
+        <Show when={canMarkRadiance(props.row)}>
           <button
             type="button"
             class="miyoushe-radiance-mark"
@@ -267,14 +254,17 @@ export function PullDashboard(props: {
   }
 
   function ItemImage(props: { row: PullReportRow }) {
-    const [failed, setFailed] = createSignal<string>();
-    const [retry, setRetry] = createSignal<string>();
+    const [failed, setFailed] = createSignal<string[]>([]);
     const icon = () => {
       const primary = props.row.item?.icon;
-      if (!primary || retry() !== primary) return primary;
-      return (
-        "https://enka.network/ui/" + primary.slice(primary.lastIndexOf("/") + 1)
-      );
+      if (!primary) return;
+      if (primary.startsWith("https://upload-os-bbs.mihoyo.com/")) {
+        const mirror =
+          "https://enka.network/ui/" +
+          primary.slice(primary.lastIndexOf("/") + 1);
+        if (!failed().includes(mirror)) return mirror;
+      }
+      if (!failed().includes(primary)) return primary;
     };
     return (
       <div
@@ -283,7 +273,7 @@ export function PullDashboard(props: {
         title={name(props.row)}
       >
         <Show
-          when={icon() !== failed() && icon()}
+          when={icon()}
           fallback={
             <span aria-hidden="true">
               {rankLabel(props.row.pull.rank_type)}
@@ -297,10 +287,9 @@ export function PullDashboard(props: {
               loading="lazy"
               decoding="async"
               referrerpolicy="no-referrer"
-              onError={() => {
-                if (source().startsWith("https://upload-os-bbs.mihoyo.com/"))
-                  setRetry(source());
-                else setFailed(source());
+              onError={event => {
+                const source = event.currentTarget.src;
+                setFailed(previous => [...previous, source]);
               }}
             />
           )}
@@ -572,19 +561,12 @@ export function PullDashboard(props: {
                           const timing = () =>
                             pullTiming(row.interval, rule()?.hardPity);
                           return (
-                            <li
-                              data-timing={timing()}
-                              data-off-banner={row.featured === false}
-                            >
+                            <li data-timing={timing()}>
                               <ItemImage row={row} />
                               <div class="miyoushe-chart-row">
                                 <div class="miyoushe-chart-label">
                                   <strong title={name(row)}>{name(row)}</strong>
-                                  <Featured
-                                    row={row}
-                                    uid={props.account.uid}
-                                    annotate
-                                  />
+                                  <Featured row={row} uid={props.account.uid} />
                                 </div>
                                 <div
                                   class="miyoushe-chart-meter"
@@ -695,7 +677,7 @@ export function PullDashboard(props: {
                   </div>
                 </Match>
               </Switch>
-              <Show when={rows().length > props.visiblePulls}>
+              <Show when={rowCount() > props.visiblePulls}>
                 <AppModalButton onClick={props.onShowMore}>
                   {t("显示更多记录", "Show more pulls")}
                 </AppModalButton>

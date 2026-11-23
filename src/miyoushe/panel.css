@@ -60,6 +60,8 @@
 }
 
 .miyoushe-pull-header .app-modal-button {
+  min-width: 0;
+  height: 28px;
   min-height: 28px !important;
   padding: 2px 10px !important;
   font-size: 12px;
