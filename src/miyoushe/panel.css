@@ -19,7 +19,7 @@
 }
 
 .miyoushe-modal .hope-modal__body.miyoushe-modal-body {
-  padding: 0 28px 24px !important;
+  padding: 20px 28px 24px !important;
   color: var(--miyo-text) !important;
   scrollbar-width: thin;
 }
@@ -57,44 +57,17 @@
   margin: 0;
 }
 
-.miyoushe-tabs {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  padding-top: 8px;
-  border-bottom: 1px solid var(--miyo-line);
-  background: var(--miyo-bg);
+.miyoushe-panel {
+  display: grid;
+  gap: 16px;
 }
 
-.miyoushe-tabs button,
-.miyoushe-pool-picker button,
 .miyoushe-link-button {
   border: 0;
   font: inherit;
   color: var(--miyo-muted);
   background: transparent;
   cursor: pointer;
-}
-
-.miyoushe-tabs button {
-  min-height: 44px;
-  padding: 0 5px;
-  border-bottom: 2px solid transparent;
-  font-weight: 650;
-}
-
-.miyoushe-tabs button[aria-pressed="true"] {
-  color: var(--miyo-accent);
-  border-color: var(--miyo-accent);
-}
-
-.miyoushe-view {
-  display: grid;
-  gap: 16px;
-  padding-top: 20px;
 }
 
 .miyoushe-page-heading,
@@ -113,20 +86,12 @@
   justify-content: space-between;
 }
 
-.miyoushe-page-heading h2 {
-  font-size: 25px;
-  font-weight: 750;
-  letter-spacing: -0.025em;
-  line-height: 1.25;
-}
-
 .miyoushe-link-button {
   padding: 2px 0;
   font-size: 12px;
 }
 
-.miyoushe-link-button:hover,
-.miyoushe-tabs button:hover {
+.miyoushe-link-button:hover {
   color: var(--miyo-text);
 }
 
@@ -383,33 +348,6 @@
   image-rendering: pixelated;
 }
 
-.miyoushe-destinations {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.miyoushe-destination {
-  position: relative;
-  display: grid;
-  align-content: start;
-  min-height: 108px;
-  gap: 7px;
-  padding-right: 38px;
-  color: inherit;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-}
-
-.miyoushe-external {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  color: var(--miyo-accent);
-}
-
-.miyoushe-destination:hover,
 .miyoushe-pool-picker button:hover {
   border-color: var(--miyo-accent);
 }
@@ -429,8 +367,7 @@
     padding-inline: 16px !important;
   }
 
-  .miyoushe-metrics,
-  .miyoushe-destinations {
+  .miyoushe-metrics {
     grid-template-columns: 1fr;
   }
 

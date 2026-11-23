@@ -15,7 +15,7 @@ import {
   type CheckInResult,
   type GameRole,
 } from "./account";
-import { miyousheLinks, type MiyousheGame } from "./games";
+import { miyousheCheckInUrl, type MiyousheGame } from "./games";
 import { PullDashboard } from "./pull-dashboard";
 import { GameIcon } from "@src/launcher/components/game-icon";
 import {
@@ -46,9 +46,8 @@ export type MiyousheHomeStatus = {
 };
 
 export function MiyoushePanel(props: {
-  opened: boolean;
+  dialog?: "pulls" | "account";
   onClose: () => void;
-  initialView?: "pulls" | "account";
   onHomeStatusChange?: (status: MiyousheHomeStatus) => void;
   game: MiyousheGame;
   title: string;
@@ -56,9 +55,6 @@ export function MiyoushePanel(props: {
   chinese: boolean;
 }) {
   const t = (zh: string, en: string) => (props.chinese ? zh : en);
-  const [view, setView] = createSignal<"pulls" | "account" | "community">(
-    "pulls"
-  );
   const [archive, setArchive] = createSignal<GachaArchive>({});
   const [archiveLoaded, setArchiveLoaded] = createSignal(false);
   const [storageError, setStorageError] = createSignal(false);
@@ -132,12 +128,10 @@ export function MiyoushePanel(props: {
 
   createEffect(
     on(
-      () => props.opened,
-      opened => {
-        if (!opened) {
-          login?.abort();
-          if (archiveLoaded()) return;
-        }
+      () => props.dialog,
+      dialog => {
+        if (dialog !== "account") login?.abort();
+        if (dialog !== "pulls" && archiveLoaded()) return;
         if (!importBusy()) {
           void readGachaArchive().then(
             value => {
@@ -158,20 +152,19 @@ export function MiyoushePanel(props: {
 
   createEffect(
     on(
-      () => [props.opened, props.game, props.initialView] as const,
-      ([opened, game, initialView]) => {
+      () => [props.dialog, props.game] as const,
+      ([dialog, game]) => {
         profileRequest++;
-        if (!opened) {
-          if (usingMiyoushePrototype && !working()) void refreshRoles();
-          return;
-        }
-        setView(initialView ?? "pulls");
-        setPoolType("");
-        setVisiblePulls(50);
         setLinkError(false);
-        if (!working()) setNotice(undefined);
-        if (usingMiyoushePrototype && !working())
-          void refreshRoles(initialView === "account" ? game : undefined);
+        if (dialog === "pulls") {
+          setPoolType("");
+          setVisiblePulls(50);
+        }
+        if (!working()) {
+          setNotice(undefined);
+          if (usingMiyoushePrototype)
+            void refreshRoles(dialog === "account" ? game : undefined);
+        }
       }
     )
   );
@@ -349,372 +342,292 @@ export function MiyoushePanel(props: {
   });
 
   function openLink(url: string) {
+    const dialog = props.dialog;
     setLinkError(false);
-    void open(url).catch(() => setLinkError(true));
+    void open(url).catch(() => {
+      if (props.dialog === dialog) setLinkError(true);
+    });
   }
 
-  function selectView(next: ReturnType<typeof view>) {
-    if (next === view()) return;
-    if (next !== "account") login?.abort();
-    else if (usingMiyoushePrototype && !working())
-      void refreshRoles(props.game);
-    setView(next);
-    setLinkError(false);
+  function DialogTitle(title: { text: string }) {
+    return (
+      <span class="miyoushe-brand">
+        <Show when={props.icon}>
+          {icon => (
+            <span class="miyoushe-brand-icon">
+              <GameIcon src={icon()} title={props.title} channel={props.game} />
+            </span>
+          )}
+        </Show>
+        <span>
+          <strong>{title.text}</strong>
+          <span class="miyoushe-brand-game">{props.title}</span>
+        </span>
+      </span>
+    );
   }
 
-  const destinations = () => [
-    {
-      label: t("游戏社区", "Community"),
-      description: t(
-        "浏览讨论、公告和官方活动。",
-        "Browse discussions, announcements, and events."
-      ),
-      url: miyousheLinks[props.game].community,
-    },
-    {
-      label: t("攻略专区", "Guides"),
-      description: t(
-        "查看角色培养、配队和活动攻略。",
-        "Find character builds, team advice, and event guides."
-      ),
-      url: miyousheLinks[props.game].guides,
-    },
-    {
-      label: t("每日签到", "Daily check-in"),
-      description: t(
-        "在官方网页查看签到日历并领取奖励。",
-        "View the reward calendar and claim rewards on the official page."
-      ),
-      url: miyousheLinks[props.game].checkIn,
-    },
-  ];
+  function LinkError() {
+    return (
+      <Show when={linkError()}>
+        <p class="miyoushe-file-notice" role="status">
+          {t("无法打开系统浏览器。", "Could not open the system browser.")}
+        </p>
+      </Show>
+    );
+  }
 
   return (
-    <AppModal
-      opened={props.opened}
-      onClose={props.onClose}
-      contentClass="miyoushe-modal"
-      bodyClass="miyoushe-modal-body"
-      title={
-        <span class="miyoushe-brand">
-          <Show when={props.icon}>
-            {icon => (
-              <span class="miyoushe-brand-icon">
-                <GameIcon
-                  src={icon()}
-                  title={props.title}
-                  channel={props.game}
-                />
-              </span>
-            )}
-          </Show>
-          <span>
-            <strong>{t("米游社", "Miyoushe")}</strong>
-            <span class="miyoushe-brand-game">{props.title}</span>
-          </span>
-        </span>
-      }
-      maxWidth={1040}
-    >
-      <div class="miyoushe-panel">
-        <nav
-          class="miyoushe-tabs"
-          aria-label={t("米游社功能", "Miyoushe tools")}
-        >
-          <button
-            type="button"
-            aria-pressed={view() === "pulls"}
-            onClick={() => selectView("pulls")}
-          >
-            {t("抽卡分析", "Pull analysis")}
-          </button>
-          <button
-            type="button"
-            aria-pressed={view() === "account"}
-            onClick={() => selectView("account")}
-          >
-            {t("每日签到", "Daily check-in")}
-          </button>
-          <button
-            type="button"
-            aria-pressed={view() === "community"}
-            onClick={() => selectView("community")}
-          >
-            {t("社区攻略", "Community and guides")}
-          </button>
-        </nav>
-
-        <Show when={view() === "pulls"}>
-          <div class="miyoushe-view">
-            <input
-              ref={fileInput}
-              type="file"
-              hidden
-              accept=".json,application/json"
-              onChange={event => {
-                void importFile(event.currentTarget.files?.[0]);
-                event.currentTarget.value = "";
-              }}
-            />
-            <div class="miyoushe-page-heading">
-              <div>
-                <h2>{t("抽卡档案", "Pull archive")}</h2>
-                <button
-                  class="miyoushe-link-button"
-                  type="button"
-                  onClick={() =>
-                    openLink("https://uigf.org/zh/standards/uigf.html")
-                  }
-                >
-                  {t("UIGF v4.2 格式说明", "UIGF v4.2 format guide")}{" "}
-                  <span aria-hidden="true">↗</span>
-                </button>
-              </div>
-              <Show when={active()}>
-                <div class="miyoushe-actions">
-                  <AppModalButton
-                    disabled={importBusy()}
-                    onClick={() => void exportFile()}
-                  >
-                    {t("导出记录", "Export")}
-                  </AppModalButton>
-                  <AppModalButton
-                    variant="primary"
-                    disabled={importBusy()}
-                    onClick={() => fileInput?.click()}
-                  >
-                    {t("导入记录", "Import")}
-                  </AppModalButton>
-                </div>
-              </Show>
-            </div>
-            <Show when={storageError()}>
-              <p role="status">
-                {t(
-                  "无法读取本地抽卡档案。",
-                  "Could not read the local pull archive."
-                )}
-              </p>
-            </Show>
-            <Show when={fileNotice()}>
-              <p class="miyoushe-file-notice" role="status">
-                {fileNotice()}
-              </p>
-            </Show>
-            <Show
-              when={active()}
-              fallback={
-                <section
-                  class="miyoushe-empty"
-                  onDragOver={event => event.preventDefault()}
-                  onDrop={event => {
-                    event.preventDefault();
-                    void importFile(event.dataTransfer?.files[0]);
-                  }}
-                >
-                  <span class="miyoushe-empty-icon" aria-hidden="true">
-                    ✦
-                  </span>
-                  <h3>{t("导入你的抽卡记录", "Import your pull history")}</h3>
-                  <p>
-                    {t(
-                      "拖入 UIGF v4.2 JSON 文件，或从本机选取。",
-                      "Drop a UIGF v4.2 JSON file here or choose one from your device."
-                    )}
-                  </p>
-                  <AppModalButton
-                    variant="primary"
-                    disabled={importBusy()}
-                    onClick={() => fileInput?.click()}
-                  >
-                    {t("选择文件", "Choose file")}
-                  </AppModalButton>
-                </section>
+    <>
+      <AppModal
+        opened={props.dialog === "pulls"}
+        onClose={props.onClose}
+        contentClass="miyoushe-modal miyoushe-pull-modal"
+        bodyClass="miyoushe-modal-body"
+        title={<DialogTitle text={t("抽卡分析", "Pull analysis")} />}
+        maxWidth={1040}
+      >
+        <div class="miyoushe-panel">
+          <input
+            ref={fileInput}
+            type="file"
+            hidden
+            accept=".json,application/json"
+            onChange={event => {
+              void importFile(event.currentTarget.files?.[0]);
+              event.currentTarget.value = "";
+            }}
+          />
+          <div class="miyoushe-page-heading">
+            <button
+              class="miyoushe-link-button"
+              type="button"
+              onClick={() =>
+                openLink("https://uigf.org/zh/standards/uigf.html")
               }
             >
-              {account => (
-                <PullDashboard
-                  t={t}
-                  game={props.game}
-                  accounts={accounts()}
-                  account={account()}
-                  summary={summary()!}
-                  pool={currentPool()}
-                  visiblePulls={visiblePulls()}
-                  onAccountChange={uid => {
-                    setSelectedUid(uid);
-                    setVisiblePulls(50);
-                  }}
-                  onPoolChange={type => {
-                    setPoolType(type);
-                    setVisiblePulls(50);
-                  }}
-                  onShowMore={() => setVisiblePulls(count => count + 50)}
-                />
-              )}
+              {t("UIGF v4.2 格式说明", "UIGF v4.2 format guide")}{" "}
+              <span aria-hidden="true">↗</span>
+            </button>
+            <Show when={active()}>
+              <div class="miyoushe-actions">
+                <AppModalButton
+                  disabled={importBusy()}
+                  onClick={() => void exportFile()}
+                >
+                  {t("导出记录", "Export")}
+                </AppModalButton>
+                <AppModalButton
+                  variant="primary"
+                  disabled={importBusy()}
+                  onClick={() => fileInput?.click()}
+                >
+                  {t("导入记录", "Import")}
+                </AppModalButton>
+              </div>
             </Show>
           </div>
-        </Show>
-
-        <Show when={view() === "account"}>
-          <div class="miyoushe-view">
-            <div class="miyoushe-page-heading">
-              <h2>{t("每日签到", "Daily check-in")}</h2>
-              <AppModalButton
-                onClick={() => openLink(miyousheLinks[props.game].checkIn)}
+          <Show when={storageError()}>
+            <p role="status">
+              {t(
+                "无法读取本地抽卡档案。",
+                "Could not read the local pull archive."
+              )}
+            </p>
+          </Show>
+          <Show when={fileNotice()}>
+            <p class="miyoushe-file-notice" role="status">
+              {fileNotice()}
+            </p>
+          </Show>
+          <Show
+            when={active()}
+            fallback={
+              <section
+                class="miyoushe-empty"
+                onDragOver={event => event.preventDefault()}
+                onDrop={event => {
+                  event.preventDefault();
+                  void importFile(event.dataTransfer?.files[0]);
+                }}
               >
-                {t("打开官方签到页", "Open official check-in")}
-              </AppModalButton>
-            </div>
-            <Show
-              when={usingMiyoushePrototype}
-              fallback={
-                <p class="miyoushe-muted">
+                <span class="miyoushe-empty-icon" aria-hidden="true">
+                  ✦
+                </span>
+                <h3>{t("导入你的抽卡记录", "Import your pull history")}</h3>
+                <p>
                   {t(
-                    "前往官方签到页查看本月奖励并完成签到。",
-                    "View this month's rewards and check in on the official page."
+                    "拖入 UIGF v4.2 JSON 文件，或从本机选取。",
+                    "Drop a UIGF v4.2 JSON file here or choose one from your device."
                   )}
                 </p>
-              }
-            >
-              <section class="miyoushe-card miyoushe-account">
-                <div class="miyoushe-section-heading">
-                  <h3>
-                    {bound()
-                      ? t("已绑定米游社账号", "Account connected")
-                      : t("绑定米游社账号", "Connect a Miyoushe account")}
-                  </h3>
-                  <span>{t("本地原型", "Local prototype")}</span>
-                </div>
-                <div class="miyoushe-actions">
-                  <Show
-                    when={qr()}
-                    fallback={
-                      <AppModalButton
-                        disabled={working()}
-                        onClick={() => void startLogin()}
-                      >
-                        {bound()
-                          ? t("重新扫码", "Reconnect")
-                          : t("扫码绑定", "Connect with QR code")}
-                      </AppModalButton>
-                    }
-                  >
-                    {code => (
-                      <>
-                        <img
-                          class="miyoushe-qr"
-                          src={"data:image/png;base64," + code().image}
-                          alt={t(
-                            "米游社登录二维码",
-                            "Miyoushe sign-in QR code"
-                          )}
-                        />
-                        <p role="status">
-                          {code().scanned
-                            ? t("请在手机上确认。", "Confirm on your phone.")
-                            : t(
-                                "请用米游社 App 扫码。",
-                                "Scan with the Miyoushe app."
-                              )}
-                        </p>
-                        <AppModalButton onClick={() => login?.abort()}>
-                          {t("取消", "Cancel")}
-                        </AppModalButton>
-                      </>
-                    )}
-                  </Show>
-                  <Show when={bound() && !qr()}>
+                <AppModalButton
+                  variant="primary"
+                  disabled={importBusy()}
+                  onClick={() => fileInput?.click()}
+                >
+                  {t("选择文件", "Choose file")}
+                </AppModalButton>
+              </section>
+            }
+          >
+            {account => (
+              <PullDashboard
+                t={t}
+                game={props.game}
+                accounts={accounts()}
+                account={account()}
+                summary={summary()!}
+                pool={currentPool()}
+                visiblePulls={visiblePulls()}
+                onAccountChange={uid => {
+                  setSelectedUid(uid);
+                  setVisiblePulls(50);
+                }}
+                onPoolChange={type => {
+                  setPoolType(type);
+                  setVisiblePulls(50);
+                }}
+                onShowMore={() => setVisiblePulls(count => count + 50)}
+              />
+            )}
+          </Show>
+
+          <LinkError />
+        </div>
+      </AppModal>
+      <AppModal
+        opened={props.dialog === "account"}
+        onClose={props.onClose}
+        contentClass="miyoushe-modal miyoushe-check-in-modal"
+        bodyClass="miyoushe-modal-body"
+        title={<DialogTitle text={t("每日签到", "Daily check-in")} />}
+        maxWidth={520}
+      >
+        <div class="miyoushe-panel">
+          <Show
+            when={usingMiyoushePrototype}
+            fallback={
+              <p class="miyoushe-muted">
+                {t(
+                  "前往官方签到页查看本月奖励并完成签到。",
+                  "View this month's rewards and check in on the official page."
+                )}
+              </p>
+            }
+          >
+            <section class="miyoushe-card miyoushe-account">
+              <div class="miyoushe-section-heading">
+                <h3>
+                  {bound()
+                    ? t("已绑定米游社账号", "Account connected")
+                    : t("绑定米游社账号", "Connect a Miyoushe account")}
+                </h3>
+                <span>{t("本地原型", "Local prototype")}</span>
+              </div>
+              <div class="miyoushe-actions">
+                <Show
+                  when={qr()}
+                  fallback={
                     <AppModalButton
                       disabled={working()}
-                      onClick={() => void unbind()}
+                      onClick={() => void startLogin()}
                     >
-                      {t("解绑", "Disconnect")}
+                      {bound()
+                        ? t("重新扫码", "Reconnect")
+                        : t("扫码绑定", "Connect with QR code")}
                     </AppModalButton>
-                  </Show>
-                </div>
-                <Show when={bound() && !qr()}>
-                  <Show
-                    when={roles().length}
-                    fallback={
-                      <p>
-                        {t(
-                          "当前没有可签到的官服角色。",
-                          "No eligible official CN characters are available."
-                        )}
-                      </p>
-                    }
-                  >
-                    <div class="miyoushe-actions">
-                      <label>
-                        {t("签到角色", "Check-in character")}{" "}
-                        <select
-                          disabled={working()}
-                          value={selectedRole() ? key(selectedRole()!) : ""}
-                          onChange={event => {
-                            setRoleKey(event.currentTarget.value);
-                            setNotice(undefined);
-                          }}
-                        >
-                          <For each={roles()}>
-                            {role => (
-                              <option value={key(role)}>
-                                {role.nickname || role.region} · ••••
-                                {role.uid.slice(-4)}
-                              </option>
+                  }
+                >
+                  {code => (
+                    <>
+                      <img
+                        class="miyoushe-qr"
+                        src={"data:image/png;base64," + code().image}
+                        alt={t("米游社登录二维码", "Miyoushe sign-in QR code")}
+                      />
+                      <p role="status">
+                        {code().scanned
+                          ? t("请在手机上确认。", "Confirm on your phone.")
+                          : t(
+                              "请用米游社 App 扫码。",
+                              "Scan with the Miyoushe app."
                             )}
-                          </For>
-                        </select>
-                      </label>
-                      <AppModalButton
-                        variant="primary"
-                        disabled={working()}
-                        onClick={() => void sign()}
-                      >
-                        {t("一键签到", "Check in")}
+                      </p>
+                      <AppModalButton onClick={() => login?.abort()}>
+                        {t("取消", "Cancel")}
                       </AppModalButton>
-                    </div>
-                  </Show>
+                    </>
+                  )}
                 </Show>
-                <Show when={notice()}>
-                  {state => <p role="status">{messages()[state()]}</p>}
-                </Show>
-              </section>
-            </Show>
-          </div>
-        </Show>
-
-        <Show when={view() === "community"}>
-          <div class="miyoushe-view">
-            <div class="miyoushe-page-heading">
-              <h2>{t("官方社区", "Official community")}</h2>
-            </div>
-            <div class="miyoushe-destinations">
-              <For each={destinations()}>
-                {item => (
-                  <button
-                    type="button"
-                    class="miyoushe-card miyoushe-destination"
-                    onClick={() => openLink(item.url)}
+                <Show when={bound() && !qr()}>
+                  <AppModalButton
+                    disabled={working()}
+                    onClick={() => void unbind()}
                   >
-                    <strong>{item.label}</strong>
-                    <span class="miyoushe-muted">{item.description}</span>
-                    <span class="miyoushe-external" aria-hidden="true">
-                      ↗
-                    </span>
-                  </button>
-                )}
-              </For>
-            </div>
-          </div>
-        </Show>
+                    {t("解绑", "Disconnect")}
+                  </AppModalButton>
+                </Show>
+              </div>
+              <Show when={bound() && !qr()}>
+                <Show
+                  when={roles().length}
+                  fallback={
+                    <p>
+                      {t(
+                        "当前没有可签到的官服角色。",
+                        "No eligible official CN characters are available."
+                      )}
+                    </p>
+                  }
+                >
+                  <div class="miyoushe-actions">
+                    <label>
+                      {t("签到角色", "Check-in character")}{" "}
+                      <select
+                        disabled={working()}
+                        value={selectedRole() ? key(selectedRole()!) : ""}
+                        onChange={event => {
+                          setRoleKey(event.currentTarget.value);
+                          setNotice(undefined);
+                        }}
+                      >
+                        <For each={roles()}>
+                          {role => (
+                            <option value={key(role)}>
+                              {role.nickname || role.region} · ••••
+                              {role.uid.slice(-4)}
+                            </option>
+                          )}
+                        </For>
+                      </select>
+                    </label>
+                    <AppModalButton
+                      variant="primary"
+                      disabled={working()}
+                      onClick={() => void sign()}
+                    >
+                      {t("一键签到", "Check in")}
+                    </AppModalButton>
+                  </div>
+                </Show>
+              </Show>
+              <Show when={notice()}>
+                {state => <p role="status">{messages()[state()]}</p>}
+              </Show>
+            </section>
+          </Show>
 
-        <Show when={linkError()}>
-          <p class="miyoushe-file-notice" role="status">
-            {t("无法打开系统浏览器。", "Could not open the system browser.")}
-          </p>
-        </Show>
-      </div>
-    </AppModal>
+          <div class="miyoushe-actions">
+            <AppModalButton
+              onClick={() => openLink(miyousheCheckInUrl[props.game])}
+            >
+              {t("打开官方签到页", "Open official check-in")}
+            </AppModalButton>
+          </div>
+          <LinkError />
+        </div>
+      </AppModal>
+    </>
   );
 }

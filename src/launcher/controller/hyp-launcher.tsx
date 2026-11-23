@@ -580,10 +580,9 @@ export async function createHypLauncher({
         import.meta.env.YAAGL_CHANNEL_CLIENT ?? "hk4ecn",
         selectedGame().clientId
       );
-    const [miyousheOpen, setMiyousheOpen] = createSignal(false);
-    const [miyousheView, setMiyousheView] = createSignal<"pulls" | "account">(
-      "pulls"
-    );
+    const [miyousheDialog, setMiyousheDialog] = createSignal<
+      "pulls" | "account"
+    >();
     const [miyousheStatus, setMiyousheStatus] =
       createSignal<MiyousheHomeStatus>({
         pulls: "loading",
@@ -618,12 +617,6 @@ export async function createHypLauncher({
       };
       return labels[checkIn];
     };
-    function openMiyoushe(view: "pulls" | "account") {
-      batch(() => {
-        setMiyousheView(view);
-        setMiyousheOpen(true);
-      });
-    }
     const [installPrompt, setInstallPrompt] = createSignal<{
       game: HypGame;
       directory: string;
@@ -2586,13 +2579,13 @@ export async function createHypLauncher({
                       kind: "pulls",
                       label: homeText("抽卡分析", "Pull analysis"),
                       status: pullStatus(),
-                      open: () => openMiyoushe("pulls"),
+                      open: () => setMiyousheDialog("pulls"),
                     },
                     {
                       kind: "account",
                       label: homeText("每日签到", "Daily check-in"),
                       status: checkInStatus(),
-                      open: () => openMiyoushe("account"),
+                      open: () => setMiyousheDialog("account"),
                     },
                   ]}
                 />
@@ -3055,9 +3048,8 @@ export async function createHypLauncher({
         <Show when={miyousheGame()}>
           {game => (
             <MiyoushePanel
-              opened={miyousheOpen()}
-              onClose={() => setMiyousheOpen(false)}
-              initialView={miyousheView()}
+              dialog={miyousheDialog()}
+              onClose={() => setMiyousheDialog(undefined)}
               onHomeStatusChange={setMiyousheStatus}
               game={game()}
               title={selectedGame().title}
