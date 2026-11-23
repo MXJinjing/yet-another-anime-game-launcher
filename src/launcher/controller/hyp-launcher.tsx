@@ -2338,29 +2338,6 @@ export async function createHypLauncher({
             </Show>
           </button>
           <div class="hyp-rail-bottom">
-            <Show when={miyousheGame()}>
-              <button
-                class="hyp-rail-button"
-                aria-label={miyousheLabel()}
-                title={miyousheLabel()}
-                onClick={() => setMiyousheOpen(true)}
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l2.3-3.1A8.5 8.5 0 1 1 21 11.5Z" />
-                  <path d="M9 12h.01M12.5 12h.01M16 12h.01" />
-                </svg>
-              </button>
-            </Show>
             <button
               class="hyp-rail-button"
               aria-label="Global settings"
@@ -2381,6 +2358,19 @@ export async function createHypLauncher({
         >
           <MhyClientView
             client={selectedGame().client}
+            communityTools={
+              miyousheGame()
+                ? {
+                    title: miyousheLabel(),
+                    description:
+                      locale.currentLanguage === "zh_cn"
+                        ? "抽卡 · 签到 · 攻略"
+                        : "Pull analysis, check-in, and guides",
+                    disabled: libraryMounted() || downloadManagerOpen(),
+                    open: () => setMiyousheOpen(true),
+                  }
+                : undefined
+            }
             channelName={
               selectedGame().client.uiContent.channelName ||
               selectedGame().id.toUpperCase()

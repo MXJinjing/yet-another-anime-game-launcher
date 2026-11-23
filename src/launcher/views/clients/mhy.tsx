@@ -39,6 +39,12 @@ function getSocialTitle(social: HoyoConnectSocialMedia) {
 export function MhyClientView(props: {
   client: ChannelClient;
   channelName?: string;
+  communityTools?: {
+    title: string;
+    description: string;
+    disabled: boolean;
+    open: () => void;
+  };
 }) {
   const launcherIconButtons = createMemo(
     () => props.client.uiContent.launcherIconButtons ?? []
@@ -91,6 +97,9 @@ export function MhyClientView(props: {
       socialMedia().length > 0
   );
 
+  const showLauncherContent = () =>
+    !props.client.uiContent.channelName && (hasContent() || contentPending());
+
   function moveBanner(offset: number) {
     const count = banners().length;
     if (count < 2) return;
@@ -98,14 +107,9 @@ export function MhyClientView(props: {
   }
 
   return (
-    <Show
-      when={
-        (hasContent() || contentPending()) &&
-        !props.client.uiContent.channelName
-      }
-    >
-      <div class="hyp-mhy-content" aria-label="公告和社交媒体">
-        <Show when={socialMedia().length > 0}>
+    <Show when={showLauncherContent() || props.communityTools}>
+      <div class="hyp-mhy-content">
+        <Show when={showLauncherContent() && socialMedia().length > 0}>
           <aside class="hyp-mhy-social" aria-label="社交媒体">
             <For each={socialMedia()}>
               {social => {
@@ -154,8 +158,13 @@ export function MhyClientView(props: {
           </aside>
         </Show>
 
-        <div class="hyp-mhy-board-stack">
-          <Show when={launcherIconButton()}>
+        <div
+          classList={{
+            "hyp-mhy-board-stack": true,
+            "hyp-mhy-board-stack--with-tools": Boolean(props.communityTools),
+          }}
+        >
+          <Show when={showLauncherContent() && launcherIconButton()}>
             {iconButton => {
               const imageUrl = () =>
                 launcherIconHovered() && iconButton().hover_url
@@ -180,101 +189,149 @@ export function MhyClientView(props: {
             }}
           </Show>
 
-          <section class="hyp-mhy-board" aria-label="公告板">
+          <div class="hyp-mhy-home-panel">
             <Show
-              when={currentBanner()}
-              fallback={
-                <Show when={contentPending()}>
-                  <div class="hyp-mhy-banner-wrap">
-                    <Skeleton class="hyp-mhy-banner-skeleton" />
-                  </div>
-                </Show>
+              when={
+                showLauncherContent() &&
+                (currentBanner() ||
+                  recentPosts().length > 0 ||
+                  contentPending())
               }
             >
-              {banner => (
-                <div class="hyp-mhy-banner-wrap">
-                  <button
-                    type="button"
-                    class="hyp-mhy-banner"
-                    onClick={() => openLink(banner().image.link)}
-                    disabled={!banner().image.link}
-                  >
-                    <GameBanner
-                      src={banner().image.url}
-                      label={bannerFallbackLabel()}
-                      loading={bannerIndex() === 0 ? "eager" : "lazy"}
-                    />
-                  </button>
-                  <Show when={banners().length > 1}>
-                    <div class="hyp-mhy-banner-arrows" aria-hidden="false">
-                      <button
-                        type="button"
-                        aria-label="上一张 Banner"
-                        onClick={() => moveBanner(-1)}
-                      >
-                        ‹
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="下一张 Banner"
-                        onClick={() => moveBanner(1)}
-                      >
-                        ›
-                      </button>
-                    </div>
-                    <div class="hyp-mhy-banner-dots" aria-label="Banner 切换">
-                      <For each={banners()}>
-                        {(_, index) => (
-                          <button
-                            type="button"
-                            classList={{
-                              "hyp-mhy-banner-dot": true,
-                              active: bannerIndex() === index(),
-                            }}
-                            aria-label={`第 ${index() + 1} 张 Banner`}
-                            aria-pressed={bannerIndex() === index()}
-                            onClick={() => setBannerIndex(index())}
-                          />
-                        )}
-                      </For>
-                    </div>
-                  </Show>
-                </div>
-              )}
-            </Show>
-
-            <Show when={recentPosts().length > 0 || contentPending()}>
-              <div class="hyp-mhy-posts">
+              <section class="hyp-mhy-board" aria-label="公告板">
                 <Show
-                  when={recentPosts().length > 0}
+                  when={currentBanner()}
                   fallback={
-                    <For each={[0, 1, 2]}>
-                      {_ => (
-                        <div class="hyp-mhy-post hyp-mhy-post-skeleton">
-                          <Skeleton class="hyp-mhy-post-title-skeleton" />
-                          <Skeleton class="hyp-mhy-post-date-skeleton" />
-                        </div>
-                      )}
-                    </For>
+                    <Show when={contentPending()}>
+                      <div class="hyp-mhy-banner-wrap">
+                        <Skeleton class="hyp-mhy-banner-skeleton" />
+                      </div>
+                    </Show>
                   }
                 >
-                  <For each={recentPosts()}>
-                    {post => (
+                  {banner => (
+                    <div class="hyp-mhy-banner-wrap">
                       <button
                         type="button"
-                        class="hyp-mhy-post"
-                        onClick={() => openLink(post.link)}
-                        disabled={!post.link}
+                        class="hyp-mhy-banner"
+                        onClick={() => openLink(banner().image.link)}
+                        disabled={!banner().image.link}
                       >
-                        <span>{post.title}</span>
-                        <time>{post.date}</time>
+                        <GameBanner
+                          src={banner().image.url}
+                          label={bannerFallbackLabel()}
+                          loading={bannerIndex() === 0 ? "eager" : "lazy"}
+                        />
                       </button>
-                    )}
-                  </For>
+                      <Show when={banners().length > 1}>
+                        <div class="hyp-mhy-banner-arrows" aria-hidden="false">
+                          <button
+                            type="button"
+                            aria-label="上一张 Banner"
+                            onClick={() => moveBanner(-1)}
+                          >
+                            ‹
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="下一张 Banner"
+                            onClick={() => moveBanner(1)}
+                          >
+                            ›
+                          </button>
+                        </div>
+                        <div
+                          class="hyp-mhy-banner-dots"
+                          aria-label="Banner 切换"
+                        >
+                          <For each={banners()}>
+                            {(_, index) => (
+                              <button
+                                type="button"
+                                classList={{
+                                  "hyp-mhy-banner-dot": true,
+                                  active: bannerIndex() === index(),
+                                }}
+                                aria-label={`第 ${index() + 1} 张 Banner`}
+                                aria-pressed={bannerIndex() === index()}
+                                onClick={() => setBannerIndex(index())}
+                              />
+                            )}
+                          </For>
+                        </div>
+                      </Show>
+                    </div>
+                  )}
                 </Show>
-              </div>
+
+                <Show when={recentPosts().length > 0 || contentPending()}>
+                  <div class="hyp-mhy-posts">
+                    <Show
+                      when={recentPosts().length > 0}
+                      fallback={
+                        <For each={[0, 1, 2]}>
+                          {_ => (
+                            <div class="hyp-mhy-post hyp-mhy-post-skeleton">
+                              <Skeleton class="hyp-mhy-post-title-skeleton" />
+                              <Skeleton class="hyp-mhy-post-date-skeleton" />
+                            </div>
+                          )}
+                        </For>
+                      }
+                    >
+                      <For each={recentPosts()}>
+                        {post => (
+                          <button
+                            type="button"
+                            class="hyp-mhy-post"
+                            onClick={() => openLink(post.link)}
+                            disabled={!post.link}
+                          >
+                            <span>{post.title}</span>
+                            <time>{post.date}</time>
+                          </button>
+                        )}
+                      </For>
+                    </Show>
+                  </div>
+                </Show>
+              </section>
             </Show>
-          </section>
+            <Show when={props.communityTools}>
+              {tool => (
+                <button
+                  type="button"
+                  class="hyp-mhy-tool"
+                  aria-haspopup="dialog"
+                  disabled={tool().disabled}
+                  onClick={() => tool().open()}
+                >
+                  <span class="hyp-mhy-tool-icon" aria-hidden="true">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l2.3-3.1A8.5 8.5 0 1 1 21 11.5Z" />
+                      <path d="M9 12h.01M12.5 12h.01M16 12h.01" />
+                    </svg>
+                  </span>
+                  <strong>{tool().title}</strong>
+                  <span class="hyp-mhy-tool-description">
+                    {tool().description}
+                  </span>
+                  <span class="hyp-mhy-tool-arrow" aria-hidden="true">
+                    →
+                  </span>
+                </button>
+              )}
+            </Show>
+          </div>
         </div>
       </div>
     </Show>
