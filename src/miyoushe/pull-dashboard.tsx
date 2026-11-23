@@ -136,9 +136,6 @@ export function PullDashboard(props: {
   });
   const rowCount = () =>
     view() === "bars" ? cycles().length : allRows().length;
-  const completedIntervals = createMemo(() =>
-    report().pools.flatMap(entry => entry.intervals)
-  );
   const rule = () =>
     props.game === "hk4e"
       ? genshinPoolRule(
@@ -369,35 +366,6 @@ export function PullDashboard(props: {
         </div>
       </div>
 
-      <div class="miyoushe-metrics">
-        <div class="miyoushe-metric">
-          <span>{t("已记录抽数", "Recorded pulls")}</span>
-          <strong>{count.format(props.account.list.length)}</strong>
-          <small>
-            {props.summary.pools.length} {t("个卡池", "pools")}
-          </small>
-        </div>
-        <div class="miyoushe-metric miyoushe-metric--gold">
-          <span>
-            {t("已记录", "Recorded ")}
-            {topRank()}
-          </span>
-          <strong>{report().ranked ? count.format(report().top) : "—"}</strong>
-          <small>{t("仅统计已知稀有度", "Known rarity only")}</small>
-        </div>
-        <div class="miyoushe-metric">
-          <span>
-            {topRank()}
-            {t("平均", " average")}
-          </span>
-          <strong>{average(completedIntervals())}</strong>
-          <small>
-            {completedIntervals().length}{" "}
-            {t("段已记录间隔", "recorded intervals")}
-          </small>
-        </div>
-      </div>
-
       <Show
         when={pool()}
         fallback={
@@ -434,57 +402,9 @@ export function PullDashboard(props: {
                   )}
                 </For>
               </div>
-
-              <section class="miyoushe-card miyoushe-pool-summary">
-                <div class="miyoushe-pity-overview">
-                  <div class="miyoushe-section-heading">
-                    <h3>{poolLabel(active().type)}</h3>
-                    <Show when={supportsFeatured()}>
-                      <span class="miyoushe-pity-state">
-                        {active().nextGuaranteed === true
-                          ? t("当前大保底", "Next top rank guaranteed UP")
-                          : active().nextGuaranteed === false
-                          ? t("当前小保底", "Next top rank not guaranteed UP")
-                          : t("保底状态未知", "Guarantee unknown")}
-                      </span>
-                    </Show>
-                  </div>
-                  <div class="miyoushe-pity-value">
-                    <span>{t("当前已垫", "Recorded pity")}</span>
-                    <strong>{active().pity ?? "—"}</strong>
-                    <span>{t("抽", "pulls")}</span>
-                  </div>
-                  <Show
-                    when={
-                      active().pity !== undefined &&
-                      rule() &&
-                      (active().pity ?? 0) < (rule()?.hardPity ?? 0)
-                    }
-                  >
-                    <div
-                      class="miyoushe-bar-track miyoushe-pity-track"
-                      data-rank="5"
-                      aria-hidden="true"
-                    >
-                      <span
-                        style={{
-                          width:
-                            ((active().pity ?? 0) / (rule()?.hardPity ?? 1)) *
-                              100 +
-                            "%",
-                        }}
-                      />
-                    </div>
-                    <small class="miyoushe-muted">
-                      {t(
-                        "若记录完整，最迟再",
-                        "With complete records, at most"
-                      )}{" "}
-                      {(rule()?.hardPity ?? 0) - (active().pity ?? 0)}{" "}
-                      {t("抽出货", "pulls to the next top rank")}
-                    </small>
-                  </Show>
-                </div>
+            </Show>
+            <section class="miyoushe-card miyoushe-history">
+              <Show when={view() === "bars"}>
                 <dl class="miyoushe-pool-metrics">
                   <div>
                     <dt>
@@ -503,7 +423,15 @@ export function PullDashboard(props: {
                     </div>
                     <div>
                       <dt>{t("历史 UP 占比", "Historical UP share")}</dt>
-                      <dd>
+                      <dd
+                        title={
+                          active().hits +
+                          " UP / " +
+                          active().classified +
+                          " " +
+                          t("次可判定", "classified")
+                        }
+                      >
                         {active().classified
                           ? count.format(
                               Math.round(
@@ -512,21 +440,10 @@ export function PullDashboard(props: {
                             ) + "%"
                           : "—"}
                       </dd>
-                      <small>
-                        {active().hits} UP / {active().classified}{" "}
-                        {t("次可判定", "classified")}
-                        {active().topRankCount > active().classified
-                          ? " · " +
-                            (active().topRankCount - active().classified) +
-                            t(" 个未知", " unknown")
-                          : ""}
-                      </small>
                     </div>
                   </Show>
                 </dl>
-              </section>
-            </Show>
-            <section class="miyoushe-card miyoushe-history">
+              </Show>
               <div class="miyoushe-history-toolbar">
                 <div
                   class="miyoushe-pool-picker"
@@ -592,6 +509,21 @@ export function PullDashboard(props: {
                           <small>
                             {t("截至最新一抽", "Through the latest pull")}
                           </small>
+                          <Show
+                            when={
+                              supportsFeatured() &&
+                              active().nextGuaranteed !== undefined
+                            }
+                          >
+                            <span class="miyoushe-featured-tag">
+                              {active().nextGuaranteed
+                                ? t("当前大保底", "Next top rank guaranteed UP")
+                                : t(
+                                    "当前小保底",
+                                    "Next top rank not guaranteed UP"
+                                  )}
+                            </span>
+                          </Show>
                         </div>
                         <div class="miyoushe-chart-meter">
                           <span

@@ -121,7 +121,6 @@
   cursor: pointer;
 }
 
-.miyoushe-section-heading,
 .miyoushe-scope,
 .miyoushe-actions {
   display: flex;
@@ -130,7 +129,6 @@
   gap: 8px 14px;
 }
 
-.miyoushe-section-heading,
 .miyoushe-scope {
   justify-content: space-between;
 }
@@ -157,8 +155,7 @@
   color: var(--miyo-accent);
 }
 
-.miyoushe-card,
-.miyoushe-metric {
+.miyoushe-card {
   min-width: 0;
   padding: 16px 18px;
   border: 1px solid var(--miyo-line);
@@ -184,52 +181,9 @@
   font: inherit;
 }
 
-.miyoushe-muted,
-.miyoushe-section-heading > span {
+.miyoushe-muted {
   color: var(--miyo-muted);
   font-size: 12px;
-}
-
-.miyoushe-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid var(--miyo-line);
-  border-radius: 10px;
-  background: var(--miyo-panel);
-}
-
-.miyoushe-metric {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0 8px;
-  padding: 7px 12px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  font-size: 12px;
-}
-
-.miyoushe-metric + .miyoushe-metric {
-  border-inline-start: 1px solid var(--miyo-line);
-}
-
-.miyoushe-metric strong {
-  grid-column: 2;
-  grid-row: 1 / 3;
-  font-size: 22px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.miyoushe-metric--gold strong {
-  color: var(--miyo-accent);
-}
-
-.miyoushe-metric small {
-  color: var(--miyo-muted);
-  font-size: 11px;
 }
 
 .miyoushe-pool-picker {
@@ -261,59 +215,20 @@
   font-variant-numeric: tabular-nums;
 }
 
-.miyoushe-pool-summary,
 .miyoushe-history,
 .miyoushe-account {
   display: grid;
   gap: 12px;
 }
 
-.miyoushe-section-heading h3,
 .miyoushe-account h3 {
   margin: 0;
   font-size: 15px;
   font-weight: 700;
 }
 
-.miyoushe-pull-modal :is(.miyoushe-pool-summary, .miyoushe-history) {
+.miyoushe-pull-modal .miyoushe-history {
   padding: 12px 14px;
-}
-
-.miyoushe-pool-summary {
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 12px 22px;
-}
-
-.miyoushe-pity-overview {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-}
-
-.miyoushe-pity-state {
-  border: 1px solid var(--miyo-line);
-  border-radius: 6px;
-  padding: 2px 6px;
-}
-
-.miyoushe-pity-value {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  color: var(--miyo-muted);
-  font-size: 12px;
-}
-
-.miyoushe-pity-value strong {
-  color: var(--miyo-accent);
-  font-size: 24px;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.miyoushe-bar-track.miyoushe-pity-track {
-  height: 7px;
 }
 
 .miyoushe-chart {
@@ -517,18 +432,18 @@
 }
 
 .miyoushe-pool-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
   margin: 0;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--miyo-line);
 }
 
 .miyoushe-pool-metrics > div {
-  display: grid;
-  align-content: start;
-  gap: 2px;
-  border-inline-start: 1px solid var(--miyo-line);
-  padding-inline-start: 9px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .miyoushe-pool-metrics dt {
@@ -536,16 +451,10 @@
   font-size: 12px;
 }
 
-.miyoushe-pool-metrics small {
-  grid-column: 1 / -1;
-  color: var(--miyo-muted);
-  font-size: 10px;
-}
-
 .miyoushe-pool-metrics dd {
   margin: 0;
   color: var(--miyo-text);
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -622,28 +531,6 @@
   height: 100%;
   min-height: 0;
   object-fit: contain;
-}
-
-.miyoushe-bar-track {
-  flex: 1;
-  height: 5px;
-  overflow: hidden;
-  border-radius: 3px;
-  background: var(--miyo-line);
-}
-
-.miyoushe-bar-track > span {
-  display: block;
-  height: 100%;
-  background: #8cafd9;
-}
-
-.miyoushe-bar-track[data-rank="4"] > span {
-  background: #ba9ce8;
-}
-
-.miyoushe-bar-track[data-rank="5"] > span {
-  background: var(--miyo-accent);
 }
 
 .miyoushe-rank {
@@ -738,19 +625,6 @@
 
   .miyoushe-modal .hope-modal__body.miyoushe-modal-body {
     padding-inline: 16px !important;
-  }
-
-  .miyoushe-metrics {
-    grid-template-columns: 1fr;
-  }
-
-  .miyoushe-metric + .miyoushe-metric {
-    border-inline-start: 0;
-    border-top: 1px solid var(--miyo-line);
-  }
-
-  .miyoushe-pool-summary {
-    grid-template-columns: 1fr;
   }
 
   .miyoushe-pull-modal .hope-modal__header {
