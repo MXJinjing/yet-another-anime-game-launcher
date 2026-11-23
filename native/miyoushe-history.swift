@@ -2,16 +2,24 @@ import Foundation
 
 private typealias Fields = [String: Any]
 
-private enum Failure: String, Error {
+enum WishHistoryFailure: String, Error {
     case invalid, unavailable, network, limited, manual
     case noHistory = "no-history"
     case historyExpired = "history-expired"
     case historyMismatch = "history-mismatch"
 }
 
-private let poolTypes = ["100", "200", "301", "302", "500"]
-private let recordHosts = ["hk4e-api.mihoyo.com", "public-operation-hk4e.mihoyo.com"]
-private let recordPaths = ["/event/gacha_info/api/getGachaLog", "/gacha_info/api/getGachaLog"]
+private let poolTypes = ["301", "302", "200", "500", "100"]
+private let recordHost = "public-operation-hk4e.mihoyo.com"
+private let recordPath = "/gacha_info/api/getGachaLog"
+private let cachedRecordHosts = ["hk4e-api.mihoyo.com", recordHost]
+private let cachedRecordPaths = ["/event/gacha_info/api/getGachaLog", recordPath]
+
+func writeWishHistoryLine(_ value: [String: Any]) throws {
+    var data = try JSONSerialization.data(withJSONObject: value)
+    data.append(0x0A)
+    try FileHandle.standardOutput.write(contentsOf: data)
+}
 
 private final class RejectRedirects: NSObject, URLSessionTaskDelegate {
     func urlSession(
@@ -44,12 +52,12 @@ private struct History {
                   time.range(of: #"^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$"#,
                              options: .regularExpression) != nil,
                   let rank = digits(row["rank_type"]), ["3", "4", "5"].contains(rank)
-            else { throw Failure.invalid }
-            guard batchUID == nil || role == batchUID else { throw Failure.historyMismatch }
+            else { throw WishHistoryFailure.invalid }
+            guard batchUID == nil || role == batchUID else { throw WishHistoryFailure.historyMismatch }
             batchUID = role
             let normalized = type == "400" ? "301" : type
             guard poolTypes.contains(normalized), pool == nil || normalized == pool
-            else { throw Failure.invalid }
+            else { throw WishHistoryFailure.invalid }
             var pull = ["id": id, "gacha_type": type, "uigf_gacha_type": normalized,
                         "time": time, "rank_type": rank]
             for field in ["name", "item_type"] {
@@ -66,7 +74,7 @@ private struct History {
     }
 
     func result(source: String) throws -> Fields {
-        guard let uid = uid, !pulls.isEmpty else { throw Failure.noHistory }
+        guard let uid = uid, !pulls.isEmpty else { throw WishHistoryFailure.noHistory }
         return ["state": "ok", "source": source, "history": ["uid": uid, "list": pulls]]
     }
 }
@@ -145,7 +153,7 @@ private func cacheHistory(_ data: Data, history: inout History, expectedUID: Str
     }
 }
 
-private func searchRecordLink(_ data: Data) -> URLComponents? {
+private func searchRecordParameters(_ data: Data) -> [URLQueryItem]? {
     let text = String(decoding: data, as: UTF8.self)
     let pattern = #"https://(?:hk4e-api|public-operation-hk4e)\.mihoyo\.com/(?:event/)?gacha_info/api/getGachaLog\?[^\s\x00-\x20"'<>]{1,8192}"#
     guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
@@ -153,7 +161,7 @@ private func searchRecordLink(_ data: Data) -> URLComponents? {
     for match in matches.reversed() {
         guard let range = Range(match.range, in: text),
               let url = URLComponents(string: String(text[range])),
-              recordHosts.contains(url.host ?? ""), recordPaths.contains(url.path),
+              cachedRecordHosts.contains(url.host ?? ""), cachedRecordPaths.contains(url.path),
               url.user == nil, url.password == nil, url.port == nil,
               let query = url.queryItems,
               query.filter({ $0.name == "authkey" }).count == 1,
@@ -163,12 +171,13 @@ private func searchRecordLink(_ data: Data) -> URLComponents? {
                   ($0.name == "game_biz" && $0.value != "hk4e_cn")
               })
         else { continue }
-        return url
+        return query
     }
     return nil
 }
 
-private func fetchHistory(_ link: URLComponents, expectedUID: String?, heads: [String: String]) async throws -> History {
+private func fetchHistory(_ parameters: [URLQueryItem], expectedUID: String?,
+                          headsByUid: [String: [String: String]]) async throws -> History {
     let config = URLSessionConfiguration.ephemeral
     config.httpShouldSetCookies = false
     config.timeoutIntervalForRequest = 12
@@ -176,15 +185,18 @@ private func fetchHistory(_ link: URLComponents, expectedUID: String?, heads: [S
     let session = URLSession(configuration: config, delegate: RejectRedirects(), delegateQueue: nil)
     defer { session.finishTasksAndInvalidate() }
     let fields = ["authkey", "authkey_ver", "sign_type", "auth_appid", "game_biz", "region", "init_type", "gacha_id"]
-    let prefix = (link.queryItems ?? []).filter { fields.contains($0.name) }
+    let prefix = parameters.filter { fields.contains($0.name) }
+    var endpoint = URLComponents()
+    endpoint.scheme = "https"
+    endpoint.host = recordHost
+    endpoint.path = recordPath
     var history = History()
     let deadline = Date().addingTimeInterval(180)
     for pool in poolTypes {
         var cursor = "0"
         var pageNumber = 1
         while true {
-            guard Date() < deadline, pageNumber <= 500 else { throw Failure.network }
-            var endpoint = link
+            guard Date() < deadline, pageNumber <= 500 else { throw WishHistoryFailure.network }
             endpoint.queryItems = prefix + [
                 URLQueryItem(name: "lang", value: "zh-cn"),
                 URLQueryItem(name: "gacha_type", value: pool),
@@ -192,39 +204,42 @@ private func fetchHistory(_ link: URLComponents, expectedUID: String?, heads: [S
                 URLQueryItem(name: "size", value: "20"),
                 URLQueryItem(name: "end_id", value: cursor),
             ]
-            guard let url = endpoint.url else { throw Failure.invalid }
+            // Form decoders treat a literal plus as a space in an authorization key.
+            endpoint.percentEncodedQuery = endpoint.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+            guard let url = endpoint.url else { throw WishHistoryFailure.invalid }
             let response: URLResponse
             let data: Data
             do { (data, response) = try await session.data(from: url) }
-            catch { throw Failure.network }
-            guard let http = response as? HTTPURLResponse else { throw Failure.network }
-            if http.statusCode == 429 { throw Failure.limited }
-            if http.statusCode == 401 { throw Failure.historyExpired }
+            catch { throw WishHistoryFailure.network }
+            guard let http = response as? HTTPURLResponse else { throw WishHistoryFailure.network }
+            if http.statusCode == 429 { throw WishHistoryFailure.limited }
+            if http.statusCode == 401 { throw WishHistoryFailure.historyExpired }
             if http.statusCode == 403 || http.value(forHTTPHeaderField: "x-rpc-aigis") != nil {
-                throw Failure.manual
+                throw WishHistoryFailure.manual
             }
-            guard http.statusCode == 200, data.count <= 131072 else { throw Failure.network }
+            guard http.statusCode == 200, data.count <= 131072 else { throw WishHistoryFailure.network }
             guard let envelope = (try? JSONSerialization.jsonObject(with: data)) as? Fields,
-                  let code = envelope["retcode"] as? Int else { throw Failure.invalid }
+                  let code = envelope["retcode"] as? Int else { throw WishHistoryFailure.invalid }
             let body = envelope["data"] as? Fields
             if code == 1034 || code == -3503 || ["challenge", "gt"].contains(where: {
                 (body?[$0] as? String)?.isEmpty == false
             }) {
-                throw Failure.manual
+                throw WishHistoryFailure.manual
             }
-            if [-100, -101, -111].contains(code) { throw Failure.historyExpired }
-            if code == -110 || code == -1100 { throw Failure.limited }
+            if [-100, -101, -111].contains(code) { throw WishHistoryFailure.historyExpired }
+            if code == -110 || code == -1100 { throw WishHistoryFailure.limited }
             guard code == 0, let rows = body?["list"] as? [Fields], rows.count <= 20
-            else { throw Failure.invalid }
+            else { throw WishHistoryFailure.invalid }
             if let region = body?["region"] as? String, !region.isEmpty, region != "cn_gf01" {
-                throw Failure.invalid
+                throw WishHistoryFailure.invalid
             }
             try history.append(rows, pool: pool, expectedUID: expectedUID)
             if rows.count < 20 { break }
-            if let head = heads[pool], rows.contains(where: { digits($0["id"]) == head }) { break }
+            if let uid = history.uid, let head = headsByUid[uid]?[pool],
+               rows.contains(where: { digits($0["id"]) == head }) { break }
             guard let next = digits(rows.last?["id"]), let current = UInt64(cursor),
                   let earlier = UInt64(next), earlier > 0, current == 0 || earlier < current
-            else { throw Failure.invalid }
+            else { throw WishHistoryFailure.invalid }
             cursor = next
             pageNumber += 1
             try await Task.sleep(nanoseconds: 700_000_000)
@@ -234,55 +249,79 @@ private func fetchHistory(_ link: URLComponents, expectedUID: String?, heads: [S
     return history
 }
 
+// The key remains inside the native account helper. Both sources use the same
+// endpoint validation, paging and UID checks.
+func fetchAccountWishHistory(
+    key: String, version: String, signType: String, uid: String, heads: [String: String]
+) async throws -> [String: Any] {
+    guard digits(uid) != nil, digits(version) != nil, digits(signType) != nil,
+          !key.isEmpty, key.utf8.count <= 8192,
+          heads.allSatisfy({ poolTypes.contains($0.key) && digits($0.value) != nil })
+    else { throw WishHistoryFailure.invalid }
+    let parameters = [
+        URLQueryItem(name: "authkey", value: key),
+        URLQueryItem(name: "authkey_ver", value: version),
+        URLQueryItem(name: "sign_type", value: signType),
+        URLQueryItem(name: "auth_appid", value: "webview_gacha"),
+        URLQueryItem(name: "game_biz", value: "hk4e_cn"),
+        URLQueryItem(name: "region", value: "cn_gf01"),
+    ]
+    let history = try await fetchHistory(parameters, expectedUID: uid, headsByUid: [uid: heads])
+    return ["state": "ok", "source": "remote", "history": ["uid": uid, "list": history.pulls]]
+}
+
+#if !MIYOUSHE_ACCOUNT_BRIDGE
+private struct GameHistoryRequest: Decodable {
+    let install: String?
+    let directories: [String]
+    let headsByUid: [String: [String: String]]
+}
+
+private func readGameHistory(
+    _ request: GameHistoryRequest,
+    fetch: ([URLQueryItem], String?, [String: [String: String]]) async throws -> History = fetchHistory
+) async throws -> Fields {
+    guard request.headsByUid.allSatisfy({ uid, heads in
+        digits(uid) != nil && heads.allSatisfy({ poolTypes.contains($0.key) && digits($0.value) != nil })
+    }) else { throw WishHistoryFailure.invalid }
+
+    var cached = History()
+    var parameters: [URLQueryItem]?
+    var remaining = 64 * 1024 * 1024
+    for file in cacheFiles(install: request.install ?? "", userData: request.directories) {
+        guard remaining > 0, let data = try? Data(contentsOf: file, options: .mappedIfSafe)
+        else { continue }
+        remaining -= data.count
+        if parameters == nil { parameters = searchRecordParameters(data) }
+        cacheHistory(data, history: &cached, expectedUID: nil)
+    }
+    guard let parameters else { return try cached.result(source: "cache") }
+
+    do {
+        return try await fetch(parameters, nil, request.headsByUid).result(source: "remote")
+    } catch let failure as WishHistoryFailure {
+        if [.historyExpired, .network, .noHistory].contains(failure), !cached.pulls.isEmpty {
+            return try cached.result(source: "cache")
+        }
+        throw failure
+    }
+}
+
 @main
 private enum Main {
-    private struct Request: Decodable {
-        let mode: String
-        let install: String?
-        let directories: [String]
-        let uid: String?
-        let heads: [String: String]?
-    }
-
     static func main() async throws {
-        var reply: Fields
+        let reply: Fields
         do {
             let input = FileHandle.standardInput.readDataToEndOfFile()
-            guard let request = try? JSONDecoder().decode(Request.self, from: input),
-                  ["sync", "authorized"].contains(request.mode),
-                  request.mode == "sync" ? digits(request.uid) != nil : request.uid == nil
-            else { throw Failure.invalid }
-            let heads = request.heads ?? [:]
-            guard heads.allSatisfy({ poolTypes.contains($0.key) && digits($0.value) != nil })
-            else { throw Failure.invalid }
-            let sync = request.mode == "sync"
-            var history = History()
-            var link: URLComponents?
-            var remaining = 64 * 1024 * 1024
-            for file in cacheFiles(install: request.install ?? "", userData: request.directories) {
-                guard remaining > 0, let data = try? Data(contentsOf: file, options: .mappedIfSafe)
-                else { continue }
-                remaining -= data.count
-                cacheHistory(data, history: &history, expectedUID: request.uid)
-                if link == nil && (sync || history.pulls.isEmpty) {
-                    link = searchRecordLink(data)
-                }
-            }
-            if let link = link, sync || history.pulls.isEmpty {
-                do {
-                    let remote = try await fetchHistory(link, expectedUID: request.uid, heads: heads)
-                    reply = try remote.result(source: "remote")
-                } catch Failure.historyExpired where !history.pulls.isEmpty {
-                    reply = try history.result(source: "cache")
-                }
-            } else {
-                reply = try history.result(source: "cache")
-            }
-        } catch let failure as Failure {
+            guard let request = try? JSONDecoder().decode(GameHistoryRequest.self, from: input)
+            else { throw WishHistoryFailure.invalid }
+            reply = try await readGameHistory(request)
+        } catch let failure as WishHistoryFailure {
             reply = ["state": failure.rawValue]
         } catch {
             reply = ["state": "unavailable"]
         }
-        FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject: reply))
+        try writeWishHistoryLine(reply)
     }
 }
+#endif

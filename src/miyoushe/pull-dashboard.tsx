@@ -1,6 +1,7 @@
 import {
   createEffect,
   createMemo,
+  createResource,
   createSignal,
   For,
   Match,
@@ -8,10 +9,12 @@ import {
   onMount,
   Show,
   Switch,
+  type JSX,
 } from "solid-js";
 import { AppModalButton } from "@src/components/app-modal";
 import type { MiyousheGame } from "./games";
-import type { CatalogItem } from "./genshin-catalog";
+import { genshinIconSources, type CatalogItem } from "./genshin-catalog";
+import { readCachedGenshinPortrait } from "./genshin-portrait-cache";
 import { genshinPoolRule } from "./genshin-rules";
 import {
   createPullReport,
@@ -22,6 +25,7 @@ import {
 } from "./pull-report";
 import type { GachaArchive, summarizePulls } from "./uigf";
 import { readRadianceMarks, toggleRadianceMark } from "./local";
+import { notifyMiyoushe } from "./notifications";
 
 type Account = NonNullable<GachaArchive[MiyousheGame]>[number];
 type Summary = ReturnType<typeof summarizePulls>;
@@ -53,6 +57,11 @@ const poolNames: Record<MiyousheGame, Record<string, [string, string]>> = {
   },
 };
 
+export function pullPoolLabel(game: MiyousheGame, type: string, t: Translate) {
+  const names = poolNames[game][type];
+  return names ? t(...names) : t("卡池 ", "Pool ") + type;
+}
+
 const views: ReadonlyArray<readonly [View, string, string, string]> = [
   ["bars", "柱形图", "Bar chart", "M2 2v12M5 4h9M5 8h5m-5 4h7"],
   [
@@ -78,6 +87,7 @@ export function PullDashboard(props: {
   pool: Summary["pools"][number] | undefined;
   catalog?: ReadonlyMap<string, CatalogItem>;
   visiblePulls: number;
+  historyControls?: JSX.Element;
   onAccountChange: (uid: string) => void;
   onPoolChange: (type: string) => void;
   onShowMore: () => void;
@@ -96,7 +106,6 @@ export function PullDashboard(props: {
   );
   const [radiance, setRadiance] = createSignal(new Set<string>());
   const [writingMark, setWritingMark] = createSignal(false);
-  const [markError, setMarkError] = createSignal(false);
   onMount(() => {
     void readRadianceMarks().then(marks => setRadiance(new Set(marks)));
   });
@@ -106,10 +115,6 @@ export function PullDashboard(props: {
   const pool = createMemo(() =>
     report().pools.find(entry => entry.type === props.pool?.type)
   );
-  const poolLabel = (type: string) => {
-    const names = poolNames[props.game][type];
-    return names ? t(...names) : t("卡池 ", "Pool ") + type;
-  };
   const topRank = () =>
     props.game === "nap" ? t("S 级", "S rank") : t("五星", "5-star");
   const rankLabel = (rank?: string) => {
@@ -119,14 +124,6 @@ export function PullDashboard(props: {
           rank
       : rank + "★";
   };
-  const sources = () =>
-    (props.account.sources?.length ? props.account.sources : ["file"])
-      .map(source =>
-        source === "game"
-          ? t("游戏记录", "Game history")
-          : t("UIGF 文件", "UIGF file")
-      )
-      .join(" · ");
   const timeline = createMemo(() => groupPullCycles(pool()?.rows ?? []));
   const cycles = createMemo(() => [...timeline().cycles].reverse());
   const fourthCount = createMemo(
@@ -193,11 +190,13 @@ export function PullDashboard(props: {
   async function markRadiance(key: string) {
     if (writingMark()) return;
     setWritingMark(true);
-    setMarkError(false);
     try {
       setRadiance(new Set(await toggleRadianceMark(key)));
     } catch {
-      setMarkError(true);
+      notifyMiyoushe(
+        "warning",
+        t("无法保存明光标记", "Could not save the Radiance mark")
+      );
     } finally {
       setWritingMark(false);
     }
@@ -261,16 +260,16 @@ export function PullDashboard(props: {
 
   function ItemImage(props: { row: PullReportRow }) {
     const [failed, setFailed] = createSignal<string[]>([]);
+    const [local] = createResource(
+      () => props.row.item?.icon,
+      readCachedGenshinPortrait
+    );
     const icon = () => {
       const primary = props.row.item?.icon;
-      if (!primary) return;
-      if (primary.startsWith("https://upload-os-bbs.mihoyo.com/")) {
-        const mirror =
-          "https://enka.network/ui/" +
-          primary.slice(primary.lastIndexOf("/") + 1);
-        if (!failed().includes(mirror)) return mirror;
-      }
-      if (!failed().includes(primary)) return primary;
+      if (!primary || local.loading) return;
+      const cached = local();
+      if (cached && !failed().includes(cached)) return cached;
+      return genshinIconSources(primary).find(url => !failed().includes(url));
     };
     return (
       <div
@@ -349,16 +348,29 @@ export function PullDashboard(props: {
             </For>
           </select>
         </label>
-        <div class="miyoushe-report-source miyoushe-muted">
-          <span>{sources()}</span>
+        <div class="miyoushe-report-meta">
           <Show when={props.summary.first}>
-            <span>
+            <span class="miyoushe-muted">
               {props.summary.first?.slice(0, 10)} —{" "}
               {props.summary.last?.slice(0, 10)} · UTC
               {props.account.timezone >= 0 ? "+" : ""}
               {props.account.timezone}
             </span>
           </Show>
+          <span class="miyoushe-muted" aria-live="polite">
+            {t("最近更新", "Last updated")}{" "}
+            <Show when={props.account.updatedAt} fallback="—">
+              {timestamp => (
+                <time dateTime={new Date(timestamp()).toISOString()}>
+                  {new Intl.DateTimeFormat(t("zh-CN", "en-GB"), {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(timestamp())}
+                </time>
+              )}
+            </Show>
+          </span>
+          {props.historyControls}
         </div>
       </div>
 
@@ -386,7 +398,7 @@ export function PullDashboard(props: {
                       props.onPoolChange(entry.type);
                     }}
                   >
-                    {poolLabel(entry.type)}
+                    {pullPoolLabel(props.game, entry.type, t)}
                   </button>
                 )}
               </For>
@@ -524,19 +536,17 @@ export function PullDashboard(props: {
                             class="miyoushe-chart-fill"
                             aria-hidden="true"
                           />
-                          <span class="miyoushe-chart-value">
+                          <span class="miyoushe-chart-value miyoushe-chart-count">
                             <Show
                               when={
                                 timeline().ongoing.complete ||
                                 timeline().ongoing.count > 0
                               }
-                              fallback={t("记录不足", "Insufficient records")}
+                              fallback="—"
                             >
-                              {timeline().ongoing.complete
-                                ? ""
-                                : t("至少 ", "At least ")}
+                              {timeline().ongoing.complete ? "" : "≥"}
                               {timeline().ongoing.count}
-                              {t(" 抽未出", " pulls without top rank")}
+                              {t(" 抽", " pulls")}
                             </Show>
                           </span>
                         </div>
@@ -585,14 +595,6 @@ export function PullDashboard(props: {
                       }}
                     </For>
                   </ol>
-                  <Show when={markError()}>
-                    <p class="miyoushe-muted" role="status">
-                      {t(
-                        "无法保存明光标记。",
-                        "Could not save the Radiance mark."
-                      )}
-                    </p>
-                  </Show>
                 </Match>
                 <Match when={view() === "list"}>
                   <div class="miyoushe-table-wrap">

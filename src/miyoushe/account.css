@@ -1,33 +1,454 @@
-.miyoushe-login-scan {
-  display: grid;
-  justify-items: center;
-  gap: 14px;
-  text-align: center;
+.miyoushe-account-trigger {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
 }
 
-.miyoushe-login-scan > p {
+.miyoushe-account-trigger .miyoushe-avatar[data-photo="true"] {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.miyoushe-account-menu {
+  --miyo-muted: #a7b1c2;
+  --miyo-line: #303745;
+  width: min(324px, calc(100vw - 102px));
+  padding: 12px 14px;
+  color-scheme: dark;
+}
+
+.miyoushe-account-menu h2,
+.miyoushe-account-menu p {
   margin: 0;
 }
 
-.miyoushe-qr-placeholder {
-  width: 170px;
-  height: 170px;
-  border: 1px dashed var(--miyo-line);
-  border-radius: 8px;
+.miyoushe-account-menu h2 {
+  font-size: 14px;
+  font-weight: 680;
 }
 
-.miyoushe-user-profile {
+.miyoushe-account-menu-heading,
+.miyoushe-account-removal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.miyoushe-account-menu-heading .app-modal-button {
+  min-width: 0;
+  min-height: 30px !important;
+  height: 30px;
+  padding: 0 10px !important;
+  font-size: 12px;
+  color: var(--miyo-accent-text) !important;
+  background: var(--miyo-accent) !important;
+  border-color: transparent !important;
+}
+
+.miyoushe-account-menu-heading + p,
+.miyoushe-menu-error {
+  padding-top: 12px;
+  font-size: 12px;
+}
+
+.miyoushe-account-list {
+  display: grid;
+  gap: 4px;
+  max-height: 238px;
+  margin-top: 12px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.miyoushe-account-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: center;
+  min-width: 0;
+  padding-inline-end: 4px;
+  border: 1px solid var(--miyo-line);
+  border-radius: 7px;
+}
+
+.miyoushe-account-card:hover,
+.miyoushe-account-card[data-active="true"] {
+  background: #232833;
+}
+
+.miyoushe-account-list-item {
   display: flex;
   align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.miyoushe-account-list-item .miyoushe-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #303745;
+  object-fit: cover;
+}
+
+.miyoushe-account-list-item .miyoushe-avatar[data-photo="false"] {
+  padding: 7px;
+}
+
+.miyoushe-account-identity {
+  display: grid;
+  min-width: 0;
+  line-height: 1.4;
+  font-size: 13px;
+}
+
+.miyoushe-account-identity strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.miyoushe-account-identity small {
+  color: var(--miyo-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.miyoushe-account-current {
+  margin-inline-start: auto;
+  color: var(--miyo-accent);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.miyoushe-account-remove {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  justify-self: center;
+  border-radius: 5px;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.miyoushe-account-remove:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  opacity: 1;
+  background: #493035;
+}
+
+.miyoushe-account-remove img {
+  width: 14px;
+  height: 14px;
+}
+
+.miyoushe-account-removal {
+  grid-column: 1 / -1;
+  margin-inline: 8px 4px;
+  border-top: 1px solid var(--miyo-line);
+  padding-block: 6px;
+  color: var(--miyo-muted);
+  font-size: 12px;
+}
+
+.miyoushe-account-removal span {
+  margin-inline-end: auto;
+}
+
+.miyoushe-menu-link {
+  color: var(--miyo-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.miyoushe-menu-error {
+  color: var(--miyo-accent);
+}
+
+.miyoushe-login-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 188px);
+  align-items: center;
+  gap: clamp(16px, 4vw, 32px);
+  min-height: 220px;
+}
+
+.miyoushe-login-copy {
+  display: grid;
   gap: 12px;
 }
 
-.miyoushe-user-avatar {
-  flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
-  padding: 2px;
+.miyoushe-login-copy h2,
+.miyoushe-login-copy p {
+  margin: 0;
+}
+
+.miyoushe-login-copy h2 {
+  font-size: 22px;
+  font-weight: 720;
+}
+
+.miyoushe-login-copy p {
+  color: var(--miyo-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.miyoushe-login-state {
+  color: var(--miyo-accent);
+  font-size: 13px;
+}
+
+.miyoushe-login-code {
+  display: grid;
+  aspect-ratio: 1;
+  place-items: center;
+  width: 100%;
+  padding: 8px;
   border: 1px solid var(--miyo-line);
-  border-radius: 50%;
-  object-fit: cover;
+  border-radius: 14px;
+  background: var(--miyo-panel);
+}
+
+.miyoushe-login-code--scanned {
+  border-color: var(--miyo-accent);
+}
+
+.miyoushe-login-code .miyoushe-qr {
+  display: block;
+  width: 100%;
+}
+
+.miyoushe-login-code .miyoushe-avatar {
+  width: 32px;
+  opacity: 0.5;
+}
+
+@media (max-width: 520px) {
+  .miyoushe-login-layout {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    text-align: center;
+  }
+
+  .miyoushe-login-code {
+    grid-row: 1;
+    max-width: 170px;
+  }
+
+  .miyoushe-login-copy .miyoushe-actions {
+    justify-content: center;
+  }
+}
+.miyoushe-check-in-trigger[data-signed="true"],
+.miyoushe-check-in-heading [data-signed="true"] {
+  color: #81d7aa;
+}
+
+.miyoushe-check-in-popover.hyp-menu-popover-content {
+  box-sizing: border-box;
+  width: min(322px, calc(100vw - 24px));
+  max-height: calc(100vh - 76px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.miyoushe-check-in-menu {
+  --miyo-text: #eef1f7;
+  --miyo-muted: #a7b1c2;
+  --miyo-line: #303745;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  color-scheme: dark;
+}
+
+.miyoushe-check-in-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+
+.miyoushe-check-in-heading h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 680;
+}
+
+.miyoushe-check-in-heading span {
+  color: var(--miyo-muted);
+  font-size: 12px;
+}
+
+.miyoushe-check-in-menu .miyoushe-field select {
+  flex: 1;
+  min-width: 0;
+}
+
+.miyoushe-check-in-actions .app-modal-button {
+  width: 100%;
+  min-width: 0;
+  min-height: 29px !important;
+  height: 30px;
+  padding: 0 10px !important;
+  font-size: 12px;
+}
+
+.miyoushe-check-in-actions .app-modal-button--primary:not(:disabled) {
+  color: var(--miyo-accent-text) !important;
+  background: var(--miyo-accent) !important;
+}
+
+.miyoushe-today-reward {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 46px;
+  padding: 6px 8px;
+  border: 1px solid var(--miyo-line);
+  border-radius: 8px;
+  background: #1b2029;
+}
+
+.miyoushe-today-reward-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.miyoushe-today-reward-item > :last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.miyoushe-today-reward-item strong {
+  color: var(--miyo-text);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.miyoushe-reward-link {
+  flex: none;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--miyo-accent);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.miyoushe-reward-link:hover,
+.miyoushe-reward-link:focus-visible {
+  background: #2a313f;
+}
+
+.miyoushe-reward-modal .hope-modal__header {
+  padding: 12px 20px !important;
+  padding-inline-end: 52px !important;
+  background: var(--miyo-bg);
+}
+
+.miyoushe-reward-modal .hope-modal__body.miyoushe-modal-body {
+  padding: 12px 20px 16px !important;
+}
+
+.miyoushe-reward-calendar-summary,
+.miyoushe-reward-calendar-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.miyoushe-reward-calendar-summary {
+  margin: 0 0 10px;
+  color: var(--miyo-muted);
+  font-size: 12px;
+}
+
+.miyoushe-reward-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.miyoushe-reward-grid li {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: #262d39;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.miyoushe-reward-grid li[data-claimed="true"] {
+  background: #243b35;
+  color: #9ee3bc;
+}
+
+.miyoushe-reward-grid li[data-current="true"] {
+  border-color: var(--miyo-accent);
+}
+
+.miyoushe-reward-day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-inline: 2px;
+}
+
+.miyoushe-reward-icon {
+  display: grid;
+  flex: none;
+  width: 28px;
+  max-width: 100%;
+  height: 28px;
+  place-items: center;
+  color: var(--miyo-muted);
+}
+
+.miyoushe-reward-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.miyoushe-reward-name,
+.miyoushe-reward-count {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

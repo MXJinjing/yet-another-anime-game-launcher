@@ -1,15 +1,14 @@
 import CoreImage
 import CryptoKit
 import Foundation
-import Security
 
-// Development-only bridge. Login cookies and pending tickets stay in Keychain.
-// Compile with swiftc -parse-as-library and stage as sidecar/miyoushe-prototype
-// under the channel's dev directory before running with YAAGL_MIYOUSHE_PROTOTYPE=1.
+// Development-only bridge. Credentials stay in native memory.
+// Build and stage the two development helpers as described in docs/miyoushe-prototype.md.
 // Protocol references: MightyOwls/MYS-Daily and XYRQ-Dev/miyoushe-tool.
 private enum Failure: String, Error {
     case unavailable, invalid, network, limited, manual, unbound, expired
     case firstCheckIn = "first-check-in"
+    case historyAuthorizationExpired = "account-authorization-expired"
 }
 
 private struct Rejected: Error {
@@ -22,55 +21,49 @@ private func isGameUID(_ value: String) -> Bool {
     value.range(of: #"^[0-9]{1,19}$"#, options: .regularExpression) != nil
 }
 
-private struct Pending: Codable {
-    let ticket: String
-    let device: String
-    let expires: Date
-    var cookie: String?
+private func credential(_ value: Any?) -> String? {
+    guard let value = value as? String, !value.isEmpty, value.utf8.count <= 4096,
+          value.range(of: #"^[a-zA-Z0-9._~+/%=\-]+$"#, options: .regularExpression) != nil
+    else { return nil }
+    return value
 }
 
-private struct Keychain {
-    let installation: String
+private struct AppAuthorization {
+    let uid: String
+    let mid: String
+    let token: String
 
-    private func query(_ item: String) -> Fields {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "io.yaaglm.miyoushe.prototype",
-            kSecAttrAccount as String: "\(installation):\(item)",
-        ]
-    }
+    var cookie: String { "stoken=\(token); mid=\(mid); stuid=\(uid)" }
+}
 
-    func read(_ item: String) throws -> Data? {
-        var attributes = query(item)
-        attributes[kSecReturnData as String] = true
-        attributes[kSecMatchLimit as String] = kSecMatchLimitOne
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(attributes as CFDictionary, &result)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess, let data = result as? Data else {
-            throw Failure.unavailable
-        }
-        return data
-    }
+private struct Pending {
+    let ticket: String
+    let expires: Date
+    var authorization: AppAuthorization?
+}
 
-    func write(_ data: Data, to item: String) throws {
-        var attributes = query(item)
-        let value = [kSecValueData as String: data]
-        let status = SecItemUpdate(attributes as CFDictionary, value as CFDictionary)
-        if status == errSecSuccess { return }
-        guard status == errSecItemNotFound else { throw Failure.unavailable }
-        attributes[kSecValueData as String] = data
-        guard SecItemAdd(attributes as CFDictionary, nil) == errSecSuccess else {
-            throw Failure.unavailable
-        }
-    }
+private struct SessionAccount {
+    let id: String
+    var cookie: String
+    var profile: [String: String]
+    let authorization: AppAuthorization
 
-    func delete(_ item: String) throws {
-        let status = SecItemDelete(query(item) as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw Failure.unavailable
-        }
+    var summary: Fields { ["id": id, "profile": profile] }
+}
+
+private struct SessionAccounts {
+    var activeAccountId: String?
+    var accounts: [SessionAccount] = []
+
+    var summary: Fields {
+        var reply: Fields = ["state": "ok", "accounts": accounts.map(\.summary)]
+        reply["activeAccountId"] = activeAccountId
+        return reply
     }
+}
+
+private func maskedProfile(_ uid: String) -> [String: String] {
+    ["maskedId": "••••" + uid.suffix(uid.count > 4 ? 4 : 0)]
 }
 
 private final class RejectRedirects: NSObject, URLSessionTaskDelegate {
@@ -107,15 +100,14 @@ private enum Game: String {
     }
 }
 
-private struct Bridge {
-    private let passport = "https://passport-api.miyoushe.com/account/ma-cn-passport/web/"
-    private let vault: Keychain
+private final class Bridge {
+    private let passport = "https://passport-api.mihoyo.com/account/ma-cn-passport/app/"
+    private let device = UUID().uuidString.lowercased()
+    private var pendingLogin: Pending?
+    private var accounts = SessionAccounts()
     private let session: URLSession
 
-    init(path: String) {
-        let installation = URL(fileURLWithPath: path).standardizedFileURL.path
-        let digest = SHA256.hash(data: Data(installation.utf8))
-        vault = Keychain(installation: digest.map { String(format: "%02x", $0) }.joined())
+    init() {
         let config = URLSessionConfiguration.ephemeral
         config.httpShouldSetCookies = false
         config.timeoutIntervalForRequest = 12
@@ -128,7 +120,7 @@ private struct Bridge {
         query: [String: String] = [:],
         body: [String: String]? = nil,
         headers: [String: String]
-    ) async throws -> (code: Int, data: Fields, cookies: [HTTPCookie]) {
+    ) async throws -> (code: Int, data: Fields) {
         guard var components = URLComponents(string: endpoint) else { throw Failure.invalid }
         if !query.isEmpty {
             components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
@@ -169,64 +161,54 @@ private struct Bridge {
             throw Failure.manual
         }
         if code == -100 || code == -101 { throw Failure.unbound }
-        let cookies = HTTPCookie.cookies(
-            withResponseHeaderFields: http.allHeaderFields as? [String: String] ?? [:],
-            for: url
-        )
-        return (code, data, cookies)
+        return (code, data)
     }
 
-    private func qrHeaders(device: String) -> [String: String] {
+    private var qrHeaders: [String: String] {
         [
-            "x-rpc-app_id": "bll8iq97cem8",
-            "x-rpc-game_biz": "bbs_cn",
-            "x-rpc-client_type": "4",
+            "x-rpc-app_id": "ddxf5dufpuyo",
+            "x-rpc-client_type": "3",
             "x-rpc-device_id": device,
         ]
     }
 
-    private func accountCookie() throws -> String {
-        guard
-            let credential = try vault.read("account"),
-            let cookie = String(data: credential, encoding: .utf8)
+    private func savedAccount(_ id: String) throws -> SessionAccount {
+        guard UUID(uuidString: id) != nil,
+              let account = accounts.accounts.first(where: { $0.id == id })
         else { throw Failure.unbound }
-        return cookie
+        return account
     }
 
-    private func gameHeaders(_ game: Game, sessionCookie: String? = nil) throws -> [String: String] {
+    private func signedHeaders(cookie: String) -> [String: String] {
         let time = Int(Date().timeIntervalSince1970)
         let nonce = UUID().uuidString.lowercased().prefix(6)
         let input = "salt=d9200c846b10886e8c874fc33c8f308b&t=\(time)&r=\(nonce)"
         let signature = Insecure.MD5.hash(data: Data(input.utf8))
             .map { String(format: "%02x", $0) }.joined()
-        var headers = [
-            "Cookie": try sessionCookie ?? accountCookie(),
+        return [
+            "Cookie": cookie,
             "DS": "\(time),\(nonce),\(signature)",
-            "Origin": "https://act.mihoyo.com",
-            "Referer": "https://act.mihoyo.com/",
             "x-rpc-client_type": "5",
-            "x-rpc-device_id": try deviceID(),
+            "x-rpc-device_id": device,
         ]
+    }
+
+    private func activityHeaders(_ game: Game) -> [String: String] {
+        var headers = ["Origin": "https://act.mihoyo.com", "Referer": "https://act.mihoyo.com/"]
         if game == .hk4e { headers["x-rpc-signgame"] = "hk4e" }
         if game == .nap { headers["x-rpc-signgame"] = "zzz" }
         return headers
     }
 
-    private func deviceID() throws -> String {
-        if let stored = try vault.read("device"), let value = String(data: stored, encoding: .utf8) {
-            return value
-        }
-        let value = UUID().uuidString.lowercased()
-        try vault.write(Data(value.utf8), to: "device")
-        return value
+    private func gameHeaders(_ game: Game, cookie: String) -> [String: String] {
+        signedHeaders(cookie: cookie).merging(activityHeaders(game)) { _, activity in activity }
     }
 
     private func start() async throws -> Fields {
-        try vault.delete("pending")
-        let device = try deviceID()
-        let result = try await request(passport + "createQRLogin", body: [:], headers: qrHeaders(device: device))
+        pendingLogin = nil
+        let result = try await request(passport + "createQRLogin", body: [:], headers: qrHeaders)
+        guard result.code == 0 else { throw Rejected(code: result.code) }
         guard
-            result.code == 0,
             let ticket = result.data["ticket"] as? String,
             !ticket.isEmpty,
             let url = result.data["url"] as? String,
@@ -237,17 +219,15 @@ private struct Bridge {
               let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
               let png = CIContext().pngRepresentation(of: qr, format: .RGBA8, colorSpace: colorSpace)
         else { throw Failure.unavailable }
-        try vault.write(JSONEncoder().encode(Pending(
-            ticket: ticket, device: device, expires: Date().addingTimeInterval(120)
-        )), to: "pending")
+        pendingLogin = Pending(ticket: ticket, expires: Date().addingTimeInterval(120))
         return ["state": "ok", "qr": png.base64EncodedString()]
     }
 
     private func pending() throws -> Pending {
-        guard let data = try vault.read("pending"),
-              let pending = try? JSONDecoder().decode(Pending.self, from: data),
-              pending.expires > Date()
-        else { throw Failure.expired }
+        guard let pending = pendingLogin, pending.expires > Date() else {
+            pendingLogin = nil
+            throw Failure.expired
+        }
         return pending
     }
 
@@ -255,31 +235,35 @@ private struct Bridge {
         var pending = try pending()
         let result = try await request(
             passport + "queryQRLoginStatus",
+            query: ["ticket": pending.ticket],
             body: ["ticket": pending.ticket],
-            headers: qrHeaders(device: pending.device)
+            headers: qrHeaders
         )
-        if [-106, -3501].contains(result.code) { throw Failure.expired }
+        if [-106, -3501, -3505].contains(result.code) { throw Failure.expired }
         guard result.code == 0 else { throw Failure.invalid }
         switch result.data["status"] as? String {
         case "Created", "Init": return "waiting"
-        case "Scanned": return "scanned"
+        case "Scanned", "ScannedWaitingConfirmation": return "scanned"
         case "Expired", "Timeout": return "expired"
         case "Confirmed":
-            let names = ["cookie_token_v2", "account_mid_v2", "account_id_v2", "ltoken_v2", "ltmid_v2", "ltuid_v2"]
-            let cookies = result.cookies.filter { names.contains($0.name) && !$0.value.isEmpty }
-            guard Set(cookies.map(\.name)) == Set(names) else { throw Failure.invalid }
-            pending.cookie = cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
-            try vault.write(JSONEncoder().encode(pending), to: "pending")
+            let user = result.data["user_info"] as? Fields
+            let tokens = result.data["tokens"] as? [Fields]
+            let session = tokens?.first { ($0["token_type"] as? Int) == 1 || ($0["name"] as? String) == "stoken" }
+            guard let uid = user?["aid"] as? String, isGameUID(uid),
+                  let mid = credential(user?["mid"]), let token = credential(session?["token"])
+            else { throw Failure.invalid }
+            pending.authorization = AppAuthorization(uid: uid, mid: mid, token: token)
+            pendingLogin = pending
             return "confirmed"
         default: throw Failure.invalid
         }
     }
 
-    private func roles(_ game: Game, cookie: String? = nil) async throws -> Fields {
+    private func roles(_ game: Game, cookie: String) async throws -> Fields {
         let result = try await request(
             "https://api-takumi.mihoyo.com/binding/api/getUserGameRolesByCookie",
             query: ["game_biz": game.rawValue + "_cn"],
-            headers: gameHeaders(game, sessionCookie: cookie)
+            headers: gameHeaders(game, cookie: cookie)
         )
         guard result.code == 0 else { throw Rejected(code: result.code) }
         guard let entries = result.data["list"] as? [Fields] else { throw Failure.invalid }
@@ -294,23 +278,96 @@ private struct Bridge {
         return ["state": "ok", "roles": roles]
     }
 
-    private func profile() async throws -> Fields {
-        let cookie = try accountCookie()
-        let account = cookie.split(separator: ";").map {
-            $0.trimmingCharacters(in: .whitespaces)
-        }.first { $0.hasPrefix("account_id_v2=") }
-        guard let account = account, let uid = account.split(separator: "=").last,
-              isGameUID(String(uid)) else { throw Failure.unbound }
-        let maskedId = "••••" + uid.suffix(uid.count > 4 ? 4 : 0)
+    private func appCookie(_ authorization: AppAuthorization) async throws -> String {
+        let passport = "https://passport-api.mihoyo.com/account/auth/api/"
+        let headers = signedHeaders(cookie: authorization.cookie)
+        let response = try await request(passport + "getCookieAccountInfoBySToken",
+                                         query: ["stoken": authorization.token, "uid": authorization.uid],
+                                         headers: headers)
+        guard response.code == 0 else { throw Rejected(code: response.code) }
+        guard response.data["uid"] as? String == authorization.uid,
+              let token = credential(response.data["cookie_token"])
+        else { throw Failure.invalid }
+        let ltokenResponse = try await request(passport + "getLTokenBySToken", headers: headers)
+        guard ltokenResponse.code == 0 else { throw Rejected(code: ltokenResponse.code) }
+        guard let ltoken = credential(ltokenResponse.data["ltoken"]) else { throw Failure.invalid }
+
+        var fields = ["account_id=\(authorization.uid)"]
+        if token.hasPrefix("v2_") {
+            fields += ["cookie_token_v2=\(token)", "account_id_v2=\(authorization.uid)", "account_mid_v2=\(authorization.mid)"]
+        } else {
+            fields.append("cookie_token=\(token)")
+        }
+        if ltoken.hasPrefix("v2_") {
+            fields += ["ltoken_v2=\(ltoken)", "ltuid_v2=\(authorization.uid)", "ltmid_v2=\(authorization.mid)"]
+        } else {
+            fields += ["ltoken=\(ltoken)", "ltuid=\(authorization.uid)"]
+        }
+        return fields.joined(separator: "; ")
+    }
+
+    private func accountRoles(_ game: Game, id: String) async throws -> Fields {
+        let account = try savedAccount(id)
+        do { return try await roles(game, cookie: account.cookie) }
+        catch Failure.unbound {
+            let cookie = try await appCookie(account.authorization)
+            let result = try await roles(game, cookie: cookie)
+            if let index = accounts.accounts.firstIndex(where: { $0.id == id }) {
+                accounts.accounts[index].cookie = cookie
+            }
+            return result
+        }
+    }
+
+    private struct WishHistoryRequest: Decodable {
+        let accountId: String
+        let uid: String
+        let heads: [String: String]?
+    }
+
+    private func wishHistory(_ input: Data) async throws -> Fields {
+        guard let target = try? JSONDecoder().decode(WishHistoryRequest.self, from: input),
+              isGameUID(target.uid) else { throw Failure.invalid }
+        let authorization: AppAuthorization
+        do {
+            authorization = try savedAccount(target.accountId).authorization
+        } catch Failure.unbound {
+            throw Failure.historyAuthorizationExpired
+        }
+        let result: (code: Int, data: Fields)
+        do {
+            var headers = signedHeaders(cookie: authorization.cookie)
+            headers["Referer"] = "https://webstatic.mihoyo.com/"
+            result = try await request(
+                "https://api-takumi.miyoushe.com/binding/api/genAuthKey",
+                body: ["game_biz": "hk4e_cn", "game_uid": target.uid,
+                       "region": "cn_gf01", "auth_appid": "webview_gacha"],
+                headers: headers
+            )
+        } catch Failure.unbound {
+            throw Failure.historyAuthorizationExpired
+        }
+        if result.code == 1016 { throw WishHistoryFailure.historyMismatch }
+        if result.code == -110 || result.code == -1100 { throw Failure.limited }
+        guard result.code == 0 else { throw Rejected(code: result.code) }
+        guard let key = credential(result.data["authkey"]),
+              let version = result.data["authkey_ver"] as? Int,
+              let signType = result.data["sign_type"] as? Int
+        else { throw Failure.invalid }
+        return try await fetchAccountWishHistory(key: key, version: String(version), signType: String(signType),
+                                                 uid: target.uid, heads: target.heads ?? [:])
+    }
+
+    private func profile(_ uid: String) async throws -> [String: String] {
         let result = try await request(
             "https://bbs-api.miyoushe.com/user/api/getUserFullInfo",
-            query: ["uid": String(uid)], headers: [:]
+            query: ["uid": uid], headers: [:]
         )
         guard result.code == 0 else { throw Rejected(code: result.code) }
         guard let user = result.data["user_info"] as? Fields,
-              user["uid"] as? String == String(uid)
+              user["uid"] as? String == uid
         else { throw Failure.invalid }
-        var profile: [String: String] = ["maskedId": maskedId]
+        var profile = maskedProfile(uid)
         profile["nickname"] = (user["nickname"] as? String).map { String($0.prefix(100)) }
         if let avatar = user["avatar_url"] as? String,
            let url = URLComponents(string: avatar), url.scheme == "https",
@@ -319,44 +376,92 @@ private struct Bridge {
             .contains(url.host ?? "") {
             profile["avatar"] = avatar
         }
-        return ["state": "ok", "profile": profile]
+        return profile
     }
 
-    func run(action: String, args: [String]) async throws -> Fields {
+    func run(action: String, args: [String], input: Data) async throws -> Fields {
         switch action {
-        case "bound": return ["state": try vault.read("account") == nil ? "unbound" : "ok"]
-        case "profile": return try await profile()
-        case "unbind":
-            try vault.delete("pending")
-            try vault.delete("account")
+        case "accounts": return accounts.summary
+        case "profile":
+            guard let id = args.first else { throw Failure.invalid }
+            let profile = try await profile(savedAccount(id).authorization.uid)
+            return ["state": "ok", "profile": profile]
+        case "select", "unbind":
+            guard let id = args.first else { throw Failure.invalid }
+            guard let index = accounts.accounts.firstIndex(where: { $0.id == id })
+            else { throw Failure.unbound }
+            if action == "select" {
+                accounts.activeAccountId = id
+            } else {
+                accounts.accounts.remove(at: index)
+                if accounts.activeAccountId == id { accounts.activeAccountId = accounts.accounts.first?.id }
+            }
+            return accounts.summary
+        case "wish-history": return try await wishHistory(input)
         case "start": return try await start()
         case "poll": return ["state": try await poll()]
         case "finish":
-            guard let cookie = try pending().cookie else { throw Failure.invalid }
             guard let name = args.first, let game = Game(rawValue: name) else { throw Failure.invalid }
+            let pending = try pending()
+            pendingLogin = nil
+            guard let authorization = pending.authorization else { throw Failure.invalid }
+            let cookie = try await appCookie(authorization)
             _ = try await roles(game, cookie: cookie)
-            try vault.write(Data(cookie.utf8), to: "account")
-        case "cancel": try vault.delete("pending")
+            let uid = authorization.uid
+            let details = try? await profile(uid)
+            let existing = accounts.accounts.firstIndex(where: { $0.authorization.uid == uid })
+            let previous = existing.map { accounts.accounts[$0] }
+            let account = SessionAccount(id: previous?.id ?? UUID().uuidString.lowercased(), cookie: cookie,
+                                         profile: details ?? previous?.profile ?? maskedProfile(uid),
+                                         authorization: authorization)
+            if let index = existing { accounts.accounts[index] = account }
+            else { accounts.accounts.append(account) }
+            accounts.activeAccountId = account.id
+            return accounts.summary
+        case "cancel": pendingLogin = nil
+        case "check-in-rewards":
+            guard args.count == 1, let game = Game(rawValue: args[0]) else { throw Failure.invalid }
+            let result = try await request(
+                game.eventBase + "home", query: ["act_id": game.activity], headers: activityHeaders(game)
+            )
+            guard result.code == 0 else { throw Rejected(code: result.code) }
+            guard let month = result.data["month"] as? Int,
+                  let awards = result.data["awards"] as? [Fields], (1...31).contains(awards.count)
+            else { throw Failure.invalid }
+            let rewards = try awards.map { award -> Fields in
+                guard let name = award["name"] as? String, let count = award["cnt"] as? Int
+                else { throw Failure.invalid }
+                var reward: Fields = ["name": name, "count": count]
+                reward["icon"] = award["icon"] as? String
+                return reward
+            }
+            return ["state": "ok", "month": month, "rewards": rewards]
         case "roles", "status", "sign":
             guard let key = args.first, let game = Game(rawValue: key) else { throw Failure.invalid }
-            if action == "roles" { return try await roles(game) }
-            guard args.count == 3, isGameUID(args[1]),
+            if action == "roles" {
+                guard args.count == 2 else { throw Failure.invalid }
+                return try await accountRoles(game, id: args[1])
+            }
+            guard args.count == 4, isGameUID(args[1]),
                   game.isOfficialRegion(args[2])
             else { throw Failure.invalid }
             let params = ["act_id": game.activity, "uid": args[1], "region": args[2]]
+            let headers = gameHeaders(game, cookie: try savedAccount(args[3]).cookie)
             if action == "status" {
                 let status = try await request(
-                    game.eventBase + "info", query: params, headers: gameHeaders(game)
+                    game.eventBase + "info", query: params, headers: headers
                 )
                 guard status.code == 0 else { throw Rejected(code: status.code) }
                 guard let signed = status.data["is_sign"] as? Bool else { throw Failure.invalid }
                 if !signed, status.data["first_bind"] as? Bool == true {
                     throw Failure.firstCheckIn
                 }
-                return ["state": signed ? "signed" : "unsigned"]
+                var reply: Fields = ["state": signed ? "signed" : "unsigned"]
+                reply["claimedDays"] = status.data["total_sign_day"] as? Int
+                return reply
             }
             let submitted = try await request(
-                game.eventBase + "sign", body: params, headers: gameHeaders(game)
+                game.eventBase + "sign", body: params, headers: headers
             )
             if submitted.code == -5003 { return ["state": "already"] }
             if submitted.data["success"] as? Int == 1 { throw Failure.manual }
@@ -369,19 +474,51 @@ private struct Bridge {
 
 @main
 private enum Main {
+    private struct SessionRequest: Decodable {
+        let action: String
+        let args: [String]
+        let input: String?
+    }
+
     static func main() async throws {
         let args = Array(CommandLine.arguments.dropFirst())
+        guard args == ["session"] else { return }
+        try await serveSession()
+    }
+
+    private static func serveSession() async throws {
+        let parent = getppid()
+        guard parent > 1 else { return }
+        let parentExit = DispatchSource.makeProcessSource(identifier: parent, eventMask: .exit, queue: .global())
+        parentExit.setEventHandler { exit(EXIT_SUCCESS) }
+        parentExit.resume()
+        defer { parentExit.cancel() }
+        guard getppid() == parent else { return }
+
+        let bridge = Bridge()
+        let decoder = JSONDecoder()
+        while let line = readLine() {
+            let result = await reply {
+                let request = try decoder.decode(SessionRequest.self, from: Data(line.utf8))
+                return try await bridge.run(action: request.action, args: request.args, input: Data((request.input ?? "").utf8))
+            }
+            try writeWishHistoryLine(result)
+        }
+    }
+
+    private static func reply(_ action: () async throws -> Fields) async -> Fields {
         var result: Fields
         do {
-            guard args.count >= 2 else { throw Failure.invalid }
-            result = try await Bridge(path: args[0]).run(action: args[1], args: Array(args.dropFirst(2)))
+            result = try await action()
         } catch let failure as Failure {
+            result = ["state": failure.rawValue]
+        } catch let failure as WishHistoryFailure {
             result = ["state": failure.rawValue]
         } catch let failure as Rejected {
             result = ["state": "invalid", "code": failure.code]
         } catch {
             result = ["state": "unavailable"]
         }
-        FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject: result))
+        return result
     }
 }

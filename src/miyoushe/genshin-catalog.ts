@@ -15,7 +15,19 @@ const dataRoot = "https://cdn.jsdelivr.net/gh/theBowja/genshin-db-dist@";
 const catalogInterval = 24 * 60 * 60 * 1000;
 const commitPattern = /^[a-f0-9]{40}$/;
 const iconPattern =
-  /^https:\/\/(?:upload-os-bbs\.mihoyo\.com\/game_record\/genshin\/(?:character_icon|equip)|enka\.network\/ui)\/UI_[A-Za-z0-9_]+\.png$/;
+  /^https:\/\/(?:upload-os-bbs\.mihoyo\.com\/game_record\/genshin\/(?:character_icon|equip)|enka\.network\/ui)\/(UI_[A-Za-z0-9_]+\.png)$/;
+
+export function genshinIconFile(icon: string) {
+  return icon.match(iconPattern)?.[1];
+}
+
+export function genshinIconSources(icon: string) {
+  const file = genshinIconFile(icon);
+  if (!file) return [];
+  return icon.startsWith("https://enka.network/")
+    ? [icon]
+    : ["https://enka.network/ui/" + file, icon];
+}
 
 export type CatalogSnapshot = {
   commit: string;

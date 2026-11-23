@@ -76,7 +76,6 @@ import { GameIcon } from "../components/game-icon";
 import { GameLibraryView, GameLibraryItem } from "../views/game-library";
 import { MhyClientView } from "../views/clients/mhy";
 import settingsIcon from "../../assets/icons/settings.svg";
-import userIcon from "../../assets/icons/user.svg";
 import { AppModal } from "../../components/app-modal";
 import { GlobalModals } from "../../modals/global-modal-host";
 import type { GlobalModalRoute } from "../../modals/global-modal-host";
@@ -137,7 +136,13 @@ import { reportActionFailure } from "./action-failure";
 import { forceStopThenLaunch } from "./force-stop-launch";
 import { miyousheGameForChannel } from "@src/miyoushe/games";
 import { MiyousheLaunchTools } from "@src/miyoushe/launch-tools";
-import { MiyoushePanel, type MiyousheHomeStatus } from "@src/miyoushe/panel";
+import { MiyoushePanel, type PullArchiveStatus } from "@src/miyoushe/panel";
+import { MiyousheCheckInMenu } from "@src/miyoushe/check-in-menu";
+import {
+  MiyousheAccountEntry,
+  MiyousheLoginDialog,
+} from "@src/miyoushe/account-entry";
+import { createMiyousheSession } from "@src/miyoushe/session";
 import type {
   HypGame,
   HypGameWineTaskRequest,
@@ -575,23 +580,21 @@ export async function createHypLauncher({
 
   return function HypLauncher() {
     const selectedGame = () => games[selectedGameIndex()];
+    const launcherChannel = import.meta.env.YAAGL_CHANNEL_CLIENT ?? "hk4ecn";
     const miyousheGame = () =>
-      miyousheGameForChannel(
-        import.meta.env.YAAGL_CHANNEL_CLIENT ?? "hk4ecn",
-        selectedGame().clientId
-      );
-    const [miyousheDialog, setMiyousheDialog] = createSignal<
-      "pulls" | "account" | "check-in"
-    >();
-    const [miyousheStatus, setMiyousheStatus] =
-      createSignal<MiyousheHomeStatus>({
-        pulls: "loading",
-        checkIn: "loading",
-      });
+      miyousheGameForChannel(launcherChannel, selectedGame().clientId);
+    const [pullsOpen, setPullsOpen] = createSignal(false);
+    const miyousheSession = createMiyousheSession(miyousheGame);
+    const [miyousheLogin, setMiyousheLogin] = createSignal<{
+      onSuccess?: () => void;
+    }>();
+    const [pullArchiveStatus, setPullArchiveStatus] =
+      createSignal<PullArchiveStatus>("loading");
+    const launchToolsDisabled = () => libraryMounted() || downloadManagerOpen();
     const homeText = (zh: string, en: string) =>
       locale.currentLanguage === "zh_cn" ? zh : en;
     const pullStatus = () => {
-      const { pulls } = miyousheStatus();
+      const pulls = pullArchiveStatus();
       if (pulls === "loading")
         return homeText("读取本地记录…", "Reading local history…");
       if (pulls === "unavailable")
@@ -599,23 +602,6 @@ export async function createHypLauncher({
       if (!pulls) return homeText("尚未导入记录", "No imported pulls");
       const count = new Intl.NumberFormat().format(pulls);
       return homeText(`已导入 ${count} 抽`, `${count} pulls imported`);
-    };
-    const checkInStatus = () => {
-      const { checkIn, verifiedDate } = miyousheStatus();
-      if (verifiedDate)
-        return homeText(
-          `${verifiedDate} 已确认签到`,
-          `Verified on ${verifiedDate}`
-        );
-      const labels: Record<MiyousheHomeStatus["checkIn"], string> = {
-        loading: homeText("读取绑定状态…", "Checking account…"),
-        official: homeText("官方网页签到", "Official check-in"),
-        bound: homeText("已绑定账号", "Account connected"),
-        unbound: homeText("尚未绑定账号", "Account disconnected"),
-        expired: homeText("登录已过期", "Session expired"),
-        unavailable: homeText("状态暂不可用", "Status unavailable"),
-      };
-      return labels[checkIn];
     };
     const [installPrompt, setInstallPrompt] = createSignal<{
       game: HypGame;
@@ -2283,22 +2269,15 @@ export async function createHypLauncher({
             "single-game": games.length === 1,
           }}
         >
-          <button
-            type="button"
-            class="hyp-orbit-button"
-            aria-label={
-              miyousheGame()
-                ? homeText("米游社账号", "Miyoushe account")
-                : "Yaaglm"
-            }
-            aria-haspopup={miyousheGame() ? "dialog" : undefined}
-            disabled={
-              !miyousheGame() || libraryMounted() || downloadManagerOpen()
-            }
-            onClick={() => setMiyousheDialog("account")}
-          >
-            <img src={userIcon} alt="" />
-          </button>
+          <MiyousheAccountEntry
+            game={miyousheGame()}
+            session={miyousheSession}
+            onLogin={() => setMiyousheLogin({})}
+            t={homeText}
+            disabled={libraryMounted() || downloadManagerOpen()}
+            accent={themeHex()}
+            accentText={themeText()}
+          />
           <div class="hyp-game-icons">
             <For each={sidebarGames()}>
               {entry => (
@@ -2584,24 +2563,26 @@ export async function createHypLauncher({
               }}
             >
               <Show when={miyousheGame()}>
-                <MiyousheLaunchTools
-                  label={homeText("米游社工具", "Miyoushe tools")}
-                  disabled={libraryMounted() || downloadManagerOpen()}
-                  actions={[
-                    {
-                      kind: "pulls",
-                      label: homeText("抽卡分析", "Pull analysis"),
-                      status: pullStatus(),
-                      open: () => setMiyousheDialog("pulls"),
-                    },
-                    {
-                      kind: "account",
-                      label: homeText("每日签到", "Daily check-in"),
-                      status: checkInStatus(),
-                      open: () => setMiyousheDialog("check-in"),
-                    },
-                  ]}
-                />
+                {game => (
+                  <MiyousheLaunchTools
+                    label={homeText("米游社工具", "Miyoushe tools")}
+                    disabled={launchToolsDisabled()}
+                    pullsLabel={homeText("抽卡分析", "Pull analysis")}
+                    pullsStatus={pullStatus()}
+                    openPulls={() => setPullsOpen(true)}
+                  >
+                    <Show when={miyousheSession.status() !== "official"}>
+                      <MiyousheCheckInMenu
+                        t={homeText}
+                        game={game()}
+                        session={miyousheSession}
+                        disabled={launchToolsDisabled()}
+                        accent={themeHex()}
+                        accentText={themeText()}
+                      />
+                    </Show>
+                  </MiyousheLaunchTools>
+                )}
               </Show>
               <button
                 classList={{
@@ -3061,27 +3042,43 @@ export async function createHypLauncher({
         <Show when={miyousheGame()}>
           {game => (
             <MiyoushePanel
-              dialog={miyousheDialog()}
-              onClose={() => setMiyousheDialog(undefined)}
-              onHomeStatusChange={setMiyousheStatus}
-              onOpenAccount={() => setMiyousheDialog("account")}
+              opened={pullsOpen()}
+              onClose={() => setPullsOpen(false)}
+              onArchiveStatusChange={setPullArchiveStatus}
+              session={miyousheSession}
+              loginOpen={Boolean(miyousheLogin())}
+              onLogin={onSuccess => setMiyousheLogin({ onSuccess })}
               installDir={selectedGame().client.installDir()}
               winePrefix={
                 selectedGame().wineRef?.current?.prefix ?? baseWine.prefix
               }
               game={game()}
+              preloadGenshin={Boolean(
+                miyousheGameForChannel(launcherChannel, "hk4ecn")
+              )}
               title={selectedGame().title}
-              icon={
-                selectedGame().iconImage ||
-                selectedGame().client.uiContent.iconImage ||
-                selectedGame().fallbackIcon
-              }
               chinese={locale.currentLanguage === "zh_cn"}
               accent={themeHex()}
               accentText={themeText()}
             />
           )}
         </Show>
+        <MiyousheLoginDialog
+          opened={Boolean(miyousheLogin())}
+          game={miyousheGame()}
+          t={homeText}
+          session={miyousheSession}
+          theme={{
+            "--miyo-accent": themeHex(),
+            "--miyo-accent-text": themeText(),
+          }}
+          onClose={() => setMiyousheLogin(undefined)}
+          onSuccess={() => {
+            const action = miyousheLogin()?.onSuccess;
+            setMiyousheLogin(undefined);
+            action?.();
+          }}
+        />
         <GlobalModals
           route={globalModalRoute}
           onRouteChange={route => {

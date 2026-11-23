@@ -32,7 +32,7 @@
   margin-block: 38px 8px !important;
 }
 
-.miyoushe-pull-modal .hope-modal__header {
+:is(.miyoushe-pull-modal, .miyoushe-pull-settings-modal) .hope-modal__header {
   padding: 7px 16px !important;
   padding-inline-end: 51px !important;
   background: var(--miyo-bg);
@@ -43,23 +43,14 @@
   min-height: 0;
 }
 
-.miyoushe-pull-modal .app-modal-close {
+:is(.miyoushe-pull-modal, .miyoushe-pull-settings-modal) .app-modal-close {
   top: 7px !important;
   inset-inline-end: 12px !important;
   width: 28px !important;
   height: 28px !important;
 }
 
-.miyoushe-pull-header,
-.miyoushe-pull-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.miyoushe-pull-header {
-  justify-content: space-between;
+.miyoushe-pull-title {
   font-size: 15px;
 }
 
@@ -67,7 +58,10 @@
   gap: 10px;
 }
 
-.miyoushe-pull-header .app-modal-button {
+.miyoushe-panel :is(.miyoushe-settings-button, .miyoushe-refresh-button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
   height: 28px;
   min-height: 28px !important;
@@ -75,33 +69,184 @@
   font-size: 12px;
 }
 
-.miyoushe-brand {
-  display: flex;
+.miyoushe-refresh-icon {
+  flex: none;
+}
+
+.miyoushe-refresh-control {
+  position: relative;
+}
+
+.miyoushe-refresh-menu {
+  position: absolute;
+  inset-block-start: calc(100% + 5px);
+  inset-inline-end: 0;
+  z-index: 2;
+  display: grid;
+  min-width: 150px;
+  padding: 4px;
+  border: 1px solid var(--miyo-line);
+  border-radius: 6px;
+  background: var(--miyo-panel);
+  color: var(--miyo-text);
+  box-shadow: 0 6px 20px #0005;
+}
+
+.miyoushe-refresh-menu button {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.miyoushe-refresh-menu button:hover:not(:disabled),
+.miyoushe-refresh-menu button:focus-visible {
+  background: #ffffff12;
+}
+
+.miyoushe-refresh-menu button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .miyoushe-refresh-button[aria-busy="true"] .miyoushe-refresh-icon {
+    animation: miyoushe-refresh-spin 900ms linear infinite;
+  }
+}
+
+@keyframes miyoushe-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.app-modal-overlay.miyoushe-settings-overlay {
+  background: rgba(6, 7, 11, 0.55) !important;
+  backdrop-filter: none !important;
+}
+
+.miyoushe-pull-settings-modal .hope-modal__body.miyoushe-modal-body {
+  padding: 16px 18px 18px !important;
+}
+
+.miyoushe-pull-settings-modal .miyoushe-panel {
+  gap: 10px;
+}
+
+.miyoushe-pull-settings {
+  display: grid;
+  gap: 10px;
+}
+
+.miyoushe-pull-settings > .miyoushe-card {
+  padding: 12px 14px;
+}
+
+.miyoushe-file-settings {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
 }
 
-.miyoushe-brand-icon {
-  display: block;
-  width: 44px;
-  height: 44px;
-  overflow: hidden;
-  border-radius: 10px;
-  outline: 1px solid rgba(255, 255, 255, 0.15);
+.miyoushe-archive-settings,
+.miyoushe-clear-confirm {
+  display: grid;
+  gap: 10px;
 }
 
-.miyoushe-brand-icon img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.miyoushe-settings-heading,
+.miyoushe-uid-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 12px;
 }
 
-.miyoushe-brand-game {
-  display: block;
-  color: var(--miyo-muted);
-  font-size: 12px;
-  font-weight: 500;
+.miyoushe-settings-details {
+  display: grid;
+  justify-items: start;
+  gap: 1px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.miyoushe-settings-details :is(h2, strong) {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.miyoushe-pull-settings .hope-button {
+  min-height: 28px;
+  padding-inline: 10px;
+}
+
+.miyoushe-pull-settings .miyoushe-import-button:not(:disabled) {
+  background: var(--miyo-accent);
+  color: var(--miyo-accent-text);
+}
+
+.miyoushe-pull-settings .miyoushe-import-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.miyoushe-trash-icon {
+  width: 13px;
+  height: 13px;
+  background: currentColor;
+  -webkit-mask: url("../assets/icons/trash.svg") center / contain no-repeat;
+  mask: url("../assets/icons/trash.svg") center / contain no-repeat;
+}
+
+.miyoushe-uid-list {
+  display: grid;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.miyoushe-uid-list > li {
+  padding: 7px 0;
+  border-top: 1px solid var(--miyo-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.miyoushe-uid-list > li:last-child {
+  padding-bottom: 0;
+}
+
+.miyoushe-uid-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.miyoushe-uid-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.miyoushe-clear-confirm {
+  margin-top: 9px;
+  padding: 10px 12px;
+  border: 1px solid #704642;
+  border-radius: 8px;
+  background: #2a2024;
+  font-size: 13px;
 }
 
 .miyoushe-panel :is(h2, h3, p, ol) {
@@ -122,6 +267,7 @@
 }
 
 .miyoushe-scope,
+.miyoushe-report-meta,
 .miyoushe-actions {
   display: flex;
   flex-wrap: wrap;
@@ -131,6 +277,24 @@
 
 .miyoushe-scope {
   justify-content: space-between;
+}
+
+.miyoushe-report-meta {
+  margin-inline-start: auto;
+  justify-content: flex-end;
+}
+
+.miyoushe-report-meta > span {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.miyoushe-report-meta .app-modal-button {
+  min-width: 0;
+  min-height: 28px !important;
+  height: 28px;
+  padding: 2px 10px !important;
+  font-size: 12px;
 }
 
 .miyoushe-link-button {
@@ -146,13 +310,6 @@
   background: var(--miyo-accent) !important;
   color: var(--miyo-accent-text) !important;
   border-color: transparent !important;
-}
-
-.miyoushe-file-notice {
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: #24212a;
-  color: var(--miyo-accent);
 }
 
 .miyoushe-card {
@@ -171,7 +328,8 @@
   font-size: 12px;
 }
 
-.miyoushe-panel select {
+.miyoushe-panel select,
+.miyoushe-check-in-menu select {
   max-width: 100%;
   padding: 5px 9px;
   border: 1px solid var(--miyo-line);
@@ -209,16 +367,9 @@
   background: #23262c;
 }
 
-.miyoushe-history,
-.miyoushe-account {
+.miyoushe-history {
   display: grid;
   gap: 12px;
-}
-
-.miyoushe-account h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 700;
 }
 
 .miyoushe-pull-modal .miyoushe-history {
@@ -423,22 +574,6 @@
   white-space: nowrap;
 }
 
-.miyoushe-report-source,
-.miyoushe-history-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.miyoushe-report-source {
-  gap: 4px 14px;
-}
-
-.miyoushe-report-source > :first-child {
-  color: var(--miyo-text);
-}
-
 .miyoushe-pool-metrics {
   display: flex;
   flex-wrap: wrap;
@@ -466,6 +601,9 @@
 }
 
 .miyoushe-history-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
   gap: 8px 12px;
   padding-bottom: 8px;

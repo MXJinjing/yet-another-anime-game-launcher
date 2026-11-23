@@ -5,6 +5,7 @@ import {
   type Reply,
 } from "../../src/miyoushe/account";
 
+const accountId = "d32b1eab-97c9-4814-b34f-d87cff7ec730";
 const role = { uid: "12345", region: "cn_gf01", nickname: "Player" };
 const wait = async () => undefined;
 
@@ -34,6 +35,7 @@ describe("Miyoushe QR binding", () => {
       "cancel",
     ]);
     expect(showQr).toHaveBeenLastCalledWith("image", true);
+    expect(bridge).toHaveBeenCalledWith("start");
   });
 
   it("discards a response that arrives after cancellation", async () => {
@@ -73,6 +75,7 @@ describe("Miyoushe QR binding", () => {
       )
     ).toBe("unbound");
     expect(onConfirming).toHaveBeenCalledTimes(1);
+    expect(bridge).toHaveBeenCalledWith("start");
     expect(bridge).toHaveBeenCalledWith("finish", ["hkrpg"]);
     expect(bridge).toHaveBeenLastCalledWith("cancel");
   });
@@ -94,22 +97,47 @@ describe("Miyoushe QR binding", () => {
 });
 
 describe("Miyoushe daily check-in", () => {
+  it("does not submit after a status check crosses Shanghai midnight", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-11-24T15:59:59Z"));
+      const bridge = vi.fn(async (): Promise<Reply> => {
+        vi.setSystemTime(new Date("2026-11-24T16:00:00Z"));
+        return { state: "unsigned" };
+      });
+      expect(await createCheckIn(bridge)("hk4e", role, accountId)).toBe(
+        "day-changed"
+      );
+      expect(bridge).toHaveBeenCalledOnce();
+      expect(bridge).toHaveBeenCalledWith("status", [
+        "hk4e",
+        role.uid,
+        role.region,
+        accountId,
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not contact the service without an eligible role", async () => {
     const bridge = replies();
-    expect(await createCheckIn(bridge)("hk4e", undefined)).toBe("no-role");
+    expect(await createCheckIn(bridge)("hk4e", undefined, accountId)).toBe(
+      "no-role"
+    );
     expect(bridge).not.toHaveBeenCalled();
   });
 
   it("coalesces repeated clicks and confirms the result for the selected role", async () => {
     const bridge = replies("unsigned", "ok", "signed");
     const run = createCheckIn(bridge);
-    const first = run("hk4e", role);
-    expect(run("hk4e", role)).toBe(first);
+    const first = run("hk4e", role, accountId);
+    expect(run("hk4e", role, accountId)).toBe(first);
     expect(await first).toBe("signed");
     expect(bridge.mock.calls).toEqual(
       ["status", "sign", "status"].map(action => [
         action,
-        ["hk4e", "12345", "cn_gf01"],
+        ["hk4e", "12345", "cn_gf01", accountId],
       ])
     );
   });
@@ -123,17 +151,22 @@ describe("Miyoushe daily check-in", () => {
     "first-check-in",
   ] as const)("does not submit when preflight returns %s", async state => {
     const bridge = replies(state);
-    expect(await createCheckIn(bridge)("hk4e", role)).toBe(
+    expect(await createCheckIn(bridge)("hk4e", role, accountId)).toBe(
       state === "signed" ? "already" : state
     );
     expect(bridge).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a pending result scoped to its own role", async () => {
+  it("keeps a pending result scoped to its own account and role", async () => {
     const bridge = replies("unsigned", "ok", "signed");
     const run = createCheckIn(bridge);
-    const first = run("hk4e", role);
-    expect(await run("hk4e", { ...role, uid: "54321" })).toBe("uncertain");
+    const first = run("hk4e", role, accountId);
+    expect(await run("hk4e", { ...role, uid: "54321" }, accountId)).toBe(
+      "uncertain"
+    );
+    expect(
+      await run("hk4e", role, "ab51a326-646c-4484-91cf-81378065565a")
+    ).toBe("uncertain");
     expect(await first).toBe("signed");
     expect(bridge.mock.calls.every(([, args]) => args?.[1] === role.uid)).toBe(
       true
@@ -144,7 +177,7 @@ describe("Miyoushe daily check-in", () => {
     "stops immediately if a submission returns %s",
     async state => {
       const bridge = replies("unsigned", state);
-      expect(await createCheckIn(bridge)("hk4e", role)).toBe(state);
+      expect(await createCheckIn(bridge)("hk4e", role, accountId)).toBe(state);
       expect(bridge).toHaveBeenCalledTimes(2);
     }
   );
@@ -152,8 +185,8 @@ describe("Miyoushe daily check-in", () => {
   it("queries again after a timeout and preflights any later retry", async () => {
     const bridge = replies("unsigned", "network", "network", "signed");
     const run = createCheckIn(bridge);
-    expect(await run("hk4e", role)).toBe("uncertain");
-    expect(await run("hk4e", role)).toBe("already");
+    expect(await run("hk4e", role, accountId)).toBe("uncertain");
+    expect(await run("hk4e", role, accountId)).toBe("already");
     expect(bridge.mock.calls.map(([action]) => action)).toEqual([
       "status",
       "sign",

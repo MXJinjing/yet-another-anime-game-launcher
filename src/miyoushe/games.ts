@@ -12,10 +12,3 @@ export function miyousheGameForChannel(channel: string, clientId: string) {
     ? gameByClient[clientId]
     : undefined;
 }
-
-export const miyousheCheckInUrl = {
-  hk4e: "https://act.mihoyo.com/bbs/event/signin/hk4e/index.html?bbs_auth_required=true&act_id=e202311201442471",
-  hkrpg:
-    "https://act.mihoyo.com/bbs/event/signin/hkrpg/index.html?act_id=e202304121516551",
-  nap: "https://act.mihoyo.com/bbs/event/signin/zzz/e202406242138391.html?bbs_auth_required=true&act_id=e202406242138391",
-} satisfies Record<MiyousheGame, string>;

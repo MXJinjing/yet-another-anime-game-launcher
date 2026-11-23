@@ -9,7 +9,7 @@ export function spawnProcess(command: string) {
 export function updateSpawnedProcess(
   id: number,
   action: "stdIn" | "stdInEnd" | "exit",
-  data?: object
+  data?: string
 ) {
   return Neutralino.os.updateSpawnedProcess(id, action, data);
 }

@@ -29,7 +29,7 @@ export function createPullReport(
         return knownRank(rank) ? { ...pull, rank_type: rank } : pull;
       })
     : account.list;
-  const summary = summarizePulls({ ...account, list });
+  const summary = summarizePulls({ ...account, list }, game);
   const pools = summary.pools.map(pool => {
     let sinceTop: number | undefined;
     let sinceFour: number | undefined;

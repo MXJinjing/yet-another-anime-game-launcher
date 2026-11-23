@@ -2,11 +2,10 @@ import { join } from "path-browserify";
 import { getGameUserDataFolder } from "@src/clients/game-data-paths";
 import { readDirectory, resolve, resolveResource } from "@platform/neutralino";
 import { build } from "@platform/shell";
+import type { RequestMiyousheHelper } from "./local";
 import type { Pull } from "./uigf";
 
-type HistoryRequest =
-  | { mode: "authorized" }
-  | { mode: "sync"; uid: string; heads?: Readonly<Record<string, string>> };
+type HistoryHeads = Readonly<Record<string, string>>;
 
 type HistoryReply =
   | {
@@ -19,6 +18,7 @@ type HistoryReply =
         | "no-history"
         | "history-expired"
         | "history-mismatch"
+        | "account-authorization-expired"
         | "manual"
         | "limited"
         | "invalid"
@@ -26,10 +26,23 @@ type HistoryReply =
         | "unavailable";
     };
 
+export function readAccountWishHistory(
+  request: RequestMiyousheHelper,
+  accountId: string,
+  uid: string,
+  heads?: HistoryHeads
+) {
+  return request<HistoryReply>(
+    "wish-history",
+    [],
+    JSON.stringify({ accountId, uid, heads })
+  );
+}
+
 export async function readGameHistory(
   installDir: string | undefined,
   winePrefix: string | undefined,
-  request: HistoryRequest
+  headsByUid: Readonly<Record<string, HistoryHeads>>
 ): Promise<HistoryReply> {
   try {
     const helper = resolveResource("sidecar/miyoushe-history");
@@ -47,7 +60,7 @@ export async function readGameHistory(
     }
     // The expiring authorization stays in the helper process.
     const payload = JSON.stringify({
-      ...request,
+      headsByUid,
       install: installDir ? resolve(installDir) : undefined,
       directories,
     });

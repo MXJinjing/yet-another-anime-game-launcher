@@ -4,6 +4,7 @@ import {
   exportUigf,
   mergeGachaArchives,
   parseUigf,
+  selectGamePullArchive,
   summarizePulls,
 } from "../../src/miyoushe/uigf";
 
@@ -70,6 +71,37 @@ describe("UIGF v4.2", () => {
     expect(mergeGachaArchives(merged, incoming)).toEqual(merged);
     expect(original.hk4e?.[0].list).toEqual([pull]);
     expect(merged.nap?.[0].list).toHaveLength(1);
+  });
+
+  it("preserves the latest local update time per UID and omits it from exchange files", () => {
+    const first = { ...account, updatedAt: 1_800_000_000_000 };
+    const second = {
+      ...account,
+      uid: "987654321",
+      updatedAt: 1_800_000_000_001,
+    };
+    const newer = { ...first, updatedAt: 1_800_000_000_002 };
+    const merged = mergeGachaArchives(
+      { hk4e: [first, second] },
+      { hk4e: [newer, first] }
+    );
+
+    const localArchive = exportUigf(merged, true);
+    expect(parseUigf(localArchive, true).hk4e).toEqual([newer, second]);
+    expect(parseUigf(localArchive).hk4e?.[0].updatedAt).toBeUndefined();
+    expect(
+      parseUigf(exportUigf(merged), true).hk4e?.map(entry => entry.updatedAt)
+    ).toEqual([undefined, undefined]);
+  });
+
+  it("exports a selected UID from only the requested game, or all UIDs for that game", () => {
+    const second = { ...account, uid: "987654321" };
+    const archive = { hk4e: [account, second], nap: [second] };
+    const single = selectGamePullArchive(archive, "hk4e", second.uid);
+    const all = selectGamePullArchive(archive, "hk4e");
+    expect(parseUigf(exportUigf(single!))).toEqual({ hk4e: [second] });
+    expect(parseUigf(exportUigf(all!))).toEqual({ hk4e: [account, second] });
+    expect(selectGamePullArchive(archive, "nap", account.uid)).toBeUndefined();
   });
 
   it.each([

@@ -1,10 +1,18 @@
 import type { MiyousheGame } from "./games";
+import { shanghaiDay } from "./account-preferences";
 
 export type GameRole = {
   uid: string;
   region: string;
   nickname: string;
 };
+
+export type AccountProfile = {
+  nickname?: string;
+  maskedId: string;
+  avatar?: string;
+};
+export type SavedAccount = { id: string; profile: AccountProfile };
 
 export type Failure =
   | "unavailable"
@@ -28,8 +36,11 @@ export type Reply = {
     | "already";
   qr?: string;
   roles?: GameRole[];
-  profile?: { nickname?: string; maskedId: string; avatar?: string };
+  profile?: AccountProfile;
+  accounts?: SavedAccount[];
+  activeAccountId?: string;
   code?: number;
+  claimedDays?: number;
 };
 
 export type AccountBridge = (
@@ -73,27 +84,36 @@ export async function bindAccount(
   }
 }
 
-export type CheckInResult = Reply["state"] | "uncertain" | "no-role";
+export type CheckInResult =
+  | Reply["state"]
+  | "uncertain"
+  | "no-role"
+  | "day-changed";
+export type CheckInDiagnostic = (
+  stage: "status" | "sign" | "verify",
+  reply: Reply
+) => void;
 
-export function createCheckIn(
-  bridge: AccountBridge,
-  diagnose?: (stage: "status" | "sign" | "verify", reply: Reply) => void
-) {
+export function createCheckIn(bridge: AccountBridge) {
   let pending: Promise<CheckInResult> | undefined;
   let target: string;
 
   return (
     game: MiyousheGame,
-    role: GameRole | undefined
+    role: GameRole | undefined,
+    accountId: string,
+    diagnose?: CheckInDiagnostic
   ): Promise<CheckInResult> => {
     if (!role) return Promise.resolve("no-role");
-    const args = [game, role.uid, role.region];
-    const key = args.join(":");
+    const args = [game, role.uid, role.region, accountId];
+    const day = shanghaiDay();
+    const key = [...args, day].join(":");
     if (pending) return key === target ? pending : Promise.resolve("uncertain");
     target = key;
     pending = (async () => {
       const before = await bridge("status", args);
       diagnose?.("status", before);
+      if (shanghaiDay() !== day) return "day-changed";
       if (before.state === "signed") return "already";
       if (before.state !== "unsigned") return before.state;
       const submitted = await bridge("sign", args);
@@ -102,6 +122,7 @@ export function createCheckIn(
         return submitted.state;
       const after = await bridge("status", args);
       diagnose?.("verify", after);
+      if (shanghaiDay() !== day) return "day-changed";
       if (after.state === "signed")
         return submitted.state === "already" ? "already" : "signed";
       if (

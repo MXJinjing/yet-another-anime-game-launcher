@@ -128,7 +128,7 @@ describe("pull report", () => {
     const records = Array.from({ length: 12 }, (_, index) =>
       pull(String(index + 1), "3")
     );
-    const [weapon, character] = createPullReport(
+    const [character, weapon] = createPullReport(
       account([...records, pull("13", "5", { gacha_type: "301" })]),
       "hk4e"
     ).pools;
@@ -153,6 +153,18 @@ describe("pull report", () => {
     });
     expect(pageIds(pagePullHistory(character.rows, 1))).toEqual(["13"]);
     expect(weapon.rows.map(row => row.pull.id).slice(0, 2)).toEqual(["1", "2"]);
+  });
+
+  it("defaults to character, weapon and standard pools in that order for Genshin", () => {
+    const list = ["200", "100", "302", "500", "301"].map((gacha_type, index) =>
+      pull(String(index + 1), "5", { gacha_type })
+    );
+    expect(
+      createPullReport(account(list), "hk4e").pools.map(pool => pool.type)
+    ).toEqual(["301", "302", "200", "500", "100"]);
+    expect(
+      createPullReport(account(list), "hkrpg").pools.map(pool => pool.type)
+    ).toEqual(["200", "100", "302", "500", "301"]);
   });
 
   it("counts only classified featured history and skips uncertain intervals", () => {

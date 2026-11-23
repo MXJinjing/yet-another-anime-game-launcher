@@ -19,6 +19,7 @@ type Account = {
   lang?: string;
   list: Pull[];
   sources?: ("file" | "game")[];
+  updatedAt?: number;
 };
 
 export type GachaArchive = Partial<Record<MiyousheGame, Account[]>>;
@@ -109,17 +110,26 @@ export function parseUigf(text: string, local = false): GachaArchive {
     if (!Array.isArray(accounts)) return invalid();
     archive[game] = accounts.map(value => {
       const account = parseAccount(value, game);
-      const sources = object(value).sources;
+      const { sources, updatedAt } = object(value);
       if (local && Array.isArray(sources)) {
         account.sources = sources.filter(
           (source): source is "file" | "game" =>
             source === "file" || source === "game"
         );
       }
+      if (
+        local &&
+        typeof updatedAt === "number" &&
+        Number.isSafeInteger(updatedAt) &&
+        updatedAt > 0 &&
+        Number.isFinite(+new Date(updatedAt))
+      )
+        account.updatedAt = updatedAt;
       return account;
     });
   }
-  if (!miyousheGames.some(game => archive[game]?.length)) return invalid();
+  if (!local && !miyousheGames.some(game => archive[game]?.length))
+    return invalid();
   return archive;
 }
 
@@ -148,6 +158,8 @@ export function mergeGachaArchives(
         pulls: new Map<string, Pull>(),
       };
       accounts.set(source.uid, target);
+      if (source.updatedAt !== undefined)
+        target.updatedAt = Math.max(source.updatedAt, target.updatedAt ?? 0);
       if (source.sources || target.sources)
         target.sources = [
           ...new Set([
@@ -167,11 +179,12 @@ export function mergeGachaArchives(
     }
     if (accounts.size) {
       result[game] = [...accounts.values()].map(
-        ({ pulls, uid, timezone, lang, sources }) => ({
+        ({ pulls, uid, timezone, lang, sources, updatedAt }) => ({
           uid,
           timezone,
           ...(lang === undefined ? {} : { lang }),
           ...(sources === undefined ? {} : { sources }),
+          ...(updatedAt === undefined ? {} : { updatedAt }),
           list: [...pulls.values()],
         })
       );
@@ -208,11 +221,28 @@ export function exportUigf(archive: GachaArchive, local = false) {
   );
 }
 
+export function selectGamePullArchive(
+  archive: GachaArchive,
+  game: MiyousheGame,
+  uid?: string
+): GachaArchive | undefined {
+  const accounts = archive[game] ?? [];
+  const selected =
+    uid === undefined
+      ? accounts
+      : accounts.filter(account => account.uid === uid);
+  return selected.length ? { [game]: selected } : undefined;
+}
+
 function comparePulls(a: Pull, b: Pull) {
   return a.time.localeCompare(b.time) || Number(BigInt(a.id) - BigInt(b.id));
 }
 
-export function summarizePulls(account: Account) {
+const genshinPoolOrder = new Map(
+  ["301", "400", "302", "200", "500", "100"].map((type, index) => [type, index])
+);
+
+export function summarizePulls(account: Account, game?: MiyousheGame) {
   const pools = new Map<string, Pull[]>();
   const sorted = [...account.list].sort(comparePulls);
   for (const pull of sorted) {
@@ -221,10 +251,17 @@ export function summarizePulls(account: Account) {
     pool.push(pull);
     pools.set(type, pool);
   }
+  const entries = [...pools];
+  if (game === "hk4e")
+    entries.sort(
+      ([a], [b]) =>
+        (genshinPoolOrder.get(a) ?? Infinity) -
+        (genshinPoolOrder.get(b) ?? Infinity)
+    );
   return {
     first: sorted[0]?.time,
     last: sorted[sorted.length - 1]?.time,
-    pools: [...pools].map(([type, pulls]) => {
+    pools: entries.map(([type, pulls]) => {
       let afterTopRank = 0;
       let hasTopRank = false;
       let known = true;
