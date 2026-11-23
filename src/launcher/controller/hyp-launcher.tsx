@@ -68,6 +68,7 @@ import { GAME_BANNER_URLS } from "../data/game-assets";
 import {
   parseBackgroundPersistedState,
   resolveBackgroundImage,
+  resolveBackgroundTheme,
   resolveBackgroundVideo,
   resolveInitialIndex,
 } from "../model/background-switcher";
@@ -986,8 +987,10 @@ export async function createHypLauncher({
       )
     );
     const currentBgTheme = () =>
-      currentBg()?.background_theme ??
-      selectedGame().client.uiContent.background_theme;
+      resolveBackgroundTheme(
+        currentBg(),
+        selectedGame().client.uiContent.background_theme
+      );
     // The readiness flag belongs to one clip: a new source (or re-enabling the
     // setting) must start hidden and get its own readiness/retry cycle instead
     // of inheriting the previous verdict. Keying off the memo keeps unrelated
