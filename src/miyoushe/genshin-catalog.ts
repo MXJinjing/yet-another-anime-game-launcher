@@ -116,15 +116,16 @@ async function requestPublicFile(url: string, request: typeof fetch) {
     const decoder = new TextDecoder("utf-8", { fatal: true });
     let text = "";
     let size = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    let chunk = await reader.read();
+    while (!chunk.done) {
+      const { value } = chunk;
       size += value.byteLength;
       if (size > 5 * 1024 * 1024) {
         await reader.cancel();
         throw new Error("Public catalog exceeds the size limit");
       }
       text += decoder.decode(value, { stream: true });
+      chunk = await reader.read();
     }
     return JSON.parse(text + decoder.decode()) as unknown;
   } finally {
