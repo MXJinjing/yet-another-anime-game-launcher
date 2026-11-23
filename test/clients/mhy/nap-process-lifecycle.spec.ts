@@ -44,7 +44,12 @@ vi.mock("@src/clients/mhy/patch", () => ({
 
 import type { Config } from "@config";
 import type { Server } from "@constants";
-import { fileOrDirExists, removeFile, writeFile } from "@platform/neutralino";
+import {
+  fileOrDirExists,
+  removeFile,
+  removeFileIfExists,
+  writeFile,
+} from "@platform/neutralino";
 import type { TaskProgressCommand } from "@tasks/task-program";
 import type { Wine } from "@wine";
 import { cp, forceMove } from "@runtime/macos-filesystem";
@@ -409,6 +414,63 @@ describe("nap game process lifecycle", () => {
     );
     expect(raw.exec2.mock.calls[0][2]).not.toHaveProperty("DXMT_CONFIG");
     vi.mocked(fileOrDirExists).mockResolvedValue(false);
+  });
+
+  it("removes the bridge copies when MetalFX is off on a D3DMetal runtime", async () => {
+    const { wine, raw } = createWine();
+    raw.attributes.renderBackend = "d3dmetal";
+    raw.attributes.supportsD3d12 = true;
+    await collect(
+      launchGameProgram({
+        gameDir: "/game",
+        gameExecutable: "TargetGame.exe",
+        wine,
+        config: {
+          ...config,
+          resolutionCustom: false,
+          napMetalFxEnable: false,
+        },
+        server: server("nap_cn"),
+      })
+    );
+    expect(removeFileIfExists).toHaveBeenCalledWith(
+      "/prefix/drive_c/windows/system32/nvngx.dll"
+    );
+    expect(removeFileIfExists).toHaveBeenCalledWith(
+      "/prefix/drive_c/windows/system32/nvngx-on-metalfx.dll"
+    );
+    expect(removeFileIfExists).toHaveBeenCalledWith(
+      "/prefix/drive_c/windows/system32/nvapi64.dll"
+    );
+    expect(cp).not.toHaveBeenCalled();
+  });
+
+  it("removes a D3DMetal bridge left in the prefix when DXMT takes over", async () => {
+    const { wine, raw } = createWine();
+    raw.attributes.renderBackend = "dxmt";
+    await collect(
+      launchGameProgram({
+        gameDir: "/game",
+        gameExecutable: "TargetGame.exe",
+        wine,
+        config: {
+          ...config,
+          resolutionCustom: false,
+          napMetalFxEnable: true,
+        },
+        server: server("nap_cn"),
+      })
+    );
+    expect(removeFileIfExists).toHaveBeenCalledWith(
+      "/prefix/drive_c/windows/system32/nvngx-on-metalfx.dll"
+    );
+    expect(removeFileIfExists).toHaveBeenCalledWith(
+      "/prefix/drive_c/windows/system32/nvapi64.dll"
+    );
+    expect(cp).toHaveBeenCalledWith(
+      "./dxmt/nvngx.dll",
+      "/prefix/drive_c/windows/system32/nvngx.dll"
+    );
   });
 
   it("waits indefinitely for the prefix when process enumeration becomes unknown", async () => {

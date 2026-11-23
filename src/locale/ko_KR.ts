@@ -124,6 +124,10 @@ export const ko_KR: typeof zh_CN = {
   SETTING_MTL_HUD: "Metal HUD",
   SETTING_RETINA: "Retina 모드",
   SETTING_LEFT_CMD: "왼쪽 CMD를 CTRL로 할당",
+  SETTING_CONTROLS: "컨트롤",
+  SETTING_GAME_CONTROLLER_FIX: "게임 컨트롤러 수정",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "Wine이 원시 HID 대신 SDL을 통해 컨트롤러를 인식하도록 합니다. 컨트롤러가 인식되지 않거나 버튼이 잘못 동작할 때 사용해 보세요. 모든 컨트롤러에 적용되지는 않습니다.",
   SETTING_TURN_OFF_AC_PATCH: "AC 패치 비활성화",
   SETTING_CUSTOM_RESOLUTION: "사용자 정의 해상도",
   SETTING_DISPLAY_MODE: "게임 표시 모드",
@@ -136,8 +140,11 @@ export const ko_KR: typeof zh_CN = {
   SETTING_NAP_METALFX_DESC:
     "DLSS 대신 MetalFX를 사용하며 레이 트레이싱도 지원합니다.",
   SETTING_NAP_D3D12_REQUIREMENTS:
-    "DirectX 12에는 D3DMetal Wine 런타임 또는 Game Porting Toolkit이 필요합니다.",
-  SETTING_NAP_REQUIRES_GPTK3: "Game Porting Toolkit 3(GPTK3)이 필요합니다.",
+    "DirectX 12에는 D3DMetal Wine 런타임 또는 Game Porting Toolkit이 필요합니다. Wine 환경에서 D3DMetal 런타임으로 전환하세요.",
+  SETTING_NAP_METALFX_DXMT_NOTE:
+    "DXMT 런타임에 포함된 nvngx 브리지로 동작하며 추가 설치가 필요하지 않습니다.",
+  SETTING_NAP_METALFX_RUNTIME_NOTE:
+    "Wine 런타임에 포함된 nvngx-on-metalfx 브리지로 동작합니다. 내장 D3DMetal 런타임에는 이미 포함되어 있습니다.",
   SETTING_SAVE: "저장",
   SETTING_CANCEL: "취소",
 

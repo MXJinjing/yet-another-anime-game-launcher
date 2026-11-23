@@ -19,7 +19,7 @@ import {
   readGameVersion,
   readInstalledGameVersion,
 } from "../../game-version";
-import { Config } from "@config";
+import { Config, createConfigStore } from "@config";
 import { launchGameProgram } from "./program-launch-game";
 import { patchRevertProgram } from "../patch";
 import type { SophonOnlineGameInfo } from "@sophon";
@@ -419,6 +419,8 @@ export async function createNAPChannelClient({
         locale,
         config,
         storage,
+        store: createConfigStore(storage),
+        renderBackend: () => wine.attributes.renderBackend,
       });
 
       return {

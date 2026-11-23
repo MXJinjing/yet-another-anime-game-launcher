@@ -14,7 +14,8 @@ import { resolve } from "@platform/neutralino/path";
 import { dirname, join } from "path-browserify";
 import { log } from "../logging/logger";
 import { getWineDistributions } from "./distro";
-import { D3DMETAL_RUNTIME_ID } from "./d3dmetal";
+import { buildWinePropsScript } from "./wine-props";
+import { isD3DMetalRuntimeId } from "./d3dmetal";
 import type { WineDistribution } from "./distro";
 import { installWineEnvironmentProgram } from "./wine-install-program";
 import { createWinePrefixInitializationLog } from "./prefix-initialization-log";
@@ -241,7 +242,7 @@ export async function getMultiGameWineOptions(_currentTag: string) {
   const availableVersions = (
     await Promise.all(
       versions.map(async distro =>
-        distro.id === D3DMETAL_RUNTIME_ID ||
+        isD3DMetalRuntimeId(distro.id) ||
         (await isWineDistroInstalled(distro.id))
           ? distro
           : null
@@ -496,14 +497,7 @@ export async function createMultiGameWineFromRoot({
         false,
         "/dev/null"
       ),
-    setProps: props =>
-      runConfig(
-        `@echo off\ncd "%~dp0"\nreg add "HKEY_CURRENT_USER\\Software\\Wine\\Mac Driver" /v RetinaMode /t REG_SZ /d ${
-          props.retina ? "y" : "n"
-        } /f\nreg add "HKEY_CURRENT_USER\\Software\\Wine\\Mac Driver" /v LeftCommandIsCtrl /t REG_SZ /d ${
-          props.leftCmd ? "y" : "n"
-        } /f\nexit /b 0\n`
-      ),
+    setProps: props => runConfig(buildWinePropsScript(props)),
     setNVExtension: () =>
       runConfig(
         `@echo off\ncd "%~dp0"\nreg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /t REG_BINARY /d 1 /f\nreg add "HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Services\\nvlddmkm" /v "{41FCC608-8496-4DEF-B43E-7D9BD675A6FF}" /t REG_BINARY /d 1 /f\nreg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\NVIDIA Corporation\\Global\\NGXCore" /v FullPath /t REG_SZ /d "C:\\Windows\\System32" /f\nexit /b 0\n`

@@ -33,6 +33,7 @@ export type BaseLoadedSettings = {
 
 export type GlobalLoadedSettings = BaseLoadedSettings & {
   leftCmd: SettingsComponent;
+  gameControllerFix: SettingsComponent;
   autoUpdate: SettingsComponent;
   locale: SettingsComponent;
   downloadServer: SettingsComponent;

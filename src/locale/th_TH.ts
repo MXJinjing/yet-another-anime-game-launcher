@@ -125,6 +125,10 @@ export const th_TH: typeof zh_CN = {
   SETTING_MTL_HUD: "Metal HUD",
   SETTING_RETINA: "โหมด Retina",
   SETTING_LEFT_CMD: "แมปปุ่ม CMD ซ้ายเป็น CTRL",
+  SETTING_CONTROLS: "การควบคุม",
+  SETTING_GAME_CONTROLLER_FIX: "แก้ไขตัวควบคุมเกม",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "ทำให้ Wine ตรวจจับตัวควบคุมผ่าน SDL แทน HID ดิบ ลองใช้เมื่อตัวควบคุมไม่ถูกตรวจพบหรือปุ่มทำงานผิดปกติ อาจไม่เหมาะกับตัวควบคุมทุกชนิด",
   SETTING_TURN_OFF_AC_PATCH: "ปิดการใช้งานแพตช์ AC",
   SETTING_CUSTOM_RESOLUTION: "ความละเอียดแบบกำหนดเอง",
   SETTING_DISPLAY_MODE: "โหมดแสดงผลของเกม",
@@ -136,8 +140,11 @@ export const th_TH: typeof zh_CN = {
   SETTING_NAP_METALFX: "เปิดใช้ MetalFX",
   SETTING_NAP_METALFX_DESC: "ใช้ MetalFX แทน DLSS และรองรับเรย์เทรซิง",
   SETTING_NAP_D3D12_REQUIREMENTS:
-    "DirectX 12 ต้องใช้ Wine ที่รองรับ D3DMetal หรือ Game Porting Toolkit",
-  SETTING_NAP_REQUIRES_GPTK3: "ต้องมี Game Porting Toolkit 3 (GPTK3)",
+    "DirectX 12 ต้องใช้ Wine ที่รองรับ D3DMetal หรือ Game Porting Toolkit โปรดสลับไปใช้รันไทม์ D3DMetal ในการตั้งค่า Wine",
+  SETTING_NAP_METALFX_DXMT_NOTE:
+    "ทำงานผ่านบริดจ์ nvngx ที่มาพร้อมรันไทม์ DXMT ไม่ต้องติดตั้งเพิ่ม",
+  SETTING_NAP_METALFX_RUNTIME_NOTE:
+    "ทำงานผ่านบริดจ์ nvngx-on-metalfx ที่มาพร้อมรันไทม์ Wine และรันไทม์ D3DMetal ที่มาพร้อมตัวติดตั้งมีอยู่แล้ว",
   SETTING_SAVE: "บันทึก",
   SETTING_CANCEL: "ยกเลิก",
 

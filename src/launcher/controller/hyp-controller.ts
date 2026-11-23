@@ -3,6 +3,7 @@ import type { TaskProgram } from "@tasks/task-program";
 import type { Locale } from "../../locale";
 import { getKeyOrDefault } from "@runtime/storage";
 import { ensureMultiGameGameWine } from "@wine/multi-game";
+import { readGlobalWineProps } from "@wine/global-props";
 import type { GameLogLocation } from "../../channel-client";
 import type { HypGame } from "./launcher-types";
 import { withoutRuntimeReplacements } from "../../clients/mhy/patch";
@@ -59,9 +60,14 @@ export function createGameLaunchProgram({
   skipRuntimeReplacements?: boolean;
 }): TaskProgram {
   return (async function* () {
-    const baseConfig = game.config.advancedEnable
-      ? game.config
-      : { ...game.config, reshade: false, metalFxEnable: false };
+    // Input preferences are launcher-wide, not per game: read them here so a
+    // launch always carries the current value even though `game.config` is
+    // built from the game-scoped store.
+    const globalWineProps = await readGlobalWineProps();
+    const gameConfig = { ...game.config, ...globalWineProps };
+    const baseConfig = gameConfig.advancedEnable
+      ? gameConfig
+      : { ...gameConfig, reshade: false, metalFxEnable: false };
     // The user asked to launch anyway after a replacement problem. Disable
     // every replacement source so the retry cannot fail the same way again.
     const config = skipRuntimeReplacements

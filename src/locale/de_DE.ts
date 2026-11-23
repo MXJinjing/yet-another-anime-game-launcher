@@ -128,6 +128,10 @@ export const de_DE: typeof zh_CN = {
   SETTING_MTL_HUD: "Metal HUD",
   SETTING_RETINA: "Retina-Modus",
   SETTING_LEFT_CMD: "Linke CMD zu CTRL zuordnen",
+  SETTING_CONTROLS: "Steuerung",
+  SETTING_GAME_CONTROLLER_FIX: "Gamecontroller-Korrektur",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "Lässt Wine Controller über SDL statt über rohes HID erkennen. Hilfreich, wenn ein Controller nicht erkannt wird oder Tasten falsch reagieren; funktioniert nicht mit jedem Controller.",
   SETTING_TURN_OFF_AC_PATCH: "AC-Patch deaktivieren",
   SETTING_CUSTOM_RESOLUTION: "Benutzerdefinierte Auflösung",
   SETTING_DISPLAY_MODE: "Anzeigemodus",
@@ -140,8 +144,11 @@ export const de_DE: typeof zh_CN = {
   SETTING_NAP_METALFX_DESC:
     "MetalFX anstelle von DLSS verwenden, mit Raytracing-Unterstützung.",
   SETTING_NAP_D3D12_REQUIREMENTS:
-    "DirectX 12 erfordert eine D3DMetal-Wine-Laufzeit oder das Game Porting Toolkit.",
-  SETTING_NAP_REQUIRES_GPTK3: "Erfordert Game Porting Toolkit 3 (GPTK3).",
+    "DirectX 12 erfordert eine D3DMetal-Wine-Laufzeit oder das Game Porting Toolkit. Wechsle in der Wine-Umgebung auf eine D3DMetal-Laufzeit.",
+  SETTING_NAP_METALFX_DXMT_NOTE:
+    "Läuft über die nvngx-Brücke der DXMT-Laufzeit; es muss nichts installiert werden.",
+  SETTING_NAP_METALFX_RUNTIME_NOTE:
+    "Läuft über die nvngx-on-metalfx-Brücke der Wine-Laufzeit; die mitgelieferte D3DMetal-Laufzeit enthält sie bereits.",
   SETTING_SAVE: "Speichern",
   SETTING_CANCEL: "Abbrechen",
 

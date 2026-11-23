@@ -4,7 +4,6 @@ import { SettingsTabPanel } from "./settings-tab-panel";
 
 export function GeneralTab(props: {
   DisableVideoBackgroundConfig: () => JSXElement;
-  LeftCmdConfig: () => JSXElement;
   AutoUpdateConfig: () => JSXElement;
   LocaleConfig: () => JSXElement;
   ThemeColorConfig: () => JSXElement;
@@ -23,8 +22,6 @@ export function GeneralTab(props: {
         <props.LauncherDataConfig />
         <Divider />
         <props.AutoUpdateConfig />
-        <Divider />
-        <props.LeftCmdConfig />
         <Divider />
         <props.HostsHelperConfig />
       </>

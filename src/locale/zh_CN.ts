@@ -121,6 +121,10 @@ export const zh_CN = {
   SETTING_MTL_HUD: "Metal HUD",
   SETTING_RETINA: "Retina 模式",
   SETTING_LEFT_CMD: "映射左 CMD 键为 CTRL 键",
+  SETTING_CONTROLS: "控制",
+  SETTING_GAME_CONTROLLER_FIX: "游戏手柄修复",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "让 Wine 通过 SDL 而不是原始 HID 识别手柄。手柄没有反应或按键错乱时可以试试，并非适用于所有手柄。",
   SETTING_TURN_OFF_AC_PATCH: "关闭 AC 补丁",
   SETTING_CUSTOM_RESOLUTION: "自定义分辨率",
   SETTING_DISPLAY_MODE: "游戏显示模式",
@@ -132,8 +136,11 @@ export const zh_CN = {
   SETTING_NAP_METALFX: "启用 MetalFX",
   SETTING_NAP_METALFX_DESC: "同时支持光线追踪",
   SETTING_NAP_D3D12_REQUIREMENTS:
-    "DirectX 12 需要使用 D3DMetal Wine 运行时或 Game Porting Toolkit。",
-  SETTING_NAP_REQUIRES_GPTK3: "需要安装 Game Porting Toolkit 3（GPTK3）。",
+    "DirectX 12 需要使用 D3DMetal Wine 运行时或 Game Porting Toolkit，请在 Wine 环境里切换到 D3DMetal 运行时。",
+  SETTING_NAP_METALFX_DXMT_NOTE:
+    "由 DXMT 运行时自带的 nvngx 桥接实现，无需额外安装。",
+  SETTING_NAP_METALFX_RUNTIME_NOTE:
+    "由 Wine 运行时自带的 nvngx-on-metalfx 桥接实现，启动器内置的 D3DMetal 运行时已包含。",
   SETTING_SAVE: "保存",
   SETTING_CANCEL: "取消",
 

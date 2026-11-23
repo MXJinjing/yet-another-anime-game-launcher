@@ -69,6 +69,13 @@ export const configEntries = {
   themeColor: withDefault("config_theme_color", "amber", stringCodec),
   vsyncDisable: withDefault("config_vsync_disable", false, booleanCodec),
   leftCmd: withDefault("left_cmd", false, booleanCodec),
+  // Launcher-wide Wine input compatibility switch. Not namespaced: every game
+  // prefix receives the same value when it launches.
+  gameControllerFix: withDefault(
+    "config_game_controller_fix",
+    false,
+    booleanCodec
+  ),
   uiLocale: {
     key: "config_uiLocale",
     ...stringCodec,

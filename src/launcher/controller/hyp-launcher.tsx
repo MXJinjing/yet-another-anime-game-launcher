@@ -7,7 +7,7 @@ import { removeExternalSophonPredownload } from "@download/sophon-predownload";
 import { SophonInstallModal } from "../../modals/sophon-install-modal";
 import type { SophonInstallSelection } from "../../integrations/sophon-install-options";
 import { resolvePredownloadVisibility } from "../model/predownload-visibility";
-import { createGlobalSettings } from "@settings";
+import { createGlobalSettings, GLOBAL_SETTINGS_TAB } from "@settings";
 import { createConfigStore } from "@config";
 import { applyRecommendedGameSettings } from "@settings/recommended-settings";
 import { TaskFailedError } from "@tasks/task-program";
@@ -2339,7 +2339,7 @@ export async function createHypLauncher({
                 title={downloadManagerText(locale.currentLanguage).settings}
                 onClick={() => {
                   setDownloadManagerOpen(false);
-                  setGlobalSettingsInitialTab(1);
+                  setGlobalSettingsInitialTab(GLOBAL_SETTINGS_TAB.download);
                   setGlobalModalRoute("settings");
                 }}
               >
@@ -2831,7 +2831,7 @@ export async function createHypLauncher({
           onOpenSettings={() => {
             setMissingWineGame();
             closeNativeSettings();
-            setGlobalSettingsInitialTab(2);
+            setGlobalSettingsInitialTab(GLOBAL_SETTINGS_TAB.wine);
             setGlobalModalRoute("settings");
           }}
         />
@@ -2895,7 +2895,7 @@ export async function createHypLauncher({
               onOpenSettings={() => {
                 setWineRecoveryChoice();
                 closeNativeSettings();
-                setGlobalSettingsInitialTab(2);
+                setGlobalSettingsInitialTab(GLOBAL_SETTINGS_TAB.wine);
                 setGlobalModalRoute("settings");
               }}
               onCancel={() => setWineRecoveryChoice()}
@@ -2932,7 +2932,8 @@ export async function createHypLauncher({
           route={globalModalRoute}
           onRouteChange={route => {
             setGlobalModalRoute(route);
-            if (route != "settings") setGlobalSettingsInitialTab(0);
+            if (route != "settings")
+              setGlobalSettingsInitialTab(GLOBAL_SETTINGS_TAB.general);
             if (route == null) void refreshThemeColor();
           }}
           settingsUI={GlobalConfigurationUI}

@@ -126,6 +126,10 @@ export const ru_RU: typeof zh_CN = {
   SETTING_DXVK_HUD_ALL: "Всё",
   SETTING_RETINA: "Режим Retina",
   SETTING_LEFT_CMD: "Назначить левый CMD как CTRL",
+  SETTING_CONTROLS: "Управление",
+  SETTING_GAME_CONTROLLER_FIX: "Исправление геймпада",
+  SETTING_GAME_CONTROLLER_FIX_DESC:
+    "Заставляет Wine определять геймпады через SDL, а не через необработанный HID. Попробуйте, если геймпад не определяется или кнопки работают неправильно; подходит не для всех геймпадов.",
   SETTING_TURN_OFF_AC_PATCH: "Отключить патч АЧ",
   SETTING_CUSTOM_RESOLUTION: "Пользовательское разрешение",
   SETTING_DISPLAY_MODE: "Режим отображения",
@@ -138,8 +142,11 @@ export const ru_RU: typeof zh_CN = {
   SETTING_NAP_METALFX_DESC:
     "Использовать MetalFX вместо DLSS с поддержкой трассировки лучей.",
   SETTING_NAP_D3D12_REQUIREMENTS:
-    "Для DirectX 12 требуется Wine с D3DMetal или Game Porting Toolkit.",
-  SETTING_NAP_REQUIRES_GPTK3: "Требуется Game Porting Toolkit 3 (GPTK3).",
+    "Для DirectX 12 требуется Wine с D3DMetal или Game Porting Toolkit. Переключитесь на D3DMetal в настройках Wine.",
+  SETTING_NAP_METALFX_DXMT_NOTE:
+    "Работает через мост nvngx из состава Wine с DXMT; устанавливать ничего не нужно.",
+  SETTING_NAP_METALFX_RUNTIME_NOTE:
+    "Работает через мост nvngx-on-metalfx из состава Wine; встроенный D3DMetal уже его содержит.",
   SETTING_SAVE: "Сохранить",
   SETTING_CANCEL: "Отменить",
 
