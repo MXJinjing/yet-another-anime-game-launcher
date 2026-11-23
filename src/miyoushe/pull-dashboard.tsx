@@ -513,15 +513,16 @@ export function PullDashboard(props: {
                             </span>
                           </Show>
                         </div>
-                        <div class="miyoushe-chart-meter">
+                        <div
+                          class="miyoushe-chart-meter"
+                          style={{
+                            "--miyo-fill":
+                              (timeline().ongoing.count / barMax()) * 100 + "%",
+                          }}
+                        >
                           <span
                             class="miyoushe-chart-fill"
                             aria-hidden="true"
-                            style={{
-                              width:
-                                (timeline().ongoing.count / barMax()) * 100 +
-                                "%",
-                            }}
                           />
                           <span class="miyoushe-chart-value">
                             <Show
@@ -557,25 +558,25 @@ export function PullDashboard(props: {
                               <div class="miyoushe-chart-label">
                                 <strong title={name(row)}>{name(row)}</strong>
                                 <Featured row={row} uid={props.account.uid} />
-                                <span class="miyoushe-chart-count">
+                              </div>
+                              <div
+                                class="miyoushe-chart-meter"
+                                style={{
+                                  "--miyo-fill":
+                                    ((row.interval ?? 0) / barMax()) * 100 +
+                                    "%",
+                                }}
+                              >
+                                <span
+                                  class="miyoushe-chart-fill"
+                                  aria-hidden="true"
+                                />
+                                <span class="miyoushe-chart-value miyoushe-chart-count">
                                   {row.interval ?? "—"}
                                   {row.interval === undefined
                                     ? ""
                                     : t(" 抽", " pulls")}
                                 </span>
-                              </div>
-                              <div
-                                class="miyoushe-chart-meter"
-                                aria-hidden="true"
-                              >
-                                <span
-                                  class="miyoushe-chart-fill"
-                                  style={{
-                                    width:
-                                      ((row.interval ?? 0) / barMax()) * 100 +
-                                      "%",
-                                  }}
-                                />
                               </div>
                             </div>
                             <FourCards rows={cycle.fourths} />

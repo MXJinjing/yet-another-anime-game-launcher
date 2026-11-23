@@ -307,23 +307,23 @@
   position: absolute;
   inset-block: 0;
   left: 0;
+  width: var(--miyo-fill);
   background: var(--miyo-timing);
   border-radius: 4px;
-}
-
-.miyoushe-chart-value,
-.miyoushe-chart-count {
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
 }
 
 .miyoushe-chart-value {
   z-index: 0;
   padding-inline: 7px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 
 .miyoushe-chart-count {
-  margin-inline-start: auto;
+  box-sizing: border-box;
+  inline-size: var(--miyo-fill);
+  min-inline-size: max-content;
+  text-align: center;
   white-space: nowrap;
 }
 
