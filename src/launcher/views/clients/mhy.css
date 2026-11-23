@@ -54,14 +54,24 @@
 }
 
 .hyp-mhy-board-stack--with-tools {
-  --hyp-mhy-board-offset: clamp(28px, calc(100vh - 440px), 120px);
-  top: clamp(12px, calc(100vh - 450px), 282px);
-  width: 486px;
+  top: auto;
+  bottom: 56px;
 }
 
 .hyp-mhy-board-stack--with-tools .hyp-mhy-home-panel {
-  grid-template-columns: minmax(0, 1fr) minmax(130px, 41%);
+  position: relative;
+  top: auto;
   gap: 10px;
+}
+
+.hyp-mhy-board-stack--with-tools .hyp-mhy-board {
+  max-height: calc(100vh - 142px);
+  overflow-y: auto;
+}
+
+.hyp-mhy-board-stack--with-tools .hyp-mhy-icon-button {
+  top: auto;
+  bottom: calc(100% + 12px);
 }
 
 .hyp-mhy-board {
@@ -84,11 +94,8 @@
 
 .hyp-mhy-tools {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-}
-
-.hyp-mhy-tools:only-child {
-  width: min(100%, 200px);
 }
 
 .hyp-mhy-tool {
@@ -589,8 +596,11 @@
   }
 
   .hyp-mhy-board-stack--with-tools {
-    width: min(435px, calc(100vw - 126px));
-    max-width: calc(100vw - 108px);
+    bottom: 88px;
+  }
+
+  .hyp-mhy-board-stack--with-tools .hyp-mhy-board {
+    max-height: calc(100vh - 174px);
   }
 
   .hyp-mhy-social {
