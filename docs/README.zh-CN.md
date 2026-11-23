@@ -72,6 +72,19 @@ pnpm start
 
 <code>pnpm dev</code> 只启动 Vite 前端。<code>pnpm start</code> 会构建并运行默认桌面渠道；要运行其他渠道，请使用 <code>package.json</code> 中对应的 <code>start-*</code> 脚本。直接构建时可通过 <code>YAAGL_CHANNEL_CLIENT</code> 选择渠道。
 
+### 构建发行包
+
+设置发行版本，先准备对应架构的 Sophon sidecar，再执行所需架构的命令：
+
+~~~sh
+export YAAGL_VERSION="$(node -p 'require("./package.json").version')"
+YAAGL_BUILD_ARCH=arm64 bash scripts/build-release.sh
+YAAGL_BUILD_ARCH=x64 bash scripts/build-release.sh
+YAAGL_BUILD_ARCH=universal bash scripts/build-release.sh
+~~~
+
+通用包需要 arm64 和 x64 两种 Sophon sidecar。脚本会为各发行渠道生成 DMG 安装镜像和应用归档文件。
+
 ## 完全卸载
 
 1. 如果安装了 Hosts Helper，请在 **全局设置 → 通用 → Hosts Helper** 中卸载。

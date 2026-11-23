@@ -72,6 +72,19 @@ pnpm start
 
 <code>pnpm dev</code> starts the Vite frontend only. <code>pnpm start</code> builds and runs the default desktop channel; use a channel-specific <code>start-*</code> script from <code>package.json</code> to run another supported channel. <code>YAAGL_CHANNEL_CLIENT</code> selects the channel for direct builds.
 
+### Build release packages
+
+Set the release version, prepare the Sophon sidecar for the target architecture, then run the command for each architecture you want to package:
+
+~~~sh
+export YAAGL_VERSION="$(node -p 'require("./package.json").version')"
+YAAGL_BUILD_ARCH=arm64 bash scripts/build-release.sh
+YAAGL_BUILD_ARCH=x64 bash scripts/build-release.sh
+YAAGL_BUILD_ARCH=universal bash scripts/build-release.sh
+~~~
+
+A universal build needs Sophon sidecars for both arm64 and x64. The script produces DMG installers and app archives for the release channels.
+
 ## Uninstall (completely)
 
 1. If Hosts Helper is installed, uninstall it from **Global Settings → General → Hosts Helper**.
