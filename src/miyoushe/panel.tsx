@@ -8,7 +8,7 @@ import {
   Show,
 } from "solid-js";
 import { AppModal, AppModalButton } from "@src/components/app-modal";
-import { open, writeFile } from "@platform/neutralino";
+import { open, readFile, writeFile } from "@platform/neutralino";
 import {
   bindAccount,
   createCheckIn,
@@ -118,7 +118,6 @@ export function MiyoushePanel(props: {
     code?: number;
   }>();
   let login: AbortController | undefined;
-  let fileInput: HTMLInputElement | undefined;
   let profileRequest = 0;
   let writingPreferences = Promise.resolve();
   const checkIn = createCheckIn(runMiyoushePrototype, (stage, reply) => {
@@ -497,11 +496,22 @@ export function MiyoushePanel(props: {
     }
   }
 
-  async function importFile(file: File | undefined) {
-    if (!file || importBusy()) return;
+  async function importFile(file?: File) {
+    if (importBusy()) return;
     setImportBusy(true);
     try {
-      const incoming = parseUigf(await file.text());
+      let contents: string;
+      if (file) {
+        contents = await file.text();
+      } else {
+        const [path] = await Neutralino.os.showOpenDialog(
+          t("导入抽卡记录", "Import pull history"),
+          { filters: [{ name: "UIGF JSON", extensions: ["json"] }] }
+        );
+        if (!path) return;
+        contents = await readFile(path);
+      }
+      const incoming = parseUigf(contents);
       for (const accounts of Object.values(incoming))
         for (const account of accounts) account.sources = ["file"];
       await mergeIncoming(incoming);
@@ -735,7 +745,7 @@ export function MiyoushePanel(props: {
               <AppModalButton
                 variant="primary"
                 disabled={importBusy()}
-                onClick={() => fileInput?.click()}
+                onClick={() => void importFile()}
               >
                 {t("导入", "Import")}
               </AppModalButton>
@@ -745,16 +755,6 @@ export function MiyoushePanel(props: {
         maxWidth={1040}
       >
         <div class="miyoushe-panel" style={panelTheme()}>
-          <input
-            ref={fileInput}
-            type="file"
-            hidden
-            accept=".json,application/json"
-            onChange={event => {
-              void importFile(event.currentTarget.files?.[0]);
-              event.currentTarget.value = "";
-            }}
-          />
           <Show when={storageError()}>
             <p role="status">
               {t(
@@ -776,7 +776,8 @@ export function MiyoushePanel(props: {
                 onDragOver={event => event.preventDefault()}
                 onDrop={event => {
                   event.preventDefault();
-                  void importFile(event.dataTransfer?.files[0]);
+                  const file = event.dataTransfer?.files[0];
+                  if (file) void importFile(file);
                 }}
               >
                 <span class="miyoushe-empty-icon" aria-hidden="true">
@@ -792,7 +793,7 @@ export function MiyoushePanel(props: {
                 <AppModalButton
                   variant="primary"
                   disabled={importBusy()}
-                  onClick={() => fileInput?.click()}
+                  onClick={() => void importFile()}
                 >
                   {t("选择文件", "Choose file")}
                 </AppModalButton>
