@@ -3014,6 +3014,11 @@ export async function createHypLauncher({
               onClose={() => setMiyousheOpen(false)}
               game={game()}
               title={selectedGame().title}
+              icon={
+                selectedGame().iconImage ||
+                selectedGame().client.uiContent.iconImage ||
+                selectedGame().fallbackIcon
+              }
               chinese={locale.currentLanguage === "zh_cn"}
             />
           )}
