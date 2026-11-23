@@ -2419,7 +2419,12 @@ export async function createHypLauncher({
                   ]
                 : undefined
             }
-            announcementLabel={homeText("近期公告", "Recent announcements")}
+            announcements={{
+              title: homeText("近期公告", "Recent announcements"),
+              loading: homeText("加载中…", "Loading…"),
+              empty: homeText("暂无近期公告", "No recent announcements"),
+              count: count => homeText(`${count} 条公告`, `${count} updates`),
+            }}
             channelName={
               selectedGame().client.uiContent.channelName ||
               selectedGame().id.toUpperCase()

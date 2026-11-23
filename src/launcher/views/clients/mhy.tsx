@@ -1,15 +1,17 @@
 import {
   For,
   Index,
+  Match,
   Show,
+  Switch,
   createEffect,
   createMemo,
   createSignal,
-  createUniqueId,
   on,
   onCleanup,
 } from "solid-js";
 import { Skeleton } from "@hope-ui/solid";
+import { AppModal } from "@src/components/app-modal";
 import type { ChannelClient } from "../../../channel-client";
 import type { HoyoConnectSocialMedia } from "../../../clients/mhy/launcher-info";
 import { GameBanner } from "../../components/game-banner";
@@ -39,17 +41,24 @@ function getSocialTitle(social: HoyoConnectSocialMedia) {
   );
 }
 
+type HomeTool = {
+  kind: "pulls" | "check-in" | "announcements";
+  title: string;
+  status: string;
+  disabled: boolean;
+  open: () => void;
+};
+
 export function MhyClientView(props: {
   client: ChannelClient;
   channelName?: string;
-  announcementLabel?: string;
-  communityTools?: readonly {
-    kind: "pulls" | "check-in";
+  announcements?: {
     title: string;
-    status: string;
-    disabled: boolean;
-    open: () => void;
-  }[];
+    loading: string;
+    empty: string;
+    count: (count: number) => string;
+  };
+  communityTools?: readonly HomeTool[];
 }) {
   const launcherIconButtons = createMemo(
     () => props.client.uiContent.launcherIconButtons ?? []
@@ -68,13 +77,12 @@ export function MhyClientView(props: {
     })
   );
   const [bannerIndex, setBannerIndex] = createSignal(0);
-  const [postsExpanded, setPostsExpanded] = createSignal(false);
-  const postsId = createUniqueId();
+  const [announcementsOpen, setAnnouncementsOpen] = createSignal(false);
   const hasTools = () => Boolean(props.communityTools?.length);
   createEffect(
     on(
       () => props.client,
-      () => setPostsExpanded(false)
+      () => setAnnouncementsOpen(false)
     )
   );
   const [launcherIconHovered, setLauncherIconHovered] = createSignal(false);
@@ -113,6 +121,70 @@ export function MhyClientView(props: {
 
   const showLauncherContent = () =>
     !props.client.uiContent.channelName && (hasContent() || contentPending());
+
+  const announcementTitle = () => props.announcements?.title ?? "近期公告";
+  const announcementEmpty = () => props.announcements?.empty ?? "暂无近期公告";
+  const announcementStatus = () => {
+    if (!showLauncherContent()) return announcementEmpty();
+    const total = recentPosts().length;
+    if (total) return props.announcements?.count(total) ?? `${total} 条公告`;
+    return contentPending()
+      ? props.announcements?.loading ?? "加载中…"
+      : announcementEmpty();
+  };
+
+  const homeTools = createMemo<HomeTool[]>(() => {
+    const tools = props.communityTools ?? [];
+    return [
+      ...tools,
+      {
+        kind: "announcements",
+        title: announcementTitle(),
+        status: announcementStatus(),
+        disabled: tools.some(tool => tool.disabled),
+        open: () => setAnnouncementsOpen(true),
+      },
+    ];
+  });
+
+  function AnnouncementPosts() {
+    return (
+      <div class="hyp-mhy-posts">
+        <Show
+          when={recentPosts().length}
+          fallback={
+            <Show
+              when={contentPending()}
+              fallback={<p>{announcementEmpty()}</p>}
+            >
+              <For each={[0, 1, 2]}>
+                {_ => (
+                  <div class="hyp-mhy-post hyp-mhy-post-skeleton">
+                    <Skeleton class="hyp-mhy-post-title-skeleton" />
+                    <Skeleton class="hyp-mhy-post-date-skeleton" />
+                  </div>
+                )}
+              </For>
+            </Show>
+          }
+        >
+          <For each={recentPosts()}>
+            {post => (
+              <button
+                type="button"
+                class="hyp-mhy-post"
+                onClick={() => openLink(post.link)}
+                disabled={!post.link}
+              >
+                <span>{post.title}</span>
+                <time>{post.date}</time>
+              </button>
+            )}
+          </For>
+        </Show>
+      </div>
+    );
+  }
 
   function moveBanner(offset: number) {
     const count = banners().length;
@@ -208,7 +280,7 @@ export function MhyClientView(props: {
               when={
                 showLauncherContent() &&
                 (currentBanner() ||
-                  recentPosts().length > 0 ||
+                  (!hasTools() && recentPosts().length > 0) ||
                   contentPending())
               }
             >
@@ -278,64 +350,19 @@ export function MhyClientView(props: {
                   )}
                 </Show>
 
-                <Show when={recentPosts().length > 0 || contentPending()}>
-                  <Show when={hasTools()}>
-                    <button
-                      type="button"
-                      class="hyp-mhy-post-toggle"
-                      aria-expanded={postsExpanded()}
-                      aria-controls={postsId}
-                      disabled={props.communityTools?.[0]?.disabled}
-                      onClick={() => setPostsExpanded(expanded => !expanded)}
-                    >
-                      <span>{props.announcementLabel ?? "近期公告"}</span>
-                      <strong>
-                        <Show when={recentPosts().length}>
-                          {recentPosts().length}
-                        </Show>
-                        <span class="hyp-mhy-post-chevron" aria-hidden="true" />
-                      </strong>
-                    </button>
-                  </Show>
-                  <div
-                    class="hyp-mhy-posts"
-                    id={postsId}
-                    hidden={hasTools() && !postsExpanded()}
-                  >
-                    <Show
-                      when={recentPosts().length > 0}
-                      fallback={
-                        <For each={[0, 1, 2]}>
-                          {_ => (
-                            <div class="hyp-mhy-post hyp-mhy-post-skeleton">
-                              <Skeleton class="hyp-mhy-post-title-skeleton" />
-                              <Skeleton class="hyp-mhy-post-date-skeleton" />
-                            </div>
-                          )}
-                        </For>
-                      }
-                    >
-                      <For each={recentPosts()}>
-                        {post => (
-                          <button
-                            type="button"
-                            class="hyp-mhy-post"
-                            onClick={() => openLink(post.link)}
-                            disabled={!post.link}
-                          >
-                            <span>{post.title}</span>
-                            <time>{post.date}</time>
-                          </button>
-                        )}
-                      </For>
-                    </Show>
-                  </div>
+                <Show
+                  when={
+                    !hasTools() &&
+                    (recentPosts().length > 0 || contentPending())
+                  }
+                >
+                  <AnnouncementPosts />
                 </Show>
               </section>
             </Show>
             <Show when={hasTools()}>
               <div class="hyp-mhy-tools">
-                <Index each={props.communityTools}>
+                <Index each={homeTools()}>
                   {tool => (
                     <button
                       type="button"
@@ -355,23 +382,19 @@ export function MhyClientView(props: {
                           stroke-linecap="round"
                           stroke-linejoin="round"
                         >
-                          <Show
-                            when={tool().kind === "pulls"}
-                            fallback={
-                              <>
-                                <rect
-                                  x="4"
-                                  y="5"
-                                  width="16"
-                                  height="16"
-                                  rx="2"
-                                />
-                                <path d="M8 3v4m8-4v4M4 10h16m-11 5 2 2 4-4" />
-                              </>
-                            }
-                          >
-                            <path d="M4 4v16h16M8 16v-3m5 3V9m5 7V6" />
-                          </Show>
+                          <Switch>
+                            <Match when={tool().kind === "pulls"}>
+                              <path d="M4 4v16h16M8 16v-3m5 3V9m5 7V6" />
+                            </Match>
+                            <Match when={tool().kind === "check-in"}>
+                              <rect x="4" y="5" width="16" height="16" rx="2" />
+                              <path d="M8 3v4m8-4v4M4 10h16m-11 5 2 2 4-4" />
+                            </Match>
+                            <Match when={tool().kind === "announcements"}>
+                              <rect x="5" y="3" width="14" height="18" rx="2" />
+                              <path d="M9 8h6m-6 4h6m-6 4h4" />
+                            </Match>
+                          </Switch>
                         </svg>
                       </span>
                       <span class="hyp-mhy-tool-copy">
@@ -390,6 +413,22 @@ export function MhyClientView(props: {
             </Show>
           </div>
         </div>
+        <Show when={hasTools()}>
+          <AppModal
+            opened={announcementsOpen()}
+            onClose={() => setAnnouncementsOpen(false)}
+            title={announcementTitle()}
+            contentClass="hyp-mhy-announcements-modal"
+            maxWidth={520}
+          >
+            <Show
+              when={showLauncherContent()}
+              fallback={<p>{announcementEmpty()}</p>}
+            >
+              <AnnouncementPosts />
+            </Show>
+          </AppModal>
+        </Show>
       </div>
     </Show>
   );
