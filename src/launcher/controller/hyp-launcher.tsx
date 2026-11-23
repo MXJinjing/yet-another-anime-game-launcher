@@ -156,6 +156,9 @@ const BG_VIDEO_RETRY_DELAY_MS = 1200;
 // WebKit can leave a looping clip parked on its last frame, so the playback
 // clock is polled instead of trusting the element's own loop/ended handling.
 const BG_VIDEO_MONITOR_MS = 1000;
+// The stall watchdog needs two polls to fire, which leaves the tail frame on
+// screen for ~2s every loop. Rewinding this close to the end hides the seam.
+const BG_VIDEO_WRAP_MARGIN_S = 0.15;
 const LIBRARY_TRANSITION_MS = 360;
 const PREDOWNLOAD_STAGING_DIRECTORIES = [".ariatmp", ".tmp"];
 
@@ -911,11 +914,26 @@ export async function createHypLauncher({
       );
       if (!videoLoaded()) setVideoLoaded(true);
     }
+    // `loop` alone parks the clip on its final frame here, and the stall
+    // watchdog needs two polls to notice — 2s of frozen background per cycle.
+    // Rewind before the tail so the seam never shows.
+    function wrapBgVideo(video: HTMLVideoElement) {
+      if (video.paused || video.readyState < 2) return;
+      const duration = video.duration;
+      if (
+        !Number.isFinite(duration) ||
+        duration <= BG_VIDEO_WRAP_MARGIN_S ||
+        duration - video.currentTime >= BG_VIDEO_WRAP_MARGIN_S
+      )
+        return;
+      video.currentTime = 0;
+    }
     function bgCanvasLoop() {
       bgCanvasPaint = requestAnimationFrame(bgCanvasLoop);
       if (document.hidden) return;
       const video = baseVideoRef;
       if (!video) return;
+      wrapBgVideo(video);
       if (video.currentTime === bgCanvasLastTime) return;
       bgCanvasLastTime = video.currentTime;
       paintBgCanvas();
