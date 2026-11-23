@@ -136,6 +136,7 @@ import { resolveLaunchFailure } from "./launch-failure-policy";
 import { reportActionFailure } from "./action-failure";
 import { forceStopThenLaunch } from "./force-stop-launch";
 import { miyousheGameForChannel } from "@src/miyoushe/games";
+import { MiyousheLaunchTools } from "@src/miyoushe/launch-tools";
 import { MiyoushePanel, type MiyousheHomeStatus } from "@src/miyoushe/panel";
 import type {
   HypGame,
@@ -2393,38 +2394,13 @@ export async function createHypLauncher({
         <main
           classList={{
             "hyp-stage": true,
+            "hyp-stage--with-launch-tools": Boolean(miyousheGame()),
             "library-open": libraryMounted(),
           }}
           aria-label={selectedGame().title}
         >
           <MhyClientView
             client={selectedGame().client}
-            communityTools={
-              miyousheGame()
-                ? [
-                    {
-                      kind: "pulls",
-                      title: homeText("抽卡分析", "Pull analysis"),
-                      status: pullStatus(),
-                      disabled: libraryMounted() || downloadManagerOpen(),
-                      open: () => openMiyoushe("pulls"),
-                    },
-                    {
-                      kind: "check-in",
-                      title: homeText("每日签到", "Daily check-in"),
-                      status: checkInStatus(),
-                      disabled: libraryMounted() || downloadManagerOpen(),
-                      open: () => openMiyoushe("account"),
-                    },
-                  ]
-                : undefined
-            }
-            announcements={{
-              title: homeText("近期公告", "Recent announcements"),
-              loading: homeText("加载中…", "Loading…"),
-              empty: homeText("暂无近期公告", "No recent announcements"),
-              count: count => homeText(`${count} 条公告`, `${count} updates`),
-            }}
             channelName={
               selectedGame().client.uiContent.channelName ||
               selectedGame().id.toUpperCase()
@@ -2595,7 +2571,32 @@ export async function createHypLauncher({
                 </Popover>
               </Show>
             </Show>
-            <div class="hyp-primary-row">
+            <div
+              classList={{
+                "hyp-primary-row": true,
+                "hyp-primary-row--with-launch-tools": Boolean(miyousheGame()),
+              }}
+            >
+              <Show when={miyousheGame()}>
+                <MiyousheLaunchTools
+                  label={homeText("米游社工具", "Miyoushe tools")}
+                  disabled={libraryMounted() || downloadManagerOpen()}
+                  actions={[
+                    {
+                      kind: "pulls",
+                      label: homeText("抽卡分析", "Pull analysis"),
+                      status: pullStatus(),
+                      open: () => openMiyoushe("pulls"),
+                    },
+                    {
+                      kind: "account",
+                      label: homeText("每日签到", "Daily check-in"),
+                      status: checkInStatus(),
+                      open: () => openMiyoushe("account"),
+                    },
+                  ]}
+                />
+              </Show>
               <button
                 classList={{
                   "hyp-primary-button": true,

@@ -1,17 +1,12 @@
 import {
   For,
-  Index,
-  Match,
   Show,
-  Switch,
   createEffect,
   createMemo,
   createSignal,
-  on,
   onCleanup,
 } from "solid-js";
 import { Skeleton } from "@hope-ui/solid";
-import { AppModal } from "@src/components/app-modal";
 import type { ChannelClient } from "../../../channel-client";
 import type { HoyoConnectSocialMedia } from "../../../clients/mhy/launcher-info";
 import { GameBanner } from "../../components/game-banner";
@@ -41,24 +36,9 @@ function getSocialTitle(social: HoyoConnectSocialMedia) {
   );
 }
 
-type HomeTool = {
-  kind: "pulls" | "check-in";
-  title: string;
-  status: string;
-  disabled: boolean;
-  open: () => void;
-};
-
 export function MhyClientView(props: {
   client: ChannelClient;
   channelName?: string;
-  announcements?: {
-    title: string;
-    loading: string;
-    empty: string;
-    count: (count: number) => string;
-  };
-  communityTools?: readonly HomeTool[];
 }) {
   const launcherIconButtons = createMemo(
     () => props.client.uiContent.launcherIconButtons ?? []
@@ -77,14 +57,6 @@ export function MhyClientView(props: {
     })
   );
   const [bannerIndex, setBannerIndex] = createSignal(0);
-  const [announcementsOpen, setAnnouncementsOpen] = createSignal(false);
-  const hasTools = () => Boolean(props.communityTools?.length);
-  createEffect(
-    on(
-      () => props.client,
-      () => setAnnouncementsOpen(false)
-    )
-  );
   const [launcherIconHovered, setLauncherIconHovered] = createSignal(false);
 
   createEffect(() => {
@@ -119,62 +91,6 @@ export function MhyClientView(props: {
       socialMedia().length > 0
   );
 
-  const showLauncherContent = () =>
-    !props.client.uiContent.channelName && (hasContent() || contentPending());
-
-  const announcementTitle = () => props.announcements?.title ?? "近期公告";
-  const announcementEmpty = () => props.announcements?.empty ?? "暂无近期公告";
-  const announcementStatus = () => {
-    if (!showLauncherContent()) return announcementEmpty();
-    const total = recentPosts().length;
-    if (total) return props.announcements?.count(total) ?? `${total} 条公告`;
-    return contentPending()
-      ? props.announcements?.loading ?? "加载中…"
-      : announcementEmpty();
-  };
-
-  const featuredAnnouncement = () =>
-    showLauncherContent() ? recentPosts()[0] : undefined;
-
-  function AnnouncementPosts() {
-    return (
-      <div class="hyp-mhy-posts">
-        <Show
-          when={recentPosts().length}
-          fallback={
-            <Show
-              when={contentPending()}
-              fallback={<p>{announcementEmpty()}</p>}
-            >
-              <For each={[0, 1, 2]}>
-                {_ => (
-                  <div class="hyp-mhy-post hyp-mhy-post-skeleton">
-                    <Skeleton class="hyp-mhy-post-title-skeleton" />
-                    <Skeleton class="hyp-mhy-post-date-skeleton" />
-                  </div>
-                )}
-              </For>
-            </Show>
-          }
-        >
-          <For each={recentPosts()}>
-            {post => (
-              <button
-                type="button"
-                class="hyp-mhy-post"
-                onClick={() => openLink(post.link)}
-                disabled={!post.link}
-              >
-                <span>{post.title}</span>
-                <time>{post.date}</time>
-              </button>
-            )}
-          </For>
-        </Show>
-      </div>
-    );
-  }
-
   function moveBanner(offset: number) {
     const count = banners().length;
     if (count < 2) return;
@@ -182,9 +98,14 @@ export function MhyClientView(props: {
   }
 
   return (
-    <Show when={showLauncherContent() || hasTools()}>
-      <div class="hyp-mhy-content">
-        <Show when={showLauncherContent() && socialMedia().length > 0}>
+    <Show
+      when={
+        (hasContent() || contentPending()) &&
+        !props.client.uiContent.channelName
+      }
+    >
+      <div class="hyp-mhy-content" aria-label="公告和社交媒体">
+        <Show when={socialMedia().length > 0}>
           <aside class="hyp-mhy-social" aria-label="社交媒体">
             <For each={socialMedia()}>
               {social => {
@@ -233,13 +154,8 @@ export function MhyClientView(props: {
           </aside>
         </Show>
 
-        <div
-          classList={{
-            "hyp-mhy-board-stack": true,
-            "hyp-mhy-board-stack--with-tools": hasTools(),
-          }}
-        >
-          <Show when={showLauncherContent() && launcherIconButton()}>
+        <div class="hyp-mhy-board-stack">
+          <Show when={launcherIconButton()}>
             {iconButton => {
               const imageUrl = () =>
                 launcherIconHovered() && iconButton().hover_url
@@ -264,183 +180,102 @@ export function MhyClientView(props: {
             }}
           </Show>
 
-          <div class="hyp-mhy-home-panel">
+          <section class="hyp-mhy-board" aria-label="公告板">
             <Show
-              when={
-                showLauncherContent() &&
-                (currentBanner() ||
-                  (!hasTools() && recentPosts().length > 0) ||
-                  contentPending())
+              when={currentBanner()}
+              fallback={
+                <Show when={contentPending()}>
+                  <div class="hyp-mhy-banner-wrap">
+                    <Skeleton class="hyp-mhy-banner-skeleton" />
+                  </div>
+                </Show>
               }
             >
-              <section class="hyp-mhy-board" aria-label="公告板">
-                <Show
-                  when={currentBanner()}
-                  fallback={
-                    <Show when={contentPending()}>
-                      <div class="hyp-mhy-banner-wrap">
-                        <Skeleton class="hyp-mhy-banner-skeleton" />
-                      </div>
-                    </Show>
-                  }
-                >
-                  {banner => (
-                    <div class="hyp-mhy-banner-wrap">
+              {banner => (
+                <div class="hyp-mhy-banner-wrap">
+                  <button
+                    type="button"
+                    class="hyp-mhy-banner"
+                    onClick={() => openLink(banner().image.link)}
+                    disabled={!banner().image.link}
+                  >
+                    <GameBanner
+                      src={banner().image.url}
+                      label={bannerFallbackLabel()}
+                      loading={bannerIndex() === 0 ? "eager" : "lazy"}
+                    />
+                  </button>
+                  <Show when={banners().length > 1}>
+                    <div class="hyp-mhy-banner-arrows" aria-hidden="false">
                       <button
                         type="button"
-                        class="hyp-mhy-banner"
-                        onClick={() => openLink(banner().image.link)}
-                        disabled={!banner().image.link}
+                        aria-label="上一张 Banner"
+                        onClick={() => moveBanner(-1)}
                       >
-                        <GameBanner
-                          src={banner().image.url}
-                          label={bannerFallbackLabel()}
-                          loading={bannerIndex() === 0 ? "eager" : "lazy"}
-                        />
+                        ‹
                       </button>
-                      <Show when={banners().length > 1}>
-                        <div class="hyp-mhy-banner-arrows" aria-hidden="false">
-                          <button
-                            type="button"
-                            aria-label="上一张 Banner"
-                            onClick={() => moveBanner(-1)}
-                          >
-                            ‹
-                          </button>
-                          <button
-                            type="button"
-                            aria-label="下一张 Banner"
-                            onClick={() => moveBanner(1)}
-                          >
-                            ›
-                          </button>
-                        </div>
-                        <div
-                          class="hyp-mhy-banner-dots"
-                          aria-label="Banner 切换"
-                        >
-                          <For each={banners()}>
-                            {(_, index) => (
-                              <button
-                                type="button"
-                                classList={{
-                                  "hyp-mhy-banner-dot": true,
-                                  active: bannerIndex() === index(),
-                                }}
-                                aria-label={`第 ${index() + 1} 张 Banner`}
-                                aria-pressed={bannerIndex() === index()}
-                                onClick={() => setBannerIndex(index())}
-                              />
-                            )}
-                          </For>
-                        </div>
-                      </Show>
+                      <button
+                        type="button"
+                        aria-label="下一张 Banner"
+                        onClick={() => moveBanner(1)}
+                      >
+                        ›
+                      </button>
                     </div>
-                  )}
-                </Show>
+                    <div class="hyp-mhy-banner-dots" aria-label="Banner 切换">
+                      <For each={banners()}>
+                        {(_, index) => (
+                          <button
+                            type="button"
+                            classList={{
+                              "hyp-mhy-banner-dot": true,
+                              active: bannerIndex() === index(),
+                            }}
+                            aria-label={`第 ${index() + 1} 张 Banner`}
+                            aria-pressed={bannerIndex() === index()}
+                            onClick={() => setBannerIndex(index())}
+                          />
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+                </div>
+              )}
+            </Show>
 
+            <Show when={recentPosts().length > 0 || contentPending()}>
+              <div class="hyp-mhy-posts">
                 <Show
-                  when={
-                    !hasTools() &&
-                    (recentPosts().length > 0 || contentPending())
+                  when={recentPosts().length > 0}
+                  fallback={
+                    <For each={[0, 1, 2]}>
+                      {_ => (
+                        <div class="hyp-mhy-post hyp-mhy-post-skeleton">
+                          <Skeleton class="hyp-mhy-post-title-skeleton" />
+                          <Skeleton class="hyp-mhy-post-date-skeleton" />
+                        </div>
+                      )}
+                    </For>
                   }
                 >
-                  <AnnouncementPosts />
+                  <For each={recentPosts()}>
+                    {post => (
+                      <button
+                        type="button"
+                        class="hyp-mhy-post"
+                        onClick={() => openLink(post.link)}
+                        disabled={!post.link}
+                      >
+                        <span>{post.title}</span>
+                        <time>{post.date}</time>
+                      </button>
+                    )}
+                  </For>
                 </Show>
-              </section>
-            </Show>
-            <Show when={hasTools()}>
-              <button
-                type="button"
-                class="hyp-mhy-news"
-                aria-haspopup="dialog"
-                disabled={props.communityTools?.some(tool => tool.disabled)}
-                onClick={() => setAnnouncementsOpen(true)}
-              >
-                <strong class="hyp-mhy-news-title">
-                  {announcementTitle()}
-                </strong>
-                <span class="hyp-mhy-news-arrow" aria-hidden="true">
-                  →
-                </span>
-                <Show when={featuredAnnouncement()}>
-                  {post => (
-                    <span class="hyp-mhy-news-preview">
-                      <span class="hyp-mhy-news-headline">{post().title}</span>
-                      <Show when={post().date}>
-                        <time>{post().date}</time>
-                      </Show>
-                    </span>
-                  )}
-                </Show>
-                <span class="hyp-mhy-news-status">{announcementStatus()}</span>
-              </button>
-            </Show>
-            <Show when={hasTools()}>
-              <div class="hyp-mhy-tools">
-                <Index each={props.communityTools}>
-                  {tool => (
-                    <button
-                      type="button"
-                      class="hyp-mhy-tool"
-                      aria-haspopup="dialog"
-                      disabled={tool().disabled}
-                      onClick={() => tool().open()}
-                    >
-                      <span class="hyp-mhy-tool-icon" aria-hidden="true">
-                        <svg
-                          width="19"
-                          height="19"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                        >
-                          <Switch>
-                            <Match when={tool().kind === "pulls"}>
-                              <path d="M4 4v16h16M8 16v-3m5 3V9m5 7V6" />
-                            </Match>
-                            <Match when={tool().kind === "check-in"}>
-                              <rect x="4" y="5" width="16" height="16" rx="2" />
-                              <path d="M8 3v4m8-4v4M4 10h16m-11 5 2 2 4-4" />
-                            </Match>
-                          </Switch>
-                        </svg>
-                      </span>
-                      <span class="hyp-mhy-tool-copy">
-                        <strong>{tool().title}</strong>
-                        <span class="hyp-mhy-tool-description">
-                          {tool().status}
-                        </span>
-                      </span>
-                      <span class="hyp-mhy-tool-arrow" aria-hidden="true">
-                        →
-                      </span>
-                    </button>
-                  )}
-                </Index>
               </div>
             </Show>
-          </div>
+          </section>
         </div>
-        <Show when={hasTools()}>
-          <AppModal
-            opened={announcementsOpen()}
-            onClose={() => setAnnouncementsOpen(false)}
-            title={announcementTitle()}
-            contentClass="hyp-mhy-announcements-modal"
-            maxWidth={520}
-          >
-            <Show
-              when={showLauncherContent()}
-              fallback={<p>{announcementEmpty()}</p>}
-            >
-              <AnnouncementPosts />
-            </Show>
-          </AppModal>
-        </Show>
       </div>
     </Show>
   );
