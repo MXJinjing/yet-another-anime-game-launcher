@@ -76,6 +76,7 @@ import { GameIcon } from "../components/game-icon";
 import { GameLibraryView, GameLibraryItem } from "../views/game-library";
 import { MhyClientView } from "../views/clients/mhy";
 import settingsIcon from "../../assets/icons/settings.svg";
+import userIcon from "../../assets/icons/user.svg";
 import { AppModal } from "../../components/app-modal";
 import { GlobalModals } from "../../modals/global-modal-host";
 import type { GlobalModalRoute } from "../../modals/global-modal-host";
@@ -722,6 +723,14 @@ export async function createHypLauncher({
       createSignal<string>();
     const [downloadTasks, setDownloadTasks] = createSignal(getDownloadTasks());
     const activeDownloadCount = createMemo(() => downloadTasks().length);
+    const isDownloading = createMemo(() =>
+      downloadTasks().some(
+        task =>
+          task.status === "active" &&
+          task.transferring &&
+          task.phaseKind !== "verifying"
+      )
+    );
     const selectedGameDownloadTaskId = createMemo(() => {
       const game = selectedGame();
       const key = game.namespace ?? game.id;
@@ -2230,7 +2239,7 @@ export async function createHypLauncher({
           }}
         >
           <button class="hyp-orbit-button" aria-label="Yaaglm">
-            <span />
+            <img src={userIcon} alt="" />
           </button>
           <div class="hyp-game-icons">
             <For each={sidebarGames()}>
@@ -2285,6 +2294,7 @@ export async function createHypLauncher({
               "hyp-rail-button": true,
               "hyp-download-queue-button": true,
               active: downloadManagerOpen(),
+              "is-downloading": isDownloading(),
             }}
             aria-label={locale.get("DOWNLOAD_MANAGER")}
             aria-expanded={downloadManagerOpen()}
@@ -2295,7 +2305,22 @@ export async function createHypLauncher({
                 : openDownloadManager()
             }
           >
-            <span class="hyp-download-queue-icon" aria-hidden="true" />
+            <svg
+              class="hyp-download-queue-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <path
+                class="hyp-download-queue-arrow"
+                d="M7 10l5 5 5-5M12 15V3"
+              />
+            </svg>
             <Show when={activeDownloadCount() > 0}>
               <span class="hyp-download-queue-badge">
                 {activeDownloadCount()}

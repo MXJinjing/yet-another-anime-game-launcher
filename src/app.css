@@ -294,12 +294,9 @@ textarea,
   background: rgba(255, 255, 255, 0.14);
 }
 
-.hyp-orbit-button span {
+.hyp-orbit-button img {
   width: 28px;
   height: 28px;
-  border: 4px solid white;
-  border-right-color: transparent;
-  border-radius: 50%;
 }
 
 .hyp-game-icons {
@@ -368,7 +365,6 @@ textarea,
 }
 
 .hyp-gear-icon,
-.hyp-download-queue-icon,
 .hyp-download-cancel-icon,
 .hyp-menu-icon,
 .hyp-ring-icon-pause {
@@ -1172,8 +1168,27 @@ textarea,
 .hyp-download-queue-icon {
   width: 22px;
   height: 22px;
-  mask-image: url("./assets/icons/download.svg");
-  -webkit-mask-image: url("./assets/icons/download.svg");
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hyp-download-queue-button.is-downloading .hyp-download-queue-arrow {
+    animation: hyp-download-arrow-descend 1.1s linear infinite;
+  }
+}
+
+@keyframes hyp-download-arrow-descend {
+  0% {
+    transform: translateY(-2px);
+    opacity: 0;
+  }
+  20%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(4px);
+    opacity: 0;
+  }
 }
 
 .hyp-download-queue-badge {
