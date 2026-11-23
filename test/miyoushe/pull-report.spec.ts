@@ -61,7 +61,7 @@ describe("pull report", () => {
       pull("3", "5", { item_id: "11503" }),
       pull("4"),
       pull("5", "5", { item_id: "14516" }),
-      pull("6", "5", { time: "2024-09-20 12:00:00" }),
+      pull("6", "5", { time: "2026-11-27 12:00:00" }),
     ]);
     const [pool] = createPullReport(record, "hk4e").pools;
     expect(pool.hits).toBe(3);
@@ -69,5 +69,50 @@ describe("pull report", () => {
     expect(pool.topRankCount).toBe(5);
     expect(pool.featuredIntervals).toEqual([2]);
     expect(pool.rows.at(-1)?.featured).toBeUndefined();
+    expect(pool.nextGuaranteed).toBeUndefined();
+  });
+
+  it("uses original character slots and keeps guarantee chronology independent of display order", () => {
+    const fields = { gacha_type: "301", uigf_gacha_type: "301" };
+    const [pool] = createPullReport(
+      account([
+        pull("1", "5", { ...fields, item_id: "10000016" }),
+        pull("2", "3", fields),
+        pull("3", "5", { ...fields, gacha_type: "400", item_id: "10000047" }),
+        pull("4", "5", { ...fields, item_id: "10000102" }),
+        pull("5", "4", fields),
+      ]),
+      "hk4e"
+    ).pools;
+    expect(pool.pity).toBe(1);
+    expect(pool.nextGuaranteed).toBe(false);
+    expect(
+      selectReportRows(pool.rows, ["5"], true).map(row => [
+        row.featured,
+        row.guaranteed,
+        row.interval,
+      ])
+    ).toEqual([
+      [true, false, 1],
+      [true, true, 2],
+      [false, undefined, undefined],
+    ]);
+  });
+
+  it("classifies older CN dates and leaves an ambiguous normalized slot unknown", () => {
+    const [pool] = createPullReport(
+      account([
+        pull("1", "5", {
+          time: "2022-03-01 12:00:00",
+          gacha_type: "301",
+          item_id: "10000058",
+        }),
+        pull("2", "5", { gacha_type: "301", item_id: "10000047" }),
+      ]),
+      "hk4e"
+    ).pools;
+    expect(pool.rows[0].featured).toBe(true);
+    expect(pool.rows[1].featured).toBeUndefined();
+    expect(pool.nextGuaranteed).toBeUndefined();
   });
 });

@@ -41,9 +41,9 @@ const poolNames: Record<MiyousheGame, Record<string, [string, string]>> = {
 };
 
 const views: ReadonlyArray<readonly [View, string, string]> = [
-  ["text", "文字", "Text"],
+  ["bars", "横条", "Bars"],
   ["images", "图像", "Images"],
-  ["bars", "条形", "Bars"],
+  ["text", "文字", "Text"],
 ];
 
 function average(values: number[]) {
@@ -67,8 +67,8 @@ export function PullDashboard(props: {
 }) {
   const t = props.t;
   const count = new Intl.NumberFormat();
-  const [view, setView] = createSignal<View>("text");
-  const [ranks, setRanks] = createSignal<string[]>([]);
+  const [view, setView] = createSignal<View>("bars");
+  const [ranks, setRanks] = createSignal<string[]>(["5"]);
   const [newestFirst, setNewestFirst] = createSignal(true);
   const [showTags, setShowTags] = createSignal(true);
   const report = createMemo(() =>
@@ -107,21 +107,8 @@ export function PullDashboard(props: {
     selectReportRows(pool()?.rows ?? [], ranks(), newestFirst())
   );
   const rows = createMemo(() => filtered().slice(0, props.visiblePulls));
-  const latestIntervals = createMemo(() =>
-    (pool()?.rows ?? [])
-      .filter(row => row.pull.rank_type === "5" && row.interval !== undefined)
-      .slice(-12)
-      .reverse()
-  );
-  const intervalMax = () =>
-    Math.max(
-      rule()?.hardPity ?? 1,
-      ...latestIntervals().map(row => row.interval!)
-    );
-  const barMax = createMemo(
-    () =>
-      pool()?.rows.reduce((max, row) => Math.max(max, row.interval ?? 0), 1) ??
-      1
+  const completedIntervals = createMemo(() =>
+    report().pools.flatMap(entry => entry.intervals)
   );
   const rule = () =>
     props.game === "hk4e"
@@ -131,6 +118,14 @@ export function PullDashboard(props: {
           props.account.timezone
         )
       : undefined;
+  const barMax = createMemo(
+    () =>
+      pool()?.rows.reduce(
+        (max, row) =>
+          row.pull.rank_type === "5" ? Math.max(max, row.interval ?? 0) : max,
+        rule()?.hardPity ?? 1
+      ) ?? 1
+  );
   const supportsFeatured = () =>
     props.game === "hk4e" && ["301", "302"].includes(pool()?.type ?? "");
 
@@ -163,11 +158,15 @@ export function PullDashboard(props: {
           class="miyoushe-featured-tag"
           data-featured={String(props.row.featured)}
         >
-          {props.row.featured === true
+          {props.row.featured === false
+            ? t("歪池", "Off-banner")
+            : props.row.featured === undefined
+            ? t("UP 未知", "UP unknown")
+            : props.row.guaranteed === undefined
             ? "UP"
-            : props.row.featured === false
-            ? t("非 UP", "Off-banner")
-            : t("UP 未知", "UP unknown")}
+            : props.row.guaranteed
+            ? t("大保底", "Guaranteed UP")
+            : t("小保底", "Non-guaranteed UP")}
         </span>
       </Show>
     );
@@ -217,7 +216,6 @@ export function PullDashboard(props: {
             value={props.account.uid}
             onChange={event => {
               props.onAccountChange(event.currentTarget.value);
-              setRanks([]);
             }}
           >
             <For each={props.accounts}>
@@ -256,11 +254,12 @@ export function PullDashboard(props: {
         </div>
         <div class="miyoushe-metric">
           <span>
-            {t("当前卡池平均出货间隔", "Average interval in selected pool")}
+            {topRank()}
+            {t("平均", " average")}
           </span>
-          <strong>{average(pool()?.intervals ?? [])}</strong>
+          <strong>{average(completedIntervals())}</strong>
           <small>
-            {pool()?.intervals.length ?? 0}{" "}
+            {completedIntervals().length}{" "}
             {t("段已记录间隔", "recorded intervals")}
           </small>
         </div>
@@ -288,366 +287,330 @@ export function PullDashboard(props: {
                     aria-pressed={active().type === entry.type}
                     onClick={() => {
                       props.onPoolChange(entry.type);
-                      setRanks([]);
                     }}
                   >
                     {poolLabel(entry.type)}{" "}
-                    <span>{count.format(entry.pulls.length)}</span>
+                    <span title={t("最高稀有度次数", "Top-rank pulls")}>
+                      {count.format(
+                        report().pools.find(pool => pool.type === entry.type)
+                          ?.topRankCount ?? 0
+                      )}
+                    </span>
                   </button>
                 )}
               </For>
             </div>
 
-            <div class="miyoushe-details">
-              <section class="miyoushe-card miyoushe-intervals">
+            <section class="miyoushe-card miyoushe-pool-summary">
+              <div class="miyoushe-pity-overview">
                 <div class="miyoushe-section-heading">
-                  <h3>{t("出货间隔", "Pull intervals")}</h3>
-                  <span>{t("最近 12 段 · 抽数", "Latest 12 · pulls")}</span>
+                  <h3>{poolLabel(active().type)}</h3>
+                  <Show when={supportsFeatured()}>
+                    <span class="miyoushe-pity-state">
+                      {active().nextGuaranteed === true
+                        ? t("当前大保底", "Next top rank guaranteed UP")
+                        : active().nextGuaranteed === false
+                        ? t("当前小保底", "Next top rank not guaranteed UP")
+                        : t("保底状态未知", "Guarantee unknown")}
+                    </span>
+                  </Show>
+                </div>
+                <div class="miyoushe-pity-value">
+                  <span>{t("当前已垫", "Recorded pity")}</span>
+                  <strong>{active().pity ?? "—"}</strong>
+                  <span>{t("抽", "pulls")}</span>
                 </div>
                 <Show
-                  when={latestIntervals().length}
-                  fallback={
-                    <p class="miyoushe-muted">
-                      {t(
-                        "暂无可计算的出货间隔。",
-                        "No observed intervals yet."
-                      )}
-                    </p>
+                  when={
+                    active().pity !== undefined &&
+                    rule() &&
+                    (active().pity ?? 0) < (rule()?.hardPity ?? 0)
                   }
                 >
-                  <ol
-                    class="miyoushe-chart"
-                    aria-label={t(
-                      "出货间隔，从新到旧",
-                      "Pull intervals from newest to oldest"
-                    )}
+                  <div
+                    class="miyoushe-bar-track miyoushe-pity-track"
+                    data-rank="5"
+                    aria-hidden="true"
                   >
-                    <For each={latestIntervals()}>
-                      {row => (
-                        <li>
-                          <span class="miyoushe-chart-label" title={name(row)}>
-                            {name(row)}
-                          </span>
-                          <span
-                            class="miyoushe-bar-track"
-                            data-rank="5"
-                            aria-hidden="true"
-                          >
-                            <span
-                              style={{
-                                width:
-                                  ((row.interval ?? 0) / intervalMax()) * 100 +
-                                  "%",
-                              }}
-                            />
-                          </span>
-                          <strong>{row.interval}</strong>
-                        </li>
-                      )}
-                    </For>
-                  </ol>
-                </Show>
-              </section>
-              <section class="miyoushe-card miyoushe-pool-summary">
-                <div class="miyoushe-section-heading">
-                  <h3>{t("卡池统计", "Pool statistics")}</h3>
-                  <span>{t("按本地记录计算", "From local records")}</span>
-                </div>
-                <dl class="miyoushe-pool-metrics">
-                  <div>
-                    <dt>{t("当前垫数", "Observed pity")}</dt>
-                    <dd>{active().pity ?? "—"}</dd>
+                    <span
+                      style={{
+                        width:
+                          ((active().pity ?? 0) / (rule()?.hardPity ?? 1)) *
+                            100 +
+                          "%",
+                      }}
+                    />
                   </div>
+                  <small class="miyoushe-muted">
+                    {t("若记录完整，最迟再", "With complete records, at most")}{" "}
+                    {(rule()?.hardPity ?? 0) - (active().pity ?? 0)}{" "}
+                    {t("抽出货", "pulls to the next top rank")}
+                  </small>
+                </Show>
+              </div>
+              <dl class="miyoushe-pool-metrics">
+                <div>
+                  <dt>
+                    {topRank()}
+                    {t("平均", " average")}
+                  </dt>
+                  <dd>{average(active().intervals)}</dd>
+                </div>
+                <Show when={supportsFeatured()}>
                   <div>
                     <dt>
-                      {t("已记录", "Recorded ")}
-                      {topRank()}
+                      UP {topRank()}
+                      {t("平均", " average")}
                     </dt>
-                    <dd>{active().topRankCount}</dd>
+                    <dd>{average(active().featuredIntervals)}</dd>
                   </div>
-                  <Show when={supportsFeatured()}>
-                    <div>
-                      <dt>{t("UP 命中率", "UP hit rate")}</dt>
-                      <dd>
-                        {active().classified
-                          ? count.format(
-                              Math.round(
-                                (active().hits / active().classified) * 100
-                              )
-                            ) + "%"
-                          : "—"}
-                      </dd>
-                      <small>
-                        {active().classified}/{active().topRankCount}{" "}
-                        {t("次可判定", "classified")}
-                      </small>
-                    </div>
-                    <div>
-                      <dt>{t("平均 UP 间隔", "Average UP interval")}</dt>
-                      <dd>{average(active().featuredIntervals)}</dd>
-                    </div>
-                  </Show>
-                </dl>
-
-                <p class="miyoushe-muted">
-                  {t(
-                    "垫数从最近一次出货算起，历史缺失可能影响结果。",
-                    "Pity counts from the latest recorded top-rank pull. Gaps may affect it."
-                  )}
-                </p>
-                <details class="miyoushe-pool-rules">
-                  <summary>
-                    {t("保底规则与估算", "Pity rules and estimates")}
-                  </summary>
-                  <Show
-                    when={rule()}
-                    fallback={
-                      <p class="miyoushe-muted">
-                        {t(
-                          "此卡池暂无已核对的保底规则。",
-                          "Pity rules for this pool are unavailable."
-                        )}
-                      </p>
-                    }
-                  >
-                    {known => (
-                      <>
-                        <p>
-                          {t("最高稀有度保底", "Top-rank hard pity")} ·{" "}
-                          {known().hardPity} {t("抽", "pulls")}
-                        </p>
-                        <Show
-                          when={
-                            active().pity !== undefined &&
-                            active().pity! < known().hardPity
-                          }
-                        >
-                          <p class="miyoushe-muted">
-                            {t(
-                              "若记录完整，距离下次出货最多",
-                              "With complete records, the next top rank is at most"
-                            )}{" "}
-                            {known().hardPity - active().pity!}{" "}
-                            {t("抽。", "pulls away.")}
-                          </p>
-                        </Show>
-                        <Show when={known().radiance}>
-                          <p class="miyoushe-muted">
-                            {t(
-                              "捕获明光触发状态无法从现有记录判定。",
-                              "Capturing Radiance status cannot be determined from this history."
-                            )}
-                          </p>
-                        </Show>
-                      </>
-                    )}
-                  </Show>
-                </details>
-              </section>
-
-              <section class="miyoushe-card miyoushe-history">
-                <div class="miyoushe-section-heading">
-                  <h3>{t("抽卡记录", "Pull history")}</h3>
-                  <span>
-                    {count.format(filtered().length)} /{" "}
-                    {count.format(active().pulls.length)}
-                  </span>
-                </div>
-                <div class="miyoushe-history-toolbar">
-                  <div
-                    class="miyoushe-pool-picker"
-                    role="group"
-                    aria-label={t("显示方式", "View mode")}
-                  >
-                    <For each={views}>
-                      {([id, zh, en]) => (
-                        <button
-                          type="button"
-                          aria-pressed={view() === id}
-                          onClick={() => setView(id)}
-                        >
-                          {t(zh, en)}
-                        </button>
-                      )}
-                    </For>
-                  </div>
-                  <select
-                    aria-label={t("时间排序", "Time order")}
-                    value={newestFirst() ? "new" : "old"}
-                    onChange={event =>
-                      setNewestFirst(event.currentTarget.value === "new")
-                    }
-                  >
-                    <option value="new">{t("由新到旧", "Newest first")}</option>
-                    <option value="old">{t("由旧到新", "Oldest first")}</option>
-                  </select>
-                </div>
-
-                <div class="miyoushe-history-toolbar">
-                  <div
-                    class="miyoushe-pool-picker"
-                    role="group"
-                    aria-label={t("按稀有度筛选", "Filter by rarity")}
-                  >
-                    <button
-                      type="button"
-                      aria-pressed={!ranks().length}
-                      onClick={() => setRanks([])}
-                    >
-                      {t("全部", "All")}
-                    </button>
-                    <For each={poolRanks()}>
-                      {rank => (
-                        <button
-                          type="button"
-                          aria-pressed={ranks().includes(rank)}
-                          onClick={() =>
-                            setRanks(current =>
-                              current.includes(rank)
-                                ? current.filter(value => value !== rank)
-                                : [...current, rank]
+                  <div>
+                    <dt>{t("历史 UP 占比", "Historical UP share")}</dt>
+                    <dd>
+                      {active().classified
+                        ? count.format(
+                            Math.round(
+                              (active().hits / active().classified) * 100
                             )
-                          }
-                        >
-                          {rank ? rankLabel(rank) : t("未知", "Unknown")}
-                        </button>
-                      )}
-                    </For>
+                          ) + "%"
+                        : "—"}
+                    </dd>
+                    <small>
+                      {active().hits} UP / {active().classified}{" "}
+                      {t("次可判定", "classified")}
+                      {active().topRankCount > active().classified
+                        ? " · " +
+                          (active().topRankCount - active().classified) +
+                          t(" 个未知", " unknown")
+                        : ""}
+                    </small>
                   </div>
-                  <Show when={supportsFeatured()}>
-                    <label class="miyoushe-field">
-                      <input
-                        type="checkbox"
-                        checked={showTags()}
-                        onChange={event =>
-                          setShowTags(event.currentTarget.checked)
-                        }
-                      />
-                      {t("UP 标签", "UP labels")}
-                    </label>
-                  </Show>
+                </Show>
+              </dl>
+            </section>
+            <section class="miyoushe-card miyoushe-history">
+              <div class="miyoushe-section-heading">
+                <h3>{t("出货记录", "Pull results")}</h3>
+                <span>
+                  {count.format(filtered().length)} /{" "}
+                  {count.format(active().pulls.length)}
+                </span>
+              </div>
+              <div class="miyoushe-history-toolbar">
+                <div
+                  class="miyoushe-pool-picker"
+                  role="group"
+                  aria-label={t("显示方式", "View mode")}
+                >
+                  <For each={views}>
+                    {([id, zh, en]) => (
+                      <button
+                        type="button"
+                        aria-pressed={view() === id}
+                        onClick={() => setView(id)}
+                      >
+                        {t(zh, en)}
+                      </button>
+                    )}
+                  </For>
                 </div>
-
-                <Show
-                  when={rows().length}
-                  fallback={
-                    <p class="miyoushe-muted" role="status">
-                      {t(
-                        "没有符合筛选条件的记录。",
-                        "No records match the filters."
-                      )}
-                    </p>
+                <select
+                  aria-label={t("时间排序", "Time order")}
+                  value={newestFirst() ? "new" : "old"}
+                  onChange={event =>
+                    setNewestFirst(event.currentTarget.value === "new")
                   }
                 >
-                  <Switch>
-                    <Match when={view() === "images"}>
-                      <ul class="miyoushe-image-history">
-                        <For each={rows()}>
-                          {row => (
-                            <li>
-                              <ItemImage row={row} />
-                              <strong title={name(row)}>{name(row)}</strong>
-                              <div class="miyoushe-record-labels">
-                                <Rank row={row} />
-                                <Featured row={row} />
-                              </div>
-                              <PullTime row={row} />
-                            </li>
-                          )}
-                        </For>
-                      </ul>
-                    </Match>
-                    <Match when={view() === "bars"}>
-                      <p class="miyoushe-muted">
-                        {t(
-                          "条形长度表示距离上次出货的已记录抽数。",
-                          "Bar length shows recorded pulls since the last top-rank pull."
+                  <option value="new">{t("由新到旧", "Newest first")}</option>
+                  <option value="old">{t("由旧到新", "Oldest first")}</option>
+                </select>
+              </div>
+
+              <div class="miyoushe-history-toolbar">
+                <div
+                  class="miyoushe-pool-picker"
+                  role="group"
+                  aria-label={t("按稀有度筛选", "Filter by rarity")}
+                >
+                  <button
+                    type="button"
+                    aria-pressed={!ranks().length}
+                    onClick={() => setRanks([])}
+                  >
+                    {t("全部", "All")}
+                  </button>
+                  <For each={poolRanks()}>
+                    {rank => (
+                      <button
+                        type="button"
+                        aria-pressed={ranks().includes(rank)}
+                        onClick={() =>
+                          setRanks(current =>
+                            current.includes(rank)
+                              ? current.filter(value => value !== rank)
+                              : [...current, rank]
+                          )
+                        }
+                      >
+                        {rank ? rankLabel(rank) : t("未知", "Unknown")}
+                      </button>
+                    )}
+                  </For>
+                </div>
+                <Show when={supportsFeatured()}>
+                  <label class="miyoushe-field">
+                    <input
+                      type="checkbox"
+                      checked={showTags()}
+                      onChange={event =>
+                        setShowTags(event.currentTarget.checked)
+                      }
+                    />
+                    {t(
+                      "显示保底与歪池标记",
+                      "Show guarantee and off-banner labels"
+                    )}
+                  </label>
+                </Show>
+              </div>
+
+              <Show
+                when={rows().length}
+                fallback={
+                  <p class="miyoushe-muted" role="status">
+                    {t(
+                      "没有符合筛选条件的记录。",
+                      "No records match the filters."
+                    )}
+                  </p>
+                }
+              >
+                <Switch>
+                  <Match when={view() === "images"}>
+                    <ul class="miyoushe-image-history">
+                      <For each={rows()}>
+                        {row => (
+                          <li>
+                            <ItemImage row={row} />
+                            <strong title={name(row)}>{name(row)}</strong>
+                            <div class="miyoushe-record-labels">
+                              <Rank row={row} />
+                              <Featured row={row} />
+                            </div>
+                            <PullTime row={row} />
+                          </li>
                         )}
-                      </p>
-                      <ol class="miyoushe-bar-history">
-                        <For each={rows()}>
-                          {row => (
-                            <li>
-                              <div class="miyoushe-bar-record">
-                                <strong title={name(row)}>{name(row)}</strong>
-                                <div class="miyoushe-record-labels">
-                                  <Rank row={row} />
-                                  <Featured row={row} />
-                                </div>
-                              </div>
-                              <div class="miyoushe-bar-record">
-                                <span
-                                  aria-hidden="true"
-                                  class="miyoushe-bar-track"
-                                  data-rank={row.pull.rank_type}
-                                >
-                                  <span
-                                    style={{
-                                      width:
-                                        ((row.interval ?? 0) / barMax()) * 100 +
-                                        "%",
-                                    }}
-                                  />
-                                </span>
-                                <span
-                                  aria-label={t(
-                                    "距上次出货的抽数",
-                                    "Pulls since the last top-rank pull"
-                                  )}
-                                >
-                                  {row.interval ?? "—"}
-                                </span>
-                              </div>
-                              <PullTime row={row} />
-                            </li>
-                          )}
-                        </For>
-                      </ol>
-                    </Match>
-                    <Match when={view() === "text"}>
-                      <div class="miyoushe-table-wrap">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th scope="col">{t("获得物品", "Item")}</th>
-                              <th scope="col">{t("稀有度", "Rarity")}</th>
-                              <th scope="col">
-                                {t("距上次出货", "Pulls since top rank")}
-                              </th>
-                              <th scope="col">{t("抽取时间", "Time")}</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <For each={rows()}>
-                              {row => (
-                                <tr>
-                                  <td>
-                                    {name(row)}
-                                    <Featured row={row} />
-                                  </td>
-                                  <td>
-                                    <Rank row={row} />
-                                  </td>
-                                  <td>{row.interval ?? "—"}</td>
-                                  <td>
-                                    <PullTime row={row} />
-                                  </td>
-                                </tr>
+                      </For>
+                    </ul>
+                  </Match>
+                  <Match when={view() === "bars"}>
+                    <ol
+                      class="miyoushe-chart"
+                      aria-label={t("出货间隔", "Pull intervals")}
+                    >
+                      <For each={rows()}>
+                        {row => (
+                          <li>
+                            <span
+                              class="miyoushe-chart-label"
+                              title={name(row)}
+                            >
+                              {name(row)}
+                            </span>
+                            <div
+                              class="miyoushe-bar-track"
+                              data-rank={row.pull.rank_type}
+                              aria-hidden="true"
+                            >
+                              <span
+                                style={{
+                                  width:
+                                    Math.min(
+                                      100,
+                                      ((row.interval ?? 0) / barMax()) * 100
+                                    ) + "%",
+                                }}
+                              />
+                            </div>
+                            <strong
+                              aria-label={t(
+                                "距上次出货的抽数",
+                                "Pulls since the last top-rank pull"
                               )}
-                            </For>
-                          </tbody>
-                        </table>
-                      </div>
-                    </Match>
-                  </Switch>
-                </Show>
-                <Show when={filtered().length > props.visiblePulls}>
-                  <AppModalButton onClick={props.onShowMore}>
-                    {t("显示更多记录", "Show more pulls")}
-                  </AppModalButton>
-                </Show>
-              </section>
-            </div>
+                            >
+                              {row.interval ?? "—"}
+                            </strong>
+                            <span class="miyoushe-chart-meta">
+                              <Featured row={row} />
+                              <PullTime row={row} />
+                            </span>
+                          </li>
+                        )}
+                      </For>
+                    </ol>
+                  </Match>
+                  <Match when={view() === "text"}>
+                    <div class="miyoushe-table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th scope="col">{t("获得物品", "Item")}</th>
+                            <th scope="col">{t("稀有度", "Rarity")}</th>
+                            <th scope="col">
+                              {t("距上次出货", "Pulls since top rank")}
+                            </th>
+                            <th scope="col">{t("抽取时间", "Time")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <For each={rows()}>
+                            {row => (
+                              <tr>
+                                <td>
+                                  {name(row)}
+                                  <Featured row={row} />
+                                </td>
+                                <td>
+                                  <Rank row={row} />
+                                </td>
+                                <td>{row.interval ?? "—"}</td>
+                                <td>
+                                  <PullTime row={row} />
+                                </td>
+                              </tr>
+                            )}
+                          </For>
+                        </tbody>
+                      </table>
+                    </div>
+                  </Match>
+                </Switch>
+              </Show>
+              <Show when={filtered().length > props.visiblePulls}>
+                <AppModalButton onClick={props.onShowMore}>
+                  {t("显示更多记录", "Show more pulls")}
+                </AppModalButton>
+              </Show>
+            </section>
+            <details class="miyoushe-pool-rules">
+              <summary>
+                {t("统计口径与保底说明", "Statistics and pity notes")}
+              </summary>
+              <p class="miyoushe-muted">
+                {t(
+                  "平均只计两次已知出货之间的完整周期。UP 平均包含周期中的歪池消耗，进行中的垫抽不进入平均。历史 UP 占比仅基于可判定记录。",
+                  "Averages use complete cycles between known results. UP averages include off-banner pulls in the cycle. Current pity is excluded, and historical UP share uses classified results only."
+                )}
+              </p>
+              <Show when={rule()?.radiance}>
+                <p class="miyoushe-muted">
+                  {t(
+                    "现有抽卡记录无法确定捕获明光的下一次触发概率。",
+                    "The next Capturing Radiance probability cannot be determined from this history."
+                  )}
+                </p>
+              </Show>
+            </details>
           </>
         )}
       </Show>

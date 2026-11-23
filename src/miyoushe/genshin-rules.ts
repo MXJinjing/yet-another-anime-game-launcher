@@ -1,22 +1,19 @@
 import type { Pull } from "./uigf";
 
-// Times are UTC+8. Opening times use the scheduled end of maintenance.
-const banners = [
-  {
-    // https://www.hoyolab.com/article/32500143
-    start: "2024-08-28 11:00:00",
-    end: "2024-09-17 17:59:59",
-    characters: ["10000102", "10000047"],
-    weapons: ["14516", "11503"],
-  },
-  {
-    // https://genshin.hoyoverse.com/en/news/detail/167139
-    start: "2026-11-04 11:00:00",
-    end: "2026-11-24 17:59:59",
-    characters: ["10000136", "10000089"],
-    weapons: ["14525", "11513"],
-  },
-];
+import bannerData from "./genshin-banners.tsv?raw";
+
+// Public CN banner windows and featured item IDs from Snap.Metadata.
+// https://github.com/SnapHutaoRemasteringProject/Snap.Metadata/blob/fb3e2692579495c6b181403da01fde1e5b8f9193/Genshin/CHS/GachaEvent.json
+const banners = new Map<
+  string,
+  { start: string; end: string; featured: string[] }[]
+>();
+for (const line of bannerData.trim().split("\n")) {
+  const [pool, start, end, featured] = line.split("\t");
+  const entries = banners.get(pool) ?? [];
+  entries.push({ start, end, featured: featured.split(",") });
+  banners.set(pool, entries);
+}
 
 const chinaTime = (time: string, timezone: number) =>
   new Date(Date.parse(time.replace(" ", "T") + "Z") + (8 - timezone) * 3600000)
@@ -30,17 +27,22 @@ export function genshinFeatured(
 ): boolean | undefined {
   if (pull.rank_type !== "5") return undefined;
   const china = chinaTime(pull.time, timezone);
-  const banner = banners.find(
-    entry => entry.start <= china && china <= entry.end
-  );
-  if (!banner) return undefined;
   const pool = pull.gacha_type;
-  if (pool === "302") return banner.weapons.includes(pull.item_id);
-  if (pool !== "301" && pool !== "400") return undefined;
-  const expected = banner.characters[pool === "301" ? 0 : 1];
-  if (expected === pull.item_id) return true;
-  // Some imports normalized both slots to 301 and lost the original pool ID.
-  return banner.characters.includes(pull.item_id) ? undefined : false;
+  const find = (type: string) =>
+    banners
+      .get(type)
+      ?.find(entry => entry.start <= china && china <= entry.end);
+  const banner = find(pool);
+  if (!banner) return undefined;
+  if (banner.featured.includes(pull.item_id)) return true;
+  // Some imports normalized both character slots to 301 and lost the original
+  // pool ID. A featured item from the other active slot is ambiguous.
+  if (
+    pool !== "302" &&
+    find(pool === "301" ? "400" : "301")?.featured.includes(pull.item_id)
+  )
+    return undefined;
+  return false;
 }
 
 export function genshinPoolRule(pool: string, time?: string, timezone = 8) {

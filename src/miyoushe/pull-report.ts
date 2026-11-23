@@ -10,6 +10,7 @@ export type PullReportRow = {
   item?: CatalogItem;
   interval?: number;
   featured?: boolean;
+  guaranteed?: boolean;
 };
 
 const knownRank = (rank?: string) => /^[345]$/.test(rank ?? "");
@@ -34,12 +35,14 @@ export function createPullReport(
     let hits = 0;
     let classified = 0;
     let topRankCount = 0;
+    let nextGuaranteed: boolean | undefined;
     const featuredIntervals: number[] = [];
     const rows = pool.pulls.map(pull => {
       const row: PullReportRow = { pull, item: items?.get(pull.item_id) };
       if (!knownRank(pull.rank_type)) {
         sinceTop = undefined;
         sinceFeatured = undefined;
+        nextGuaranteed = undefined;
         return row;
       }
       if (sinceTop !== undefined) row.interval = ++sinceTop;
@@ -48,11 +51,14 @@ export function createPullReport(
 
       sinceTop = 0;
       topRankCount++;
+      row.guaranteed = nextGuaranteed;
       if (game === "hk4e")
         row.featured = genshinFeatured(pull, account.timezone);
       if (row.featured === undefined) {
+        nextGuaranteed = undefined;
         sinceFeatured = undefined;
       } else {
+        nextGuaranteed = !row.featured;
         classified++;
         if (row.featured) {
           hits++;
@@ -63,7 +69,15 @@ export function createPullReport(
       }
       return row;
     });
-    return { ...pool, rows, hits, classified, topRankCount, featuredIntervals };
+    return {
+      ...pool,
+      rows,
+      hits,
+      classified,
+      topRankCount,
+      featuredIntervals,
+      nextGuaranteed,
+    };
   });
   return {
     ...summary,

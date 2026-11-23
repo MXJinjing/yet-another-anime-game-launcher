@@ -21,7 +21,9 @@ YAAGL_MIYOUSHE_PROTOTYPE=1 pnpm run start-mhycn
 
 ## 抽卡分析
 
-启动器内置的简中目录由 [genshin-db-dist 固定提交](https://github.com/theBowja/genshin-db-dist/tree/db37a96e1dac3f56d0e6f015c4ff4f87c25577cd) 中的角色、武器压缩 JSON 生成。快照保留物品 ID、名字、稀有度和图标引用。运行时从上游检查并更新公开目录。祈愿规则随启动器交付，当前只有已核对的期次可分类历史 UP。
+启动器内置的简中目录由 [genshin-db-dist 固定提交](https://github.com/theBowja/genshin-db-dist/tree/db37a96e1dac3f56d0e6f015c4ff4f87c25577cd) 中的角色、武器压缩 JSON 生成。快照保留物品 ID、名字、稀有度和图标引用。运行时从上游检查并更新公开目录。
+
+国服角色和武器活动池的历史 UP 数据来自 [Snap.Metadata 固定快照](https://github.com/SnapHutaoRemasteringProject/Snap.Metadata/blob/fb3e2692579495c6b181403da01fde1e5b8f9193/Genshin/CHS/GachaEvent.json)，随启动器分发。只保留池号、北京时间范围和最高稀有度 UP 物品 ID。版本维护日按当天 11:00 后的记录分类。超出覆盖范围、集录定轨目标不可知或原始池号已丢失的条目，可能无法判定 UP 和保底状态。
 
 原型的「从游戏读取」支持原神。先在游戏内打开祈愿历史，再在启动器中点击读取。启动器可导入配置目录中已有的静态结果，缓存只有查询链接时由本地辅助程序读取官方记录。米游社网页扫码凭证和游戏抽卡授权是两条链路，绑定后的自动读取目前仅基于所选角色匹配的静态缓存。星穹铁道和绝区零可使用 UIGF 导入。
 
