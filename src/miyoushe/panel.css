@@ -323,7 +323,7 @@
   box-sizing: border-box;
   inline-size: var(--miyo-fill);
   min-inline-size: max-content;
-  text-align: center;
+  text-align: right;
   white-space: nowrap;
 }
 
