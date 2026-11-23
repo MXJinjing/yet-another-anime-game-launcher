@@ -439,50 +439,52 @@ export function PullDashboard(props: {
                     </div>
                   </Show>
                 </dl>
-                <div
-                  class="miyoushe-pool-picker miyoushe-view-picker"
-                  role="group"
-                  aria-label={t("显示方式", "View mode")}
-                >
-                  <For each={views}>
-                    {([id, zh, en, icon]) => (
-                      <button
-                        type="button"
-                        aria-pressed={view() === id}
-                        onClick={() => setView(id)}
-                      >
-                        <svg
-                          aria-hidden="true"
-                          viewBox="0 0 16 16"
-                          width="14"
-                          height="14"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="1.5"
-                          stroke-linecap="round"
+                <div class="miyoushe-view-actions">
+                  <Show when={view() === "bars" && fourthCount()}>
+                    <label class="miyoushe-four-toggle">
+                      <input
+                        type="checkbox"
+                        checked={showFour()}
+                        aria-controls="miyoushe-pull-cycles"
+                        onChange={event =>
+                          setShowFour(event.currentTarget.checked)
+                        }
+                      />
+                      {t("显示四星", "Show four-star pulls")}
+                      <span>{fourthCount()}</span>
+                    </label>
+                  </Show>
+                  <div
+                    class="miyoushe-pool-picker miyoushe-view-picker"
+                    role="group"
+                    aria-label={t("显示方式", "View mode")}
+                  >
+                    <For each={views}>
+                      {([id, zh, en, icon]) => (
+                        <button
+                          type="button"
+                          aria-pressed={view() === id}
+                          onClick={() => setView(id)}
                         >
-                          <path d={icon} />
-                        </svg>
-                        {t(zh, en)}
-                      </button>
-                    )}
-                  </For>
+                          <svg
+                            aria-hidden="true"
+                            viewBox="0 0 16 16"
+                            width="14"
+                            height="14"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                            stroke-linecap="round"
+                          >
+                            <path d={icon} />
+                          </svg>
+                          {t(zh, en)}
+                        </button>
+                      )}
+                    </For>
+                  </div>
                 </div>
               </div>
-              <Show when={view() === "bars" && fourthCount()}>
-                <button
-                  type="button"
-                  class="miyoushe-four-toggle"
-                  aria-expanded={showFour()}
-                  aria-controls="miyoushe-pull-cycles"
-                  onClick={() => setShowFour(value => !value)}
-                >
-                  {showFour()
-                    ? t("收起四星", "Hide four-star pulls")
-                    : t("显示四星", "Show four-star pulls")}
-                  <span>{fourthCount()}</span>
-                </button>
-              </Show>
               <Switch>
                 <Match when={view() === "bars"}>
                   <ol

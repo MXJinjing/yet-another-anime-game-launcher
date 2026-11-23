@@ -323,28 +323,19 @@
   font-weight: 500;
 }
 
-.miyoushe-radiance-mark,
-.miyoushe-four-toggle {
+.miyoushe-radiance-mark {
   border: 1px solid var(--miyo-line);
   border-radius: 6px;
   background: transparent;
   color: var(--miyo-muted);
-  font-size: 12px;
-  padding: 2px 7px;
-}
-
-.miyoushe-radiance-mark {
   font-size: 10px;
+  padding: 2px 7px;
 }
 
 .miyoushe-radiance-mark[aria-pressed="true"] {
   border-color: #8664ad;
   background: #3a2752;
   color: #f0d9ff;
-}
-
-.miyoushe-four-toggle span {
-  margin-inline-start: 5px;
 }
 
 .miyoushe-four-cards {
@@ -477,9 +468,17 @@
   border-bottom: 1px solid var(--miyo-line);
 }
 
+.miyoushe-view-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 12px;
+  margin-inline-start: auto;
+}
+
 .miyoushe-view-picker {
   gap: 5px;
-  margin-inline-start: auto;
 }
 
 .miyoushe-view-picker button {
@@ -489,8 +488,34 @@
   white-space: nowrap;
 }
 
-.miyoushe-history > .miyoushe-four-toggle {
-  justify-self: start;
+.miyoushe-four-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.miyoushe-four-toggle input {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  border: 1px solid var(--miyo-muted);
+  border-radius: 50%;
+  cursor: inherit;
+}
+
+.miyoushe-four-toggle input:checked {
+  border-color: var(--miyo-accent);
+  background: radial-gradient(circle, var(--miyo-accent) 45%, transparent 50%);
+}
+
+.miyoushe-four-toggle span {
+  color: var(--miyo-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .miyoushe-featured-tag {
