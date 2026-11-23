@@ -13,7 +13,7 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 
 ## Build, Test, and Development Commands
 - `pnpm install` — install dependencies.
-- `./configure.sh` — one-time setup: decodes the channel secret and fetches Neutralinojs binaries.
+- `./configure.sh` — generates channel constants and fetches Neutralinojs binaries. Use `./configure.sh --secrets-only` to generate the constants without downloading the runtime.
 - `pnpm dev` — Vite dev server; `pnpm start` — build and run the default (`hk4ecn`) channel; `pnpm run start-<channel>` for others.
 - `pnpm build` / `pnpm run build-<channel>` — production builds; `node build-app.js` / `bash scripts/build-release.sh` — package release `.app` bundles.
 - `pnpm exec tsc` — type check; `pnpm run lint` — ESLint over `src`; `pnpm run format` / `format-check` — Prettier write/check.
@@ -29,7 +29,7 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 
 ## Commit & Pull Request Guidelines
 - Use Conventional Commits: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, `ci:`, `style:`; scope game-specific fixes (e.g., `fix(hk4e):`).
-- Never mention real game or company names in commits, issues, or PRs — use "The Anime Game" / "The Anime Company".
+- Use neutral names such as **The Anime Game** and **The Anime Company** in commit messages, issues, pull requests, and project discussions.
 - PRs to `main` must pass CI (`ci-pr.yaml` / `tests.yaml`: type check, lint, format, frontend tests, and the frontend coverage policy), including the required `check` status. A pull request that only changes `sophon_server/` does not run those tests. Link the related issue, describe the change, and add screenshots for UI changes.
 - Support questions belong on Discord; file issues only for technical problems with logs and system info.
 
@@ -44,7 +44,9 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 7. For a requested release, start `Build Release` from the tested `main` commit in one of two ways: run it manually with a new version such as `1.1.5` (leave the version empty to fall back to `package.json`), or push a version tag whose name starts with a digit (for example `1.1.5`) at that commit. A pushed tag must point at a commit already contained in `main`; otherwise the resolve job stops before building. Both entries produce the same draft release: a manually triggered run creates the tag only when the draft release is published, while a tag-triggered run reuses the tag that was just pushed. Do not tag an unmerged commit and do not start packaging by any other means. Keep `Build Main` manual-only: merging or pushing to `main` must not automatically start a packaging build unless the user explicitly asks to restore that behavior.
 
 ## Security & Configuration Tips
-- `secret.ts` and `*.secret.ts` are gitignored; regenerate with `./configure.sh`. Never commit secrets or tokens.
+- Keep the upstream payload at `src/clients/secret.b64` byte-for-byte unchanged when adding Yaaglm-specific fields. Store those fields in `src/constants/yaaglm-config.b64`.
+- Use neutral names or channel IDs in tracked source and test fixtures. When compatibility requires an exact game or company name, such as in a Wine registry key, log path, or updater archive name, keep the exact value in the encoded payload and reference the generated constant.
+- Regenerate `src/clients/secret.ts` and `src/constants/yaaglm-config.secret.json` with `./configure.sh --secrets-only` or the full setup command. Keep both generated files out of Git. The payload uses reversible Base64 encoding. Never commit credentials or tokens.
 - Add a new game as a file in `src/clients/`, then register its channel in `scripts/build-release.sh`.
 
 ## Verification Timing (IMPORTANT)
