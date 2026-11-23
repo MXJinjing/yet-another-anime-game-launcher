@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseBackgroundPersistedState,
   resolveBackgroundImage,
+  resolveBackgroundTheme,
   resolveBackgroundVideo,
   resolveInitialIndex,
 } from "@src/launcher/model/background-switcher";
@@ -67,5 +68,32 @@ describe("background artwork resolution", () => {
     expect(resolveBackgroundImage({ background: "https://bg1.png" }, "")).toBe(
       "https://bg1.png"
     );
+  });
+
+  it("drops the title overlay when the selected artwork ships without one", () => {
+    // Every hk4e artwork after the first reports theme.url = "" while the
+    // game-level theme is the primary background's title artwork.
+    expect(
+      resolveBackgroundTheme(
+        { background_theme: "" },
+        "https://game-level-title.webp"
+      )
+    ).toBeUndefined();
+    expect(resolveBackgroundTheme({}, "https://game-level-title.webp")).toBe(
+      undefined
+    );
+  });
+
+  it("keeps the artwork's own title and the game-level one as fallback", () => {
+    expect(
+      resolveBackgroundTheme(
+        { background_theme: "https://bg0-title.webp" },
+        "https://game-level-title.webp"
+      )
+    ).toBe("https://bg0-title.webp");
+    expect(
+      resolveBackgroundTheme(undefined, "https://game-level-title.webp")
+    ).toBe("https://game-level-title.webp");
+    expect(resolveBackgroundTheme(undefined, "")).toBeUndefined();
   });
 });
