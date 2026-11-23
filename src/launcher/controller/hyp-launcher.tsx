@@ -868,18 +868,18 @@ export async function createHypLauncher({
       playBgVideo(el);
     }, BG_VIDEO_MONITOR_MS);
     // A WKWebView window can decode the clip and advance its clock without ever
-    // presenting a frame (seen with VP9/WebM on macOS 27: readyState 4, frames
-    // reported, nothing painted). Blitting the decoder output onto a canvas and
-    // showing that instead sidesteps the compositor path entirely.
+    // presenting a frame (seen with VP9/WebM on macOS 27: readyState 4,
+    // requestVideoFrameCallback firing, nothing painted). The element's own
+    // media layer is what stops updating; drawImage() still pulls fresh pixels
+    // straight from the decoder, so the clip is blitted onto a canvas and the
+    // canvas is what the user actually sees.
     let baseVideoCanvasRef: HTMLCanvasElement | undefined;
     let bgCanvasPaint: number | undefined;
     let bgCanvasLastTime = -1;
-    let bgCanvasLogged = false;
-    const [bgCanvasBlocked, setBgCanvasBlocked] = createSignal(false);
     function paintBgCanvas() {
       const video = baseVideoRef;
       const canvas = baseVideoCanvasRef;
-      if (!video || !canvas || bgCanvasBlocked()) return;
+      if (!video || !canvas) return;
       if (video.readyState < 2 || !video.videoWidth || !video.videoHeight)
         return;
       const context = canvas.getContext("2d");
@@ -896,31 +896,19 @@ export async function createHypLauncher({
       );
       const sourceWidth = width / scale;
       const sourceHeight = height / scale;
-      try {
-        context.drawImage(
-          video,
-          (video.videoWidth - sourceWidth) / 2,
-          (video.videoHeight - sourceHeight) / 2,
-          sourceWidth,
-          sourceHeight,
-          0,
-          0,
-          width,
-          height
-        );
-      } catch (error) {
-        if (!bgCanvasLogged) {
-          bgCanvasLogged = true;
-          log(
-            `[bg-video] canvas painting unavailable, showing the element instead: ${String(
-              error
-            )}`
-          );
-        }
-        setBgCanvasBlocked(true);
-        setVideoLoaded(true);
-        return;
-      }
+      // Safe without a guard: a detached or not-yet-decoded element is already
+      // filtered out above, which is the only way this throws.
+      context.drawImage(
+        video,
+        (video.videoWidth - sourceWidth) / 2,
+        (video.videoHeight - sourceHeight) / 2,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        width,
+        height
+      );
       if (!videoLoaded()) setVideoLoaded(true);
     }
     function bgCanvasLoop() {
@@ -2130,11 +2118,10 @@ export async function createHypLauncher({
                   );
                   retryBgVideo(el, "error event");
                 }}
-                // Only shown when the canvas path is unavailable; normally the
-                // element is the decode source and the canvas presents it.
-                style={{
-                  opacity: bgCanvasBlocked() && videoLoaded() ? 1 : 0,
-                }}
+                // Decode source only. The canvas above presents the frames, so
+                // keep this element out of the picture entirely — on the affected
+                // WebKit builds its own layer is exactly what stops redrawing.
+                style={{ opacity: 0 }}
               />
               <canvas
                 ref={el => {
