@@ -39,8 +39,13 @@ describe("Miyoushe QR binding", () => {
   it("discards a response that arrives after cancellation", async () => {
     const controller = new AbortController();
     const bridge = replies("ok", "confirmed");
-    bridge.mockImplementationOnce(async () => ({ state: "ok", qr: "image" }));
-    bridge.mockImplementationOnce(async () => {
+    bridge.mockImplementationOnce(
+      async (): Promise<Reply> => ({
+        state: "ok",
+        qr: "image",
+      })
+    );
+    bridge.mockImplementationOnce(async (): Promise<Reply> => {
       controller.abort();
       return { state: "confirmed" };
     });

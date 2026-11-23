@@ -22,17 +22,12 @@
   gap: 8px;
 }
 
-.miyoushe-panel select,
-.miyoushe-panel input::file-selector-button {
+.miyoushe-panel select {
   padding: 4px 8px;
   border: 1px solid rgba(255, 255, 255, 0.24);
   border-radius: 6px;
   color: white;
   background: #282933;
-}
-
-.miyoushe-panel input[type="file"] {
-  max-width: 100%;
 }
 
 .miyoushe-note,

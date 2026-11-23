@@ -13,6 +13,10 @@ private enum Failure: String, Error {
 
 private typealias Fields = [String: Any]
 
+private func isGameUID(_ value: String) -> Bool {
+    value.range(of: #"^[0-9]{1,19}$"#, options: .regularExpression) != nil
+}
+
 private struct Pending: Codable {
     let ticket: String
     let device: String
@@ -258,7 +262,7 @@ private struct Bridge {
             throw Failure.invalid
         }
         let roles: [[String: String]] = entries.compactMap { entry in
-            guard let uid = entry["game_uid"] as? String, !uid.isEmpty,
+            guard let uid = entry["game_uid"] as? String, isGameUID(uid),
                   let region = entry["region"] as? String, game.isOfficialRegion(region)
             else { return nil }
             return ["uid": uid, "region": region, "nickname": entry["nickname"] as? String ?? ""]
@@ -281,7 +285,7 @@ private struct Bridge {
         case "roles", "status", "sign":
             guard let key = args.first, let game = Game(rawValue: key) else { throw Failure.invalid }
             if action == "roles" { return try await roles(game) }
-            guard args.count == 3, args[1].range(of: #"^[0-9]{1,19}$"#, options: .regularExpression) != nil,
+            guard args.count == 3, isGameUID(args[1]),
                   game.isOfficialRegion(args[2])
             else { throw Failure.invalid }
             let params = ["act_id": game.activity, "uid": args[1], "region": args[2]]

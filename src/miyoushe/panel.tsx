@@ -57,6 +57,7 @@ export function MiyoushePanel(props: {
   const [notice, setNotice] = createSignal<CheckInResult | "cancelled">();
   const [qr, setQr] = createSignal<{ image: string; scanned: boolean }>();
   let login: AbortController | undefined;
+  let fileInput: HTMLInputElement | undefined;
   let profileRequest = 0;
   const checkIn = createCheckIn(runMiyoushePrototype);
 
@@ -223,7 +224,6 @@ export function MiyoushePanel(props: {
         t("导出抽卡记录", "Export pull history"),
         {
           defaultPath: game + "-uigf-v4.2.json",
-          filters: [{ name: "JSON", extensions: ["json"] }],
         }
       );
       if (path) {
@@ -414,18 +414,22 @@ export function MiyoushePanel(props: {
         <section class="miyoushe-section">
           <h3>{t("抽卡分析", "Pull history")}</h3>
           <div class="miyoushe-actions">
-            <label class="miyoushe-import">
-              {t("导入 UIGF v4.2", "Import UIGF v4.2")}{" "}
-              <input
-                type="file"
-                accept=".json,application/json"
-                disabled={importBusy()}
-                onChange={event => {
-                  void importFile(event.currentTarget.files?.[0]);
-                  event.currentTarget.value = "";
-                }}
-              />
-            </label>
+            <input
+              ref={fileInput}
+              type="file"
+              hidden
+              accept=".json,application/json"
+              onChange={event => {
+                void importFile(event.currentTarget.files?.[0]);
+                event.currentTarget.value = "";
+              }}
+            />
+            <AppModalButton
+              disabled={importBusy()}
+              onClick={() => fileInput?.click()}
+            >
+              {t("导入 UIGF v4.2", "Import UIGF v4.2")}
+            </AppModalButton>
             <AppModalButton
               disabled={importBusy() || !accounts().length}
               onClick={() => void exportFile()}
