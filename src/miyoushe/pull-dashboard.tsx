@@ -1,19 +1,29 @@
-import { createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  onMount,
+  Show,
+  Switch,
+} from "solid-js";
 import { AppModalButton } from "@src/components/app-modal";
 import type { MiyousheGame } from "./games";
 import type { CatalogItem } from "./genshin-catalog";
 import { genshinPoolRule } from "./genshin-rules";
 import {
   createPullReport,
+  pullTiming,
   selectReportRows,
   type PullReportRow,
 } from "./pull-report";
-import type { GachaArchive, summarizePulls } from "./uigf";
+import { comparePulls, type GachaArchive, type summarizePulls } from "./uigf";
+import { readRadianceMarks, toggleRadianceMark } from "./local";
 
 type Account = NonNullable<GachaArchive[MiyousheGame]>[number];
 type Summary = ReturnType<typeof summarizePulls>;
 type Translate = (zh: string, en: string) => string;
-type View = "text" | "images" | "bars";
+type View = "list" | "bars";
 
 const poolNames: Record<MiyousheGame, Record<string, [string, string]>> = {
   hk4e: {
@@ -41,9 +51,8 @@ const poolNames: Record<MiyousheGame, Record<string, [string, string]>> = {
 };
 
 const views: ReadonlyArray<readonly [View, string, string]> = [
-  ["bars", "横条", "Bars"],
-  ["images", "图像", "Images"],
-  ["text", "文字", "Text"],
+  ["bars", "柱形图", "Bar chart"],
+  ["list", "全部记录", "All records"],
 ];
 
 function average(values: number[]) {
@@ -68,9 +77,15 @@ export function PullDashboard(props: {
   const t = props.t;
   const count = new Intl.NumberFormat();
   const [view, setView] = createSignal<View>("bars");
-  const [ranks, setRanks] = createSignal<string[]>(["5"]);
   const [newestFirst, setNewestFirst] = createSignal(true);
-  const [showTags, setShowTags] = createSignal(true);
+  const [showFour, setShowFour] = createSignal(false);
+  const [fourLimit, setFourLimit] = createSignal(50);
+  const [radiance, setRadiance] = createSignal(new Set<string>());
+  const [writingMark, setWritingMark] = createSignal(false);
+  const [markError, setMarkError] = createSignal(false);
+  onMount(() => {
+    void readRadianceMarks().then(marks => setRadiance(new Set(marks)));
+  });
   const report = createMemo(() =>
     createPullReport(props.account, props.game, props.catalog)
   );
@@ -98,15 +113,24 @@ export function PullDashboard(props: {
           : t("UIGF 文件", "UIGF file")
       )
       .join(" · ");
-  const poolRanks = createMemo(() =>
-    [...new Set(pool()?.rows.map(row => row.pull.rank_type ?? ""))]
-      .sort()
-      .reverse()
+  const fifths = createMemo(() =>
+    selectReportRows(pool()?.rows ?? [], ["5"], newestFirst())
   );
-  const filtered = createMemo(() =>
-    selectReportRows(pool()?.rows ?? [], ranks(), newestFirst())
+  const fourths = createMemo(() =>
+    selectReportRows(pool()?.rows ?? [], ["4"], newestFirst())
   );
-  const rows = createMemo(() => filtered().slice(0, props.visiblePulls));
+  const allRows = createMemo(() => {
+    const rows = report().pools.flatMap(entry =>
+      entry.rows.map(row => ({ row, pool: entry.type }))
+    );
+    return rows.sort((a, b) =>
+      newestFirst()
+        ? comparePulls(b.row.pull, a.row.pull)
+        : comparePulls(a.row.pull, b.row.pull)
+    );
+  });
+  const rows = () =>
+    view() === "bars" ? fifths() : allRows().map(entry => entry.row);
   const completedIntervals = createMemo(() =>
     report().pools.flatMap(entry => entry.intervals)
   );
@@ -147,28 +171,90 @@ export function PullDashboard(props: {
     );
   }
 
-  function Featured(props: { row: PullReportRow }) {
+  function canMarkRadiance(row: PullReportRow) {
+    const type = row.pull.uigf_gacha_type ?? row.pull.gacha_type;
     return (
-      <Show
-        when={
-          showTags() && props.row.pull.rank_type === "5" && supportsFeatured()
-        }
-      >
-        <span
-          class="miyoushe-featured-tag"
-          data-featured={String(props.row.featured)}
+      props.game === "hk4e" &&
+      type === "301" &&
+      row.pull.rank_type === "5" &&
+      row.featured !== false &&
+      row.guaranteed !== true &&
+      genshinPoolRule(type, row.pull.time, props.account.timezone)?.radiance ===
+        true
+    );
+  }
+
+  async function markRadiance(key: string) {
+    if (writingMark()) return;
+    setWritingMark(true);
+    setMarkError(false);
+    try {
+      setRadiance(new Set(await toggleRadianceMark(key)));
+    } catch {
+      setMarkError(true);
+    } finally {
+      setWritingMark(false);
+    }
+  }
+
+  function Featured(props: {
+    row: PullReportRow;
+    annotate?: boolean;
+    uid: string;
+  }) {
+    const key = () => props.uid + ":" + props.row.pull.id;
+    const marked = () => canMarkRadiance(props.row) && radiance().has(key());
+    return (
+      <>
+        <Show
+          when={
+            supportsFeatured() && props.row.pull.rank_type === "5" && !marked()
+          }
         >
-          {props.row.featured === false
-            ? t("歪池", "Off-banner")
-            : props.row.featured === undefined
-            ? t("UP 未知", "UP unknown")
-            : props.row.guaranteed === undefined
-            ? "UP"
-            : props.row.guaranteed
-            ? t("大保底", "Guaranteed UP")
-            : t("小保底", "Non-guaranteed UP")}
-        </span>
-      </Show>
+          <span
+            class="miyoushe-featured-tag"
+            data-featured={String(props.row.featured)}
+          >
+            {props.row.featured === false
+              ? props.row.guaranteed === false
+                ? t("小保底歪", "Lost the 50/50")
+                : t("歪池", "Off-banner")
+              : props.row.featured === undefined
+              ? t("UP 未知", "UP unknown")
+              : props.row.guaranteed === undefined
+              ? "UP"
+              : props.row.guaranteed
+              ? t("大保底", "Guaranteed UP")
+              : t("小保底", "Non-guaranteed UP")}
+          </span>
+        </Show>
+        <Show
+          when={props.annotate && canMarkRadiance(props.row)}
+          fallback={
+            <Show when={marked()}>
+              <span class="miyoushe-radiance-mark">
+                {t("捕获明光", "Capturing Radiance")}
+              </span>
+            </Show>
+          }
+        >
+          <button
+            type="button"
+            class="miyoushe-radiance-mark"
+            aria-pressed={marked()}
+            disabled={writingMark()}
+            title={t(
+              "仅在游戏中看到捕获明光动画时标记",
+              "Mark only if you saw the Capturing Radiance animation"
+            )}
+            onClick={() => void markRadiance(key())}
+          >
+            {marked()
+              ? t("捕获明光", "Capturing Radiance")
+              : t("标记明光", "Mark Radiance")}
+          </button>
+        </Show>
+      </>
     );
   }
 
@@ -182,30 +268,54 @@ export function PullDashboard(props: {
 
   function ItemImage(props: { row: PullReportRow }) {
     const [failed, setFailed] = createSignal<string>();
+    const [retry, setRetry] = createSignal<string>();
+    const icon = () => {
+      const primary = props.row.item?.icon;
+      if (!primary || retry() !== primary) return primary;
+      return (
+        "https://enka.network/ui/" + primary.slice(primary.lastIndexOf("/") + 1)
+      );
+    };
     return (
-      <div class="miyoushe-item-image" data-rank={props.row.pull.rank_type}>
+      <div
+        class="miyoushe-item-image"
+        data-rank={props.row.pull.rank_type}
+        title={name(props.row)}
+      >
         <Show
-          when={props.row.item?.icon !== failed() && props.row.item?.icon}
+          when={icon() !== failed() && icon()}
           fallback={
             <span aria-hidden="true">
               {rankLabel(props.row.pull.rank_type)}
             </span>
           }
         >
-          {icon => (
+          {source => (
             <img
-              src={icon()}
+              src={source()}
               alt=""
               loading="lazy"
               decoding="async"
               referrerpolicy="no-referrer"
-              onError={() => setFailed(icon())}
+              onError={() => {
+                if (source().startsWith("https://upload-os-bbs.mihoyo.com/"))
+                  setRetry(source());
+                else setFailed(source());
+              }}
             />
           )}
         </Show>
       </div>
     );
   }
+
+  const timingLabel = (timing: ReturnType<typeof pullTiming>) =>
+    ({
+      early: t("早出", "Early"),
+      middle: t("中段", "Middle"),
+      late: t("接近保底", "Near hard pity"),
+      unknown: t("抽数或保底未知", "Unknown timing"),
+    }[timing]);
 
   return (
     <>
@@ -275,127 +385,126 @@ export function PullDashboard(props: {
       >
         {active => (
           <>
-            <div
-              class="miyoushe-pool-picker"
-              role="group"
-              aria-label={t("卡池", "Pools")}
-            >
-              <For each={props.summary.pools}>
-                {entry => (
-                  <button
-                    type="button"
-                    aria-pressed={active().type === entry.type}
-                    onClick={() => {
-                      props.onPoolChange(entry.type);
-                    }}
-                  >
-                    {poolLabel(entry.type)}{" "}
-                    <span title={t("最高稀有度次数", "Top-rank pulls")}>
-                      {count.format(
-                        report().pools.find(pool => pool.type === entry.type)
-                          ?.topRankCount ?? 0
-                      )}
-                    </span>
-                  </button>
-                )}
-              </For>
-            </div>
+            <Show when={view() === "bars"}>
+              <div
+                class="miyoushe-pool-picker"
+                role="group"
+                aria-label={t("卡池", "Pools")}
+              >
+                <For each={props.summary.pools}>
+                  {entry => (
+                    <button
+                      type="button"
+                      aria-pressed={active().type === entry.type}
+                      onClick={() => {
+                        props.onPoolChange(entry.type);
+                        setFourLimit(50);
+                      }}
+                    >
+                      {poolLabel(entry.type)}{" "}
+                      <span title={t("最高稀有度次数", "Top-rank pulls")}>
+                        {count.format(
+                          report().pools.find(pool => pool.type === entry.type)
+                            ?.topRankCount ?? 0
+                        )}
+                      </span>
+                    </button>
+                  )}
+                </For>
+              </div>
 
-            <section class="miyoushe-card miyoushe-pool-summary">
-              <div class="miyoushe-pity-overview">
-                <div class="miyoushe-section-heading">
-                  <h3>{poolLabel(active().type)}</h3>
-                  <Show when={supportsFeatured()}>
-                    <span class="miyoushe-pity-state">
-                      {active().nextGuaranteed === true
-                        ? t("当前大保底", "Next top rank guaranteed UP")
-                        : active().nextGuaranteed === false
-                        ? t("当前小保底", "Next top rank not guaranteed UP")
-                        : t("保底状态未知", "Guarantee unknown")}
-                    </span>
+              <section class="miyoushe-card miyoushe-pool-summary">
+                <div class="miyoushe-pity-overview">
+                  <div class="miyoushe-section-heading">
+                    <h3>{poolLabel(active().type)}</h3>
+                    <Show when={supportsFeatured()}>
+                      <span class="miyoushe-pity-state">
+                        {active().nextGuaranteed === true
+                          ? t("当前大保底", "Next top rank guaranteed UP")
+                          : active().nextGuaranteed === false
+                          ? t("当前小保底", "Next top rank not guaranteed UP")
+                          : t("保底状态未知", "Guarantee unknown")}
+                      </span>
+                    </Show>
+                  </div>
+                  <div class="miyoushe-pity-value">
+                    <span>{t("当前已垫", "Recorded pity")}</span>
+                    <strong>{active().pity ?? "—"}</strong>
+                    <span>{t("抽", "pulls")}</span>
+                  </div>
+                  <Show
+                    when={
+                      active().pity !== undefined &&
+                      rule() &&
+                      (active().pity ?? 0) < (rule()?.hardPity ?? 0)
+                    }
+                  >
+                    <div
+                      class="miyoushe-bar-track miyoushe-pity-track"
+                      data-rank="5"
+                      aria-hidden="true"
+                    >
+                      <span
+                        style={{
+                          width:
+                            ((active().pity ?? 0) / (rule()?.hardPity ?? 1)) *
+                              100 +
+                            "%",
+                        }}
+                      />
+                    </div>
+                    <small class="miyoushe-muted">
+                      {t(
+                        "若记录完整，最迟再",
+                        "With complete records, at most"
+                      )}{" "}
+                      {(rule()?.hardPity ?? 0) - (active().pity ?? 0)}{" "}
+                      {t("抽出货", "pulls to the next top rank")}
+                    </small>
                   </Show>
                 </div>
-                <div class="miyoushe-pity-value">
-                  <span>{t("当前已垫", "Recorded pity")}</span>
-                  <strong>{active().pity ?? "—"}</strong>
-                  <span>{t("抽", "pulls")}</span>
-                </div>
-                <Show
-                  when={
-                    active().pity !== undefined &&
-                    rule() &&
-                    (active().pity ?? 0) < (rule()?.hardPity ?? 0)
-                  }
-                >
-                  <div
-                    class="miyoushe-bar-track miyoushe-pity-track"
-                    data-rank="5"
-                    aria-hidden="true"
-                  >
-                    <span
-                      style={{
-                        width:
-                          ((active().pity ?? 0) / (rule()?.hardPity ?? 1)) *
-                            100 +
-                          "%",
-                      }}
-                    />
-                  </div>
-                  <small class="miyoushe-muted">
-                    {t("若记录完整，最迟再", "With complete records, at most")}{" "}
-                    {(rule()?.hardPity ?? 0) - (active().pity ?? 0)}{" "}
-                    {t("抽出货", "pulls to the next top rank")}
-                  </small>
-                </Show>
-              </div>
-              <dl class="miyoushe-pool-metrics">
-                <div>
-                  <dt>
-                    {topRank()}
-                    {t("平均", " average")}
-                  </dt>
-                  <dd>{average(active().intervals)}</dd>
-                </div>
-                <Show when={supportsFeatured()}>
+                <dl class="miyoushe-pool-metrics">
                   <div>
                     <dt>
-                      UP {topRank()}
+                      {topRank()}
                       {t("平均", " average")}
                     </dt>
-                    <dd>{average(active().featuredIntervals)}</dd>
+                    <dd>{average(active().intervals)}</dd>
                   </div>
-                  <div>
-                    <dt>{t("历史 UP 占比", "Historical UP share")}</dt>
-                    <dd>
-                      {active().classified
-                        ? count.format(
-                            Math.round(
-                              (active().hits / active().classified) * 100
-                            )
-                          ) + "%"
-                        : "—"}
-                    </dd>
-                    <small>
-                      {active().hits} UP / {active().classified}{" "}
-                      {t("次可判定", "classified")}
-                      {active().topRankCount > active().classified
-                        ? " · " +
-                          (active().topRankCount - active().classified) +
-                          t(" 个未知", " unknown")
-                        : ""}
-                    </small>
-                  </div>
-                </Show>
-              </dl>
-            </section>
+                  <Show when={supportsFeatured()}>
+                    <div>
+                      <dt>
+                        UP {topRank()}
+                        {t("平均", " average")}
+                      </dt>
+                      <dd>{average(active().featuredIntervals)}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("历史 UP 占比", "Historical UP share")}</dt>
+                      <dd>
+                        {active().classified
+                          ? count.format(
+                              Math.round(
+                                (active().hits / active().classified) * 100
+                              )
+                            ) + "%"
+                          : "—"}
+                      </dd>
+                      <small>
+                        {active().hits} UP / {active().classified}{" "}
+                        {t("次可判定", "classified")}
+                        {active().topRankCount > active().classified
+                          ? " · " +
+                            (active().topRankCount - active().classified) +
+                            t(" 个未知", " unknown")
+                          : ""}
+                      </small>
+                    </div>
+                  </Show>
+                </dl>
+              </section>
+            </Show>
             <section class="miyoushe-card miyoushe-history">
-              <div class="miyoushe-section-heading">
-                <h3>{t("出货记录", "Pull results")}</h3>
-                <span>
-                  {count.format(filtered().length)} /{" "}
-                  {count.format(active().pulls.length)}
-                </span>
-              </div>
               <div class="miyoushe-history-toolbar">
                 <div
                   class="miyoushe-pool-picker"
@@ -414,176 +523,179 @@ export function PullDashboard(props: {
                     )}
                   </For>
                 </div>
-                <select
-                  aria-label={t("时间排序", "Time order")}
-                  value={newestFirst() ? "new" : "old"}
-                  onChange={event =>
-                    setNewestFirst(event.currentTarget.value === "new")
-                  }
-                >
-                  <option value="new">{t("由新到旧", "Newest first")}</option>
-                  <option value="old">{t("由旧到新", "Oldest first")}</option>
-                </select>
-                <div
-                  class="miyoushe-pool-picker"
-                  role="group"
-                  aria-label={t("按稀有度筛选", "Filter by rarity")}
-                >
+                <label class="miyoushe-field">
+                  <select
+                    aria-label={t("时间排序", "Time order")}
+                    value={newestFirst() ? "new" : "old"}
+                    onChange={event =>
+                      setNewestFirst(event.currentTarget.value === "new")
+                    }
+                  >
+                    <option value="new">{t("由新到旧", "Newest first")}</option>
+                    <option value="old">{t("由旧到新", "Oldest first")}</option>
+                  </select>
+                </label>
+                <Show when={view() === "bars" && fourths().length}>
                   <button
                     type="button"
-                    aria-pressed={!ranks().length}
-                    onClick={() => setRanks([])}
+                    class="miyoushe-four-toggle"
+                    aria-expanded={showFour()}
+                    aria-controls="miyoushe-four-results"
+                    onClick={() => setShowFour(value => !value)}
                   >
-                    {t("全部", "All")}
+                    {showFour()
+                      ? t("收起四星", "Hide four-star pulls")
+                      : t("显示四星", "Show four-star pulls")}
+                    <span>{fourths().length}</span>
                   </button>
-                  <For each={poolRanks()}>
-                    {rank => (
-                      <button
-                        type="button"
-                        aria-pressed={ranks().includes(rank)}
-                        onClick={() =>
-                          setRanks(current =>
-                            current.includes(rank)
-                              ? current.filter(value => value !== rank)
-                              : [...current, rank]
-                          )
-                        }
-                      >
-                        {rank ? rankLabel(rank) : t("未知", "Unknown")}
-                      </button>
-                    )}
-                  </For>
-                </div>
-                <Show when={supportsFeatured()}>
-                  <label class="miyoushe-field">
-                    <input
-                      type="checkbox"
-                      checked={showTags()}
-                      onChange={event =>
-                        setShowTags(event.currentTarget.checked)
-                      }
-                    />
-                    {t(
-                      "显示保底与歪池标记",
-                      "Show guarantee and off-banner labels"
-                    )}
-                  </label>
                 </Show>
               </div>
-
-              <Show
-                when={rows().length}
-                fallback={
-                  <p class="miyoushe-muted" role="status">
-                    {t(
-                      "没有符合筛选条件的记录。",
-                      "No records match the filters."
-                    )}
-                  </p>
-                }
-              >
-                <Switch>
-                  <Match when={view() === "images"}>
-                    <ul class="miyoushe-image-history">
-                      <For each={rows()}>
-                        {row => (
-                          <li>
-                            <ItemImage row={row} />
-                            <strong title={name(row)}>{name(row)}</strong>
-                            <div class="miyoushe-record-labels">
-                              <Rank row={row} />
-                              <Featured row={row} />
-                            </div>
-                            <PullTime row={row} />
-                          </li>
+              <Switch>
+                <Match when={view() === "bars"}>
+                  <Show
+                    when={fifths().length}
+                    fallback={
+                      <p class="miyoushe-muted">
+                        {t(
+                          "此卡池暂无最高稀有度出货记录。",
+                          "This pool has no recorded top-rank pulls."
                         )}
-                      </For>
-                    </ul>
-                  </Match>
-                  <Match when={view() === "bars"}>
+                      </p>
+                    }
+                  >
                     <ol
                       class="miyoushe-chart"
                       aria-label={t("出货间隔", "Pull intervals")}
                     >
-                      <For each={rows()}>
+                      <For each={fifths().slice(0, props.visiblePulls)}>
+                        {row => {
+                          const timing = () =>
+                            pullTiming(row.interval, rule()?.hardPity);
+                          return (
+                            <li
+                              data-timing={timing()}
+                              data-off-banner={row.featured === false}
+                            >
+                              <ItemImage row={row} />
+                              <div class="miyoushe-chart-row">
+                                <div class="miyoushe-chart-label">
+                                  <strong title={name(row)}>{name(row)}</strong>
+                                  <Featured
+                                    row={row}
+                                    uid={props.account.uid}
+                                    annotate
+                                  />
+                                </div>
+                                <div
+                                  class="miyoushe-chart-meter"
+                                  title={timingLabel(timing())}
+                                >
+                                  <span
+                                    class="miyoushe-chart-fill"
+                                    aria-hidden="true"
+                                    style={{
+                                      width:
+                                        ((row.interval ?? 0) / barMax()) * 100 +
+                                        "%",
+                                    }}
+                                  />
+                                  <span class="miyoushe-chart-value">
+                                    {row.interval ?? "—"}
+                                    {row.interval === undefined
+                                      ? ""
+                                      : t(" 抽", " pulls")}
+                                    <Show when={timing() !== "unknown"}>
+                                      <small>{timingLabel(timing())}</small>
+                                    </Show>
+                                  </span>
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        }}
+                      </For>
+                    </ol>
+                  </Show>
+                  <Show when={markError()}>
+                    <p class="miyoushe-muted" role="status">
+                      {t(
+                        "无法保存明光标记。",
+                        "Could not save the Radiance mark."
+                      )}
+                    </p>
+                  </Show>
+                  <section
+                    id="miyoushe-four-results"
+                    class="miyoushe-four-results"
+                    hidden={!showFour() || !fourths().length}
+                  >
+                    <div class="miyoushe-section-heading">
+                      <h3>{t("四星出货", "Four-star pulls")}</h3>
+                      <span>
+                        {t(
+                          "抽数按两次四星之间计算",
+                          "Pulls between four-star results"
+                        )}
+                      </span>
+                    </div>
+                    <ul class="miyoushe-four-cards">
+                      <For
+                        each={showFour() ? fourths().slice(0, fourLimit()) : []}
+                      >
                         {row => (
-                          <li>
-                            <span
-                              class="miyoushe-chart-label"
-                              title={name(row)}
-                            >
-                              {name(row)}
-                            </span>
-                            <div
-                              class="miyoushe-bar-track"
-                              data-rank={row.pull.rank_type}
-                              aria-hidden="true"
-                            >
-                              <span
-                                style={{
-                                  width:
-                                    Math.min(
-                                      100,
-                                      ((row.interval ?? 0) / barMax()) * 100
-                                    ) + "%",
-                                }}
-                              />
-                            </div>
-                            <strong
-                              aria-label={t(
-                                "距上次出货的抽数",
-                                "Pulls since the last top-rank pull"
-                              )}
-                            >
-                              {row.interval ?? "—"}
-                            </strong>
-                            <span class="miyoushe-chart-meta">
-                              <Featured row={row} />
-                              <PullTime row={row} />
+                          <li aria-label={name(row)}>
+                            <ItemImage row={row} />
+                            <span>
+                              {row.fourStarInterval ?? "—"}
+                              {row.fourStarInterval === undefined
+                                ? ""
+                                : t(" 抽", " pulls")}
                             </span>
                           </li>
                         )}
                       </For>
-                    </ol>
-                  </Match>
-                  <Match when={view() === "text"}>
-                    <div class="miyoushe-table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th scope="col">{t("获得物品", "Item")}</th>
-                            <th scope="col">{t("稀有度", "Rarity")}</th>
-                            <th scope="col">
-                              {t("距上次出货", "Pulls since top rank")}
-                            </th>
-                            <th scope="col">{t("抽取时间", "Time")}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <For each={rows()}>
-                            {row => (
-                              <tr>
-                                <td>
-                                  {name(row)}
-                                  <Featured row={row} />
-                                </td>
-                                <td>
-                                  <Rank row={row} />
-                                </td>
-                                <td>{row.interval ?? "—"}</td>
-                                <td>
-                                  <PullTime row={row} />
-                                </td>
-                              </tr>
-                            )}
-                          </For>
-                        </tbody>
-                      </table>
-                    </div>
-                  </Match>
-                </Switch>
-              </Show>
-              <Show when={filtered().length > props.visiblePulls}>
+                    </ul>
+                    <Show when={fourths().length > fourLimit()}>
+                      <AppModalButton
+                        onClick={() => setFourLimit(limit => limit + 50)}
+                      >
+                        {t("更多四星", "More four-star pulls")}
+                      </AppModalButton>
+                    </Show>
+                  </section>
+                </Match>
+                <Match when={view() === "list"}>
+                  <div class="miyoushe-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th scope="col">{t("获得物品", "Item")}</th>
+                          <th scope="col">{t("稀有度", "Rarity")}</th>
+                          <th scope="col">{t("卡池", "Pool")}</th>
+                          <th scope="col">{t("抽取时间", "Time")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <For each={allRows().slice(0, props.visiblePulls)}>
+                          {({ row, pool }) => (
+                            <tr data-rank={row.pull.rank_type}>
+                              <td class="miyoushe-list-item">{name(row)}</td>
+                              <td>
+                                <Rank row={row} />
+                              </td>
+                              <td>{poolLabel(pool)}</td>
+                              <td>
+                                <PullTime row={row} />
+                              </td>
+                            </tr>
+                          )}
+                        </For>
+                      </tbody>
+                    </table>
+                  </div>
+                </Match>
+              </Switch>
+              <Show when={rows().length > props.visiblePulls}>
                 <AppModalButton onClick={props.onShowMore}>
                   {t("显示更多记录", "Show more pulls")}
                 </AppModalButton>
@@ -602,8 +714,8 @@ export function PullDashboard(props: {
               <Show when={rule()?.radiance}>
                 <p class="miyoushe-muted">
                   {t(
-                    "现有抽卡记录无法确定捕获明光的下一次触发概率。",
-                    "The next Capturing Radiance probability cannot be determined from this history."
+                    "抽卡记录没有明光动画信息。出货旁的明光标记由玩家确认，只在本机显示。",
+                    "Pull records do not contain animation data. Radiance marks are confirmed by the player and stored locally."
                   )}
                 </p>
               </Show>

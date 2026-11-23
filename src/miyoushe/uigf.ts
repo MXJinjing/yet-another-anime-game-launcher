@@ -208,12 +208,13 @@ export function exportUigf(archive: GachaArchive, local = false) {
   );
 }
 
+export function comparePulls(a: Pull, b: Pull) {
+  return a.time.localeCompare(b.time) || Number(BigInt(a.id) - BigInt(b.id));
+}
+
 export function summarizePulls(account: Account) {
   const pools = new Map<string, Pull[]>();
-  const sorted = [...account.list].sort(
-    (a, b) =>
-      a.time.localeCompare(b.time) || Number(BigInt(a.id) - BigInt(b.id))
-  );
+  const sorted = [...account.list].sort(comparePulls);
   for (const pull of sorted) {
     const type = pull.uigf_gacha_type ?? pull.gacha_type;
     const pool = pools.get(type) ?? [];

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createPullReport,
+  pullTiming,
   selectReportRows,
 } from "../../src/miyoushe/pull-report";
 import type { Pull } from "../../src/miyoushe/uigf";
@@ -52,6 +53,30 @@ describe("pull report", () => {
     ).toEqual([undefined, 3]);
     expect(selectReportRows(pool.rows, [], true)).toHaveLength(4);
     expect(pool.rows.map(row => row.pull.id)).toEqual(["1", "2", "3", "4"]);
+  });
+
+  it("counts four-star intervals independently of five-star results and display order", () => {
+    const [pool] = createPullReport(
+      account([
+        pull("1", "4"),
+        pull("2", "5"),
+        pull("3", "3"),
+        pull("4", "4"),
+        pull("5"),
+        pull("6", "4"),
+      ]),
+      "hk4e"
+    ).pools;
+    expect(
+      selectReportRows(pool.rows, ["4"], true).map(row => row.fourStarInterval)
+    ).toEqual([undefined, 3, undefined]);
+  });
+
+  it("colors the distance relative to the known pool limit", () => {
+    expect(
+      [30, 31, 68, 91, undefined].map(value => pullTiming(value, 90))
+    ).toEqual(["early", "middle", "late", "unknown", "unknown"]);
+    expect(pullTiming(9)).toBe("unknown");
   });
 
   it("counts only classified featured history and skips uncertain intervals", () => {

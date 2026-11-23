@@ -9,6 +9,7 @@ export type PullReportRow = {
   pull: Pull;
   item?: CatalogItem;
   interval?: number;
+  fourStarInterval?: number;
   featured?: boolean;
   guaranteed?: boolean;
 };
@@ -31,6 +32,7 @@ export function createPullReport(
   const summary = summarizePulls({ ...account, list });
   const pools = summary.pools.map(pool => {
     let sinceTop: number | undefined;
+    let sinceFour: number | undefined;
     let sinceFeatured: number | undefined;
     let hits = 0;
     let classified = 0;
@@ -41,12 +43,18 @@ export function createPullReport(
       const row: PullReportRow = { pull, item: items?.get(pull.item_id) };
       if (!knownRank(pull.rank_type)) {
         sinceTop = undefined;
+        sinceFour = undefined;
         sinceFeatured = undefined;
         nextGuaranteed = undefined;
         return row;
       }
       if (sinceTop !== undefined) row.interval = ++sinceTop;
       if (sinceFeatured !== undefined) sinceFeatured++;
+      if (sinceFour !== undefined) sinceFour++;
+      if (pull.rank_type === "4") {
+        row.fourStarInterval = sinceFour;
+        sinceFour = 0;
+      }
       if (pull.rank_type !== "5") return row;
 
       sinceTop = 0;
@@ -85,6 +93,14 @@ export function createPullReport(
     ranked: list.filter(pull => knownRank(pull.rank_type)).length,
     top: list.filter(pull => pull.rank_type === "5").length,
   };
+}
+
+export function pullTiming(interval?: number, hardPity?: number) {
+  if (interval === undefined || !hardPity || interval > hardPity)
+    return "unknown";
+  if (interval / hardPity <= 1 / 3) return "early";
+  if (interval / hardPity >= 0.75) return "late";
+  return "middle";
 }
 
 export function selectReportRows(

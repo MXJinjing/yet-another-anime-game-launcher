@@ -691,35 +691,29 @@ export function MiyoushePanel(props: {
         onClose={props.onClose}
         contentClass="miyoushe-modal miyoushe-pull-modal"
         bodyClass="miyoushe-modal-body"
-        title={<DialogTitle text={t("抽卡分析", "Pull analysis")} />}
-        maxWidth={1040}
-      >
-        <div class="miyoushe-panel" style={panelTheme()}>
-          <input
-            ref={fileInput}
-            type="file"
-            hidden
-            accept=".json,application/json"
-            onChange={event => {
-              void importFile(event.currentTarget.files?.[0]);
-              event.currentTarget.value = "";
-            }}
-          />
-          <div class="miyoushe-page-heading">
-            <button
-              class="miyoushe-link-button"
-              type="button"
-              onClick={() =>
-                openLink("https://uigf.org/zh/standards/uigf.html")
-              }
-            >
-              {t("UIGF v4.2 格式说明", "UIGF v4.2 format guide")}{" "}
-              <span aria-hidden="true">↗</span>
-            </button>
-            <div class="miyoushe-actions">
-              <Show when={props.game === "hk4e" && usingMiyoushePrototype}>
+        title={
+          <div class="miyoushe-pull-header" style={panelTheme()}>
+            <strong>{t("抽卡分析", "Pull analysis")}</strong>
+            <div class="miyoushe-pull-actions">
+              <button
+                class="miyoushe-link-button"
+                type="button"
+                title={t("UIGF v4.2 格式说明", "UIGF v4.2 format guide")}
+                onClick={() =>
+                  openLink("https://uigf.org/zh/standards/uigf.html")
+                }
+              >
+                UIGF <span aria-hidden="true">↗</span>
+              </button>
+              <Show
+                when={
+                  props.game === "hk4e" &&
+                  usingMiyoushePrototype &&
+                  props.installDir
+                }
+              >
                 <AppModalButton
-                  disabled={importBusy() || !props.installDir}
+                  disabled={importBusy()}
                   onClick={() =>
                     void importGame(
                       "authorized",
@@ -735,18 +729,32 @@ export function MiyoushePanel(props: {
                   disabled={importBusy()}
                   onClick={() => void exportFile()}
                 >
-                  {t("导出记录", "Export")}
-                </AppModalButton>
-                <AppModalButton
-                  variant="primary"
-                  disabled={importBusy()}
-                  onClick={() => fileInput?.click()}
-                >
-                  {t("导入记录", "Import")}
+                  {t("导出", "Export")}
                 </AppModalButton>
               </Show>
+              <AppModalButton
+                variant="primary"
+                disabled={importBusy()}
+                onClick={() => fileInput?.click()}
+              >
+                {t("导入", "Import")}
+              </AppModalButton>
             </div>
           </div>
+        }
+        maxWidth={1040}
+      >
+        <div class="miyoushe-panel" style={panelTheme()}>
+          <input
+            ref={fileInput}
+            type="file"
+            hidden
+            accept=".json,application/json"
+            onChange={event => {
+              void importFile(event.currentTarget.files?.[0]);
+              event.currentTarget.value = "";
+            }}
+          />
           <Show when={storageError()}>
             <p role="status">
               {t(

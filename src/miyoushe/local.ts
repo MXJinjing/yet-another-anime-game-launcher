@@ -15,6 +15,38 @@ import {
 } from "./uigf";
 
 const archivePath = "miyoushe-uigf-v4.2.json";
+const radiancePath = "miyoushe-radiance.json";
+let radianceWrite = Promise.resolve();
+
+export async function readRadianceMarks(): Promise<string[]> {
+  try {
+    const keys: unknown = JSON.parse(await readFile(radiancePath));
+    return Array.isArray(keys)
+      ? keys.filter(
+          (key): key is string =>
+            typeof key === "string" && /^\d{1,19}:\d{1,19}$/.test(key)
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function toggleRadianceMark(key: string) {
+  const write = radianceWrite.then(async () => {
+    const marks = new Set(await readRadianceMarks());
+    if (marks.has(key)) marks.delete(key);
+    else marks.add(key);
+    const updated = [...marks];
+    await replaceLocalFile(radiancePath, JSON.stringify(updated));
+    return updated;
+  });
+  radianceWrite = write.then(
+    () => undefined,
+    () => undefined
+  );
+  return write;
+}
 
 export const usingMiyoushePrototype =
   import.meta.env.MODE === "development" &&

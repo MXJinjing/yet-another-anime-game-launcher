@@ -15,7 +15,7 @@ const dataRoot = "https://cdn.jsdelivr.net/gh/theBowja/genshin-db-dist@";
 const catalogInterval = 24 * 60 * 60 * 1000;
 const commitPattern = /^[a-f0-9]{40}$/;
 const iconPattern =
-  /^https:\/\/upload-os-bbs\.mihoyo\.com\/game_record\/genshin\/(character_icon|equip)\/UI_[A-Za-z0-9_]+\.png$/;
+  /^https:\/\/(?:upload-os-bbs\.mihoyo\.com\/game_record\/genshin\/(?:character_icon|equip)|enka\.network\/ui)\/UI_[A-Za-z0-9_]+\.png$/;
 
 export type CatalogSnapshot = {
   commit: string;
@@ -91,7 +91,12 @@ export function parseUpstreamCatalog(value: unknown, category: Category) {
   return parseItems(
     Object.entries(rows).map(([key, row]) => {
       const { id, name, rarity } = object(row);
-      const icon = icons[key] ? object(icons[key]).mihoyo_icon : undefined;
+      const image = icons[key] ? object(icons[key]) : {};
+      const icon =
+        image.mihoyo_icon ??
+        (typeof image.filename_icon === "string"
+          ? "https://enka.network/ui/" + image.filename_icon + ".png"
+          : undefined);
       return { id: String(id), name, rank: String(rarity), icon };
     })
   );
