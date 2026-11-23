@@ -135,8 +135,6 @@ export function MhyClientView(props: {
 
   const featuredAnnouncement = () =>
     showLauncherContent() ? recentPosts()[0] : undefined;
-  const homeBannerVisible = () =>
-    showLauncherContent() && Boolean(currentBanner() || contentPending());
 
   function AnnouncementPosts() {
     return (
@@ -266,34 +264,7 @@ export function MhyClientView(props: {
             }}
           </Show>
 
-          <div
-            classList={{
-              "hyp-mhy-home-panel": true,
-              "hyp-mhy-home-panel--with-banner": homeBannerVisible(),
-            }}
-          >
-            <Show when={hasTools()}>
-              <button
-                type="button"
-                class="hyp-mhy-news"
-                aria-haspopup="dialog"
-                disabled={props.communityTools?.some(tool => tool.disabled)}
-                onClick={() => setAnnouncementsOpen(true)}
-              >
-                <strong class="hyp-mhy-news-title">
-                  {announcementTitle()}
-                </strong>
-                <span class="hyp-mhy-news-arrow" aria-hidden="true">
-                  →
-                </span>
-                <Show when={featuredAnnouncement()}>
-                  {post => (
-                    <span class="hyp-mhy-news-preview">{post().title}</span>
-                  )}
-                </Show>
-                <span class="hyp-mhy-news-status">{announcementStatus()}</span>
-              </button>
-            </Show>
+          <div class="hyp-mhy-home-panel">
             <Show
               when={
                 showLauncherContent() &&
@@ -377,6 +348,33 @@ export function MhyClientView(props: {
                   <AnnouncementPosts />
                 </Show>
               </section>
+            </Show>
+            <Show when={hasTools()}>
+              <button
+                type="button"
+                class="hyp-mhy-news"
+                aria-haspopup="dialog"
+                disabled={props.communityTools?.some(tool => tool.disabled)}
+                onClick={() => setAnnouncementsOpen(true)}
+              >
+                <strong class="hyp-mhy-news-title">
+                  {announcementTitle()}
+                </strong>
+                <span class="hyp-mhy-news-arrow" aria-hidden="true">
+                  →
+                </span>
+                <Show when={featuredAnnouncement()}>
+                  {post => (
+                    <span class="hyp-mhy-news-preview">
+                      <span class="hyp-mhy-news-headline">{post().title}</span>
+                      <Show when={post().date}>
+                        <time>{post().date}</time>
+                      </Show>
+                    </span>
+                  )}
+                </Show>
+                <span class="hyp-mhy-news-status">{announcementStatus()}</span>
+              </button>
             </Show>
             <Show when={hasTools()}>
               <div class="hyp-mhy-tools">
