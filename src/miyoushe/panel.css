@@ -25,6 +25,11 @@
   scrollbar-width: thin;
 }
 
+.app-modal-content.miyoushe-pull-modal {
+  max-height: calc(100vh - 16px) !important;
+  margin-block: 8px !important;
+}
+
 .miyoushe-pull-modal .hope-modal__header {
   padding: 7px 16px !important;
   padding-inline-end: 51px !important;
@@ -33,6 +38,7 @@
 
 .miyoushe-pull-modal .hope-modal__body.miyoushe-modal-body {
   padding: 12px 22px 18px !important;
+  min-height: 0;
 }
 
 .miyoushe-pull-modal .app-modal-close {
@@ -320,7 +326,7 @@
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
+  gap: 4px 9px;
   font-size: 12px;
 }
 
@@ -334,6 +340,33 @@
 
 .miyoushe-chart > li[data-timing="late"] {
   --miyo-timing: #954c36;
+}
+
+.miyoushe-chart > .miyoushe-chart-ongoing {
+  --miyo-timing: #646c7c;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--miyo-line);
+}
+
+.miyoushe-chart-ongoing .miyoushe-chart-meter {
+  border: 1px dashed #677182;
+  background: #212733;
+}
+
+.miyoushe-ongoing-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px dashed #576070;
+  border-radius: 6px;
+  color: var(--miyo-muted);
+  font-size: 18px;
+}
+
+.miyoushe-chart-ongoing .miyoushe-chart-label small {
+  color: var(--miyo-muted);
+  font-size: 11px;
 }
 
 .miyoushe-chart-row {
@@ -403,25 +436,11 @@
   margin-inline-start: 5px;
 }
 
-.miyoushe-four-results {
-  display: grid;
-  gap: 8px;
-  padding-top: 9px;
-  border-top: 1px solid var(--miyo-line);
-}
-
-.miyoushe-four-results[hidden] {
-  display: none;
-}
-
-.miyoushe-four-results > button {
-  justify-self: start;
-}
-
 .miyoushe-four-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
-  gap: 6px;
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -430,14 +449,23 @@
 .miyoushe-four-cards li {
   display: grid;
   justify-items: center;
-  gap: 4px;
-  padding: 5px;
+  gap: 1px;
+  min-width: 29px;
+  padding: 2px;
   border: 1px solid #49395d;
-  border-radius: 7px;
+  border-radius: 4px;
   color: #dfcafa;
   background: #211b2b;
-  font-size: 11px;
+  font-size: 9px;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
+}
+
+.miyoushe-four-cards .miyoushe-item-image {
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  font-size: 9px;
 }
 
 .miyoushe-table-wrap {

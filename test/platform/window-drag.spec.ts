@@ -144,6 +144,18 @@ describe("windowDragOrigin", () => {
 });
 
 describe("windowDragRegionAt", () => {
+  it("does not start a top-strip drag on a descendant of an excluded dialog", () => {
+    const dialogControl = {
+      closest: vi.fn((selector: string) =>
+        selector === ".window-no-drag" ? {} : null
+      ),
+    } as unknown as EventTarget;
+    const strip = { element: fakeElement(), topInset: 38 };
+    strip.element.contains = () => true;
+    expect(windowDragRegionAt(dialogControl, [strip], 12)).toBeUndefined();
+    expect(windowDragRegionAt(target, [strip], 12)).toBe(strip);
+  });
+
   it("matches a target inside the region", () => {
     const region = { element: fakeElement() };
     expect(windowDragRegionAt(target, [region], 12)).toBe(region);

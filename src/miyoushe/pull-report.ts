@@ -103,6 +103,29 @@ export function pullTiming(interval?: number, hardPity?: number) {
   return "middle";
 }
 
+export function groupPullCycles(rows: PullReportRow[]) {
+  const cycles: { result: PullReportRow; fourths: PullReportRow[] }[] = [];
+  let fourths: PullReportRow[] = [];
+  let count = 0;
+  let complete = false;
+  for (const row of rows) {
+    const rank = row.pull.rank_type;
+    if (rank === "5") {
+      cycles.push({ result: row, fourths });
+      fourths = [];
+      count = 0;
+      complete = true;
+    } else if (knownRank(rank)) {
+      if (rank === "4") fourths.push(row);
+      count++;
+    } else {
+      count = 0;
+      complete = false;
+    }
+  }
+  return { cycles, ongoing: { count, complete, fourths } };
+}
+
 export function selectReportRows(
   rows: PullReportRow[],
   ranks: string[],

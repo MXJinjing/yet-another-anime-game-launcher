@@ -13,8 +13,8 @@ import type { CatalogItem } from "./genshin-catalog";
 import { genshinPoolRule } from "./genshin-rules";
 import {
   createPullReport,
+  groupPullCycles,
   pullTiming,
-  selectReportRows,
   type PullReportRow,
 } from "./pull-report";
 import { comparePulls, type GachaArchive, type summarizePulls } from "./uigf";
@@ -79,7 +79,6 @@ export function PullDashboard(props: {
   const [view, setView] = createSignal<View>("bars");
   const [newestFirst, setNewestFirst] = createSignal(true);
   const [showFour, setShowFour] = createSignal(false);
-  const [fourLimit, setFourLimit] = createSignal(50);
   const [radiance, setRadiance] = createSignal(new Set<string>());
   const [writingMark, setWritingMark] = createSignal(false);
   const [markError, setMarkError] = createSignal(false);
@@ -113,11 +112,17 @@ export function PullDashboard(props: {
           : t("UIGF 文件", "UIGF file")
       )
       .join(" · ");
-  const fifths = createMemo(() =>
-    selectReportRows(pool()?.rows ?? [], ["5"], newestFirst())
+  const timeline = createMemo(() => groupPullCycles(pool()?.rows ?? []));
+  const cycles = createMemo(() =>
+    newestFirst() ? [...timeline().cycles].reverse() : timeline().cycles
   );
-  const fourths = createMemo(() =>
-    selectReportRows(pool()?.rows ?? [], ["4"], newestFirst())
+  const fourthCount = createMemo(
+    () =>
+      timeline().ongoing.fourths.length +
+      timeline().cycles.reduce(
+        (total, cycle) => total + cycle.fourths.length,
+        0
+      )
   );
   const allRows = createMemo(() => {
     const rows = report().pools.flatMap(entry =>
@@ -130,7 +135,7 @@ export function PullDashboard(props: {
     );
   });
   const rowCount = () =>
-    view() === "bars" ? fifths().length : allRows().length;
+    view() === "bars" ? cycles().length : allRows().length;
   const completedIntervals = createMemo(() =>
     report().pools.flatMap(entry => entry.intervals)
   );
@@ -147,7 +152,7 @@ export function PullDashboard(props: {
       pool()?.rows.reduce(
         (max, row) =>
           row.pull.rank_type === "5" ? Math.max(max, row.interval ?? 0) : max,
-        rule()?.hardPity ?? 1
+        Math.max(rule()?.hardPity ?? 1, timeline().ongoing.count)
       ) ?? 1
   );
   const supportsFeatured = () =>
@@ -298,6 +303,35 @@ export function PullDashboard(props: {
     );
   }
 
+  function FourCards(props: { rows: PullReportRow[] }) {
+    return (
+      <Show when={showFour() && props.rows.length}>
+        <ul
+          class="miyoushe-four-cards"
+          aria-label={t("本周期四星出货", "Four-star pulls in this cycle")}
+        >
+          <For each={newestFirst() ? [...props.rows].reverse() : props.rows}>
+            {row => {
+              const interval = () =>
+                row.fourStarInterval === undefined
+                  ? "—"
+                  : row.fourStarInterval + t(" 抽", " pulls");
+              return (
+                <li
+                  aria-label={name(row) + " · " + interval()}
+                  title={name(row)}
+                >
+                  <ItemImage row={row} />
+                  <span>{interval()}</span>
+                </li>
+              );
+            }}
+          </For>
+        </ul>
+      </Show>
+    );
+  }
+
   const timingLabel = (timing: ReturnType<typeof pullTiming>) =>
     ({
       early: t("早出", "Early"),
@@ -387,7 +421,6 @@ export function PullDashboard(props: {
                       aria-pressed={active().type === entry.type}
                       onClick={() => {
                         props.onPoolChange(entry.type);
-                        setFourLimit(50);
                       }}
                     >
                       {poolLabel(entry.type)}{" "}
@@ -524,80 +557,114 @@ export function PullDashboard(props: {
                     <option value="old">{t("由旧到新", "Oldest first")}</option>
                   </select>
                 </label>
-                <Show when={view() === "bars" && fourths().length}>
+                <Show when={view() === "bars" && fourthCount()}>
                   <button
                     type="button"
                     class="miyoushe-four-toggle"
                     aria-expanded={showFour()}
-                    aria-controls="miyoushe-four-results"
+                    aria-controls="miyoushe-pull-cycles"
                     onClick={() => setShowFour(value => !value)}
                   >
                     {showFour()
                       ? t("收起四星", "Hide four-star pulls")
                       : t("显示四星", "Show four-star pulls")}
-                    <span>{fourths().length}</span>
+                    <span>{fourthCount()}</span>
                   </button>
                 </Show>
               </div>
               <Switch>
                 <Match when={view() === "bars"}>
-                  <Show
-                    when={fifths().length}
-                    fallback={
-                      <p class="miyoushe-muted">
-                        {t(
-                          "此卡池暂无最高稀有度出货记录。",
-                          "This pool has no recorded top-rank pulls."
-                        )}
-                      </p>
-                    }
+                  <ol
+                    id="miyoushe-pull-cycles"
+                    class="miyoushe-chart"
+                    aria-label={t(
+                      "出货间隔与当前垫抽",
+                      "Pull intervals and current pity"
+                    )}
                   >
-                    <ol
-                      class="miyoushe-chart"
-                      aria-label={t("出货间隔", "Pull intervals")}
-                    >
-                      <For each={fifths().slice(0, props.visiblePulls)}>
-                        {row => {
-                          const timing = () =>
-                            pullTiming(row.interval, rule()?.hardPity);
-                          return (
-                            <li data-timing={timing()}>
-                              <ItemImage row={row} />
-                              <div class="miyoushe-chart-row">
-                                <div class="miyoushe-chart-label">
-                                  <strong title={name(row)}>{name(row)}</strong>
-                                  <Featured row={row} uid={props.account.uid} />
-                                </div>
-                                <div
-                                  class="miyoushe-chart-meter"
-                                  title={timingLabel(timing())}
-                                >
-                                  <span
-                                    class="miyoushe-chart-fill"
-                                    aria-hidden="true"
-                                    style={{
-                                      width:
-                                        ((row.interval ?? 0) / barMax()) * 100 +
-                                        "%",
-                                    }}
-                                  />
-                                  <span class="miyoushe-chart-value">
-                                    {row.interval ?? "—"}
-                                    {row.interval === undefined
-                                      ? ""
-                                      : t(" 抽", " pulls")}
-                                    <Show when={timing() !== "unknown"}>
-                                      <small>{timingLabel(timing())}</small>
-                                    </Show>
-                                  </span>
-                                </div>
+                    <li class="miyoushe-chart-ongoing">
+                      <div class="miyoushe-ongoing-icon" aria-hidden="true">
+                        …
+                      </div>
+                      <div class="miyoushe-chart-row">
+                        <div class="miyoushe-chart-label">
+                          <strong>{t("当前垫抽", "Current pity")}</strong>
+                          <small>
+                            {t("截至最新一抽", "Through the latest pull")}
+                          </small>
+                        </div>
+                        <div class="miyoushe-chart-meter">
+                          <span
+                            class="miyoushe-chart-fill"
+                            aria-hidden="true"
+                            style={{
+                              width:
+                                (timeline().ongoing.count / barMax()) * 100 +
+                                "%",
+                            }}
+                          />
+                          <span class="miyoushe-chart-value">
+                            <Show
+                              when={
+                                timeline().ongoing.complete ||
+                                timeline().ongoing.count > 0
+                              }
+                              fallback={t("记录不足", "Insufficient records")}
+                            >
+                              {timeline().ongoing.complete
+                                ? ""
+                                : t("至少 ", "At least ")}
+                              {timeline().ongoing.count}
+                              {t(" 抽未出", " pulls without top rank")}
+                            </Show>
+                          </span>
+                        </div>
+                      </div>
+                      <FourCards rows={timeline().ongoing.fourths} />
+                    </li>
+                    <For each={cycles().slice(0, props.visiblePulls)}>
+                      {cycle => {
+                        const row = cycle.result;
+                        const timing = () =>
+                          pullTiming(row.interval, rule()?.hardPity);
+                        return (
+                          <li data-timing={timing()}>
+                            <ItemImage row={row} />
+                            <div class="miyoushe-chart-row">
+                              <div class="miyoushe-chart-label">
+                                <strong title={name(row)}>{name(row)}</strong>
+                                <Featured row={row} uid={props.account.uid} />
                               </div>
-                            </li>
-                          );
-                        }}
-                      </For>
-                    </ol>
-                  </Show>
+                              <div
+                                class="miyoushe-chart-meter"
+                                title={timingLabel(timing())}
+                              >
+                                <span
+                                  class="miyoushe-chart-fill"
+                                  aria-hidden="true"
+                                  style={{
+                                    width:
+                                      ((row.interval ?? 0) / barMax()) * 100 +
+                                      "%",
+                                  }}
+                                />
+                                <span class="miyoushe-chart-value">
+                                  {row.interval ?? "—"}
+                                  {row.interval === undefined
+                                    ? ""
+                                    : t(" 抽", " pulls")}
+                                  <Show when={timing() !== "unknown"}>
+                                    <small>{timingLabel(timing())}</small>
+                                  </Show>
+                                </span>
+                              </div>
+                            </div>
+                            <FourCards rows={cycle.fourths} />
+                          </li>
+                        );
+                      }}
+                    </For>
+                  </ol>
                   <Show when={markError()}>
                     <p class="miyoushe-muted" role="status">
                       {t(
@@ -606,45 +673,6 @@ export function PullDashboard(props: {
                       )}
                     </p>
                   </Show>
-                  <section
-                    id="miyoushe-four-results"
-                    class="miyoushe-four-results"
-                    hidden={!showFour() || !fourths().length}
-                  >
-                    <div class="miyoushe-section-heading">
-                      <h3>{t("四星出货", "Four-star pulls")}</h3>
-                      <span>
-                        {t(
-                          "抽数按两次四星之间计算",
-                          "Pulls between four-star results"
-                        )}
-                      </span>
-                    </div>
-                    <ul class="miyoushe-four-cards">
-                      <For
-                        each={showFour() ? fourths().slice(0, fourLimit()) : []}
-                      >
-                        {row => (
-                          <li aria-label={name(row)}>
-                            <ItemImage row={row} />
-                            <span>
-                              {row.fourStarInterval ?? "—"}
-                              {row.fourStarInterval === undefined
-                                ? ""
-                                : t(" 抽", " pulls")}
-                            </span>
-                          </li>
-                        )}
-                      </For>
-                    </ul>
-                    <Show when={fourths().length > fourLimit()}>
-                      <AppModalButton
-                        onClick={() => setFourLimit(limit => limit + 50)}
-                      >
-                        {t("更多四星", "More four-star pulls")}
-                      </AppModalButton>
-                    </Show>
-                  </section>
                 </Match>
                 <Match when={view() === "list"}>
                   <div class="miyoushe-table-wrap">

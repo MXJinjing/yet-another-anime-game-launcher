@@ -689,7 +689,7 @@ export function MiyoushePanel(props: {
       <AppModal
         opened={props.dialog === "pulls"}
         onClose={props.onClose}
-        contentClass="miyoushe-modal miyoushe-pull-modal"
+        contentClass="miyoushe-modal miyoushe-pull-modal window-no-drag"
         bodyClass="miyoushe-modal-body"
         title={
           <div class="miyoushe-pull-header" style={panelTheme()}>
@@ -743,6 +743,7 @@ export function MiyoushePanel(props: {
           </div>
         }
         maxWidth={1040}
+        height="calc(100vh - 16px)"
       >
         <div class="miyoushe-panel" style={panelTheme()}>
           <input

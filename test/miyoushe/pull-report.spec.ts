@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createPullReport,
+  groupPullCycles,
   pullTiming,
   selectReportRows,
 } from "../../src/miyoushe/pull-report";
@@ -77,6 +78,51 @@ describe("pull report", () => {
       [30, 31, 68, 91, undefined].map(value => pullTiming(value, 90))
     ).toEqual(["early", "middle", "late", "unknown", "unknown"]);
     expect(pullTiming(9)).toBe("unknown");
+  });
+
+  it("keeps four-star cards under the five-star result that ends their interval", () => {
+    const [pool] = createPullReport(
+      account([
+        pull("7", "4"),
+        pull("1", "4"),
+        pull("2", "5"),
+        pull("3", "4"),
+        pull("4", "3"),
+        pull("5", "5"),
+        pull("6", "3"),
+      ]),
+      "hk4e"
+    ).pools;
+    const { cycles, ongoing } = groupPullCycles(pool.rows);
+    expect(
+      cycles.map(({ result, fourths }) => [
+        result.pull.id,
+        fourths.map(row => row.pull.id),
+      ])
+    ).toEqual([
+      ["2", ["1"]],
+      ["5", ["3"]],
+    ]);
+    expect(ongoing).toMatchObject({ count: 2, complete: true });
+    expect(ongoing.fourths.map(row => row.pull.id)).toEqual(["7"]);
+  });
+
+  it("shows only a lower bound without a known latest five-star boundary", () => {
+    const ongoing = (list: Pull[]) =>
+      groupPullCycles(createPullReport(account(list), "hk4e").pools[0].rows)
+        .ongoing;
+    expect(ongoing([pull("1", "5")])).toMatchObject({
+      count: 0,
+      complete: true,
+    });
+    expect(ongoing([pull("1", "4"), pull("2", "3")])).toMatchObject({
+      count: 2,
+      complete: false,
+    });
+    expect(ongoing([pull("1", "5"), pull("2"), pull("3", "3")])).toMatchObject({
+      count: 1,
+      complete: false,
+    });
   });
 
   it("counts only classified featured history and skips uncertain intervals", () => {
