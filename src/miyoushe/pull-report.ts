@@ -125,14 +125,3 @@ export function groupPullCycles(rows: PullReportRow[]) {
   }
   return { cycles, ongoing: { count, complete, fourths } };
 }
-
-export function selectReportRows(
-  rows: PullReportRow[],
-  ranks: string[],
-  newestFirst: boolean
-) {
-  const visible = rows.filter(
-    row => !ranks.length || ranks.includes(row.pull.rank_type ?? "")
-  );
-  return newestFirst ? visible.reverse() : visible;
-}

@@ -77,7 +77,6 @@ export function PullDashboard(props: {
   const t = props.t;
   const count = new Intl.NumberFormat();
   const [view, setView] = createSignal<View>("bars");
-  const [newestFirst, setNewestFirst] = createSignal(true);
   const [showFour, setShowFour] = createSignal(false);
   const [radiance, setRadiance] = createSignal(new Set<string>());
   const [writingMark, setWritingMark] = createSignal(false);
@@ -113,9 +112,7 @@ export function PullDashboard(props: {
       )
       .join(" · ");
   const timeline = createMemo(() => groupPullCycles(pool()?.rows ?? []));
-  const cycles = createMemo(() =>
-    newestFirst() ? [...timeline().cycles].reverse() : timeline().cycles
-  );
+  const cycles = createMemo(() => [...timeline().cycles].reverse());
   const fourthCount = createMemo(
     () =>
       timeline().ongoing.fourths.length +
@@ -128,11 +125,7 @@ export function PullDashboard(props: {
     const rows = report().pools.flatMap(entry =>
       entry.rows.map(row => ({ row, pool: entry.type }))
     );
-    return rows.sort((a, b) =>
-      newestFirst()
-        ? comparePulls(b.row.pull, a.row.pull)
-        : comparePulls(a.row.pull, b.row.pull)
-    );
+    return rows.sort((a, b) => comparePulls(b.row.pull, a.row.pull));
   });
   const rowCount = () =>
     view() === "bars" ? cycles().length : allRows().length;
@@ -307,7 +300,7 @@ export function PullDashboard(props: {
           class="miyoushe-four-cards"
           aria-label={t("本周期四星出货", "Four-star pulls in this cycle")}
         >
-          <For each={newestFirst() ? [...props.rows].reverse() : props.rows}>
+          <For each={[...props.rows].reverse()}>
             {row => {
               const interval = () =>
                 row.fourStarInterval === undefined
@@ -462,18 +455,6 @@ export function PullDashboard(props: {
                     )}
                   </For>
                 </div>
-                <label class="miyoushe-field">
-                  <select
-                    aria-label={t("时间排序", "Time order")}
-                    value={newestFirst() ? "new" : "old"}
-                    onChange={event =>
-                      setNewestFirst(event.currentTarget.value === "new")
-                    }
-                  >
-                    <option value="new">{t("由新到旧", "Newest first")}</option>
-                    <option value="old">{t("由旧到新", "Oldest first")}</option>
-                  </select>
-                </label>
                 <Show when={view() === "bars" && fourthCount()}>
                   <button
                     type="button"

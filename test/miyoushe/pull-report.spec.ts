@@ -3,7 +3,6 @@ import {
   createPullReport,
   groupPullCycles,
   pullTiming,
-  selectReportRows,
 } from "../../src/miyoushe/pull-report";
 import type { Pull } from "../../src/miyoushe/uigf";
 
@@ -38,7 +37,7 @@ describe("pull report", () => {
     expect(missing.rank_type).toBeUndefined();
   });
 
-  it("keeps the chronology and draw distance when filtering multiple rarities", () => {
+  it("keeps the chronology and draw distance between five-star cycles", () => {
     const record = account([
       pull("4", "5"),
       pull("2", "3"),
@@ -46,13 +45,9 @@ describe("pull report", () => {
       pull("3", "4"),
     ]);
     const [pool] = createPullReport(record, "hk4e").pools;
-    expect(
-      selectReportRows(pool.rows, ["5", "4"], true).map(row => row.pull.id)
-    ).toEqual(["4", "3", "1"]);
-    expect(
-      selectReportRows(pool.rows, ["5"], false).map(row => row.interval)
-    ).toEqual([undefined, 3]);
-    expect(selectReportRows(pool.rows, [], true)).toHaveLength(4);
+    const { cycles } = groupPullCycles(pool.rows);
+    expect(cycles.map(cycle => cycle.result.pull.id)).toEqual(["1", "4"]);
+    expect(cycles.map(cycle => cycle.result.interval)).toEqual([undefined, 3]);
     expect(pool.rows.map(row => row.pull.id)).toEqual(["1", "2", "3", "4"]);
   });
 
@@ -69,7 +64,10 @@ describe("pull report", () => {
       "hk4e"
     ).pools;
     expect(
-      selectReportRows(pool.rows, ["4"], true).map(row => row.fourStarInterval)
+      pool.rows
+        .filter(row => row.pull.rank_type === "4")
+        .reverse()
+        .map(row => row.fourStarInterval)
     ).toEqual([undefined, 3, undefined]);
   });
 
@@ -158,11 +156,9 @@ describe("pull report", () => {
     expect(pool.pity).toBe(1);
     expect(pool.nextGuaranteed).toBe(false);
     expect(
-      selectReportRows(pool.rows, ["5"], true).map(row => [
-        row.featured,
-        row.guaranteed,
-        row.interval,
-      ])
+      groupPullCycles(pool.rows)
+        .cycles.reverse()
+        .map(({ result: row }) => [row.featured, row.guaranteed, row.interval])
     ).toEqual([
       [true, false, 1],
       [true, true, 2],
