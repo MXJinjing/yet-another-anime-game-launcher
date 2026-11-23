@@ -14,7 +14,9 @@ vi.mock("@platform/neutralino", () => ({
   resolveResource: () => "/sidecar/miyoushe-history",
 }));
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 it("passes optional scope and sync cursors to the helper on standard input", async () => {
   const execCommand = vi.fn(
