@@ -42,7 +42,7 @@ function getSocialTitle(social: HoyoConnectSocialMedia) {
 }
 
 type HomeTool = {
-  kind: "pulls" | "check-in" | "announcements";
+  kind: "pulls" | "check-in";
   title: string;
   status: string;
   disabled: boolean;
@@ -133,19 +133,10 @@ export function MhyClientView(props: {
       : announcementEmpty();
   };
 
-  const homeTools = createMemo<HomeTool[]>(() => {
-    const tools = props.communityTools ?? [];
-    return [
-      ...tools,
-      {
-        kind: "announcements",
-        title: announcementTitle(),
-        status: announcementStatus(),
-        disabled: tools.some(tool => tool.disabled),
-        open: () => setAnnouncementsOpen(true),
-      },
-    ];
-  });
+  const featuredAnnouncement = () =>
+    showLauncherContent() ? recentPosts()[0] : undefined;
+  const homeBannerVisible = () =>
+    showLauncherContent() && Boolean(currentBanner() || contentPending());
 
   function AnnouncementPosts() {
     return (
@@ -275,7 +266,34 @@ export function MhyClientView(props: {
             }}
           </Show>
 
-          <div class="hyp-mhy-home-panel">
+          <div
+            classList={{
+              "hyp-mhy-home-panel": true,
+              "hyp-mhy-home-panel--with-banner": homeBannerVisible(),
+            }}
+          >
+            <Show when={hasTools()}>
+              <button
+                type="button"
+                class="hyp-mhy-news"
+                aria-haspopup="dialog"
+                disabled={props.communityTools?.some(tool => tool.disabled)}
+                onClick={() => setAnnouncementsOpen(true)}
+              >
+                <strong class="hyp-mhy-news-title">
+                  {announcementTitle()}
+                </strong>
+                <span class="hyp-mhy-news-arrow" aria-hidden="true">
+                  →
+                </span>
+                <Show when={featuredAnnouncement()}>
+                  {post => (
+                    <span class="hyp-mhy-news-preview">{post().title}</span>
+                  )}
+                </Show>
+                <span class="hyp-mhy-news-status">{announcementStatus()}</span>
+              </button>
+            </Show>
             <Show
               when={
                 showLauncherContent() &&
@@ -362,7 +380,7 @@ export function MhyClientView(props: {
             </Show>
             <Show when={hasTools()}>
               <div class="hyp-mhy-tools">
-                <Index each={homeTools()}>
+                <Index each={props.communityTools}>
                   {tool => (
                     <button
                       type="button"
@@ -389,10 +407,6 @@ export function MhyClientView(props: {
                             <Match when={tool().kind === "check-in"}>
                               <rect x="4" y="5" width="16" height="16" rx="2" />
                               <path d="M8 3v4m8-4v4M4 10h16m-11 5 2 2 4-4" />
-                            </Match>
-                            <Match when={tool().kind === "announcements"}>
-                              <rect x="5" y="3" width="14" height="18" rx="2" />
-                              <path d="M9 8h6m-6 4h6m-6 4h4" />
                             </Match>
                           </Switch>
                         </svg>
