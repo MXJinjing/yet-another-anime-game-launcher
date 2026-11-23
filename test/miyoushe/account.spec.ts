@@ -59,6 +59,24 @@ describe("Miyoushe QR binding", () => {
     ]);
   });
 
+  it("passes the active game when verifying a confirmed session", async () => {
+    const bridge = replies("ok", "confirmed", "unbound");
+    const onConfirming = vi.fn();
+    expect(
+      await bindAccount(
+        bridge,
+        vi.fn(),
+        new AbortController().signal,
+        wait,
+        "hkrpg",
+        onConfirming
+      )
+    ).toBe("unbound");
+    expect(onConfirming).toHaveBeenCalledTimes(1);
+    expect(bridge).toHaveBeenCalledWith("finish", ["hkrpg"]);
+    expect(bridge).toHaveBeenLastCalledWith("cancel");
+  });
+
   it.each(["expired", "manual", "limited", "network"] as const)(
     "stops polling after %s",
     async state => {
@@ -96,16 +114,31 @@ describe("Miyoushe daily check-in", () => {
     );
   });
 
-  it.each(["signed", "unbound", "manual", "limited", "network"] as const)(
-    "does not submit when preflight returns %s",
-    async state => {
-      const bridge = replies(state);
-      expect(await createCheckIn(bridge)("hk4e", role)).toBe(
-        state === "signed" ? "already" : state
-      );
-      expect(bridge).toHaveBeenCalledTimes(1);
-    }
-  );
+  it.each([
+    "signed",
+    "unbound",
+    "manual",
+    "limited",
+    "network",
+    "first-check-in",
+  ] as const)("does not submit when preflight returns %s", async state => {
+    const bridge = replies(state);
+    expect(await createCheckIn(bridge)("hk4e", role)).toBe(
+      state === "signed" ? "already" : state
+    );
+    expect(bridge).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a pending result scoped to its own role", async () => {
+    const bridge = replies("unsigned", "ok", "signed");
+    const run = createCheckIn(bridge);
+    const first = run("hk4e", role);
+    expect(await run("hk4e", { ...role, uid: "54321" })).toBe("uncertain");
+    expect(await first).toBe("signed");
+    expect(bridge.mock.calls.every(([, args]) => args?.[1] === role.uid)).toBe(
+      true
+    );
+  });
 
   it.each(["manual", "limited", "unbound"] as const)(
     "stops immediately if a submission returns %s",

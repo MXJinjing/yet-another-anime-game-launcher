@@ -581,7 +581,7 @@ export async function createHypLauncher({
         selectedGame().clientId
       );
     const [miyousheDialog, setMiyousheDialog] = createSignal<
-      "pulls" | "account"
+      "pulls" | "account" | "check-in"
     >();
     const [miyousheStatus, setMiyousheStatus] =
       createSignal<MiyousheHomeStatus>({
@@ -2283,7 +2283,20 @@ export async function createHypLauncher({
             "single-game": games.length === 1,
           }}
         >
-          <button class="hyp-orbit-button" aria-label="Yaaglm">
+          <button
+            type="button"
+            class="hyp-orbit-button"
+            aria-label={
+              miyousheGame()
+                ? homeText("米游社账号", "Miyoushe account")
+                : "Yaaglm"
+            }
+            aria-haspopup={miyousheGame() ? "dialog" : undefined}
+            disabled={
+              !miyousheGame() || libraryMounted() || downloadManagerOpen()
+            }
+            onClick={() => setMiyousheDialog("account")}
+          >
             <img src={userIcon} alt="" />
           </button>
           <div class="hyp-game-icons">
@@ -2585,7 +2598,7 @@ export async function createHypLauncher({
                       kind: "account",
                       label: homeText("每日签到", "Daily check-in"),
                       status: checkInStatus(),
-                      open: () => setMiyousheDialog("account"),
+                      open: () => setMiyousheDialog("check-in"),
                     },
                   ]}
                 />
@@ -3051,6 +3064,11 @@ export async function createHypLauncher({
               dialog={miyousheDialog()}
               onClose={() => setMiyousheDialog(undefined)}
               onHomeStatusChange={setMiyousheStatus}
+              onOpenAccount={() => setMiyousheDialog("account")}
+              installDir={selectedGame().client.installDir()}
+              winePrefix={
+                selectedGame().wineRef?.current?.prefix ?? baseWine.prefix
+              }
               game={game()}
               title={selectedGame().title}
               icon={
@@ -3059,6 +3077,8 @@ export async function createHypLauncher({
                 selectedGame().fallbackIcon
               }
               chinese={locale.currentLanguage === "zh_cn"}
+              accent={themeHex()}
+              accentText={themeText()}
             />
           )}
         </Show>

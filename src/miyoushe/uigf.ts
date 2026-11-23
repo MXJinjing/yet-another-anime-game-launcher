@@ -1,6 +1,6 @@
 import { miyousheGames, type MiyousheGame } from "./games";
 
-type Pull = {
+export type Pull = {
   id: string;
   gacha_type: string;
   item_id: string;
@@ -18,6 +18,7 @@ type Account = {
   timezone: number;
   lang?: string;
   list: Pull[];
+  sources?: ("file" | "game")[];
 };
 
 export type GachaArchive = Partial<Record<MiyousheGame, Account[]>>;
@@ -98,7 +99,7 @@ function parseAccount(value: unknown, game: MiyousheGame): Account {
   };
 }
 
-export function parseUigf(text: string): GachaArchive {
+export function parseUigf(text: string, local = false): GachaArchive {
   const document = object(JSON.parse(text));
   if (object(document.info).version !== "v4.2") return invalid();
   const archive: GachaArchive = {};
@@ -106,7 +107,17 @@ export function parseUigf(text: string): GachaArchive {
     const accounts = document[game];
     if (accounts === undefined) continue;
     if (!Array.isArray(accounts)) return invalid();
-    archive[game] = accounts.map(account => parseAccount(account, game));
+    archive[game] = accounts.map(value => {
+      const account = parseAccount(value, game);
+      const sources = object(value).sources;
+      if (local && Array.isArray(sources)) {
+        account.sources = sources.filter(
+          (source): source is "file" | "game" =>
+            source === "file" || source === "game"
+        );
+      }
+      return account;
+    });
   }
   if (!miyousheGames.some(game => archive[game]?.length)) return invalid();
   return archive;
@@ -137,6 +148,13 @@ export function mergeGachaArchives(
         pulls: new Map<string, Pull>(),
       };
       accounts.set(source.uid, target);
+      if (source.sources || target.sources)
+        target.sources = [
+          ...new Set([
+            ...(target.sources ?? ["file"]),
+            ...(source.sources ?? ["file"]),
+          ]),
+        ];
       for (const entry of source.list) {
         const id = entry.id.replace(/^0+(?=\d)/, "");
         const existing = target.pulls.get(id);
@@ -149,10 +167,11 @@ export function mergeGachaArchives(
     }
     if (accounts.size) {
       result[game] = [...accounts.values()].map(
-        ({ pulls, uid, timezone, lang }) => ({
+        ({ pulls, uid, timezone, lang, sources }) => ({
           uid,
           timezone,
           ...(lang === undefined ? {} : { lang }),
+          ...(sources === undefined ? {} : { sources }),
           list: [...pulls.values()],
         })
       );
@@ -161,7 +180,20 @@ export function mergeGachaArchives(
   return result;
 }
 
-export function exportUigf(archive: GachaArchive) {
+export function exportUigf(archive: GachaArchive, local = false) {
+  const games = local
+    ? archive
+    : Object.fromEntries(
+        Object.entries(archive).map(([game, accounts]) => [
+          game,
+          accounts.map(({ uid, timezone, lang, list }) => ({
+            uid,
+            timezone,
+            lang,
+            list,
+          })),
+        ])
+      );
   return JSON.stringify(
     {
       info: {
@@ -169,7 +201,7 @@ export function exportUigf(archive: GachaArchive) {
         export_app: "YAAGLM",
         export_timestamp: Math.floor(Date.now() / 1000),
       },
-      ...archive,
+      ...games,
     },
     null,
     2
@@ -205,7 +237,8 @@ export function summarizePulls(account: Account) {
         known = true;
         afterTopRank = 0;
       }
-      return { type, pulls, intervals };
+      const pity = hasTopRank && known ? afterTopRank : undefined;
+      return { type, pulls, intervals, pity };
     }),
   };
 }

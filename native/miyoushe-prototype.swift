@@ -9,6 +9,11 @@ import Security
 // Protocol references: MightyOwls/MYS-Daily and XYRQ-Dev/miyoushe-tool.
 private enum Failure: String, Error {
     case unavailable, invalid, network, limited, manual, unbound, expired
+    case firstCheckIn = "first-check-in"
+}
+
+private struct Rejected: Error {
+    let code: Int
 }
 
 private typealias Fields = [String: Any]
@@ -156,7 +161,11 @@ private struct Bridge {
             let code = envelope["retcode"] as? Int
         else { throw Failure.invalid }
         let data = envelope["data"] as? Fields ?? [:]
-        if code == 1034 || code == -3503 || data["gt"] != nil || data["challenge"] != nil {
+        let hasChallenge = ["gt", "challenge"].contains {
+            guard let value = data[$0] as? String else { return false }
+            return !value.isEmpty
+        }
+        if code == 1034 || code == -3503 || hasChallenge {
             throw Failure.manual
         }
         if code == -100 || code == -101 { throw Failure.unbound }
@@ -176,31 +185,45 @@ private struct Bridge {
         ]
     }
 
-    private func gameHeaders(_ game: Game) throws -> [String: String] {
+    private func accountCookie() throws -> String {
         guard
             let credential = try vault.read("account"),
             let cookie = String(data: credential, encoding: .utf8)
         else { throw Failure.unbound }
+        return cookie
+    }
+
+    private func gameHeaders(_ game: Game, sessionCookie: String? = nil) throws -> [String: String] {
         let time = Int(Date().timeIntervalSince1970)
         let nonce = UUID().uuidString.lowercased().prefix(6)
         let input = "salt=d9200c846b10886e8c874fc33c8f308b&t=\(time)&r=\(nonce)"
         let signature = Insecure.MD5.hash(data: Data(input.utf8))
             .map { String(format: "%02x", $0) }.joined()
         var headers = [
-            "Cookie": cookie,
+            "Cookie": try sessionCookie ?? accountCookie(),
             "DS": "\(time),\(nonce),\(signature)",
             "Origin": "https://act.mihoyo.com",
             "Referer": "https://act.mihoyo.com/",
             "x-rpc-client_type": "5",
+            "x-rpc-device_id": try deviceID(),
         ]
         if game == .hk4e { headers["x-rpc-signgame"] = "hk4e" }
         if game == .nap { headers["x-rpc-signgame"] = "zzz" }
         return headers
     }
 
+    private func deviceID() throws -> String {
+        if let stored = try vault.read("device"), let value = String(data: stored, encoding: .utf8) {
+            return value
+        }
+        let value = UUID().uuidString.lowercased()
+        try vault.write(Data(value.utf8), to: "device")
+        return value
+    }
+
     private func start() async throws -> Fields {
         try vault.delete("pending")
-        let device = UUID().uuidString.lowercased()
+        let device = try deviceID()
         let result = try await request(passport + "createQRLogin", body: [:], headers: qrHeaders(device: device))
         guard
             result.code == 0,
@@ -252,17 +275,18 @@ private struct Bridge {
         }
     }
 
-    private func roles(_ game: Game) async throws -> Fields {
+    private func roles(_ game: Game, cookie: String? = nil) async throws -> Fields {
         let result = try await request(
             "https://api-takumi.mihoyo.com/binding/api/getUserGameRolesByCookie",
             query: ["game_biz": game.rawValue + "_cn"],
-            headers: gameHeaders(game)
+            headers: gameHeaders(game, sessionCookie: cookie)
         )
-        guard result.code == 0, let entries = result.data["list"] as? [Fields] else {
-            throw Failure.invalid
-        }
+        guard result.code == 0 else { throw Rejected(code: result.code) }
+        guard let entries = result.data["list"] as? [Fields] else { throw Failure.invalid }
         let roles: [[String: String]] = entries.compactMap { entry in
-            guard let uid = entry["game_uid"] as? String, isGameUID(uid),
+            guard entry["game_biz"] as? String == game.rawValue + "_cn",
+                  entry["is_official"] as? Bool != false,
+                  let uid = entry["game_uid"] as? String, isGameUID(uid),
                   let region = entry["region"] as? String, game.isOfficialRegion(region)
             else { return nil }
             return ["uid": uid, "region": region, "nickname": entry["nickname"] as? String ?? ""]
@@ -270,9 +294,38 @@ private struct Bridge {
         return ["state": "ok", "roles": roles]
     }
 
+    private func profile() async throws -> Fields {
+        let cookie = try accountCookie()
+        let account = cookie.split(separator: ";").map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }.first { $0.hasPrefix("account_id_v2=") }
+        guard let account = account, let uid = account.split(separator: "=").last,
+              isGameUID(String(uid)) else { throw Failure.unbound }
+        let maskedId = "••••" + uid.suffix(uid.count > 4 ? 4 : 0)
+        let result = try await request(
+            "https://bbs-api.miyoushe.com/user/api/getUserFullInfo",
+            query: ["uid": String(uid)], headers: [:]
+        )
+        guard result.code == 0 else { throw Rejected(code: result.code) }
+        guard let user = result.data["user_info"] as? Fields,
+              user["uid"] as? String == String(uid)
+        else { throw Failure.invalid }
+        var profile: [String: String] = ["maskedId": maskedId]
+        profile["nickname"] = (user["nickname"] as? String).map { String($0.prefix(100)) }
+        if let avatar = user["avatar_url"] as? String,
+           let url = URLComponents(string: avatar), url.scheme == "https",
+           url.user == nil, url.password == nil, url.port == nil,
+           ["img-static.mihoyo.com", "img-static.miyoushe.com", "upload-bbs.mihoyo.com", "bbs-static.miyoushe.com"]
+            .contains(url.host ?? "") {
+            profile["avatar"] = avatar
+        }
+        return ["state": "ok", "profile": profile]
+    }
+
     func run(action: String, args: [String]) async throws -> Fields {
         switch action {
         case "bound": return ["state": try vault.read("account") == nil ? "unbound" : "ok"]
+        case "profile": return try await profile()
         case "unbind":
             try vault.delete("pending")
             try vault.delete("account")
@@ -280,6 +333,8 @@ private struct Bridge {
         case "poll": return ["state": try await poll()]
         case "finish":
             guard let cookie = try pending().cookie else { throw Failure.invalid }
+            guard let name = args.first, let game = Game(rawValue: name) else { throw Failure.invalid }
+            _ = try await roles(game, cookie: cookie)
             try vault.write(Data(cookie.utf8), to: "account")
         case "cancel": try vault.delete("pending")
         case "roles", "status", "sign":
@@ -293,8 +348,10 @@ private struct Bridge {
                 let status = try await request(
                     game.eventBase + "info", query: params, headers: gameHeaders(game)
                 )
-                guard status.code == 0, let signed = status.data["is_sign"] as? Bool else {
-                    throw Failure.invalid
+                guard status.code == 0 else { throw Rejected(code: status.code) }
+                guard let signed = status.data["is_sign"] as? Bool else { throw Failure.invalid }
+                if !signed, status.data["first_bind"] as? Bool == true {
+                    throw Failure.firstCheckIn
                 }
                 return ["state": signed ? "signed" : "unsigned"]
             }
@@ -303,7 +360,7 @@ private struct Bridge {
             )
             if submitted.code == -5003 { return ["state": "already"] }
             if submitted.data["success"] as? Int == 1 { throw Failure.manual }
-            guard submitted.code == 0 else { throw Failure.invalid }
+            guard submitted.code == 0 else { throw Rejected(code: submitted.code) }
         default: throw Failure.invalid
         }
         return ["state": "ok"]
@@ -320,6 +377,8 @@ private enum Main {
             result = try await Bridge(path: args[0]).run(action: args[1], args: Array(args.dropFirst(2)))
         } catch let failure as Failure {
             result = ["state": failure.rawValue]
+        } catch let failure as Rejected {
+            result = ["state": "invalid", "code": failure.code]
         } catch {
             result = ["state": "unavailable"]
         }
