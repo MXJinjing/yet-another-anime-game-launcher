@@ -13,6 +13,7 @@ import { createLogFileTail } from "./game-log-tail";
 import { inferUnityLogLevel } from "./runtime-log";
 import { createLocale, type Locale } from "../locale";
 import { execCommand } from "../platform/neutralino/process";
+import { installWindowDrag } from "../platform/neutralino/window-drag";
 import { build } from "../platform/shell";
 import {
   DEFAULT_LOG_WINDOW_ACCENT,
@@ -134,6 +135,7 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
   const accent = () =>
     normalizeLogWindowAccent(session()?.accent) ?? DEFAULT_LOG_WINDOW_ACCENT;
   let consoleEl: HTMLDivElement | undefined;
+  let tabStripEl: HTMLDivElement | undefined;
   let tabTrackEl: HTMLDivElement | undefined;
   let overflowEl: HTMLButtonElement | undefined;
   let menuEl: HTMLDivElement | undefined;
@@ -306,6 +308,14 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
   }
 
   onMount(() => {
+    onCleanup(
+      installWindowDrag({
+        regions: () => (tabStripEl ? [{ element: tabStripEl }] : []),
+      })
+    );
+  });
+
+  onMount(() => {
     // The popup lives in a portal, so closing on outside clicks and keeping it
     // anchored cannot rely on bubbling through the tab strip.
     const onPointerDown = (event: PointerEvent) => {
@@ -465,7 +475,7 @@ function LogWindowApp(props: { locale: Locale; initialTheme: LogWindowTheme }) {
       style={{ "--lw-accent": accent(), "--lw-accent-text": accentText() }}
     >
       <div class="log-window-panel">
-        <div class="log-window-tabs">
+        <div class="log-window-tabs" ref={tabStripEl}>
           <div class="log-window-tab-track" role="tablist" ref={tabTrackEl}>
             <div
               class="log-window-tab"

@@ -1,5 +1,5 @@
 /* Colour tokens live on both the window root and the portaled menu, because the
-   menu is rendered outside the window subtree to escape the panel clipping. */
+   menu is rendered outside the window subtree to escape the tab strip. */
 .log-window,
 .log-window-portal {
   --lw-accent: #ffd834;
@@ -28,14 +28,19 @@
     BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* The window hides its native title bar and lets the content fill the frame, so
+   the panel goes edge to edge and the tab strip below doubles as the title
+   bar. */
 .log-window {
+  /* Width reserved for the macOS traffic lights, which float over the tab
+     strip because the window has no title bar. */
+  --lw-traffic-lights: 78px;
   position: fixed;
   inset: 0;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  /* Top inset clears the transparent native title bar and its traffic lights. */
-  padding: 40px 14px 14px;
+  padding: 0;
   background: var(--lw-bg);
   transition: background-color 160ms ease, color 160ms ease;
 }
@@ -61,15 +66,14 @@
   --lw-error: #c62f45;
 }
 
-/* Tab strip and log surface share one card that fills the window, and the strip
+/* Tab strip and log surface share one sheet that fills the window, and the strip
    doubles as the toolbar, so the window needs no separate header. */
 .log-window-panel {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  border: 1px solid var(--lw-line);
-  border-radius: 12px;
+  border: 0;
   background: var(--lw-surface);
   overflow: hidden;
 }
@@ -101,14 +105,10 @@
   cursor: default;
 }
 
-.log-window-theme,
-.log-window-add,
-.log-window-overflow {
+.log-window-theme {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
-  box-sizing: border-box;
   width: 26px;
   height: 26px;
   padding: 0;
@@ -120,10 +120,7 @@
   transition: background-color 140ms ease, color 140ms ease;
 }
 
-.log-window-theme:hover,
-.log-window-add:hover,
-.log-window-overflow:not(:disabled):hover,
-.log-window-overflow[aria-expanded="true"] {
+.log-window-theme:hover {
   background: var(--lw-hover);
   color: var(--lw-text);
 }
@@ -131,11 +128,11 @@
 .log-window-theme:focus-visible,
 .log-window-add:focus-visible,
 .log-window-overflow:focus-visible,
+.log-window-file-select:focus-visible,
 .log-window-tab-main:focus-visible,
 .log-window-tab-close:focus-visible,
 .log-window-action:focus-visible,
 .log-window-jump:focus-visible,
-.log-window-file-select:focus-visible,
 .log-window-file-toggle:focus-visible {
   outline: 2px solid var(--lw-accent);
   outline-offset: -2px;
@@ -143,15 +140,20 @@
 
 /* Chrome-style tab strip: the active tab shares the content surface below it,
    so both read as a single sheet. The inset shadow draws the separator under
-   the inactive tabs, and the active tab paints over that line. Extra tabs go
-   in the popup instead of scrolling behind the pinned tools. */
+   the inactive tabs, and the active tab paints over that line. Extra tabs
+   fold into the menu; the tools stay pinned to the right edge.
+
+   The left padding clears the macOS traffic lights, which float over the strip
+   because the window has no title bar; that empty stretch is draggable. */
 .log-window-tabs {
   display: flex;
   align-items: flex-end;
   flex: 0 0 auto;
-  padding: 6px 8px 0 6px;
+  padding: 8px 10px 0 var(--lw-traffic-lights);
   background: var(--lw-chrome);
   box-shadow: inset 0 -1px 0 var(--lw-line);
+  cursor: default;
+  user-select: none;
 }
 
 .log-window-tab-track {
@@ -161,18 +163,13 @@
   gap: 2px;
   min-width: 0;
   overflow: hidden;
-  overflow: clip;
 }
 
 .log-window-tools {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   flex: 0 0 auto;
   gap: 4px;
-  box-sizing: border-box;
-  /* Reserve the overflow slot so its presence never changes track capacity. */
-  width: 120px;
   height: 33px;
   padding-left: 10px;
 }
@@ -180,9 +177,9 @@
 .log-window-tab {
   display: inline-flex;
   align-items: center;
-  flex: 0 1 145px;
-  box-sizing: border-box;
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: 224px;
   height: 33px;
   padding: 0 4px 0 12px;
   border-radius: 9px 9px 0 0;
@@ -203,14 +200,11 @@
 .log-window-tab-main {
   display: flex;
   align-items: center;
-  flex: 1;
   gap: 8px;
   min-width: 0;
   height: 100%;
-  overflow: hidden;
   padding: 0;
   border: 0;
-  border-radius: 5px;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -275,33 +269,32 @@
   color: var(--lw-text);
 }
 
-.log-window-overflow {
-  gap: 3px;
-  width: 50px;
-  padding: 0 3px;
-}
-
-.log-window-overflow:disabled {
-  opacity: 0.4;
-}
-
-.log-window-overflow svg {
+.log-window-menu {
   flex: 0 0 auto;
+  margin: 0 0 4px 2px;
 }
 
-.log-window-overflow-count {
-  min-width: 0;
-  overflow: hidden;
-  padding: 1px 4px;
-  border-radius: 8px;
-  background: var(--lw-badge);
+.log-window-add,
+.log-window-overflow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
   color: var(--lw-text-2);
-  font-size: 10.5px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  cursor: default;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.log-window-add:hover,
+.log-window-overflow:hover,
+.log-window-overflow[aria-expanded="true"] {
+  background: var(--lw-hover);
+  color: var(--lw-text);
 }
 
 /* Portaled out of the tab strip, so it is positioned against the viewport and
@@ -309,13 +302,9 @@
 .log-window-file-menu {
   position: fixed;
   z-index: 20;
-  /* Inline placement sets right; keep the other edge inside the viewport. */
-  left: 8px;
   box-sizing: border-box;
-  max-width: 400px;
-  margin-left: auto;
-  overflow-x: hidden;
-  overflow-y: auto;
+  width: min(400px, calc(100vw - 16px));
+  overflow: auto;
   padding: 6px;
   border: 1px solid var(--lw-line);
   border-radius: 12px;
@@ -324,45 +313,24 @@
   font-size: 12.5px;
 }
 
-.log-window-file-heading {
-  margin: 0;
-  padding: 6px 10px 4px;
-  color: var(--lw-text-2);
-  font-size: 11.5px;
-  font-weight: 700;
-}
-
 .log-window-file-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding-right: 4px;
-}
-
-.log-window-file-select {
-  flex: 1;
-  min-width: 0;
-  padding: 7px 10px;
-  border: 0;
+  gap: 8px;
+  padding: 5px 6px 5px 10px;
   border-radius: 8px;
-  background: transparent;
-  color: var(--lw-text-2);
-  font: inherit;
-  text-align: left;
-  cursor: default;
 }
 
-.log-window-file-select:hover {
+.log-window-file-row:hover {
   background: var(--lw-hover);
-  color: var(--lw-text);
 }
 
-.log-window-file-select,
 .log-window-file-name {
-  display: block;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 12.5px;
 }
 
 .log-window-file-toggle {
@@ -387,14 +355,6 @@
   padding: 10px 12px;
   color: var(--lw-muted);
   font-size: 12.5px;
-}
-
-.log-window-picker-error {
-  margin: 0;
-  padding: 6px 14px;
-  color: var(--lw-error);
-  font-size: 12.5px;
-  overflow-wrap: anywhere;
 }
 
 .log-window-surface {
@@ -535,4 +495,39 @@
 .log-window-action:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* Only the new controls need styles beyond the original chrome. */
+.log-window-overflow {
+  width: 44px;
+  gap: 4px;
+}
+
+.log-window-overflow-count {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-window-file-heading {
+  padding: 5px 10px;
+  color: var(--lw-muted);
+  font-weight: 600;
+}
+
+.log-window-file-select {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.log-window-picker-error {
+  padding: 6px 14px;
+  color: var(--lw-error);
+  font-size: 12px;
 }

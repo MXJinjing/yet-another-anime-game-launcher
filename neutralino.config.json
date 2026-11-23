@@ -38,7 +38,7 @@
       "icon": "/src/assets/Paimon.cr.png",
       "exitProcessOnClose": false,
       "transparentTitleBar": true,
-      "titleBarDragHeight": 38
+      "titleBarDragHeight": 0
     }
   },
   "cli": {
