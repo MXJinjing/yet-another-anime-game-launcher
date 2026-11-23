@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened, edited]
   merge_group:
     types: [checks_requested]
   workflow_dispatch:
@@ -46,14 +47,37 @@ jobs:
     if: always() && (github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true')
     uses: ./.github/workflows/tests.yaml
 
+  channel-branding:
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check channel naming and payloads
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+        run: node scripts/check-channel-branding.mjs "$BASE_SHA" "$HEAD_SHA"
+
   # Keep this status name stable: main branch protection requires "check".
   # always() is essential so failed/cancelled dependencies cannot skip the gate.
   check:
     if: always()
-    needs: [changes, tests]
+    needs: [changes, tests, channel-branding]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Require the channel naming and configuration check
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        env:
+          BRANDING_RESULT: ${{ needs.channel-branding.result }}
+        run: test "$BRANDING_RESULT" = success
       - name: Require frontend tests when the launcher changed
         env:
           EVENT: ${{ github.event_name }}

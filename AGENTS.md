@@ -30,6 +30,7 @@ Yaaglm (Yet Another Anime Game Launcher Modified) is a macOS desktop launcher bu
 ## Commit & Pull Request Guidelines
 - Use Conventional Commits: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, `ci:`, `style:`; scope game-specific fixes (e.g., `fix(hk4e):`).
 - Use neutral names such as **The Anime Game** and **The Anime Company** in commit messages, issues, pull requests, and project discussions.
+- The required PR check scans added launcher text, commit messages, and the PR title and description for names listed in the Yaaglm payload. It also requires the upstream payload to remain byte-for-byte intact.
 - PRs to `main` must pass CI (`ci-pr.yaml` / `tests.yaml`: type check, lint, format, frontend tests, and the frontend coverage policy), including the required `check` status. A pull request that only changes `sophon_server/` does not run those tests. Link the related issue, describe the change, and add screenshots for UI changes.
 - Support questions belong on Discord; file issues only for technical problems with logs and system info.
 
