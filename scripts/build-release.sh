@@ -16,6 +16,7 @@ case "$ARCH" in
 esac
 
 CHANNELS=(hk4ecn hk4eos mhyos mhycn all hkrpgcn hkrpgos bh3glb cbjq cbjqcn napos napcn)
+BH3_GLOBAL_SUFFIX="$(node -p 'require("./src/constants/yaaglm-config.secret.json").bh3GlobalSuffix')"
 APP_NAMES=(
   "Yaaglm GI CN"
   "Yaaglm GI OS"
@@ -24,7 +25,7 @@ APP_NAMES=(
   "Yaagl"
   "Yaaglm HSR"
   "Yaaglm HSR OS"
-  "Yaaglm Honkai Global"
+  "Yaaglm $BH3_GLOBAL_SUFFIX"
   "Yaaglm SCZ OS"
   "Yaaglm SCZ"
   "Yaaglm ZZZ OS"

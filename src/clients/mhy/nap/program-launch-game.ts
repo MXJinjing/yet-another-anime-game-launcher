@@ -28,7 +28,13 @@ import {
   revertMhypBaseReplacement,
 } from "../patch";
 import { GameAlreadyRunningError } from "../../launch-errors";
-import { NAP_CN_BLOCK_URL, NAP_OS_BLOCK_URL } from "../../secret";
+import {
+  NAP_CN_BLOCK_URL,
+  NAP_OS_BLOCK_URL,
+  WEBVIEW_RENDER_METHOD_VALUE,
+  WEBVIEW_RENDER_METHOD_ABTEST_PREFIX,
+} from "../../secret";
+import { getGameRegistryKey } from "../../game-data-paths";
 import { buildBlockHosts } from "../block-hosts";
 import {
   blockPrivilegedHosts,
@@ -317,20 +323,14 @@ cd /d "${wine.toWinePath(gameDir)}"
 }
 
 async function fixWebview(wine: Wine, server: Server) {
-  let key = "HKEY_CURRENT_USER\\Software\\\x6d\x69\x48\x6f\x59\x6f\\";
-  if (server.id === "nap_cn") {
-    key += "\u7edd\u533a\u96f6";
-  } else if (server.id === "nap_global") {
-    key += "\x5a\x65\x6e\x6c\x65\x73\x73\x5a\x6f\x6e\x65\x5a\x65\x72\x6f";
-  } else {
-    return;
-  }
+  const key = getGameRegistryKey(server.id);
+  if (!key) return;
 
   const reg = [
     `Windows Registry Editor Version 5.00`,
     ``,
     `[${key}]`,
-    `"MIHOYOSDK_WEBVIEW_RENDER_METHOD_h1573598267"=-`,
+    `"${WEBVIEW_RENDER_METHOD_VALUE}"=-`,
   ];
 
   try {
@@ -342,7 +342,7 @@ async function fixWebview(wine: Wine, server: Server) {
 
     for (let line of output.split("\n")) {
       line = line.trim();
-      if (line.startsWith("HOYO_WEBVIEW_RENDER_METHOD_ABTEST_")) {
+      if (line.startsWith(WEBVIEW_RENDER_METHOD_ABTEST_PREFIX)) {
         const abtest = line.split(" ", 2)[0];
         reg.push(`"${abtest}"=-`);
       }
@@ -361,14 +361,8 @@ async function fixWebview(wine: Wine, server: Server) {
 }
 
 async function revertResolutionRegistry(wine: Wine, server: Server) {
-  let key = "HKEY_CURRENT_USER\\Software\\\x6d\x69\x48\x6f\x59\x6f\\";
-  if (server.id === "nap_cn") {
-    key += "\u7edd\u533a\u96f6";
-  } else if (server.id === "nap_global") {
-    key += "\x5a\x65\x6e\x6c\x65\x73\x73\x5a\x6f\x6e\x65\x5a\x65\x72\x6f";
-  } else {
-    return;
-  }
+  const key = getGameRegistryKey(server.id);
+  if (!key) return;
 
   try {
     const reg = [`Windows Registry Editor Version 5.00`, ``, `[${key}]`];

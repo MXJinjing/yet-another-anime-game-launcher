@@ -2,7 +2,28 @@
 
 set -eu
 
-base64 -d -i ./src/clients/secret.b64 -o ./src/clients/secret.ts
+case "${1:-}" in
+  --secrets-only|"") ;;
+  *)
+    echo "Usage: ./configure.sh [--secrets-only]" >&2
+    exit 1
+    ;;
+esac
+
+# The launcher additions are maintained independently of the upstream payload.
+base64 -d < ./src/constants/yaaglm-config.b64 > ./src/constants/yaaglm-config.secret.json
+base64 -d < ./src/clients/secret.b64 > ./src/clients/secret.ts
+node <<'NODE'
+const fs = require("node:fs");
+const { channels } = require("./src/constants/yaaglm-config.secret.json");
+const exportNames = Object.keys(channels).map(name => `  ${name},`).join("\n");
+fs.appendFileSync(
+  "./src/clients/secret.ts",
+  `\nimport yaaglmConfig from "../constants/yaaglm-config.secret.json";\n\nexport const {\n${exportNames}\n} = yaaglmConfig.channels;\n`
+);
+NODE
+
+[ "${1:-}" != "--secrets-only" ] || exit 0
 
 EXTERNAL="./external"
 

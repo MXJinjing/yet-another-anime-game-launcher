@@ -43,12 +43,10 @@ describe("Wine user data migration", () => {
       targetWine: targetWine as never,
       descriptor: {
         registryKeys: [
-          "Software\\\\miHoYo\\u7edd\\u533a\\u96f6",
-          "Software\\\\miHoYoSDK",
+          "Software\\\\AnimeCompany\\\\示例游戏",
+          "Software\\\\AnimeCompanySDK",
         ],
-        prefixDirs: [
-          "drive_c/users/*/AppData/LocalLow/miHoYo/\\u7edd\\u533a\\u96f6",
-        ],
+        prefixDirs: ["drive_c/users/*/AppData/LocalLow/AnimeCompany/示例游戏"],
       },
       workDir: "/launcher/.tmp/wine-migration",
       listUsers: async () => ["wjj"],
@@ -58,13 +56,13 @@ describe("Wine user data migration", () => {
     expect(sourceWine.exec).toHaveBeenCalledTimes(2);
     expect(sourceWine.exec.mock.calls[0]?.[1]?.[0]).toBe("export");
     expect(sourceWine.exec.mock.calls[0]?.[1]?.[1]).toBe(
-      "Software\\\\miHoYo\\u7edd\\u533a\\u96f6"
+      "Software\\\\AnimeCompany\\\\示例游戏"
     );
     expect(targetWine.exec).toHaveBeenCalledTimes(2);
     expect(targetWine.exec.mock.calls[0]?.[1]?.[0]).toBe("import");
     expect(copyDir).toHaveBeenCalledWith(
-      "/source/prefix/drive_c/users/wjj/AppData/LocalLow/miHoYo/\\u7edd\\u533a\\u96f6",
-      "/target/prefix/drive_c/users/wjj/AppData/LocalLow/miHoYo/\\u7edd\\u533a\\u96f6"
+      "/source/prefix/drive_c/users/wjj/AppData/LocalLow/AnimeCompany/示例游戏",
+      "/target/prefix/drive_c/users/wjj/AppData/LocalLow/AnimeCompany/示例游戏"
     );
   });
 
@@ -77,7 +75,7 @@ describe("Wine user data migration", () => {
       sourceWine: sourceWine as never,
       targetWine: targetWine as never,
       descriptor: {
-        registryKeys: ["Software\\\\miHoYo\\\\Missing"],
+        registryKeys: ["Software\\\\AnimeCompany\\\\Missing"],
         prefixDirs: [],
       },
       workDir: "/launcher/.tmp/wine-migration",

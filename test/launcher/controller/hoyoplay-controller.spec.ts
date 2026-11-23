@@ -7,7 +7,7 @@ function game(overrides: Partial<HypGame> = {}): HypGame {
   return {
     id: "hk4ecn",
     clientId: "hk4ecn",
-    title: "原神 CN",
+    title: "示例游戏 CN",
     fallbackIcon: "",
     serverLabel: "国服",
     config: {},
@@ -44,17 +44,17 @@ const locale = {
 describe("hyp launcher controller", () => {
   it("formats task titles as name, region, version, and action", () => {
     expect(gameDownloadTaskMetadata(game(), locale, "install")).toEqual({
-      title: "原神 CN 安装 7.1.0",
+      title: "示例游戏 CN 安装 7.1.0",
       progressTitle: "正在安装 7.1.0",
       key: undefined,
     });
     expect(gameDownloadTaskMetadata(game(), locale, "update")).toEqual({
-      title: "原神 CN 更新 7.1.0",
+      title: "示例游戏 CN 更新 7.1.0",
       progressTitle: "正在更新 7.1.0",
       key: undefined,
     });
     expect(gameDownloadTaskMetadata(game(), locale, "predownload")).toEqual({
-      title: "原神 CN 预下载 7.2.0",
+      title: "示例游戏 CN 预下载 7.2.0",
       progressTitle: "正在预下载 7.2.0",
       key: undefined,
     });
@@ -63,14 +63,14 @@ describe("hyp launcher controller", () => {
         game({
           id: "napos",
           clientId: "napos",
-          title: "绝区零",
+          title: "另一个示例游戏",
           serverLabel: "国际服",
         }),
         locale,
         "integrity"
       )
     ).toEqual({
-      title: "绝区零 OS 检测游戏完整性 7.0.0",
+      title: "另一个示例游戏 OS 检测游戏完整性 7.0.0",
       progressTitle: "正在检测游戏完整性 7.0.0",
       key: undefined,
     });

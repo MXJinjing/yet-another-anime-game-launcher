@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { expect, it } from "vitest";
+import yaaglmConfig from "../../src/constants/yaaglm-config.secret.json";
 
 const root = new URL("../../", import.meta.url);
 const apps = {
@@ -21,7 +22,7 @@ const apps = {
   all: "Yaagl",
   hkrpgcn: "Yaaglm HSR",
   hkrpgos: "Yaaglm HSR OS",
-  bh3glb: "Yaaglm Honkai Global",
+  bh3glb: `Yaaglm ${yaaglmConfig.bh3GlobalSuffix}`,
   cbjq: "Yaaglm SCZ OS",
   cbjqcn: "Yaaglm SCZ",
   napos: "Yaaglm ZZZ OS",
@@ -34,6 +35,11 @@ function withReleaseFixture(run: (directory: string) => void) {
   try {
     mkdirSync(join(directory, "scripts"));
     mkdirSync(join(directory, "bin"));
+    mkdirSync(join(directory, "src", "constants"), { recursive: true });
+    writeFileSync(
+      join(directory, "src", "constants", "yaaglm-config.secret.json"),
+      JSON.stringify(yaaglmConfig)
+    );
     for (const script of ["build-release.sh", "create-release-dmg.sh"]) {
       const file = `scripts/${script}`;
       copyFileSync(new URL(file, root), join(directory, file));
@@ -120,6 +126,9 @@ it.each(["arm64", "x64", "universal"])(
       const workflow = readFileSync(
         new URL(".github/workflows/build-ontag.yaml", root),
         "utf8"
+      ).replaceAll(
+        "${{ steps.distribution.outputs.bh3_archive }}",
+        apps.bh3glb.replaceAll(" ", ".")
       );
       const linked = [...workflow.matchAll(/\/([\w.-]+\.dmg)\)/g)]
         .map(([, file]) => file)

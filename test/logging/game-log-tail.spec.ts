@@ -6,6 +6,7 @@ import {
   HKRPG_GAME_LOG_LOCATIONS,
   NAP_GAME_LOG_LOCATIONS,
 } from "@src/clients/game-log-paths";
+import { HK4E_CN_OUTPUT_LOG } from "@src/clients/secret";
 import {
   createGameLogTail,
   createLogFileTail,
@@ -24,7 +25,7 @@ const gameTarget = {
 
 const users = `${prefix}/drive_c/users`;
 const localLow = `${users}/crossover/AppData/LocalLow`;
-const mainLog = `${localLow}/miHoYo/原神/output_log.txt`;
+const mainLog = `${users}/crossover/${HK4E_CN_OUTPUT_LOG}`;
 
 function mockFilesystem(files: Map<string, string>) {
   const readDirectory = vi.fn(async (path: string) => {
@@ -61,7 +62,10 @@ describe("game log discovery", () => {
     const { readDirectory, getStats } = mockFilesystem(
       new Map([
         [mainLog, "main log"],
-        [localLow + "/miHoYo/Genshin Impact/output_log.txt", "other release"],
+        [
+          localLow + "/AnimeCompany/The Anime Game Global/output_log.txt",
+          "other release",
+        ],
         [localLow + "/unrelated/output_log.txt", "unrelated"],
       ])
     );
@@ -69,7 +73,7 @@ describe("game log discovery", () => {
       ...getHK4EGameLogLocations("cn"),
       {
         root: "wine-user",
-        path: "AppData/LocalLow/miHoYo/原神/output_log.txt",
+        path: HK4E_CN_OUTPUT_LOG,
       } as const,
     ];
     expect(await findGameLogFiles({ prefix, gameDir, locations })).toEqual([
@@ -77,7 +81,7 @@ describe("game log discovery", () => {
     ]);
     expect(readDirectory.mock.calls).toEqual([[users]]);
     expect(getStats).not.toHaveBeenCalledWith(
-      localLow + "/miHoYo/Genshin Impact/output_log.txt"
+      localLow + "/AnimeCompany/The Anime Game Global/output_log.txt"
     );
   });
 
