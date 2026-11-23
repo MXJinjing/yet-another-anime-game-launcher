@@ -424,9 +424,6 @@ export function PullDashboard(props: {
                   <option value="new">{t("由新到旧", "Newest first")}</option>
                   <option value="old">{t("由旧到新", "Oldest first")}</option>
                 </select>
-              </div>
-
-              <div class="miyoushe-history-toolbar">
                 <div
                   class="miyoushe-pool-picker"
                   role="group"
@@ -607,6 +604,14 @@ export function PullDashboard(props: {
                   {t(
                     "现有抽卡记录无法确定捕获明光的下一次触发概率。",
                     "The next Capturing Radiance probability cannot be determined from this history."
+                  )}
+                </p>
+              </Show>
+              <Show when={props.game === "hk4e" && active().type === "302"}>
+                <p class="miyoushe-muted">
+                  {t(
+                    "武器池的大保底表示当期任一 UP 武器。定轨目标无法从记录判断。",
+                    "The weapon banner guarantee covers either featured weapon. History does not identify the chosen weapon."
                   )}
                 </p>
               </Show>

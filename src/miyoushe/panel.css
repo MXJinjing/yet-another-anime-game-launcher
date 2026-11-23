@@ -35,10 +35,8 @@
 }
 
 .miyoushe-pull-modal .app-modal-close {
-  top: 10px;
-  right: 16px;
-  width: 34px;
-  height: 34px;
+  top: 10px !important;
+  inset-inline-end: 16px !important;
 }
 
 .miyoushe-pull-modal .miyoushe-brand {
@@ -57,8 +55,8 @@
 }
 
 .miyoushe-pull-modal .miyoushe-page-heading .app-modal-button {
-  min-height: 32px;
-  padding: 5px 12px;
+  min-height: 32px !important;
+  padding: 4px 12px !important;
   font-size: 12px;
 }
 
@@ -402,17 +400,17 @@
 
 .miyoushe-pool-metrics {
   display: grid;
-  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
   margin: 0;
 }
 
 .miyoushe-pool-metrics > div {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 0 8px;
-  padding: 3px 0;
-  border-bottom: 1px solid var(--miyo-line);
+  align-content: start;
+  gap: 2px;
+  border-inline-start: 1px solid var(--miyo-line);
+  padding-inline-start: 9px;
 }
 
 .miyoushe-pool-metrics dt {
@@ -429,7 +427,7 @@
 .miyoushe-pool-metrics dd {
   margin: 0;
   color: var(--miyo-text);
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -450,7 +448,8 @@
 }
 
 .miyoushe-history-toolbar {
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 6px 12px;
 }
 
 .miyoushe-history-toolbar select {
