@@ -142,8 +142,11 @@ export const ja_JP: typeof zh_CN = {
   SETTING_NAP_METALFX_DESC:
     "DLSS の代わりに MetalFX を使用し、レイトレーシングにも対応します。",
   SETTING_NAP_D3D12_REQUIREMENTS:
-    "DirectX 12 には D3DMetal Wine ランタイムまたは Game Porting Toolkit が必要です。",
-  SETTING_NAP_REQUIRES_GPTK3: "Game Porting Toolkit 3（GPTK3）が必要です。",
+    "DirectX 12 には D3DMetal Wine ランタイムまたは Game Porting Toolkit が必要です。Wine 環境で D3DMetal ランタイムに切り替えてください。",
+  SETTING_NAP_METALFX_DXMT_NOTE:
+    "DXMT ランタイムに同梱された nvngx ブリッジで動作します。追加のインストールは不要です。",
+  SETTING_NAP_METALFX_RUNTIME_NOTE:
+    "Wine ランタイムに同梱された nvngx-on-metalfx ブリッジで動作します。内蔵の D3DMetal ランタイムには既に含まれています。",
   SETTING_SAVE: "保存",
   SETTING_CANCEL: "キャンセル",
 

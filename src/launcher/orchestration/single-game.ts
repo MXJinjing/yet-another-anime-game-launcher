@@ -71,6 +71,10 @@ export async function createLauncher({
         gameInstallDir: channelClient.installDir,
         gameVersion: channelClient.gameVersion,
         onGameInstallDirChange: channelClient.changeInstallDir,
+        // Every single-channel client except ZZZ uses DXMT's swapchain upscale;
+        // ZZZ hides this control and has its own switch.
+        metalFxDxmtOnly: true,
+        metalFxRenderBackend: () => wine.attributes.renderBackend,
         configForChannelClient: (locale, config) =>
           bootPerformance?.measure("single-game-channel-config", () =>
             channelClient.createConfig(locale, config)
@@ -86,6 +90,8 @@ export async function createLauncher({
       gameInstallDir: channelClient.installDir,
       gameVersion: channelClient.gameVersion,
       onGameInstallDirChange: channelClient.changeInstallDir,
+      metalFxDxmtOnly: true,
+      metalFxRenderBackend: () => wine.attributes.renderBackend,
       configForChannelClient: (locale, config) =>
         channelClient.createConfig(locale, config),
     }));

@@ -140,8 +140,11 @@ export const ko_KR: typeof zh_CN = {
   SETTING_NAP_METALFX_DESC:
     "DLSS 대신 MetalFX를 사용하며 레이 트레이싱도 지원합니다.",
   SETTING_NAP_D3D12_REQUIREMENTS:
-    "DirectX 12에는 D3DMetal Wine 런타임 또는 Game Porting Toolkit이 필요합니다.",
-  SETTING_NAP_REQUIRES_GPTK3: "Game Porting Toolkit 3(GPTK3)이 필요합니다.",
+    "DirectX 12에는 D3DMetal Wine 런타임 또는 Game Porting Toolkit이 필요합니다. Wine 환경에서 D3DMetal 런타임으로 전환하세요.",
+  SETTING_NAP_METALFX_DXMT_NOTE:
+    "DXMT 런타임에 포함된 nvngx 브리지로 동작하며 추가 설치가 필요하지 않습니다.",
+  SETTING_NAP_METALFX_RUNTIME_NOTE:
+    "Wine 런타임에 포함된 nvngx-on-metalfx 브리지로 동작합니다. 내장 D3DMetal 런타임에는 이미 포함되어 있습니다.",
   SETTING_SAVE: "저장",
   SETTING_CANCEL: "취소",
 

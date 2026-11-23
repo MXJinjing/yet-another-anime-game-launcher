@@ -1,10 +1,14 @@
-import { Box, HStack, IconButton, Text } from "@hope-ui/solid";
 import { createEffect, createSignal, Show } from "solid-js";
 import { Locale } from "@locale";
 import { assertValueDefined } from "../../../runtime/assertions";
 import { configEntries, type ConfigStore } from "@config";
-import { createIcon } from "@hope-ui/solid";
+import {
+  METALFX_FACTOR_DEFAULT,
+  normalizeMetalFxFactor,
+} from "@config/metalfx-factor";
+import { isMetalFxRuntimeUnavailable } from "@config/metalfx-runtime";
 import { SettingSwitch } from "../../../components/setting-switch";
+import { MetalFxFactorSlider } from "../../../components/metalfx-factor-slider";
 import { Config } from "../../../config/config-def";
 
 declare module "../../../config/config-def" {
@@ -14,40 +18,20 @@ declare module "../../../config/config-def" {
   }
 }
 
-// DXMT documents d3d11.metalSpatialUpscaleFactor as a 1.0-2.0 factor; values
-// outside that window are not honored by the swapchain upscaler.
-const MIN_FACTOR = 1.0;
-const MAX_FACTOR = 2.0;
-const DEFAULT_FACTOR = 2.0;
-const STEP = 0.05;
-
-const IconReset = createIcon({
-  viewBox: "0 0 24 24",
-  path() {
-    return (
-      <path
-        fill="none"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"
-      />
-    );
-  },
-});
-
 export default async function ({
   locale,
   config,
   store,
   dxmtOnly = false,
+  renderBackend,
 }: {
   config: Partial<Config>;
   locale: Locale;
   store: ConfigStore;
   /** True for clients whose MetalFX is DXMT's swapchain upscale. */
   dxmtOnly?: boolean;
+  /** Render backend of the Wine selected for this client, if known. */
+  renderBackend?: () => string | undefined;
 }) {
   try {
     config.metalFxEnable =
@@ -57,17 +41,11 @@ export default async function ({
   }
 
   try {
-    config.metalFxFactor =
-      (await store.read(configEntries.metalFxFactor)) ?? DEFAULT_FACTOR;
-    if (
-      isNaN(config.metalFxFactor) ||
-      config.metalFxFactor < MIN_FACTOR ||
-      config.metalFxFactor > MAX_FACTOR
-    ) {
-      config.metalFxFactor = DEFAULT_FACTOR;
-    }
+    config.metalFxFactor = normalizeMetalFxFactor(
+      (await store.read(configEntries.metalFxFactor)) ?? METALFX_FACTOR_DEFAULT
+    );
   } catch {
-    config.metalFxFactor = DEFAULT_FACTOR;
+    config.metalFxFactor = METALFX_FACTOR_DEFAULT;
   }
 
   const [enabled, setEnabled] = createSignal(config.metalFxEnable);
@@ -105,6 +83,12 @@ export default async function ({
     onSaveFactor(true);
   });
 
+  // These clients implement MetalFX with DXMT's swapchain upscale. Any other
+  // backend (D3DMetal, a custom Wine without DXMT) cannot apply the setting, so
+  // the switch is disabled instead of silently saving a value that never runs.
+  const runtimeDisabled = () =>
+    isMetalFxRuntimeUnavailable(dxmtOnly, renderBackend?.());
+
   return [
     function UI(opts?: { disabled?: boolean }) {
       const disabled = opts?.disabled ?? !config.advancedEnable;
@@ -115,40 +99,20 @@ export default async function ({
           label={locale.get("SETTING_METALFX_UPSCALE")}
           checked={enabled()}
           onChange={setEnabled}
-          disabled={disabled}
+          disabled={disabled || runtimeDisabled()}
         >
-          <Show when={dxmtOnly}>
+          <Show when={() => dxmtOnly && (!renderBackend || runtimeDisabled())}>
             <span class="setting-switch-requirement">
               {locale.get("SETTING_METALFX_DXMT_ONLY")}
             </span>
           </Show>
           {enabled() ? (
-            <Box mt="$3">
-              <HStack justifyContent="space-between" mb="$1">
-                <Text fontSize="sm">
-                  {locale.get("SETTING_METALFX_FACTOR")}: {factor().toFixed(2)}x
-                  ({MIN_FACTOR.toFixed(1)}x–{MAX_FACTOR.toFixed(1)}x)
-                </Text>
-                <IconButton
-                  size="xs"
-                  variant="ghost"
-                  disabled={factor() === DEFAULT_FACTOR || disabled}
-                  aria-label={locale.get("SETTING_PREFERRED_MAX_FPS_RESET")}
-                  icon={<IconReset />}
-                  onClick={() => setFactor(DEFAULT_FACTOR)}
-                />
-              </HStack>
-              <input
-                type="range"
-                min={MIN_FACTOR}
-                max={MAX_FACTOR}
-                step={STEP}
-                value={factor()}
-                onInput={e => setFactor(Number(e.currentTarget.value))}
-                disabled={disabled}
-                style={{ width: "100%" }}
-              />
-            </Box>
+            <MetalFxFactorSlider
+              locale={locale}
+              value={factor()}
+              disabled={disabled || runtimeDisabled()}
+              onChange={setFactor}
+            />
           ) : null}
         </SettingSwitch>
       );

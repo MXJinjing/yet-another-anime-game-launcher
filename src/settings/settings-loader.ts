@@ -92,6 +92,8 @@ export type GameSettingsOptions = {
   wineDataSupported?: boolean;
   /** True when this client's MetalFX only works on a DXMT Wine. */
   metalFxDxmtOnly?: boolean;
+  /** Render backend of the Wine selected for this client. */
+  metalFxRenderBackend?: () => string | undefined;
   onWineEnabledChange?: (
     enabled: boolean,
     options: { migrate: boolean; overwrite?: boolean }
@@ -249,6 +251,7 @@ async function loadGameSettings(
     config,
     store: configStore,
     dxmtOnly: options.metalFxDxmtOnly,
+    renderBackend: options.metalFxRenderBackend,
   });
   const [reShade] = await createReShade({ locale, config, store: configStore });
   const [proxyEnabled, gameProxyEnabled] = await createProxyEnabledConfig({

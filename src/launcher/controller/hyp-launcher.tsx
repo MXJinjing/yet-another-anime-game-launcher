@@ -56,6 +56,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  on,
   onCleanup,
   onMount,
 } from "solid-js";
@@ -66,12 +67,16 @@ import { createGameUninstallDialog } from "../../modals/game-uninstall-modal";
 import { GAME_BANNER_URLS } from "../data/game-assets";
 import {
   parseBackgroundPersistedState,
+  resolveBackgroundImage,
+  resolveBackgroundTheme,
+  resolveBackgroundVideo,
   resolveInitialIndex,
 } from "../model/background-switcher";
 import { GameIcon } from "../components/game-icon";
 import { GameLibraryView, GameLibraryItem } from "../views/game-library";
 import { MhyClientView } from "../views/clients/mhy";
 import settingsIcon from "../../assets/icons/settings.svg";
+import userIcon from "../../assets/icons/user.svg";
 import { AppModal } from "../../components/app-modal";
 import { GlobalModals } from "../../modals/global-modal-host";
 import type { GlobalModalRoute } from "../../modals/global-modal-host";
@@ -144,6 +149,18 @@ export type {
 
 const BG_STORAGE_KEY = "hyp_bg";
 const BG_TRANSITION_MS = 600;
+// A background clip is decorative: give it a bounded number of fresh attempts
+// before falling back to the still artwork, otherwise a single dropped load
+// leaves the layer permanently blank.
+const BG_VIDEO_RETRY_LIMIT = 2;
+const BG_VIDEO_WATCHDOG_MS = 8000;
+const BG_VIDEO_RETRY_DELAY_MS = 1200;
+// WebKit can leave a looping clip parked on its last frame, so the playback
+// clock is polled instead of trusting the element's own loop/ended handling.
+const BG_VIDEO_MONITOR_MS = 1000;
+// The stall watchdog needs two polls to fire, which leaves the tail frame on
+// screen for ~2s every loop. Rewinding this close to the end hides the seam.
+const BG_VIDEO_WRAP_MARGIN_S = 0.15;
 const LIBRARY_TRANSITION_MS = 360;
 const PREDOWNLOAD_STAGING_DIRECTORIES = [".ariatmp", ".tmp"];
 
@@ -706,6 +723,14 @@ export async function createHypLauncher({
       createSignal<string>();
     const [downloadTasks, setDownloadTasks] = createSignal(getDownloadTasks());
     const activeDownloadCount = createMemo(() => downloadTasks().length);
+    const isDownloading = createMemo(() =>
+      downloadTasks().some(
+        task =>
+          task.status === "active" &&
+          task.transferring &&
+          task.phaseKind !== "verifying"
+      )
+    );
     const selectedGameDownloadTaskId = createMemo(() => {
       const game = selectedGame();
       const key = game.namespace ?? game.id;
@@ -747,8 +772,208 @@ export async function createHypLauncher({
     } | null>(null);
     let baseVideoRef: HTMLVideoElement | undefined;
     let bgTransitionTimer: ReturnType<typeof setTimeout> | undefined;
+    let bgVideoWatchdog: ReturnType<typeof setTimeout> | undefined;
+    let bgVideoAttempts = 0;
+    let bgVideoPlayLogged = false;
+    function clearBgVideoWatchdog() {
+      if (bgVideoWatchdog) {
+        clearTimeout(bgVideoWatchdog);
+        bgVideoWatchdog = undefined;
+      }
+    }
+    function playBgVideo(el: HTMLVideoElement) {
+      void el.play().catch(error => {
+        if (bgVideoPlayLogged) return;
+        bgVideoPlayLogged = true;
+        log(`[bg-video] play() rejected: ${String(error)}`);
+      });
+    }
+    function markBgVideoReady(el: HTMLVideoElement) {
+      clearBgVideoWatchdog();
+      bgVideoAttempts = 0;
+      bgVideoPlayLogged = false;
+      // Autoplay can be refused while the window is still hidden; retry the
+      // playback itself rather than leaving a paused first frame on screen.
+      if (el.paused) playBgVideo(el);
+      // Reveal on the first frame that actually reaches the canvas.
+      paintBgCanvas();
+    }
+    function retryBgVideo(el: HTMLVideoElement, reason: string) {
+      if (bgVideoAttempts >= BG_VIDEO_RETRY_LIMIT) {
+        log(
+          `[bg-video] ${reason}; giving up after ${bgVideoAttempts} attempts, keeping still artwork: ${
+            el.currentSrc || el.src
+          }`
+        );
+        return;
+      }
+      bgVideoAttempts += 1;
+      log(
+        `[bg-video] ${reason}; retry ${bgVideoAttempts}/${BG_VIDEO_RETRY_LIMIT} (readyState=${
+          el.readyState
+        }, networkState=${el.networkState}): ${el.currentSrc || el.src}`
+      );
+      clearBgVideoWatchdog();
+      bgVideoWatchdog = setTimeout(() => {
+        bgVideoWatchdog = undefined;
+        if (baseVideoRef !== el || !el.isConnected) return;
+        try {
+          el.load();
+        } catch {
+          // Reloading a detached element throws; the next src change resets.
+        }
+        void el.play().catch(() => undefined);
+        armBgVideoWatchdog(el);
+      }, BG_VIDEO_RETRY_DELAY_MS);
+    }
+    function armBgVideoWatchdog(el: HTMLVideoElement) {
+      clearBgVideoWatchdog();
+      bgVideoWatchdog = setTimeout(() => {
+        bgVideoWatchdog = undefined;
+        if (baseVideoRef !== el || !el.isConnected) return;
+        // HAVE_CURRENT_DATA means a frame reached the compositor already.
+        if (el.readyState >= 2) return;
+        retryBgVideo(el, "clip never became ready");
+      }, BG_VIDEO_WATCHDOG_MS);
+    }
+    // WebKit parks a looping WebM on its final frame the second time around:
+    // `paused` stays false and `ended` never fires, so `loop` alone leaves a
+    // frozen frame on screen. It also suspends media for occluded windows.
+    // Watch the clock and restart the clip ourselves.
+    let bgVideoClock = -1;
+    let bgVideoStalls = 0;
+    let bgVideoStallLogged = false;
+    const bgVideoMonitor = setInterval(() => {
+      const el = baseVideoRef;
+      if (!el || !el.isConnected) {
+        bgVideoClock = -1;
+        bgVideoStalls = 0;
+        return;
+      }
+      if (el.readyState < 2) return;
+      if (el.paused) {
+        playBgVideo(el);
+        return;
+      }
+      if (el.currentTime !== bgVideoClock) {
+        bgVideoClock = el.currentTime;
+        bgVideoStalls = 0;
+        bgVideoStallLogged = false;
+        return;
+      }
+      bgVideoStalls += 1;
+      if (bgVideoStalls < 2) return;
+      // A hidden page is deliberately suspended; visibilitychange resumes it.
+      if (typeof document !== "undefined" && document.hidden) return;
+      bgVideoStalls = 0;
+      const duration = el.duration;
+      const nearEnd =
+        Number.isFinite(duration) && duration - el.currentTime < 0.5;
+      if (!bgVideoStallLogged) {
+        bgVideoStallLogged = true;
+        log(
+          `[bg-video] playback stalled at ${el.currentTime.toFixed(2)}s/${
+            Number.isFinite(duration) ? duration.toFixed(2) : "?"
+          }s; restarting`
+        );
+      }
+      if (nearEnd) el.currentTime = 0;
+      playBgVideo(el);
+    }, BG_VIDEO_MONITOR_MS);
+    // A WKWebView window can decode the clip and advance its clock without ever
+    // presenting a frame (seen with VP9/WebM on macOS 27: readyState 4,
+    // requestVideoFrameCallback firing, nothing painted). The element's own
+    // media layer is what stops updating; drawImage() still pulls fresh pixels
+    // straight from the decoder, so the clip is blitted onto a canvas and the
+    // canvas is what the user actually sees.
+    let baseVideoCanvasRef: HTMLCanvasElement | undefined;
+    let bgCanvasPaint: number | undefined;
+    let bgCanvasLastTime = -1;
+    function paintBgCanvas() {
+      const video = baseVideoRef;
+      const canvas = baseVideoCanvasRef;
+      if (!video || !canvas) return;
+      if (video.readyState < 2 || !video.videoWidth || !video.videoHeight)
+        return;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
+      const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      // Mirror object-fit: cover.
+      const scale = Math.max(
+        width / video.videoWidth,
+        height / video.videoHeight
+      );
+      const sourceWidth = width / scale;
+      const sourceHeight = height / scale;
+      // Safe without a guard: a detached or not-yet-decoded element is already
+      // filtered out above, which is the only way this throws.
+      context.drawImage(
+        video,
+        (video.videoWidth - sourceWidth) / 2,
+        (video.videoHeight - sourceHeight) / 2,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        width,
+        height
+      );
+      if (!videoLoaded()) setVideoLoaded(true);
+    }
+    // `loop` alone parks the clip on its final frame here, and the stall
+    // watchdog needs two polls to notice — 2s of frozen background per cycle.
+    // Rewind before the tail so the seam never shows.
+    function wrapBgVideo(video: HTMLVideoElement) {
+      if (video.paused || video.readyState < 2) return;
+      const duration = video.duration;
+      if (
+        !Number.isFinite(duration) ||
+        duration <= BG_VIDEO_WRAP_MARGIN_S ||
+        duration - video.currentTime >= BG_VIDEO_WRAP_MARGIN_S
+      )
+        return;
+      video.currentTime = 0;
+    }
+    function bgCanvasLoop() {
+      bgCanvasPaint = requestAnimationFrame(bgCanvasLoop);
+      if (document.hidden) return;
+      const video = baseVideoRef;
+      if (!video) return;
+      wrapBgVideo(video);
+      if (video.currentTime === bgCanvasLastTime) return;
+      bgCanvasLastTime = video.currentTime;
+      paintBgCanvas();
+    }
+    // WebKit suspends media for a hidden page, and this window starts hidden
+    // until the shell shows it. Re-arm playback whenever it comes back.
+    function resumeBgVideoOnVisibility() {
+      if (typeof document === "undefined" || document.hidden) return;
+      const el = baseVideoRef;
+      if (!el || !el.isConnected) return;
+      if (el.paused) void el.play().catch(() => undefined);
+      if (el.readyState < 2 && !bgVideoWatchdog) armBgVideoWatchdog(el);
+    }
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", resumeBgVideoOnVisibility);
+    }
+    onMount(() => {
+      bgCanvasPaint = requestAnimationFrame(bgCanvasLoop);
+    });
     onCleanup(() => {
       if (bgTransitionTimer) clearTimeout(bgTransitionTimer);
+      clearBgVideoWatchdog();
+      clearInterval(bgVideoMonitor);
+      if (bgCanvasPaint !== undefined) cancelAnimationFrame(bgCanvasPaint);
+      if (typeof document !== "undefined") {
+        document.removeEventListener(
+          "visibilitychange",
+          resumeBgVideoOnVisibility
+        );
+      }
     });
     const currentBackgrounds = () =>
       selectedGame().client.uiContent.backgrounds ?? [];
@@ -759,17 +984,44 @@ export async function createHypLauncher({
     };
     const currentBg = () => currentBackgrounds()[currentBgIndex()];
     const currentBgImage = () =>
-      currentBg()?.background ?? selectedGame().client.uiContent.background;
-    const currentBgVideo = () => {
-      if (disableVideoBackground()) return undefined;
-      return (
-        currentBg()?.background_video ??
-        selectedGame().client.uiContent.background_video
+      resolveBackgroundImage(
+        currentBg(),
+        selectedGame().client.uiContent.background
       );
-    };
+    const currentBgVideo = createMemo(() =>
+      resolveBackgroundVideo(
+        currentBg(),
+        selectedGame().client.uiContent.background_video,
+        disableVideoBackground()
+      )
+    );
     const currentBgTheme = () =>
-      currentBg()?.background_theme ??
-      selectedGame().client.uiContent.background_theme;
+      resolveBackgroundTheme(
+        currentBg(),
+        selectedGame().client.uiContent.background_theme
+      );
+    // The readiness flag belongs to one clip: a new source (or re-enabling the
+    // setting) must start hidden and get its own readiness/retry cycle instead
+    // of inheriting the previous verdict. Keying off the memo keeps unrelated
+    // store updates from hiding an already playing clip.
+    createEffect(
+      on(
+        currentBgVideo,
+        () => {
+          clearBgVideoWatchdog();
+          bgVideoAttempts = 0;
+          bgVideoPlayLogged = false;
+          bgVideoClock = -1;
+          bgVideoStalls = 0;
+          bgVideoStallLogged = false;
+          bgCanvasLastTime = -1;
+          setVideoLoaded(false);
+          const el = baseVideoRef;
+          if (el && el.isConnected) armBgVideoWatchdog(el);
+        },
+        { defer: true }
+      )
+    );
     const transitionTarget = () => {
       const t = bgTransition();
       if (!t || t.gameId !== selectedGame().id) return undefined;
@@ -792,6 +1044,8 @@ export async function createHypLauncher({
         return;
       if (bgTransitionTimer) clearTimeout(bgTransitionTimer);
       setVideoLoaded(false);
+      clearBgVideoWatchdog();
+      bgVideoAttempts = 0;
       baseVideoRef?.pause();
       setBgTransition({ gameId: game.id, to });
       bgTransitionTimer = setTimeout(() => {
@@ -1855,20 +2109,23 @@ export async function createHypLauncher({
           "--hyp-accent-text": themeText(),
         }}
       >
-        <Show when={currentBgImage()}>
+        <Show when={currentBgImage() || currentBgVideo()}>
           <div
             classList={{
               "hyp-bg-layer": true,
               leaving: bgTransition()?.gameId === selectedGame().id,
             }}
             style={{
-              "background-image": `url(${currentBgImage()})`,
+              "background-image": currentBgImage()
+                ? `url(${currentBgImage()})`
+                : undefined,
             }}
           >
             <Show when={currentBgVideo()}>
               <video
                 ref={el => {
                   baseVideoRef = el;
+                  if (el) armBgVideoWatchdog(el);
                 }}
                 class="hyp-video"
                 src={currentBgVideo()}
@@ -1876,8 +2133,31 @@ export async function createHypLauncher({
                 loop
                 muted
                 playsinline
-                preload="metadata"
-                onLoadedData={() => setVideoLoaded(true)}
+                preload="auto"
+                onLoadedData={e => markBgVideoReady(e.currentTarget)}
+                onCanPlay={e => markBgVideoReady(e.currentTarget)}
+                onPlaying={e => markBgVideoReady(e.currentTarget)}
+                onError={e => {
+                  const el = e.currentTarget;
+                  log(
+                    `[bg-video] playback failed: code=${
+                      el.error?.code ?? "-"
+                    } message=${el.error?.message ?? "-"} src=${
+                      el.currentSrc || el.src
+                    }`
+                  );
+                  retryBgVideo(el, "error event");
+                }}
+                // Decode source only. The canvas above presents the frames, so
+                // keep this element out of the picture entirely — on the affected
+                // WebKit builds its own layer is exactly what stops redrawing.
+                style={{ opacity: 0 }}
+              />
+              <canvas
+                ref={el => {
+                  baseVideoCanvasRef = el;
+                }}
+                class="hyp-video"
                 style={{ opacity: videoLoaded() ? 1 : 0 }}
               />
             </Show>
@@ -1959,7 +2239,7 @@ export async function createHypLauncher({
           }}
         >
           <button class="hyp-orbit-button" aria-label="Yaaglm">
-            <span />
+            <img src={userIcon} alt="" />
           </button>
           <div class="hyp-game-icons">
             <For each={sidebarGames()}>
@@ -2014,6 +2294,7 @@ export async function createHypLauncher({
               "hyp-rail-button": true,
               "hyp-download-queue-button": true,
               active: downloadManagerOpen(),
+              "is-downloading": isDownloading(),
             }}
             aria-label={locale.get("DOWNLOAD_MANAGER")}
             aria-expanded={downloadManagerOpen()}
@@ -2024,7 +2305,22 @@ export async function createHypLauncher({
                 : openDownloadManager()
             }
           >
-            <span class="hyp-download-queue-icon" aria-hidden="true" />
+            <svg
+              class="hyp-download-queue-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <path
+                class="hyp-download-queue-arrow"
+                d="M7 10l5 5 5-5M12 15V3"
+              />
+            </svg>
             <Show when={activeDownloadCount() > 0}>
               <span class="hyp-download-queue-badge">
                 {activeDownloadCount()}

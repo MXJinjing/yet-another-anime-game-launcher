@@ -16,6 +16,7 @@ import {
   CURRENT_YAAGL_VERSION,
 } from "./constants/version";
 import { isLogWindowArgs } from "./logging/log-window-protocol";
+import { installTitleBarDrag } from "./platform/neutralino/window-drag";
 
 function launchArgs() {
   return typeof NL_ARGS === "undefined" ? [] : NL_ARGS;
@@ -60,6 +61,8 @@ if (typeof Neutralino == "undefined") {
   Neutralino.init();
   bootPerformance.mark("neutralino-init-called");
   installInputEditingShortcuts();
+  // Keep the same launcher drag band without a native overlay on the log tabs.
+  installTitleBarDrag();
   if (import.meta.env.PROD) {
     document.addEventListener("contextmenu", event => event.preventDefault());
   }

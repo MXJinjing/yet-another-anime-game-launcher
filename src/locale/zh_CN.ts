@@ -136,8 +136,11 @@ export const zh_CN = {
   SETTING_NAP_METALFX: "启用 MetalFX",
   SETTING_NAP_METALFX_DESC: "同时支持光线追踪",
   SETTING_NAP_D3D12_REQUIREMENTS:
-    "DirectX 12 需要使用 D3DMetal Wine 运行时或 Game Porting Toolkit。",
-  SETTING_NAP_REQUIRES_GPTK3: "需要安装 Game Porting Toolkit 3（GPTK3）。",
+    "DirectX 12 需要使用 D3DMetal Wine 运行时或 Game Porting Toolkit，请在 Wine 环境里切换到 D3DMetal 运行时。",
+  SETTING_NAP_METALFX_DXMT_NOTE:
+    "由 DXMT 运行时自带的 nvngx 桥接实现，无需额外安装。",
+  SETTING_NAP_METALFX_RUNTIME_NOTE:
+    "由 Wine 运行时自带的 nvngx-on-metalfx 桥接实现，启动器内置的 D3DMetal 运行时已包含。",
   SETTING_SAVE: "保存",
   SETTING_CANCEL: "取消",
 

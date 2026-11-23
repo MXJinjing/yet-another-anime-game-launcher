@@ -142,8 +142,11 @@ export const en: typeof zh_CN = {
   SETTING_NAP_METALFX_DESC:
     "Use MetalFX instead of DLSS, with ray tracing support.",
   SETTING_NAP_D3D12_REQUIREMENTS:
-    "DirectX 12 requires a D3DMetal Wine runtime or Game Porting Toolkit.",
-  SETTING_NAP_REQUIRES_GPTK3: "Requires Game Porting Toolkit 3 (GPTK3).",
+    "DirectX 12 requires a D3DMetal Wine runtime or Game Porting Toolkit. Switch to a D3DMetal runtime in the Wine environment.",
+  SETTING_NAP_METALFX_DXMT_NOTE:
+    "Provided by the nvngx bridge bundled with the DXMT runtime; nothing else to install.",
+  SETTING_NAP_METALFX_RUNTIME_NOTE:
+    "Provided by the nvngx-on-metalfx bridge shipped with the Wine runtime; the bundled D3DMetal runtime already includes it.",
   SETTING_SAVE: "Save",
   SETTING_CANCEL: "Cancel",
 

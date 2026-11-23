@@ -76,41 +76,49 @@ describe("instance storage", () => {
     );
   });
 
-  it("migrates legacy DXMT preferences while keeping new settings in each game scope", async () => {
-    const globalGame = createStorage("hpgenshin");
+  it("reads game-owned keys from the game scope only", async () => {
     const chinaGame = createStorage("hpcngenshin");
-    const otherGame = createStorage("test-a");
 
-    await globalGame.getKey("config_preferred_max_fps");
+    readFile.mockRejectedValueOnce(new Error("missing game preference"));
+    await expect(chinaGame.getKey("config_preferred_max_fps")).rejects.toThrow(
+      "missing game preference"
+    );
+    expect(readFile).toHaveBeenCalledTimes(1);
     expect(readFile).toHaveBeenCalledWith(
-      "/tmp/Library/Application Support/Yaaglm OS/.storage/config_preferred_max_fps.neustorage"
+      ".storage/hpcngenshin_config_preferred_max_fps.neustorage"
+    );
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+
+  it("writes game-owned keys only to their own scope", async () => {
+    await createStorage("hpcnzzz").setKey("game_install_dir", "/games/zzz");
+
+    expect(writeFile).toHaveBeenCalledTimes(1);
+    expect(writeFile).toHaveBeenCalledWith(
+      ".storage/hpcnzzz_game_install_dir.neustorage",
+      "/games/zzz"
+    );
+  });
+
+  it("keeps the ZZZ MetalFX switch separate for each game", async () => {
+    await createStorage("all-zzz-cn").setKey(
+      "config_nap_metalfx_enable",
+      "true"
+    );
+    await createStorage("all-zzz-os").setKey(
+      "config_nap_metalfx_enable",
+      "false"
     );
 
-    readFile.mockRejectedValueOnce(new Error("missing overseas preference"));
-    await expect(
-      globalGame.getKey("config_dxmt_refresh_rate")
-    ).rejects.toThrow();
-    expect(readFile).not.toHaveBeenCalledWith(
-      "/tmp/Library/Application Support/Yaaglm/.storage/config_dxmt_refresh_rate.neustorage"
-    );
-
-    await globalGame.setKey("config_dxmt_refresh_rate", "global");
-    await chinaGame.setKey("config_dxmt_refresh_rate", "china");
-    await otherGame.setKey("config_dxmt_refresh_rate", "other");
     expect(writeFile).toHaveBeenNthCalledWith(
       1,
-      "/tmp/Library/Application Support/Yaaglm OS/.storage/config_dxmt_refresh_rate.neustorage",
-      "global"
+      ".storage/all-zzz-cn_config_nap_metalfx_enable.neustorage",
+      "true"
     );
     expect(writeFile).toHaveBeenNthCalledWith(
       2,
-      "/tmp/Library/Application Support/Yaaglm/.storage/config_dxmt_refresh_rate.neustorage",
-      "china"
-    );
-    expect(writeFile).toHaveBeenNthCalledWith(
-      3,
-      ".storage/test-a_config_dxmt_refresh_rate.neustorage",
-      "other"
+      ".storage/all-zzz-os_config_nap_metalfx_enable.neustorage",
+      "false"
     );
   });
 

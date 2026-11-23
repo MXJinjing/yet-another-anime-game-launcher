@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   parseBackgroundPersistedState,
+  resolveBackgroundImage,
+  resolveBackgroundTheme,
+  resolveBackgroundVideo,
   resolveInitialIndex,
 } from "@src/launcher/model/background-switcher";
 
@@ -19,5 +22,78 @@ describe("background persisted state", () => {
     );
     expect(resolveInitialIndex({ ids: ["a"], index: 0 }, ["a", "b"])).toBe(0);
     expect(resolveInitialIndex({ ids: ["a"], index: 2 }, ["a"])).toBe(0);
+  });
+});
+
+describe("background artwork resolution", () => {
+  it("treats an empty clip url as 'no clip' instead of shadowing", () => {
+    // hyp-connect sends video.url = "" for still artworks.
+    expect(
+      resolveBackgroundVideo({ background_video: "" }, "https://fallback.webm")
+    ).toBeUndefined();
+    expect(resolveBackgroundVideo({}, undefined)).toBeUndefined();
+  });
+
+  it("prefers the selected artwork's clip and keeps still artwork still", () => {
+    const videoArt = { background_video: "https://bg0.webm" };
+    expect(resolveBackgroundVideo(videoArt, undefined)).toBe(
+      "https://bg0.webm"
+    );
+    // Switching to a still artwork must not paint bg0's clip over it.
+    expect(
+      resolveBackgroundVideo({ background_video: "" }, "https://bg0.webm")
+    ).toBeUndefined();
+  });
+
+  it("falls back to the game-level clip only without a background entry", () => {
+    expect(resolveBackgroundVideo(undefined, "https://game-level.webm")).toBe(
+      "https://game-level.webm"
+    );
+    expect(resolveBackgroundVideo(undefined, "")).toBeUndefined();
+  });
+
+  it("honours the disable-video-background switch", () => {
+    expect(
+      resolveBackgroundVideo({ background_video: "https://bg0.webm" }, "", true)
+    ).toBeUndefined();
+  });
+
+  it("normalises still artwork the same way", () => {
+    expect(
+      resolveBackgroundImage({ background: "" }, "https://fallback.png")
+    ).toBe("https://fallback.png");
+    expect(resolveBackgroundImage(undefined, "https://game-level.png")).toBe(
+      "https://game-level.png"
+    );
+    expect(resolveBackgroundImage({ background: "https://bg1.png" }, "")).toBe(
+      "https://bg1.png"
+    );
+  });
+
+  it("drops the title overlay when the selected artwork ships without one", () => {
+    // Every hk4e artwork after the first reports theme.url = "" while the
+    // game-level theme is the primary background's title artwork.
+    expect(
+      resolveBackgroundTheme(
+        { background_theme: "" },
+        "https://game-level-title.webp"
+      )
+    ).toBeUndefined();
+    expect(resolveBackgroundTheme({}, "https://game-level-title.webp")).toBe(
+      undefined
+    );
+  });
+
+  it("keeps the artwork's own title and the game-level one as fallback", () => {
+    expect(
+      resolveBackgroundTheme(
+        { background_theme: "https://bg0-title.webp" },
+        "https://game-level-title.webp"
+      )
+    ).toBe("https://bg0-title.webp");
+    expect(
+      resolveBackgroundTheme(undefined, "https://game-level-title.webp")
+    ).toBe("https://game-level-title.webp");
+    expect(resolveBackgroundTheme(undefined, "")).toBeUndefined();
   });
 });
