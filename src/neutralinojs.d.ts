@@ -817,6 +817,7 @@ declare namespace Neutralino {
        * An array of Filter objects to filter the files list.
        */
       filter?: Filter[];
+      filters?: Filter[];
       /**
        * Enables multi selections.
        */
