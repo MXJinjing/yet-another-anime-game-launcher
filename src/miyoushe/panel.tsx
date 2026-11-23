@@ -33,9 +33,23 @@ import {
 } from "./uigf";
 import "./panel.css";
 
+export type MiyousheHomeStatus = {
+  pulls: number | "loading" | "unavailable";
+  checkIn:
+    | "official"
+    | "loading"
+    | "bound"
+    | "unbound"
+    | "expired"
+    | "unavailable";
+  verifiedDate?: string;
+};
+
 export function MiyoushePanel(props: {
   opened: boolean;
   onClose: () => void;
+  initialView?: "pulls" | "account";
+  onHomeStatusChange?: (status: MiyousheHomeStatus) => void;
   game: MiyousheGame;
   title: string;
   icon?: string;
@@ -46,6 +60,7 @@ export function MiyoushePanel(props: {
     "pulls"
   );
   const [archive, setArchive] = createSignal<GachaArchive>({});
+  const [archiveLoaded, setArchiveLoaded] = createSignal(false);
   const [storageError, setStorageError] = createSignal(false);
   const [importBusy, setImportBusy] = createSignal(false);
   const [fileNotice, setFileNotice] = createSignal("");
@@ -53,7 +68,13 @@ export function MiyoushePanel(props: {
   const [linkError, setLinkError] = createSignal(false);
   const [poolType, setPoolType] = createSignal("");
   const [visiblePulls, setVisiblePulls] = createSignal(50);
-  const [bound, setBound] = createSignal(false);
+  const [bindingStatus, setBindingStatus] = createSignal<
+    MiyousheHomeStatus["checkIn"]
+  >(usingMiyoushePrototype ? "loading" : "official");
+  const [verifiedDates, setVerifiedDates] = createSignal<
+    Partial<Record<MiyousheGame, string>>
+  >({});
+  const bound = () => bindingStatus() === "bound";
   const [roles, setRoles] = createSignal<GameRole[]>([]);
   const [roleKey, setRoleKey] = createSignal("");
   const selectedRole = createMemo(
@@ -85,20 +106,28 @@ export function MiyoushePanel(props: {
     return role.region + ":" + role.uid;
   }
 
-  async function refreshRoles(game: MiyousheGame) {
+  async function refreshRoles(game?: MiyousheGame) {
     const request = ++profileRequest;
     setRoles([]);
     const binding = await runMiyoushePrototype("bound");
     if (request !== profileRequest) return;
-    setBound(binding.state === "ok");
+    setBindingStatus(previous => {
+      if (binding.state === "ok")
+        return previous === "expired" ? "expired" : "bound";
+      return binding.state === "unbound" ? "unbound" : "unavailable";
+    });
     if (binding.state !== "ok") {
       if (binding.state !== "unbound") setNotice(binding.state);
       return;
     }
+    if (!game) return;
     const profile = await runMiyoushePrototype("roles", [game]);
     if (request !== profileRequest) return;
     if (profile.state === "ok") setRoles(profile.roles ?? []);
-    else setNotice(profile.state);
+    else {
+      if (profile.state === "unbound") setBindingStatus("expired");
+      setNotice(profile.state);
+    }
   }
 
   createEffect(
@@ -107,16 +136,20 @@ export function MiyoushePanel(props: {
       opened => {
         if (!opened) {
           login?.abort();
-          return;
+          if (archiveLoaded()) return;
         }
         if (!importBusy()) {
           void readGachaArchive().then(
             value => {
               if (importBusy()) return;
               setArchive(value);
+              setArchiveLoaded(true);
               setStorageError(false);
             },
-            () => setStorageError(true)
+            () => {
+              setArchiveLoaded(true);
+              setStorageError(true);
+            }
           );
         }
       }
@@ -125,18 +158,34 @@ export function MiyoushePanel(props: {
 
   createEffect(
     on(
-      () => [props.opened, props.game] as const,
-      ([opened, game]) => {
+      () => [props.opened, props.game, props.initialView] as const,
+      ([opened, game, initialView]) => {
         profileRequest++;
-        if (!opened) return;
+        if (!opened) {
+          if (usingMiyoushePrototype && !working()) void refreshRoles();
+          return;
+        }
+        setView(initialView ?? "pulls");
         setPoolType("");
         setVisiblePulls(50);
         setLinkError(false);
         if (!working()) setNotice(undefined);
-        if (usingMiyoushePrototype) void refreshRoles(game);
+        if (usingMiyoushePrototype && !working())
+          void refreshRoles(initialView === "account" ? game : undefined);
       }
     )
   );
+  createEffect(() => {
+    props.onHomeStatusChange?.({
+      pulls: storageError()
+        ? "unavailable"
+        : archiveLoaded()
+        ? accounts().reduce((total, account) => total + account.list.length, 0)
+        : "loading",
+      checkIn: bindingStatus(),
+      verifiedDate: bound() ? verifiedDates()[props.game] : undefined,
+    });
+  });
   onCleanup(() => {
     profileRequest++;
     login?.abort();
@@ -157,6 +206,8 @@ export function MiyoushePanel(props: {
       );
       setNotice(state);
       if (state === "ok") {
+        setBindingStatus("bound");
+        setVerifiedDates({});
         setRoleKey("");
         await refreshRoles(props.game);
       }
@@ -175,7 +226,8 @@ export function MiyoushePanel(props: {
       const { state } = await runMiyoushePrototype("unbind");
       if (state === "ok") {
         profileRequest++;
-        setBound(false);
+        setBindingStatus("unbound");
+        setVerifiedDates({});
         setRoles([]);
         setRoleKey("");
         setNotice(undefined);
@@ -188,10 +240,24 @@ export function MiyoushePanel(props: {
   async function sign() {
     const role = selectedRole();
     if (working()) return;
+    const game = props.game;
     setWorking(true);
     setNotice(undefined);
     try {
-      setNotice(await checkIn(props.game, role));
+      const result = await checkIn(game, role);
+      setNotice(result);
+      if (result === "unbound") setBindingStatus("expired");
+      if (result === "signed" || result === "already") {
+        const date = new Intl.DateTimeFormat(
+          props.chinese ? "zh-CN" : "en-GB",
+          {
+            timeZone: "Asia/Shanghai",
+            day: "numeric",
+            month: "numeric",
+          }
+        ).format(new Date());
+        setVerifiedDates(dates => ({ ...dates, [game]: date }));
+      }
     } finally {
       setWorking(false);
     }
@@ -205,6 +271,7 @@ export function MiyoushePanel(props: {
       const merged = mergeGachaArchives(await readGachaArchive(), incoming);
       await saveGachaArchive(merged);
       setArchive(merged);
+      setArchiveLoaded(true);
       setStorageError(false);
       setVisiblePulls(50);
       setFileNotice(t("导入完成。", "Import complete."));
@@ -287,7 +354,10 @@ export function MiyoushePanel(props: {
   }
 
   function selectView(next: ReturnType<typeof view>) {
+    if (next === view()) return;
     if (next !== "account") login?.abort();
+    else if (usingMiyoushePrototype && !working())
+      void refreshRoles(props.game);
     setView(next);
     setLinkError(false);
   }
@@ -358,15 +428,13 @@ export function MiyoushePanel(props: {
           >
             {t("抽卡分析", "Pull analysis")}
           </button>
-          <Show when={usingMiyoushePrototype}>
-            <button
-              type="button"
-              aria-pressed={view() === "account"}
-              onClick={() => selectView("account")}
-            >
-              {t("账号与签到", "Account and check-in")}
-            </button>
-          </Show>
+          <button
+            type="button"
+            aria-pressed={view() === "account"}
+            onClick={() => selectView("account")}
+          >
+            {t("每日签到", "Daily check-in")}
+          </button>
           <button
             type="button"
             aria-pressed={view() === "community"}
@@ -488,116 +556,131 @@ export function MiyoushePanel(props: {
           </div>
         </Show>
 
-        <Show when={view() === "account" && usingMiyoushePrototype}>
+        <Show when={view() === "account"}>
           <div class="miyoushe-view">
             <div class="miyoushe-page-heading">
-              <h2>{t("账号与签到", "Account and check-in")}</h2>
+              <h2>{t("每日签到", "Daily check-in")}</h2>
               <AppModalButton
                 onClick={() => openLink(miyousheLinks[props.game].checkIn)}
               >
                 {t("打开官方签到页", "Open official check-in")}
               </AppModalButton>
             </div>
-            <section class="miyoushe-card miyoushe-account">
-              <div class="miyoushe-section-heading">
-                <h3>
-                  {bound()
-                    ? t("已绑定米游社账号", "Account connected")
-                    : t("绑定米游社账号", "Connect a Miyoushe account")}
-                </h3>
-                <span>{t("本地原型", "Local prototype")}</span>
-              </div>
-              <div class="miyoushe-actions">
-                <Show
-                  when={qr()}
-                  fallback={
-                    <AppModalButton
-                      disabled={working()}
-                      onClick={() => void startLogin()}
-                    >
-                      {bound()
-                        ? t("重新扫码", "Reconnect")
-                        : t("扫码绑定", "Connect with QR code")}
-                    </AppModalButton>
-                  }
-                >
-                  {code => (
-                    <>
-                      <img
-                        class="miyoushe-qr"
-                        src={"data:image/png;base64," + code().image}
-                        alt={t("米游社登录二维码", "Miyoushe sign-in QR code")}
-                      />
-                      <p role="status">
-                        {code().scanned
-                          ? t("请在手机上确认。", "Confirm on your phone.")
-                          : t(
-                              "请用米游社 App 扫码。",
-                              "Scan with the Miyoushe app."
-                            )}
-                      </p>
-                      <AppModalButton onClick={() => login?.abort()}>
-                        {t("取消", "Cancel")}
-                      </AppModalButton>
-                    </>
+            <Show
+              when={usingMiyoushePrototype}
+              fallback={
+                <p class="miyoushe-muted">
+                  {t(
+                    "前往官方签到页查看本月奖励并完成签到。",
+                    "View this month's rewards and check in on the official page."
                   )}
-                </Show>
-                <Show when={bound() && !qr()}>
-                  <AppModalButton
-                    disabled={working()}
-                    onClick={() => void unbind()}
-                  >
-                    {t("解绑", "Disconnect")}
-                  </AppModalButton>
-                </Show>
-              </div>
-              <Show when={bound() && !qr()}>
-                <Show
-                  when={roles().length}
-                  fallback={
-                    <p>
-                      {t(
-                        "当前没有可签到的官服角色。",
-                        "No eligible official CN characters are available."
-                      )}
-                    </p>
-                  }
-                >
-                  <div class="miyoushe-actions">
-                    <label>
-                      {t("签到角色", "Check-in character")}{" "}
-                      <select
+                </p>
+              }
+            >
+              <section class="miyoushe-card miyoushe-account">
+                <div class="miyoushe-section-heading">
+                  <h3>
+                    {bound()
+                      ? t("已绑定米游社账号", "Account connected")
+                      : t("绑定米游社账号", "Connect a Miyoushe account")}
+                  </h3>
+                  <span>{t("本地原型", "Local prototype")}</span>
+                </div>
+                <div class="miyoushe-actions">
+                  <Show
+                    when={qr()}
+                    fallback={
+                      <AppModalButton
                         disabled={working()}
-                        value={selectedRole() ? key(selectedRole()!) : ""}
-                        onChange={event => {
-                          setRoleKey(event.currentTarget.value);
-                          setNotice(undefined);
-                        }}
+                        onClick={() => void startLogin()}
                       >
-                        <For each={roles()}>
-                          {role => (
-                            <option value={key(role)}>
-                              {role.nickname || role.region} · ••••
-                              {role.uid.slice(-4)}
-                            </option>
+                        {bound()
+                          ? t("重新扫码", "Reconnect")
+                          : t("扫码绑定", "Connect with QR code")}
+                      </AppModalButton>
+                    }
+                  >
+                    {code => (
+                      <>
+                        <img
+                          class="miyoushe-qr"
+                          src={"data:image/png;base64," + code().image}
+                          alt={t(
+                            "米游社登录二维码",
+                            "Miyoushe sign-in QR code"
                           )}
-                        </For>
-                      </select>
-                    </label>
+                        />
+                        <p role="status">
+                          {code().scanned
+                            ? t("请在手机上确认。", "Confirm on your phone.")
+                            : t(
+                                "请用米游社 App 扫码。",
+                                "Scan with the Miyoushe app."
+                              )}
+                        </p>
+                        <AppModalButton onClick={() => login?.abort()}>
+                          {t("取消", "Cancel")}
+                        </AppModalButton>
+                      </>
+                    )}
+                  </Show>
+                  <Show when={bound() && !qr()}>
                     <AppModalButton
-                      variant="primary"
                       disabled={working()}
-                      onClick={() => void sign()}
+                      onClick={() => void unbind()}
                     >
-                      {t("一键签到", "Check in")}
+                      {t("解绑", "Disconnect")}
                     </AppModalButton>
-                  </div>
+                  </Show>
+                </div>
+                <Show when={bound() && !qr()}>
+                  <Show
+                    when={roles().length}
+                    fallback={
+                      <p>
+                        {t(
+                          "当前没有可签到的官服角色。",
+                          "No eligible official CN characters are available."
+                        )}
+                      </p>
+                    }
+                  >
+                    <div class="miyoushe-actions">
+                      <label>
+                        {t("签到角色", "Check-in character")}{" "}
+                        <select
+                          disabled={working()}
+                          value={selectedRole() ? key(selectedRole()!) : ""}
+                          onChange={event => {
+                            setRoleKey(event.currentTarget.value);
+                            setNotice(undefined);
+                          }}
+                        >
+                          <For each={roles()}>
+                            {role => (
+                              <option value={key(role)}>
+                                {role.nickname || role.region} · ••••
+                                {role.uid.slice(-4)}
+                              </option>
+                            )}
+                          </For>
+                        </select>
+                      </label>
+                      <AppModalButton
+                        variant="primary"
+                        disabled={working()}
+                        onClick={() => void sign()}
+                      >
+                        {t("一键签到", "Check in")}
+                      </AppModalButton>
+                    </div>
+                  </Show>
                 </Show>
-              </Show>
-              <Show when={notice()}>
-                {state => <p role="status">{messages()[state()]}</p>}
-              </Show>
-            </section>
+                <Show when={notice()}>
+                  {state => <p role="status">{messages()[state()]}</p>}
+                </Show>
+              </section>
+            </Show>
           </div>
         </Show>
 

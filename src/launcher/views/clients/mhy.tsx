@@ -1,9 +1,12 @@
 import {
   For,
+  Index,
   Show,
   createEffect,
   createMemo,
   createSignal,
+  createUniqueId,
+  on,
   onCleanup,
 } from "solid-js";
 import { Skeleton } from "@hope-ui/solid";
@@ -39,12 +42,14 @@ function getSocialTitle(social: HoyoConnectSocialMedia) {
 export function MhyClientView(props: {
   client: ChannelClient;
   channelName?: string;
-  communityTools?: {
+  announcementLabel?: string;
+  communityTools?: readonly {
+    kind: "pulls" | "check-in";
     title: string;
-    description: string;
+    status: string;
     disabled: boolean;
     open: () => void;
-  };
+  }[];
 }) {
   const launcherIconButtons = createMemo(
     () => props.client.uiContent.launcherIconButtons ?? []
@@ -63,6 +68,15 @@ export function MhyClientView(props: {
     })
   );
   const [bannerIndex, setBannerIndex] = createSignal(0);
+  const [postsExpanded, setPostsExpanded] = createSignal(false);
+  const postsId = createUniqueId();
+  const hasTools = () => Boolean(props.communityTools?.length);
+  createEffect(
+    on(
+      () => props.client,
+      () => setPostsExpanded(false)
+    )
+  );
   const [launcherIconHovered, setLauncherIconHovered] = createSignal(false);
 
   createEffect(() => {
@@ -107,7 +121,7 @@ export function MhyClientView(props: {
   }
 
   return (
-    <Show when={showLauncherContent() || props.communityTools}>
+    <Show when={showLauncherContent() || hasTools()}>
       <div class="hyp-mhy-content">
         <Show when={showLauncherContent() && socialMedia().length > 0}>
           <aside class="hyp-mhy-social" aria-label="社交媒体">
@@ -161,7 +175,7 @@ export function MhyClientView(props: {
         <div
           classList={{
             "hyp-mhy-board-stack": true,
-            "hyp-mhy-board-stack--with-tools": Boolean(props.communityTools),
+            "hyp-mhy-board-stack--with-tools": hasTools(),
           }}
         >
           <Show when={showLauncherContent() && launcherIconButton()}>
@@ -265,7 +279,29 @@ export function MhyClientView(props: {
                 </Show>
 
                 <Show when={recentPosts().length > 0 || contentPending()}>
-                  <div class="hyp-mhy-posts">
+                  <Show when={hasTools()}>
+                    <button
+                      type="button"
+                      class="hyp-mhy-post-toggle"
+                      aria-expanded={postsExpanded()}
+                      aria-controls={postsId}
+                      disabled={props.communityTools?.[0]?.disabled}
+                      onClick={() => setPostsExpanded(expanded => !expanded)}
+                    >
+                      <span>{props.announcementLabel ?? "近期公告"}</span>
+                      <strong>
+                        <Show when={recentPosts().length}>
+                          {recentPosts().length}
+                        </Show>
+                        <span class="hyp-mhy-post-chevron" aria-hidden="true" />
+                      </strong>
+                    </button>
+                  </Show>
+                  <div
+                    class="hyp-mhy-posts"
+                    id={postsId}
+                    hidden={hasTools() && !postsExpanded()}
+                  >
                     <Show
                       when={recentPosts().length > 0}
                       fallback={
@@ -297,39 +333,60 @@ export function MhyClientView(props: {
                 </Show>
               </section>
             </Show>
-            <Show when={props.communityTools}>
-              {tool => (
-                <button
-                  type="button"
-                  class="hyp-mhy-tool"
-                  aria-haspopup="dialog"
-                  disabled={tool().disabled}
-                  onClick={() => tool().open()}
-                >
-                  <span class="hyp-mhy-tool-icon" aria-hidden="true">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
+            <Show when={hasTools()}>
+              <div class="hyp-mhy-tools">
+                <Index each={props.communityTools}>
+                  {tool => (
+                    <button
+                      type="button"
+                      class="hyp-mhy-tool"
+                      aria-haspopup="dialog"
+                      disabled={tool().disabled}
+                      onClick={() => tool().open()}
                     >
-                      <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l2.3-3.1A8.5 8.5 0 1 1 21 11.5Z" />
-                      <path d="M9 12h.01M12.5 12h.01M16 12h.01" />
-                    </svg>
-                  </span>
-                  <strong>{tool().title}</strong>
-                  <span class="hyp-mhy-tool-description">
-                    {tool().description}
-                  </span>
-                  <span class="hyp-mhy-tool-arrow" aria-hidden="true">
-                    →
-                  </span>
-                </button>
-              )}
+                      <span class="hyp-mhy-tool-icon" aria-hidden="true">
+                        <svg
+                          width="19"
+                          height="19"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <Show
+                            when={tool().kind === "pulls"}
+                            fallback={
+                              <>
+                                <rect
+                                  x="4"
+                                  y="5"
+                                  width="16"
+                                  height="16"
+                                  rx="2"
+                                />
+                                <path d="M8 3v4m8-4v4M4 10h16m-11 5 2 2 4-4" />
+                              </>
+                            }
+                          >
+                            <path d="M4 4v16h16M8 16v-3m5 3V9m5 7V6" />
+                          </Show>
+                        </svg>
+                      </span>
+                      <span class="hyp-mhy-tool-copy">
+                        <strong>{tool().title}</strong>
+                        <span class="hyp-mhy-tool-description">
+                          {tool().status}
+                        </span>
+                      </span>
+                      <span class="hyp-mhy-tool-arrow" aria-hidden="true">
+                        →
+                      </span>
+                    </button>
+                  )}
+                </Index>
+              </div>
             </Show>
           </div>
         </div>

@@ -136,7 +136,7 @@ import { resolveLaunchFailure } from "./launch-failure-policy";
 import { reportActionFailure } from "./action-failure";
 import { forceStopThenLaunch } from "./force-stop-launch";
 import { miyousheGameForChannel } from "@src/miyoushe/games";
-import { MiyoushePanel } from "@src/miyoushe/panel";
+import { MiyoushePanel, type MiyousheHomeStatus } from "@src/miyoushe/panel";
 import type {
   HypGame,
   HypGameWineTaskRequest,
@@ -580,8 +580,49 @@ export async function createHypLauncher({
         selectedGame().clientId
       );
     const [miyousheOpen, setMiyousheOpen] = createSignal(false);
-    const miyousheLabel = () =>
-      locale.currentLanguage === "zh_cn" ? "米游社" : "Miyoushe";
+    const [miyousheView, setMiyousheView] = createSignal<"pulls" | "account">(
+      "pulls"
+    );
+    const [miyousheStatus, setMiyousheStatus] =
+      createSignal<MiyousheHomeStatus>({
+        pulls: "loading",
+        checkIn: "loading",
+      });
+    const homeText = (zh: string, en: string) =>
+      locale.currentLanguage === "zh_cn" ? zh : en;
+    const pullStatus = () => {
+      const { pulls } = miyousheStatus();
+      if (pulls === "loading")
+        return homeText("读取本地记录…", "Reading local history…");
+      if (pulls === "unavailable")
+        return homeText("记录读取失败", "History unavailable");
+      if (!pulls) return homeText("尚未导入记录", "No imported pulls");
+      const count = new Intl.NumberFormat().format(pulls);
+      return homeText(`已导入 ${count} 抽`, `${count} pulls imported`);
+    };
+    const checkInStatus = () => {
+      const { checkIn, verifiedDate } = miyousheStatus();
+      if (verifiedDate)
+        return homeText(
+          `${verifiedDate} 已确认签到`,
+          `Verified on ${verifiedDate}`
+        );
+      const labels: Record<MiyousheHomeStatus["checkIn"], string> = {
+        loading: homeText("读取绑定状态…", "Checking account…"),
+        official: homeText("官方网页签到", "Official check-in"),
+        bound: homeText("已绑定账号", "Account connected"),
+        unbound: homeText("尚未绑定账号", "Account disconnected"),
+        expired: homeText("登录已过期", "Session expired"),
+        unavailable: homeText("状态暂不可用", "Status unavailable"),
+      };
+      return labels[checkIn];
+    };
+    function openMiyoushe(view: "pulls" | "account") {
+      batch(() => {
+        setMiyousheView(view);
+        setMiyousheOpen(true);
+      });
+    }
     const [installPrompt, setInstallPrompt] = createSignal<{
       game: HypGame;
       directory: string;
@@ -2360,17 +2401,25 @@ export async function createHypLauncher({
             client={selectedGame().client}
             communityTools={
               miyousheGame()
-                ? {
-                    title: miyousheLabel(),
-                    description:
-                      locale.currentLanguage === "zh_cn"
-                        ? "抽卡 · 签到 · 攻略"
-                        : "Pull analysis, check-in, and guides",
-                    disabled: libraryMounted() || downloadManagerOpen(),
-                    open: () => setMiyousheOpen(true),
-                  }
+                ? [
+                    {
+                      kind: "pulls",
+                      title: homeText("抽卡分析", "Pull analysis"),
+                      status: pullStatus(),
+                      disabled: libraryMounted() || downloadManagerOpen(),
+                      open: () => openMiyoushe("pulls"),
+                    },
+                    {
+                      kind: "check-in",
+                      title: homeText("每日签到", "Daily check-in"),
+                      status: checkInStatus(),
+                      disabled: libraryMounted() || downloadManagerOpen(),
+                      open: () => openMiyoushe("account"),
+                    },
+                  ]
                 : undefined
             }
+            announcementLabel={homeText("近期公告", "Recent announcements")}
             channelName={
               selectedGame().client.uiContent.channelName ||
               selectedGame().id.toUpperCase()
@@ -3002,6 +3051,8 @@ export async function createHypLauncher({
             <MiyoushePanel
               opened={miyousheOpen()}
               onClose={() => setMiyousheOpen(false)}
+              initialView={miyousheView()}
+              onHomeStatusChange={setMiyousheStatus}
               game={game()}
               title={selectedGame().title}
               icon={
