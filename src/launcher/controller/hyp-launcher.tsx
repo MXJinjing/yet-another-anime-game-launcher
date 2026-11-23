@@ -135,6 +135,8 @@ import {
 import { resolveLaunchFailure } from "./launch-failure-policy";
 import { reportActionFailure } from "./action-failure";
 import { forceStopThenLaunch } from "./force-stop-launch";
+import { miyousheGameForChannel } from "@src/miyoushe/games";
+import { MiyoushePanel } from "@src/miyoushe/panel";
 import type {
   HypGame,
   HypGameWineTaskRequest,
@@ -572,6 +574,14 @@ export async function createHypLauncher({
 
   return function HypLauncher() {
     const selectedGame = () => games[selectedGameIndex()];
+    const miyousheGame = () =>
+      miyousheGameForChannel(
+        import.meta.env.YAAGL_CHANNEL_CLIENT ?? "hk4ecn",
+        selectedGame().clientId
+      );
+    const [miyousheOpen, setMiyousheOpen] = createSignal(false);
+    const miyousheLabel = () =>
+      locale.currentLanguage === "zh_cn" ? "米游社" : "Miyoushe";
     const [installPrompt, setInstallPrompt] = createSignal<{
       game: HypGame;
       directory: string;
@@ -2328,6 +2338,29 @@ export async function createHypLauncher({
             </Show>
           </button>
           <div class="hyp-rail-bottom">
+            <Show when={miyousheGame()}>
+              <button
+                class="hyp-rail-button"
+                aria-label={miyousheLabel()}
+                title={miyousheLabel()}
+                onClick={() => setMiyousheOpen(true)}
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l2.3-3.1A8.5 8.5 0 1 1 21 11.5Z" />
+                  <path d="M9 12h.01M12.5 12h.01M16 12h.01" />
+                </svg>
+              </button>
+            </Show>
             <button
               class="hyp-rail-button"
               aria-label="Global settings"
@@ -2974,6 +3007,17 @@ export async function createHypLauncher({
           }}
         </Show>
 
+        <Show when={miyousheGame()}>
+          {game => (
+            <MiyoushePanel
+              opened={miyousheOpen()}
+              onClose={() => setMiyousheOpen(false)}
+              game={game()}
+              title={selectedGame().title}
+              chinese={locale.currentLanguage === "zh_cn"}
+            />
+          )}
+        </Show>
         <GlobalModals
           route={globalModalRoute}
           onRouteChange={route => {
