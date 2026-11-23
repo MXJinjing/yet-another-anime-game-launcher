@@ -743,7 +743,6 @@ export function MiyoushePanel(props: {
           </div>
         }
         maxWidth={1040}
-        height="calc(100vh - 16px)"
       >
         <div class="miyoushe-panel" style={panelTheme()}>
           <input

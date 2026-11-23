@@ -711,33 +711,6 @@ export function PullDashboard(props: {
                 </AppModalButton>
               </Show>
             </section>
-            <details class="miyoushe-pool-rules">
-              <summary>
-                {t("统计口径与保底说明", "Statistics and pity notes")}
-              </summary>
-              <p class="miyoushe-muted">
-                {t(
-                  "平均只计两次已知出货之间的完整周期。UP 平均包含周期中的歪池消耗，进行中的垫抽不进入平均。历史 UP 占比仅基于可判定记录。",
-                  "Averages use complete cycles between known results. UP averages include off-banner pulls in the cycle. Current pity is excluded, and historical UP share uses classified results only."
-                )}
-              </p>
-              <Show when={rule()?.radiance}>
-                <p class="miyoushe-muted">
-                  {t(
-                    "抽卡记录没有明光动画信息。出货旁的明光标记由玩家确认，只在本机显示。",
-                    "Pull records do not contain animation data. Radiance marks are confirmed by the player and stored locally."
-                  )}
-                </p>
-              </Show>
-              <Show when={props.game === "hk4e" && active().type === "302"}>
-                <p class="miyoushe-muted">
-                  {t(
-                    "武器池的大保底表示当期任一 UP 武器。定轨目标无法从记录判断。",
-                    "The weapon banner guarantee covers either featured weapon. History does not identify the chosen weapon."
-                  )}
-                </p>
-              </Show>
-            </details>
           </>
         )}
       </Show>

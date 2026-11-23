@@ -26,8 +26,10 @@
 }
 
 .app-modal-content.miyoushe-pull-modal {
-  max-height: calc(100vh - 16px) !important;
-  margin-block: 8px !important;
+  --miyo-pull-height: calc(100vh - 46px);
+  height: var(--miyo-pull-height);
+  max-height: var(--miyo-pull-height) !important;
+  margin-block: 38px 8px !important;
 }
 
 .miyoushe-pull-modal .hope-modal__header {
@@ -448,22 +450,23 @@
 
 .miyoushe-four-cards li {
   display: grid;
-  justify-items: center;
-  gap: 1px;
-  min-width: 29px;
-  padding: 2px;
+  grid-template-columns: 32px auto;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 5px 2px 2px;
   border: 1px solid #49395d;
   border-radius: 4px;
   color: #dfcafa;
   background: #211b2b;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .miyoushe-four-cards .miyoushe-item-image {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: 3px;
   font-size: 9px;
 }
@@ -545,21 +548,6 @@
   font-size: 18px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
-}
-
-.miyoushe-pool-rules {
-  padding-top: 9px;
-  border-top: 1px solid var(--miyo-line);
-  font-size: 12px;
-}
-
-.miyoushe-pool-rules summary {
-  color: var(--miyo-accent);
-  cursor: pointer;
-}
-
-.miyoushe-pool-rules p {
-  margin-top: 6px;
 }
 
 .miyoushe-history-toolbar {
