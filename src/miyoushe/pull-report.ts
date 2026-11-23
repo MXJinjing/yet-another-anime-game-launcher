@@ -125,3 +125,19 @@ export function groupPullCycles(rows: PullReportRow[]) {
   }
   return { cycles, ongoing: { count, complete, fourths } };
 }
+
+export function pagePullHistory(
+  rows: PullReportRow[],
+  requestedPage: number,
+  pageSize: 5 | 10
+) {
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const page = Math.max(1, Math.min(requestedPage, pageCount));
+  // Pool rows are oldest first. Take only the requested window before reversing.
+  const end = rows.length - (page - 1) * pageSize;
+  return {
+    page,
+    pageCount,
+    rows: rows.slice(Math.max(0, end - pageSize), end).reverse(),
+  };
+}

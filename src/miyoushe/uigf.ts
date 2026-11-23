@@ -208,7 +208,7 @@ export function exportUigf(archive: GachaArchive, local = false) {
   );
 }
 
-export function comparePulls(a: Pull, b: Pull) {
+function comparePulls(a: Pull, b: Pull) {
   return a.time.localeCompare(b.time) || Number(BigInt(a.id) - BigInt(b.id));
 }
 

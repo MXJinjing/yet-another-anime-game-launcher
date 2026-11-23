@@ -390,6 +390,25 @@
   overflow-x: auto;
 }
 
+.miyoushe-list-pagination,
+.miyoushe-page-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.miyoushe-list-pagination {
+  justify-content: space-between;
+}
+
+.miyoushe-page-controls .app-modal-button {
+  min-width: 0;
+  height: 30px;
+  padding-inline: 10px;
+  font-size: 12px;
+}
+
 .miyoushe-history table {
   width: 100%;
   border-collapse: collapse;

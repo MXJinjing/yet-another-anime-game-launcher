@@ -1,8 +1,10 @@
 import {
+  createEffect,
   createMemo,
   createSignal,
   For,
   Match,
+  on,
   onMount,
   Show,
   Switch,
@@ -14,10 +16,11 @@ import { genshinPoolRule } from "./genshin-rules";
 import {
   createPullReport,
   groupPullCycles,
+  pagePullHistory,
   pullTiming,
   type PullReportRow,
 } from "./pull-report";
-import { comparePulls, type GachaArchive, type summarizePulls } from "./uigf";
+import type { GachaArchive, summarizePulls } from "./uigf";
 import { readRadianceMarks, toggleRadianceMark } from "./local";
 
 type Account = NonNullable<GachaArchive[MiyousheGame]>[number];
@@ -78,6 +81,15 @@ export function PullDashboard(props: {
   const count = new Intl.NumberFormat();
   const [view, setView] = createSignal<View>("bars");
   const [showFour, setShowFour] = createSignal(false);
+  const [page, setPage] = createSignal(1);
+  const [pageSize, setPageSize] = createSignal<5 | 10>(10);
+  createEffect(
+    on(
+      () => [props.game, props.account.uid, props.pool?.type] as const,
+      () => setPage(1),
+      { defer: true }
+    )
+  );
   const [radiance, setRadiance] = createSignal(new Set<string>());
   const [writingMark, setWritingMark] = createSignal(false);
   const [markError, setMarkError] = createSignal(false);
@@ -121,14 +133,9 @@ export function PullDashboard(props: {
         0
       )
   );
-  const allRows = createMemo(() => {
-    const rows = report().pools.flatMap(entry =>
-      entry.rows.map(row => ({ row, pool: entry.type }))
-    );
-    return rows.sort((a, b) => comparePulls(b.row.pull, a.row.pull));
-  });
-  const rowCount = () =>
-    view() === "bars" ? cycles().length : allRows().length;
+  const listPage = createMemo(() =>
+    pagePullHistory(pool()?.rows ?? [], page(), pageSize())
+  );
   const rule = () =>
     props.game === "hk4e"
       ? genshinPoolRule(
@@ -369,33 +376,40 @@ export function PullDashboard(props: {
       >
         {active => (
           <>
-            <Show when={view() === "bars"}>
-              <div
-                class="miyoushe-pool-picker"
-                role="group"
-                aria-label={t("卡池", "Pools")}
-              >
-                <For each={props.summary.pools}>
-                  {entry => (
-                    <button
-                      type="button"
-                      aria-pressed={active().type === entry.type}
-                      onClick={() => {
-                        props.onPoolChange(entry.type);
-                      }}
+            <div
+              class="miyoushe-pool-picker"
+              role="group"
+              aria-label={t("卡池", "Pools")}
+            >
+              <For each={props.summary.pools}>
+                {entry => (
+                  <button
+                    type="button"
+                    aria-pressed={active().type === entry.type}
+                    onClick={() => {
+                      props.onPoolChange(entry.type);
+                    }}
+                  >
+                    {poolLabel(entry.type)}{" "}
+                    <span
+                      title={
+                        view() === "bars"
+                          ? t("最高稀有度次数", "Top-rank pulls")
+                          : t("记录数", "Record count")
+                      }
                     >
-                      {poolLabel(entry.type)}{" "}
-                      <span title={t("最高稀有度次数", "Top-rank pulls")}>
-                        {count.format(
-                          report().pools.find(pool => pool.type === entry.type)
-                            ?.topRankCount ?? 0
-                        )}
-                      </span>
-                    </button>
-                  )}
-                </For>
-              </div>
-            </Show>
+                      {count.format(
+                        view() === "bars"
+                          ? report().pools.find(
+                              pool => pool.type === entry.type
+                            )?.topRankCount ?? 0
+                          : entry.pulls.length
+                      )}
+                    </span>
+                  </button>
+                )}
+              </For>
+            </div>
             <section class="miyoushe-card miyoushe-history">
               <Show when={view() === "bars"}>
                 <dl class="miyoushe-pool-metrics">
@@ -589,24 +603,22 @@ export function PullDashboard(props: {
                 </Match>
                 <Match when={view() === "list"}>
                   <div class="miyoushe-table-wrap">
-                    <table>
+                    <table aria-label={poolLabel(active().type)}>
                       <thead>
                         <tr>
                           <th scope="col">{t("获得物品", "Item")}</th>
                           <th scope="col">{t("稀有度", "Rarity")}</th>
-                          <th scope="col">{t("卡池", "Pool")}</th>
                           <th scope="col">{t("抽取时间", "Time")}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        <For each={allRows().slice(0, props.visiblePulls)}>
-                          {({ row, pool }) => (
+                        <For each={listPage().rows}>
+                          {row => (
                             <tr data-rank={row.pull.rank_type}>
                               <td class="miyoushe-list-item">{name(row)}</td>
                               <td>
                                 <Rank row={row} />
                               </td>
-                              <td>{poolLabel(pool)}</td>
                               <td>
                                 <PullTime row={row} />
                               </td>
@@ -616,9 +628,49 @@ export function PullDashboard(props: {
                       </tbody>
                     </table>
                   </div>
+                  <div
+                    class="miyoushe-list-pagination"
+                    role="group"
+                    aria-label={t("抽卡记录分页", "History pagination")}
+                  >
+                    <label class="miyoushe-field">
+                      {t("每页", "Per page")}
+                      <select
+                        value={pageSize()}
+                        onChange={event => {
+                          setPageSize(
+                            event.currentTarget.value === "5" ? 5 : 10
+                          );
+                          setPage(1);
+                        }}
+                      >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                      </select>
+                    </label>
+                    <div class="miyoushe-page-controls">
+                      <AppModalButton
+                        disabled={listPage().page <= 1}
+                        onClick={() => setPage(listPage().page - 1)}
+                      >
+                        {t("上一页", "Previous")}
+                      </AppModalButton>
+                      <span class="miyoushe-muted" aria-live="polite">
+                        {listPage().page} / {listPage().pageCount}
+                      </span>
+                      <AppModalButton
+                        disabled={listPage().page >= listPage().pageCount}
+                        onClick={() => setPage(listPage().page + 1)}
+                      >
+                        {t("下一页", "Next")}
+                      </AppModalButton>
+                    </div>
+                  </div>
                 </Match>
               </Switch>
-              <Show when={rowCount() > props.visiblePulls}>
+              <Show
+                when={view() === "bars" && cycles().length > props.visiblePulls}
+              >
                 <AppModalButton onClick={props.onShowMore}>
                   {t("显示更多记录", "Show more pulls")}
                 </AppModalButton>

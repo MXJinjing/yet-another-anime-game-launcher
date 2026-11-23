@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createPullReport,
   groupPullCycles,
+  pagePullHistory,
   pullTiming,
 } from "../../src/miyoushe/pull-report";
 import type { Pull } from "../../src/miyoushe/uigf";
@@ -121,6 +122,32 @@ describe("pull report", () => {
       count: 1,
       complete: false,
     });
+  });
+
+  it("pages the chosen pool newest first in groups of five or ten", () => {
+    const records = Array.from({ length: 12 }, (_, index) =>
+      pull(String(index + 1), "3")
+    );
+    const [weapon, character] = createPullReport(
+      account([...records, pull("13", "5", { gacha_type: "301" })]),
+      "hk4e"
+    ).pools;
+    const pageIds = (data: ReturnType<typeof pagePullHistory>) =>
+      data.rows.map(row => row.pull.id);
+    expect(pageIds(pagePullHistory(weapon.rows, 1, 5))).toEqual([
+      "12",
+      "11",
+      "10",
+      "9",
+      "8",
+    ]);
+    expect(pageIds(pagePullHistory(weapon.rows, 2, 10))).toEqual(["2", "1"]);
+    expect(pagePullHistory(weapon.rows, 30, 5)).toMatchObject({
+      page: 3,
+      pageCount: 3,
+    });
+    expect(pageIds(pagePullHistory(character.rows, 1, 10))).toEqual(["13"]);
+    expect(weapon.rows.map(row => row.pull.id).slice(0, 2)).toEqual(["1", "2"]);
   });
 
   it("counts only classified featured history and skips uncertain intervals", () => {
