@@ -246,9 +246,11 @@ export function mapBackgroundsToUiContent(
 ): ChannelClientBackground[] {
   return backgrounds.map(bg => ({
     id: bg.id,
-    background: bg.background.url,
-    background_video: bg.video.url,
-    background_theme: bg.theme.url,
+    // Empty strings mean "this artwork has no such asset"; keep them
+    // undefined so the launcher's fallbacks actually apply.
+    background: bg.background.url || undefined,
+    background_video: bg.video.url || undefined,
+    background_theme: bg.theme.url || undefined,
     type: bg.type,
   }));
 }
