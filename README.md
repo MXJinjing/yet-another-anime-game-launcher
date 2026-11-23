@@ -1,246 +1,99 @@
-# Yet Another Anime Game Launcher Modified (Yaaglm)
+# Yaaglm — Yet Another Anime Game Launcher Modified
 
 [简体中文](docs/README.zh-CN.md)
 
-> **⚠️ Personal Fork Notice**
+> **Personal fork notice**
 >
-> **This repository is a personally built fork named Yaaglm for personal testing, customization, and maintenance. It is not an official upstream release.**
+> Yaaglm is an independently maintained fork of [Yaagl](https://github.com/yaagl/yet-another-anime-game-launcher). It combines launcher functionality synchronized from upstream with Yaaglm-specific changes. Its releases, supported clients, and support may differ from the upstream project; it is not an official upstream build.
 
-## Current Supported Game Version:
+## Supported games and channels
 
-### GI: 5.3.0+ OS/CN **
-### HSR: 4.3.0+ OS/CN
-### ZZZ: 3.0.0+ OS/CN
+Release packages cover these clients and regions:
 
-#### **: Starting from release 0.3.12 using DXMT 0.74, you need to update to Sequoia or later. Sonoma is getting old and is lacking technical features to improve the translation.
+- GI: CN and Global
+- HSR: CN and Global
+- ZZZ: CN and Global
+- BH3: Global
+- CBJQ: CN and Global
 
-<!-- ## Policy
-
-Please don't link to this repository. If you really want to share it with people, just tell the project name __Yaaglm__ and where to find (Github!) but __don't share/disclose the link__ unless it's a private message.
-
-Do __not__ provide any forms of tutorial for _how to use Yaaglm_ on public channels. (If you really want to do that, ask the project owner for permission first.)
-
-Do __not__ mention the real name of the game or the game company, in code commits, issues, pr or dicussions. Use _The Anime Game_ or _The Anime Company_ instead.
-
-Just follow these, or share and ruin this project for all other macOS (including Linux as well) players. -->
-
-<!-- ### Hall of Shame
-
-This is a list of people/organization violating Yaaglm policies -->
-
-## Is it safe?
-
-Use it at your own risk. Or enjoying it with a new f2p account.
-
-## For Linux users
-
-[Anime Games Launcher](https://github.com/an-anime-team/anime-games-launcher) is a universal linux launcher for anime games
-
-Yaaglm is a macOS desktop launcher for managing Windows game programs from different regions and distribution channels. It provides a unified interface, download and update workflows, game library management, runtime configuration, and Wine-based launch support.
-
-The target channel is selected at build time through `YAAGL_CHANNEL_CLIENT`. A channel may represent a region, a distribution channel, or a merged multi-game entry point. Each channel uses its corresponding client configuration, resource endpoints, and runtime settings.
-
-> This project is intended for users who are familiar with macOS, the terminal, and Windows compatibility layers. Before using it, make sure you understand the system requirements, file locations, and backup procedures for the relevant programs.
+Some releases also provide combined launcher packages for multiple clients. Package availability, game-version compatibility, and macOS requirements can change; check the [latest release](https://github.com/MXJinjing/yet-another-anime-game-launcher/releases/latest) and its notes before installing or updating.
 
 ## Features
 
-- Lightweight macOS desktop application based on Neutralinojs.
-- Frontend built with SolidJS, TypeScript, and Vite.
-- Game library, installation, update, launch, and task queue management.
-- HK4E, HKRPG, and NAP use Swift Sophon for install, update, predownload, and integrity checks. BH3 and CBJQ use Aria2.
-- Multiple regions and distribution channels selected at build time.
-- Wine, DXMT, and other runtime components can be configured and managed.
-- Localized interface and replaceable runtime resources.
+### Launcher features
 
-## Screenshots
+- Install, update, repair, pre-download, and check the integrity of supported game files.
+- On supported clients, choose a full or base installation and select optional voice packs.
+- Use Sophon for supported clients and Aria2 for other clients, with download tasks and detailed progress in the launcher.
+- Manage Wine distributions and per-game settings for graphics, controls, and launch behavior.
+- Configure compatible graphics options such as DXMT, D3DMetal, and MetalFX where supported by the selected game and Wine runtime.
+- Use a localized interface, automatic launcher updates, and in-app release notes.
 
-> Screenshot placeholders: add images to `docs/screenshots/` later and uncomment the example links below.
+### Yaaglm additions
 
-<!--
-![Main interface](docs/screenshots/main.png)
-![Game library](docs/screenshots/game-library.png)
-![Settings](docs/screenshots/settings.png)
--->
+- Combined launcher packages bring multiple CN or Global clients into a single game library.
+- A separate live log window can follow launcher and game logs in tabs, open selected log files, and copy log output.
+- The game library can show per-game artwork and video backgrounds.
+- Hosts Helper can manage the launcher's hosts rules with macOS authorization.
 
-## Project structure
+Features vary by game, region, and Wine runtime. Options that are unavailable or incompatible with a selected client may be hidden or disabled.
 
-```text
-.
-├── src/
-│   ├── clients/       # Client and distribution-channel configurations
-│   ├── config/        # Configuration, settings, and validation
-│   ├── launcher/      # Game library, launch flow, and task scheduling
-│   ├── download/      # Download queue, progress, and aria2 integration
-│   ├── wine/          # Wine runtime and distribution handling
-│   ├── locale/        # Localization resources
-│   ├── assets/        # Interface assets and images
-│   └── icons/         # Icon resources
-├── sophon_server/     # Development mirror of the Sophon source; not used for packaging
-├── sophon.release     # Pinned Sophon release downloaded by build-sophon.sh
-├── sidecar/           # aria2, 7z, hpatchz, xdelta, and runtime helpers
-├── external/          # External patches and build-time resources
-├── configure.sh       # Initialize configuration and Neutralino runtime
-├── build-sophon.sh    # Download the pinned Sophon sidecar release
-├── build-app.js       # Build one macOS application bundle
-├── scripts/build-release.sh # Build all release channels
-├── dist/              # Frontend and Neutralino build output
-├── release/           # Final .app output directory
-└── dev/           # Generated development runtime directories
-```
+## For Linux users
 
-`dist/`, `release/`, `dev/`, `external/`, and other build-output directories are generated content and generally should not be committed to Git. Sensitive configuration files such as the generated `secret.ts` must not be committed either.
+Yaaglm targets macOS. For Linux, see [Anime Games Launcher](https://github.com/an-anime-team/anime-games-launcher).
 
-## Requirements
+## Is it safe?
 
-- macOS.
-- Node.js and pnpm.
-- Xcode Command Line Tools, used to verify the downloaded Sophon binary. Swift is required only when compiling the local mirror with `SOPHON_FROM_SOURCE=1`.
-- A C compiler for native helper programs; on macOS this is typically provided by Xcode Command Line Tools.
-- Enough disk space for frontend dependencies, sidecars, Wine runtimes, and game files.
+Use Yaaglm at your own risk. It runs Windows software through Wine and downloads game files and runtime components from their configured sources. Compatibility and account safety are not guaranteed. Test with a separate installation and keep backups of important files and settings.
+
+## Support
+
+For general usage questions, see the [Yaagl community Discord](https://discord.gg/HrV52MgSC2). This is an independent fork, so identify the Yaaglm release and channel when asking for help; upstream volunteers may not support fork-specific changes.
+
+Open a [GitHub issue](https://github.com/MXJinjing/yet-another-anime-game-launcher/issues) only for a reproducible technical problem. Include the Yaaglm version, channel, macOS version, steps to reproduce, and relevant logs or system information. Remove account details, tokens, and other private information before sharing logs.
 
 ## Install
 
-- Go to [Release](https://github.com/MXJinjing/yet-another-anime-game-launcher/releases/latest) and download the latest version.
-- Open the DMG and drag the app to `/Applications`, or extract the `.tar.gz` and copy the app there. Then open the app from `/Applications`.
-- Also make sure your game files aren't stored inside `/Applications`, use something inside your home folder instead, e.g `Games/GI`.
-
-### From source
-
-```sh
-pnpm install
-./configure.sh
-```
-
-`./configure.sh` prepares channel configuration dependencies, external directories, and the Neutralino binaries required by the project. Download the pinned Sophon sidecar before packaging or running the app:
-
-```sh
-./build-sophon.sh
-```
-
-The version comes from `sophon.release`. `SOPHON_ARCH=x64 ./build-sophon.sh` downloads the Intel build. Set `SOPHON_FROM_SOURCE=1` only to compile the local mirror instead.
+1. Download the release for the game channel and Mac architecture you need from [Releases](https://github.com/MXJinjing/yet-another-anime-game-launcher/releases/latest).
+2. Open the DMG and move the app to <code>/Applications</code>. Launch it from there, not from Downloads.
+3. Keep game files in a writable folder under your home directory, such as <code>~/Games</code>, rather than inside <code>/Applications</code>.
+4. Follow the first-run prompts to install or select a Wine environment and set up the game files.
 
 ## Development
 
-### Frontend development
+To run the desktop app from source on macOS:
 
-```sh
-pnpm dev
-```
+~~~sh
+pnpm install
+./configure.sh
+./build-sophon.sh
+pnpm start
+~~~
 
-`pnpm dev` is intended for frontend interface development. It does not automatically copy the Neutralino client, sidecars, or a complete desktop runtime directory. Use the channel-specific `start-*` command below to launch the full Neutralino application.
-
-### Running each channel
-
-The following commands build the development frontend, prepare Neutralino and sidecar resources, and launch the desktop application.
-
-| Channel | Command | Notes |
-| --- | --- | --- |
-| `hk4ecn` | `pnpm start` | Default development channel |
-| `hk4eos` | `pnpm run start-hk4eos` | OS single channel |
-| `mhyos` | `pnpm run start-mhyos` | OS merged multi-channel entry point |
-| `mhycn` | `pnpm run start-mhycn` | CN merged multi-channel entry point |
-| `hkrpgos` | `pnpm run start-hkrpgos` | OS single channel |
-| `hkrpgcn` | `pnpm run start-hkrpgcn` | CN single channel |
-| `bh3glb` | `pnpm run start-bh3glb` | Global channel |
-| `cbjq` | `pnpm run start-cbjq` | OS channel |
-| `cbjqcn` | `pnpm run start-cbjqcn` | CN channel |
-| `napos` | `pnpm run start-napos` | OS channel |
-| `napcn` | `pnpm run start-napcn` | CN channel |
-| `hk4euniversal` | No dedicated `start-*` script | Build through the unified packaging flow |
-
-To temporarily select a channel, set `YAAGL_CHANNEL_CLIENT`. `vite.config.ts` reads this variable and selects `src/clients/<channel>.ts`:
-
-```sh
-YAAGL_CHANNEL_CLIENT=<channel> pnpm exec vite build --mode=development
-```
-
-## Build
-
-### Single-channel frontend build
-
-The repository provides these shortcut commands:
-
-```sh
-pnpm build
-pnpm run build-hk4eos
-pnpm run build-bh3glb
-```
-
-For channels without a dedicated `build-*` script, use:
-
-```sh
-YAAGL_CHANNEL_CLIENT=<channel> pnpm exec vite build
-```
-
-These commands build frontend resources only; they do not create the final macOS `.app`. The three build modes are:
-
-- `vite build`: build frontend resources only.
-- `node build-app.js`: build and package one macOS application.
-- `bash scripts/build-release.sh`: package all release channels for one architecture.
-
-### Package one channel
-
-`build-app.js` selects the channel through `YAAGL_CHANNEL_CLIENT` and the target architecture through `YAAGL_BUILD_ARCH`:
-
-```sh
-YAAGL_CHANNEL_CLIENT=hk4ecn YAAGL_BUILD_ARCH=arm64 node build-app.js
-```
-
-Other examples:
-
-```sh
-YAAGL_CHANNEL_CLIENT=hkrpgcn YAAGL_BUILD_ARCH=arm64 node build-app.js
-YAAGL_CHANNEL_CLIENT=napos YAAGL_BUILD_ARCH=arm64 node build-app.js
-YAAGL_CHANNEL_CLIENT=hk4eos YAAGL_BUILD_ARCH=arm64 node build-app.js
-```
-
-Supported architectures:
-
-- `arm64`
-- `x64`
-- `universal`
-
-Applications are written to:
-
-```text
-release/<architecture>/
-```
-
-### Build all release channels
-
-```sh
-export YAAGL_VERSION="$(node -p 'require("./package.json").version')"
-YAAGL_BUILD_ARCH=arm64 bash scripts/build-release.sh
-YAAGL_BUILD_ARCH=x64 bash scripts/build-release.sh
-YAAGL_BUILD_ARCH=universal bash scripts/build-release.sh
-```
-
-Run the command for the architecture you need after preparing its Sophon sidecar. A universal build needs both sidecar architectures. The [release script](scripts/build-release.sh) lists the channels, including `hk4eos` and `all`, and writes the DMG installers and `.tar.gz` archives to `release-assets/<architecture>/`.
+<code>pnpm dev</code> starts the Vite frontend only. <code>pnpm start</code> builds and runs the default desktop channel; use a channel-specific <code>start-*</code> script from <code>package.json</code> to run another supported channel. <code>YAAGL_CHANNEL_CLIENT</code> selects the channel for direct builds.
 
 ## Uninstall (completely)
 
-1. If Hosts-Helper is enabled, open the in-app settings to uninstall it.
-2. In **Global Settings → General → Launcher Data**, choose **Clear Launcher Data** and confirm. Yaaglm moves the current channel's settings, logs, caches, and local Wine environment to the Trash, then quits.
-3. Move the app to the Trash.
+1. If Hosts Helper is installed, uninstall it from **Global Settings → General → Hosts Helper**.
+2. In **Global Settings → General → Launcher Data**, choose **Clear Launcher Data**. This moves Yaaglm's settings, caches, logs, and locally managed Wine data to the Trash, then quits the app. Review the confirmation before continuing.
+3. Move Yaaglm to the Trash.
 
-To locate the folder manually, open Finder, choose **Go → Go to Folder…** (Shift–Command–G), enter `~/Library/Application Support/`, and press Return. Find the folder for your channel, such as `Yaaglm GI CN`, `Yaaglm OS`, or `com.3shain.yaaglm` for the all-channel build. You can also choose **Open in Finder** under **Launcher Data** while Yaaglm is running. Quit Yaaglm before moving the folder to the Trash.
+To locate the current channel's data folder manually, open **Launcher Data → Open in Finder** in Yaaglm, or use Finder's **Go → Go to Folder…** and enter <code>~/Library/Application Support/</code>. Quit Yaaglm before moving the folder to the Trash. This launcher data folder is separate from your game installation folder.
 
 ## Related projects
 
-* Custom `neutralinojs` binary from [3Shain/neutralinojs](https://github.com/3Shain/neutralinojs)
-* [DXMT](https://github.com/3Shain/dxmt)
-* Custom Wine from [anime-game-wine](https://github.com/yaagl/anime-game-wine)
+- [Custom Neutralino runtime](https://github.com/3Shain/neutralinojs)
+- [DXMT](https://github.com/3Shain/dxmt)
+- [Wine runtime project](https://github.com/yaagl/anime-game-wine)
+- [Anime Games Launcher for Linux](https://github.com/an-anime-team/anime-games-launcher)
 
 ## Special thanks
 
-* An Anime Team
-* Krock, the game running on macOS can not come true without his patch (you can find the link to his work in this repository, while you have to make a little effort ;) )
+- An Anime Team
+- Krock, whose work helped make running games on macOS possible
+- mkrsym1, for work on a particularly challenging compatibility component
+- rishabhroyy, whose fork provided a reference for the multi-channel launcher UI and logic
 
-* mkrsym1, tackled IMO the most challenging AC component. It's a really remarkable and mind-blowing achievement.
-* rishabhroyy: The multi-channel merging logic and UI of this project starter reference the code from his forked repository.
+## License
 
-## License and safety
-
-This project is used according to the licenses in the repository and the licenses of its third-party components. Review the relevant licenses, runtime documentation, and the terms of service of the programs you use with it.
-
-You are responsible for evaluating the risks of using this project. Start with an isolated test environment and non-critical data, and keep backups of important files.
+See [LICENSE](LICENSE) and the notices included with bundled third-party components. Each component remains subject to its own license and terms.
