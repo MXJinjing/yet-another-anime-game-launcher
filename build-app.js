@@ -325,6 +325,13 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
         { preserveTimestamps: true }
       );
     }
+    if (channel === "mhycn" || channel === "hk4ecn") {
+      await execa("bash", [
+        "scripts/stage-wish-history.sh",
+        path.resolve(sidecarDst, ".."),
+        arch,
+      ]);
+    }
     await fs.copy(
       path.resolve(windowProbeBuildDir, arch, "window-probe"),
       path.resolve(sidecarDst, arch, "window-probe", "window-probe")

@@ -15,6 +15,12 @@ case "$ARCH" in
     ;;
 esac
 
+CN_ARM64_APP_ONLY="${YAAGL_CN_ARM64_APP_ONLY:-0}"
+if [ "$CN_ARM64_APP_ONLY" = 1 ] && [ "$ARCH" != arm64 ]; then
+  echo "The CN app-only release requires arm64." >&2
+  exit 1
+fi
+
 CHANNELS=(hk4ecn hk4eos mhyos mhycn all hkrpgcn hkrpgos bh3glb cbjq cbjqcn napos napcn)
 BH3_GLOBAL_SUFFIX="$(node -p 'require("./src/constants/yaaglm-config.secret.json").bh3GlobalSuffix')"
 APP_NAMES=(
@@ -54,6 +60,9 @@ node -e '
 for i in "${!CHANNELS[@]}"; do
   channel="${CHANNELS[$i]}"
   app="${APP_NAMES[$i]}"
+  if [ "$CN_ARM64_APP_ONLY" = 1 ] && [ "$channel" != mhycn ]; then
+    continue
+  fi
   echo "=== Building ${ARCH}: ${channel} ==="
 
   YAAGL_CHANNEL_CLIENT="$channel" \
@@ -61,7 +70,9 @@ for i in "${!CHANNELS[@]}"; do
     node build-app.js
 
   dot="$(printf '%s' "$app" | tr ' ' '.')"
-  bash scripts/create-release-dmg.sh "release/$ARCH/$app.app" "$OUT/$dot-$ARCH.dmg"
+  if [ "$CN_ARM64_APP_ONLY" != 1 ]; then
+    bash scripts/create-release-dmg.sh "release/$ARCH/$app.app" "$OUT/$dot-$ARCH.dmg"
+  fi
   tar -czf "$OUT/$dot.app-$ARCH.tar.gz" -C "release/$ARCH" "$app.app"
 
   if [ "$ARCH" = "universal" ]; then

@@ -7,6 +7,11 @@ on:
         description: Release tag, such as 1.1.5. Leave empty to use package.json.
         required: false
         type: string
+      cn_arm64_app_only:
+        description: Package only the CN arm64 release app as a tar.gz.
+        required: false
+        type: boolean
+        default: false
   push:
     tags:
       - "[0-9]*"
@@ -20,6 +25,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
       sha: ${{ steps.version.outputs.sha }}
     steps:
       - name: Checkout
@@ -32,6 +38,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_VERSION: ${{ inputs.version }}
+          CN_ARM64_APP_ONLY: ${{ inputs.cn_arm64_app_only }}
           EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref_name }}
         run: |
@@ -50,6 +57,18 @@ jobs:
               exit 1
               ;;
           esac
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REF_NAME" != "main" ]; then
+            echo "Start Build Release from main."
+            exit 1
+          fi
+          version="$tag"
+          if [ "$CN_ARM64_APP_ONLY" = "true" ]; then
+            if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Use a numeric version such as 1.2.2 for the CN arm64 app."
+              exit 1
+            fi
+            tag="cn-arm64-${version}"
+          fi
           sha="$(git rev-parse HEAD)"
           if [ "$EVENT_NAME" = "push" ]; then
             if ! git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null; then
@@ -81,8 +100,11 @@ jobs:
           else
             echo "Tag ${tag} will be created on ${sha} when the draft release is published."
           fi
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag=${tag}"
+            echo "version=${version}"
+            echo "sha=${sha}"
+          } >> "$GITHUB_OUTPUT"
 
   tests:
     needs: resolve
@@ -93,7 +115,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 120
     env:
-      YAAGL_VERSION: ${{ needs.resolve.outputs.tag }}
+      YAAGL_VERSION: ${{ needs.resolve.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -127,24 +149,29 @@ jobs:
         run: ./build-sophon.sh
 
       - name: Download pinned Sophon release for x64
+        if: ${{ !inputs.cn_arm64_app_only }}
         run: SOPHON_ARCH=x64 ./build-sophon.sh
 
       - name: Build arm64 release assets
         run: bash scripts/build-release.sh
         env:
           YAAGL_BUILD_ARCH: arm64
+          YAAGL_CN_ARM64_APP_ONLY: ${{ inputs.cn_arm64_app_only && '1' || '0' }}
 
       - name: Build x64 release assets
+        if: ${{ !inputs.cn_arm64_app_only }}
         run: bash scripts/build-release.sh
         env:
           YAAGL_BUILD_ARCH: x64
 
       - name: Build universal release assets
+        if: ${{ !inputs.cn_arm64_app_only }}
         run: bash scripts/build-release.sh
         env:
           YAAGL_BUILD_ARCH: universal
 
       - name: Verify release assets
+        if: ${{ !inputs.cn_arm64_app_only }}
         run: |
           for arch in arm64 x64 universal; do
             test "$(find "release-assets/$arch" -maxdepth 1 -name '*.dmg' | wc -l | tr -d ' ')" -eq 12
@@ -154,6 +181,7 @@ jobs:
           test "$(find release-assets/universal -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 24
 
       - name: Read channel distribution name
+        if: ${{ !inputs.cn_arm64_app_only }}
         id: distribution
         run: |
           suffix=$(node -p 'require("./src/constants/yaaglm-config.secret.json").bh3GlobalSuffix')
@@ -161,6 +189,7 @@ jobs:
           printf 'bh3_name=%s\nbh3_archive=%s\n' "$name" "${name// /.}" >> "$GITHUB_OUTPUT"
 
       - name: Publish draft release
+        if: ${{ !inputs.cn_arm64_app_only }}
         id: publish
         uses: softprops/action-gh-release@v2
         with:
@@ -234,8 +263,33 @@ jobs:
             release-assets/x64/*.tar.gz
             release-assets/universal/*.tar.gz
 
+      - name: Verify CN arm64 app archive
+        if: ${{ inputs.cn_arm64_app_only }}
+        run: |
+          archive=release-assets/arm64/Yaaglm.CN.app-arm64.tar.gz
+          test -s "$archive"
+          test "$(find release-assets -type f | wc -l | tr -d ' ')" -eq 1
+          tar -tf "$archive" 'Yaaglm CN.app/Contents/Info.plist'
+
+      - name: Publish CN arm64 app draft
+        id: publish-cn-app
+        if: ${{ inputs.cn_arm64_app_only }}
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Yaaglm CN arm64 ${{ needs.resolve.outputs.version }}
+          draft: true
+          prerelease: false
+          make_latest: false
+          tag_name: ${{ needs.resolve.outputs.tag }}
+          target_commitish: ${{ needs.resolve.outputs.sha }}
+          fail_on_unmatched_files: true
+          body: |
+            国服合并版，适用于 Apple Silicon Mac。解压后将 `Yaaglm CN.app` 放入「应用程序」。应用继续使用原有的 CN 版数据目录。
+            CN multi-game release for Apple Silicon. Extract `Yaaglm CN.app` and move it to Applications. It uses the existing CN app data directory.
+          files: release-assets/arm64/Yaaglm.CN.app-arm64.tar.gz
+
       - name: Preserve release assets after an upload failure
-        if: failure() && steps.publish.outcome == 'failure'
+        if: failure() && (steps.publish.outcome == 'failure' || steps.publish-cn-app.outcome == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: yaaglm-${{ needs.resolve.outputs.tag }}-release-assets

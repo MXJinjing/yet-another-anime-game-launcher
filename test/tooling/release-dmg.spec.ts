@@ -97,7 +97,11 @@ esac
   }
 }
 
-function buildRelease(directory: string, arch: string, rejectDmg = false) {
+function buildRelease(
+  directory: string,
+  arch: string,
+  { rejectDmg = false, cnArm64AppOnly = false } = {}
+) {
   execFileSync("bash", ["scripts/build-release.sh"], {
     cwd: directory,
     env: {
@@ -105,6 +109,7 @@ function buildRelease(directory: string, arch: string, rejectDmg = false) {
       PATH: [join(directory, "bin"), process.env.PATH].join(delimiter),
       YAAGL_BUILD_ARCH: arch,
       YAAGL_VERSION: "1.2.3",
+      YAAGL_CN_ARM64_APP_ONLY: cnArm64AppOnly ? "1" : "0",
       TEST_REJECT_DMG: rejectDmg ? "1" : "0",
     },
   });
@@ -148,10 +153,31 @@ it.each(["arm64", "x64", "universal"])(
 
 it("withholds the installer and cleans staging when image verification fails", () => {
   withReleaseFixture(directory => {
-    expect(() => buildRelease(directory, "arm64", true)).toThrow();
+    expect(() =>
+      buildRelease(directory, "arm64", { rejectDmg: true })
+    ).toThrow();
     expect(readdirSync(join(directory, "release-assets", "arm64"))).toEqual([]);
     expect(
       readFileSync(join(directory, "neutralino.config.json"), "utf8")
     ).toBe(config);
+  });
+});
+
+it("packages the standard CN arm64 app as the only download", () => {
+  withReleaseFixture(directory => {
+    buildRelease(directory, "arm64", { cnArm64AppOnly: true });
+    const output = join(directory, "release-assets", "arm64");
+    const archive = "Yaaglm.CN.app-arm64.tar.gz";
+    expect(readdirSync(output)).toEqual([archive]);
+    expect(readdirSync(join(directory, "release", "arm64"))).toEqual([
+      "Yaaglm CN.app",
+    ]);
+    expect(
+      execFileSync(
+        "tar",
+        ["-xOzf", join(output, archive), "Yaaglm CN.app/test-app"],
+        { encoding: "utf8" }
+      )
+    ).toBe("1.2.3");
   });
 });

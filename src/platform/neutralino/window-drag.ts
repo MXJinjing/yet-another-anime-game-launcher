@@ -73,6 +73,12 @@ export function windowDragRegionAt(
   pointerY: number
 ): WindowDragRegion | undefined {
   if (!target) return undefined;
+  const element = target as Partial<Element>;
+  if (
+    typeof element.closest === "function" &&
+    element.closest(".window-no-drag")
+  )
+    return undefined;
   for (const region of regions) {
     if (!region) continue;
     if (!region.element.contains(target as Node)) continue;

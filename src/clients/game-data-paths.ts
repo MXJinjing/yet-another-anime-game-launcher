@@ -26,6 +26,10 @@ export function getGameRegistryKey(serverId: string): string | undefined {
   return folder && `HKEY_CURRENT_USER\\${getRegistryPath(folder)}`;
 }
 
+export function getGameUserDataFolder(serverId: string): string | undefined {
+  return userDataPathsByServer.get(serverId);
+}
+
 export function getWineUserData(folder: string) {
   return {
     registryKeys: [getRegistryPath(folder), SDK_REGISTRY_KEY],

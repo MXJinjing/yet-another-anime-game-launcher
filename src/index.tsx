@@ -112,7 +112,7 @@ if (typeof Neutralino == "undefined") {
               },
             }}
           >
-            <NotificationsProvider>
+            <NotificationsProvider zIndex={2100}>
               <UI />
             </NotificationsProvider>
           </HopeProvider>
