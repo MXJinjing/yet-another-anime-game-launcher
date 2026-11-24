@@ -9,4 +9,13 @@ case "${2:-$(uname -m)}" in
 esac
 destination="$1/sidecar/$arch/wish-history"
 mkdir -p "$(dirname "$destination")"
-swiftc -O -parse-as-library -target "$target" "$root/native/wish-history.swift" -o "$destination"
+constants="$(mktemp -d "${TMPDIR:-/tmp}/yaaglm-wish-history.XXXXXX")"
+trap 'rm -rf "$constants"' EXIT
+node - "$root/src/constants/yaaglm-config.secret.json" > "$constants/WishHistoryService.swift" <<'NODE'
+const { hk4eCnWishHistory } = require(process.argv[2]);
+console.log("let wishHistoryPageHost = " + JSON.stringify(hk4eCnWishHistory.pageHost));
+console.log("let wishHistoryAPI = " + JSON.stringify(hk4eCnWishHistory.api));
+NODE
+swiftc -O -parse-as-library -target "$target" \
+  "$root/native/wish-history.swift" "$root/native/wish-history-online.swift" \
+  "$constants/WishHistoryService.swift" -o "$destination"

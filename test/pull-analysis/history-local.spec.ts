@@ -53,3 +53,20 @@ it("returns unavailable when the native helper fails", async () => {
     state: "unavailable",
   });
 });
+
+it("enables game authorization only for an explicit online read", async () => {
+  vi.stubGlobal("Neutralino", { os: { execCommand } });
+  vi.mocked(resolveSidecarPath).mockResolvedValue("/sidecar/wish-history");
+  execCommand.mockResolvedValue({
+    exitCode: 0,
+    stdOut: '{"state":"no-history","onlineStatus":"expired"}',
+  });
+
+  await expect(
+    readGameHistory(undefined, undefined, undefined, true)
+  ).resolves.toEqual({ state: "no-history", onlineStatus: "expired" });
+  expect(JSON.parse(execCommand.mock.calls[0][1].stdIn)).toEqual({
+    directories: [],
+    fetchOnline: true,
+  });
+});

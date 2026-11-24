@@ -15,7 +15,7 @@ import { PullDashboard } from "./pull-dashboard";
 import { PullSettings } from "./pull-settings";
 import { pullAnalysisProgress, notifyPullAnalysis } from "./notifications";
 import { initialCatalog } from "./hk4e-catalog";
-import { readGameHistory } from "./history-local";
+import { readGameHistory, type OnlineHistoryStatus } from "./history-local";
 import {
   mergeLocalArchive,
   readGachaArchive,
@@ -147,6 +147,39 @@ export function PullAnalysisDialog(props: {
     setVisiblePulls(50);
   }
 
+  function historySyncDetail(status?: OnlineHistoryStatus) {
+    switch (status) {
+      case "no-link":
+      case "expired":
+        return t(
+          "请在游戏内重新打开祈愿历史以更新临时授权。",
+          "Reopen Wish History in the game to renew access."
+        );
+      case "rate-limited":
+        return t(
+          "祈愿服务限制了请求频率。",
+          "The Wish History service rate-limited the request."
+        );
+      case "needs-attention":
+        return t(
+          "请在游戏内处理祈愿服务的验证提示。",
+          "Complete the verification in the game."
+        );
+      case "unavailable":
+        return t(
+          "暂时无法连接祈愿服务。",
+          "The Wish History service is temporarily unavailable."
+        );
+      case "incomplete":
+        return t(
+          "祈愿服务的分页读取未完成。",
+          "The Wish History sync did not finish."
+        );
+      default:
+        return undefined;
+    }
+  }
+
   async function importGame() {
     if (importBusy() || !historyAvailable()) return;
     setImportBusy(true);
@@ -155,11 +188,14 @@ export function PullAnalysisDialog(props: {
       const reply = await readGameHistory(
         props.installDir,
         props.executable,
-        props.winePrefix
+        props.winePrefix,
+        true
       );
+      const syncDetail = historySyncDetail(reply.onlineStatus);
       if (reply.state !== "ok") {
         const detail =
-          reply.state === "no-history"
+          syncDetail ??
+          (reply.state === "no-history"
             ? t(
                 "请先在游戏内打开并翻阅祈愿历史，或导入 UIGF 文件。",
                 "Open and browse Wish History in the game, or import a UIGF file."
@@ -167,7 +203,7 @@ export function PullAnalysisDialog(props: {
             : t(
                 "无法读取本地游戏缓存。",
                 "Could not read the local game cache."
-              );
+              ));
         notifyPullAnalysis(
           "warning",
           t("未读入祈愿记录", "Wish History was not imported"),
@@ -203,7 +239,15 @@ export function PullAnalysisDialog(props: {
         );
         setPoolType("");
       }
-      notifyPullAnalysis("success", t("已合并游戏缓存", "Merged game cache"));
+      notifyPullAnalysis(
+        syncDetail ? "warning" : "success",
+        reply.source === "online"
+          ? syncDetail
+            ? t("已合并部分祈愿记录", "Merged available wish records")
+            : t("已同步祈愿记录", "Synced wish records")
+          : t("已合并游戏缓存", "Merged game cache"),
+        syncDetail
+      );
     } catch {
       notifyPullAnalysis(
         "warning",

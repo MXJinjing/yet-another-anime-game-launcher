@@ -8,14 +8,29 @@ import {
 import { build } from "@platform/shell";
 import type { Pull } from "./uigf";
 
-export type HistoryReply =
-  | { state: "ok"; accounts: { uid: string; list: Pull[] }[] }
-  | { state: "no-history" | "invalid" | "unavailable" };
+export type OnlineHistoryStatus =
+  | "complete"
+  | "no-link"
+  | "expired"
+  | "rate-limited"
+  | "needs-attention"
+  | "unavailable"
+  | "incomplete";
+
+export type HistoryReply = (
+  | {
+      state: "ok";
+      accounts: { uid: string; list: Pull[] }[];
+      source?: "online";
+    }
+  | { state: "no-history" | "invalid" | "unavailable" }
+) & { onlineStatus?: OnlineHistoryStatus };
 
 export async function readGameHistory(
   installDir: string | undefined,
   executable: string | undefined,
-  winePrefix: string | undefined
+  winePrefix: string | undefined,
+  fetchOnline?: boolean
 ): Promise<HistoryReply> {
   try {
     const users = winePrefix && join(winePrefix, "drive_c/users");
@@ -38,7 +53,7 @@ export async function readGameHistory(
         : undefined;
     const result = await Neutralino.os.execCommand(
       build([await resolveSidecarPath("wish-history")]),
-      { stdIn: JSON.stringify({ installCache, directories }) }
+      { stdIn: JSON.stringify({ installCache, directories, fetchOnline }) }
     );
     return result.exitCode === 0
       ? JSON.parse(result.stdOut)

@@ -1,20 +1,26 @@
 import Compression
 import Foundation
 
-private typealias Fields = [String: Any]
+typealias Fields = [String: Any]
 private enum WishHistoryFailure: Error {
     case invalid
     case historyMismatch
 }
-private let poolTypes = ["301", "302", "200", "500", "100"]
+let poolTypes = ["301", "302", "200", "500", "100"]
 
-private func digits(_ value: Any?) -> String? {
+func digits(_ value: Any?) -> String? {
     let text = value as? String ?? (value as? Int).map(String.init)
     return text?.range(of: #"^[0-9]{1,19}$"#, options: .regularExpression) == nil ? nil : text
 }
 
-private struct History {
+struct History {
     var byUID: [String: [String: [String: String]]] = [:]
+
+    var accounts: [Fields] {
+        byUID.keys.sorted().map { uid in
+            ["uid": uid, "list": Array((byUID[uid] ?? [:]).values)]
+        }
+    }
 
     mutating func append(_ rows: [Fields]) throws {
         var batch: [[String: String]] = []
@@ -263,34 +269,44 @@ private func decodeBrotli(_ data: Data) -> Data? {
 private struct HistoryRequest: Decodable {
     let installCache: String?
     let directories: [String]
+    let fetchOnline: Bool?
 }
 
+#if !WISH_HISTORY_TEST
 @main
 private enum Main {
-    static func main() throws {
+    static func main() async throws {
         let requestData = FileHandle.standardInput.readDataToEndOfFile()
-        let result: Fields
+        var result: Fields = ["state": "invalid"]
         if let request = try? JSONDecoder().decode(HistoryRequest.self, from: requestData) {
-            var cache = History()
-            var remaining = 64 * 1024 * 1024
-            let directories = cacheDirectories(installCache: request.installCache, userData: request.directories)
-            for directory in directories {
-                BlockCache(directory: directory).readHistory(history: &cache, budget: &remaining)
+            var accounts: [Fields] = []
+            if request.fetchOnline == true, #available(macOS 12, *) {
+                let sync = await syncWishHistory(in: request.directories)
+                result["onlineStatus"] = sync.status.rawValue
+                accounts = sync.history.accounts
+                if !accounts.isEmpty { result["source"] = "online" }
             }
-            for file in cacheFiles(in: directories) {
-                guard remaining > 0 else { break }
-                guard let data = try? Data(contentsOf: file), data.count <= remaining else { continue }
-                remaining -= data.count
-                cacheHistory(data, history: &cache)
+            if accounts.isEmpty {
+                var cache = History()
+                var remaining = 64 * 1024 * 1024
+                let directories = cacheDirectories(installCache: request.installCache, userData: request.directories)
+                for directory in directories {
+                    BlockCache(directory: directory).readHistory(history: &cache, budget: &remaining)
+                }
+                for file in cacheFiles(in: directories) {
+                    guard remaining > 0 else { break }
+                    guard let data = try? Data(contentsOf: file), data.count <= remaining else { continue }
+                    remaining -= data.count
+                    cacheHistory(data, history: &cache)
+                }
+                accounts = cache.accounts
             }
-            let accounts = cache.byUID.keys.sorted().map { uid -> Fields in
-                let rows = cache.byUID[uid] ?? [:]
-                return ["uid": uid, "list": Array(rows.values)]
+            result["state"] = accounts.isEmpty ? "no-history" : "ok"
+            if !accounts.isEmpty {
+                result["accounts"] = accounts
             }
-            result = accounts.isEmpty ? ["state": "no-history"] : ["state": "ok", "accounts": accounts]
-        } else {
-            result = ["state": "invalid"]
         }
         FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject: result))
     }
 }
+#endif
