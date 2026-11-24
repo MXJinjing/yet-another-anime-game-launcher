@@ -51,8 +51,7 @@ function withReleaseFixture(run: (directory: string) => void) {
 const fs = require("node:fs");
 const path = require("node:path");
 const apps = ${JSON.stringify(apps)};
-const app = apps[process.env.YAAGL_CHANNEL_CLIENT] +
-  (process.env.YAAGL_DEVELOPMENT_PREVIEW === "1" ? " Development" : "");
+const app = apps[process.env.YAAGL_CHANNEL_CLIENT];
 const dir = path.join("release", process.env.YAAGL_BUILD_ARCH, app + ".app");
 fs.mkdirSync(dir, { recursive: true });
 fs.writeFileSync(path.join(dir, "test-app"), process.env.YAAGL_VERSION);
@@ -101,7 +100,7 @@ esac
 function buildRelease(
   directory: string,
   arch: string,
-  { rejectDmg = false, preview = false } = {}
+  { rejectDmg = false, cnArm64AppOnly = false } = {}
 ) {
   execFileSync("bash", ["scripts/build-release.sh"], {
     cwd: directory,
@@ -109,8 +108,8 @@ function buildRelease(
       ...process.env,
       PATH: [join(directory, "bin"), process.env.PATH].join(delimiter),
       YAAGL_BUILD_ARCH: arch,
-      YAAGL_VERSION: preview ? "1.2.3-development.1" : "1.2.3",
-      YAAGL_DEVELOPMENT_PREVIEW: preview ? "1" : "0",
+      YAAGL_VERSION: "1.2.3",
+      YAAGL_CN_ARM64_APP_ONLY: cnArm64AppOnly ? "1" : "0",
       TEST_REJECT_DMG: rejectDmg ? "1" : "0",
     },
   });
@@ -164,19 +163,21 @@ it("withholds the installer and cleans staging when image verification fails", (
   });
 });
 
-it("packages only the CN arm64 development app and its updater archive", () => {
+it("packages the standard CN arm64 app as the only download", () => {
   withReleaseFixture(directory => {
-    buildRelease(directory, "arm64", { preview: true });
+    buildRelease(directory, "arm64", { cnArm64AppOnly: true });
     const output = join(directory, "release-assets", "arm64");
-    expect(readdirSync(output).sort()).toEqual([
-      "Yaaglm.CN.Development-arm64.dmg",
-      "Yaaglm.CN.Development.app-arm64.tar.gz",
-    ]);
+    const archive = "Yaaglm.CN.app-arm64.tar.gz";
+    expect(readdirSync(output)).toEqual([archive]);
     expect(readdirSync(join(directory, "release", "arm64"))).toEqual([
-      "Yaaglm CN Development.app",
+      "Yaaglm CN.app",
     ]);
     expect(
-      readFileSync(join(output, "Yaaglm.CN.Development-arm64.dmg"), "utf8")
-    ).toBe("1.2.3-development.1");
+      execFileSync(
+        "tar",
+        ["-xOzf", join(output, archive), "Yaaglm CN.app/test-app"],
+        { encoding: "utf8" }
+      )
+    ).toBe("1.2.3");
   });
 });

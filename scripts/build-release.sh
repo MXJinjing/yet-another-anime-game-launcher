@@ -15,9 +15,9 @@ case "$ARCH" in
     ;;
 esac
 
-PREVIEW="${YAAGL_DEVELOPMENT_PREVIEW:-0}"
-if [ "$PREVIEW" = 1 ] && [ "$ARCH" != arm64 ]; then
-  echo "The development preview is only available for arm64." >&2
+CN_ARM64_APP_ONLY="${YAAGL_CN_ARM64_APP_ONLY:-0}"
+if [ "$CN_ARM64_APP_ONLY" = 1 ] && [ "$ARCH" != arm64 ]; then
+  echo "The CN app-only release requires arm64." >&2
   exit 1
 fi
 
@@ -60,9 +60,8 @@ node -e '
 for i in "${!CHANNELS[@]}"; do
   channel="${CHANNELS[$i]}"
   app="${APP_NAMES[$i]}"
-  if [ "$PREVIEW" = 1 ]; then
-    [ "$channel" = mhycn ] || continue
-    app="$app Development"
+  if [ "$CN_ARM64_APP_ONLY" = 1 ] && [ "$channel" != mhycn ]; then
+    continue
   fi
   echo "=== Building ${ARCH}: ${channel} ==="
 
@@ -71,7 +70,9 @@ for i in "${!CHANNELS[@]}"; do
     node build-app.js
 
   dot="$(printf '%s' "$app" | tr ' ' '.')"
-  bash scripts/create-release-dmg.sh "release/$ARCH/$app.app" "$OUT/$dot-$ARCH.dmg"
+  if [ "$CN_ARM64_APP_ONLY" != 1 ]; then
+    bash scripts/create-release-dmg.sh "release/$ARCH/$app.app" "$OUT/$dot-$ARCH.dmg"
+  fi
   tar -czf "$OUT/$dot.app-$ARCH.tar.gz" -C "release/$ARCH" "$app.app"
 
   if [ "$ARCH" = "universal" ]; then

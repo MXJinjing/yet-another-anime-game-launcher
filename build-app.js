@@ -23,7 +23,6 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   let appSupportDirectory;
   let includeSophon = false;
   const channel = process.env["YAAGL_CHANNEL_CLIENT"] ?? "mhycn";
-  const developmentPreview = process.env["YAAGL_DEVELOPMENT_PREVIEW"] === "1";
   switch (channel) {
     case "hk4ecn":
       bundleId = config.applicationId;
@@ -101,12 +100,6 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
     default:
       throw new Error(`Unknown YAAGL_CHANNEL_CLIENT: ${channel}`);
   }
-  if (developmentPreview) {
-    bundleId += ".development";
-    appDistributionName += " Development";
-    config.modes.window.title = appDistributionName;
-    appSupportDirectory = appDistributionName;
-  }
   if (!appSupportDirectory) appSupportDirectory = appDistributionName;
   if (process.env["YAAGL_TEST"]) {
     bundleId += ".test";
@@ -119,11 +112,7 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
   try {
     await execa("./node_modules/.bin/tsc"); // do typecheck first
     await execa("rm", ["-rf", "./.tmp"]);
-    await execa(
-      "./node_modules/.bin/vite",
-      developmentPreview ? ["build", "--mode", "development"] : ["build"],
-      developmentPreview ? { env: { YAAGL_VERSION: "development" } } : {}
-    );
+    await execa("./node_modules/.bin/vite", ["build"]);
     await execa("cp", ["./neutralino.js", "./dist/neutralino.js"]);
     // run neu build command
     await execa("./node_modules/.bin/neu", ["build"]);
@@ -135,9 +124,6 @@ const { IconIcns } = require("@shockpkg/icon-encoder");
     ]);
   }
 
-  const bundleVersion = developmentPreview
-    ? config.version.split("-")[0]
-    : config.version;
   const appname = config.cli.binaryName;
   const buildArch = process.env["YAAGL_BUILD_ARCH"] ?? "arm64";
   if (!new Set(["arm64", "x64", "universal"]).has(buildArch)) {
@@ -401,9 +387,9 @@ PATH_LAUNCH="$(dirname "$CONTENTS_DIR")" exec "$SCRIPT_DIR/${appname}" --path="$
         <key>CFBundlePackageType</key>
         <string>APPL</string>
         <key>CFBundleVersion</key>
-        <string>${bundleVersion}</string>
+        <string>${config.version}</string>
         <key>CFBundleShortVersionString</key>
-        <string>${bundleVersion}</string>
+        <string>${config.version}</string>
         <key>NSHumanReadableCopyright</key>
         <string>Copyright © 2023 3Shain.</string>
         <key>LSMinimumSystemVersion</key>
