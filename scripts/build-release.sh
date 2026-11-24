@@ -15,6 +15,12 @@ case "$ARCH" in
     ;;
 esac
 
+PREVIEW="${YAAGL_DEVELOPMENT_PREVIEW:-0}"
+if [ "$PREVIEW" = 1 ] && [ "$ARCH" != arm64 ]; then
+  echo "The development preview is only available for arm64." >&2
+  exit 1
+fi
+
 CHANNELS=(hk4ecn hk4eos mhyos mhycn all hkrpgcn hkrpgos bh3glb cbjq cbjqcn napos napcn)
 BH3_GLOBAL_SUFFIX="$(node -p 'require("./src/constants/yaaglm-config.secret.json").bh3GlobalSuffix')"
 APP_NAMES=(
@@ -54,6 +60,10 @@ node -e '
 for i in "${!CHANNELS[@]}"; do
   channel="${CHANNELS[$i]}"
   app="${APP_NAMES[$i]}"
+  if [ "$PREVIEW" = 1 ]; then
+    [ "$channel" = mhycn ] || continue
+    app="$app Development"
+  fi
   echo "=== Building ${ARCH}: ${channel} ==="
 
   YAAGL_CHANNEL_CLIENT="$channel" \

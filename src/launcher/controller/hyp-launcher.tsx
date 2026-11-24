@@ -133,6 +133,12 @@ import {
   resolvePrimaryLauncherAction,
 } from "./action-policy";
 import { resolveLaunchFailure } from "./launch-failure-policy";
+import { pullAnalysisGameForChannel } from "@src/pull-analysis/games";
+import {
+  PullAnalysisDialog,
+  type PullArchiveStatus,
+} from "@src/pull-analysis/panel";
+import { PullAnalysisButton } from "@src/pull-analysis/launch-tools";
 import { reportActionFailure } from "./action-failure";
 import { forceStopThenLaunch } from "./force-stop-launch";
 import type {
@@ -572,6 +578,26 @@ export async function createHypLauncher({
 
   return function HypLauncher() {
     const selectedGame = () => games[selectedGameIndex()];
+    const pullGame = () =>
+      pullAnalysisGameForChannel(
+        import.meta.env.YAAGL_CHANNEL_CLIENT ?? "hk4ecn",
+        selectedGame().clientId
+      );
+    const [pullsOpen, setPullsOpen] = createSignal(false);
+    const [pullArchiveStatus, setPullArchiveStatus] =
+      createSignal<PullArchiveStatus>("loading");
+    const pullText = (zh: string, en: string) =>
+      locale.currentLanguage.startsWith("zh") ? zh : en;
+    const pullStatus = () => {
+      const count = pullArchiveStatus();
+      if (count === "loading")
+        return pullText("读取本地记录…", "Reading local history…");
+      if (count === "unavailable")
+        return pullText("记录读取失败", "History unavailable");
+      if (count === 0) return pullText("尚未导入记录", "No imported pulls");
+      return pullText(`已导入 ${count} 抽`, `${count} pulls imported`);
+    };
+
     const [installPrompt, setInstallPrompt] = createSignal<{
       game: HypGame;
       directory: string;
@@ -2342,6 +2368,7 @@ export async function createHypLauncher({
         <main
           classList={{
             "hyp-stage": true,
+            "hyp-stage--with-launch-tools": Boolean(pullGame()),
             "library-open": libraryMounted(),
           }}
           aria-label={selectedGame().title}
@@ -2518,7 +2545,20 @@ export async function createHypLauncher({
                 </Popover>
               </Show>
             </Show>
-            <div class="hyp-primary-row">
+            <div
+              classList={{
+                "hyp-primary-row": true,
+                "hyp-primary-row--with-launch-tools": Boolean(pullGame()),
+              }}
+            >
+              <Show when={pullGame()}>
+                <PullAnalysisButton
+                  disabled={libraryMounted() || downloadManagerOpen()}
+                  label={pullText("抽卡分析", "Pull analysis")}
+                  status={pullStatus()}
+                  onClick={() => setPullsOpen(true)}
+                />
+              </Show>
               <button
                 classList={{
                   "hyp-primary-button": true,
@@ -2990,6 +3030,26 @@ export async function createHypLauncher({
           channelCode={aboutChannelCode()}
           onCheckUpdate={onCheckUpdate}
         />
+
+        <Show when={pullGame()}>
+          {game => (
+            <PullAnalysisDialog
+              opened={pullsOpen()}
+              onClose={() => setPullsOpen(false)}
+              onArchiveStatusChange={setPullArchiveStatus}
+              installDir={selectedGame().client.installDir()}
+              executable={selectedGame().client.gameExecutable?.()}
+              winePrefix={
+                selectedGame().wineRef?.current?.prefix ?? baseWine.prefix
+              }
+              game={game()}
+              title={selectedGame().title}
+              chinese={locale.currentLanguage.startsWith("zh")}
+              accent={themeHex()}
+              accentText={themeText()}
+            />
+          )}
+        </Show>
 
         <GameUninstallDialog />
       </div>

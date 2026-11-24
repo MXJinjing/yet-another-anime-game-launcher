@@ -7,9 +7,15 @@ on:
         description: Release tag, such as 1.1.5. Leave empty to use package.json.
         required: false
         type: string
+      cn_arm64_development:
+        description: Package only the CN arm64 development preview.
+        required: false
+        type: boolean
+        default: false
   push:
     tags:
       - "[0-9]*"
+      - "!*-development.*"
 
 permissions:
   contents: write
@@ -32,6 +38,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           INPUT_VERSION: ${{ inputs.version }}
+          DEVELOPMENT_PREVIEW: ${{ inputs.cn_arm64_development }}
           EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref_name }}
         run: |
@@ -50,6 +57,19 @@ jobs:
               exit 1
               ;;
           esac
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REF_NAME" != "main" ]; then
+            echo "Start Build Release from main."
+            exit 1
+          fi
+          if [ "$DEVELOPMENT_PREVIEW" = "true" ]; then
+            if ! [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+-development\.[0-9]+$ ]]; then
+              echo "Use an explicit development tag such as 1.2.2-development.1."
+              exit 1
+            fi
+          elif [[ "$tag" == *-development.* ]]; then
+            echo "Enable the CN arm64 development preview option for development tags."
+            exit 1
+          fi
           sha="$(git rev-parse HEAD)"
           if [ "$EVENT_NAME" = "push" ]; then
             if ! git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null; then
@@ -127,24 +147,29 @@ jobs:
         run: ./build-sophon.sh
 
       - name: Download pinned Sophon release for x64
+        if: ${{ !inputs.cn_arm64_development }}
         run: SOPHON_ARCH=x64 ./build-sophon.sh
 
       - name: Build arm64 release assets
         run: bash scripts/build-release.sh
         env:
           YAAGL_BUILD_ARCH: arm64
+          YAAGL_DEVELOPMENT_PREVIEW: ${{ inputs.cn_arm64_development && '1' || '0' }}
 
       - name: Build x64 release assets
+        if: ${{ !inputs.cn_arm64_development }}
         run: bash scripts/build-release.sh
         env:
           YAAGL_BUILD_ARCH: x64
 
       - name: Build universal release assets
+        if: ${{ !inputs.cn_arm64_development }}
         run: bash scripts/build-release.sh
         env:
           YAAGL_BUILD_ARCH: universal
 
       - name: Verify release assets
+        if: ${{ !inputs.cn_arm64_development }}
         run: |
           for arch in arm64 x64 universal; do
             test "$(find "release-assets/$arch" -maxdepth 1 -name '*.dmg' | wc -l | tr -d ' ')" -eq 12
@@ -154,6 +179,7 @@ jobs:
           test "$(find release-assets/universal -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" -eq 24
 
       - name: Read channel distribution name
+        if: ${{ !inputs.cn_arm64_development }}
         id: distribution
         run: |
           suffix=$(node -p 'require("./src/constants/yaaglm-config.secret.json").bh3GlobalSuffix')
@@ -161,6 +187,7 @@ jobs:
           printf 'bh3_name=%s\nbh3_archive=%s\n' "$name" "${name// /.}" >> "$GITHUB_OUTPUT"
 
       - name: Publish draft release
+        if: ${{ !inputs.cn_arm64_development }}
         id: publish
         uses: softprops/action-gh-release@v2
         with:
@@ -234,8 +261,34 @@ jobs:
             release-assets/x64/*.tar.gz
             release-assets/universal/*.tar.gz
 
+      - name: Verify CN development preview assets
+        if: ${{ inputs.cn_arm64_development }}
+        run: |
+          test -f release-assets/arm64/Yaaglm.CN.Development-arm64.dmg
+          test -f release-assets/arm64/Yaaglm.CN.Development.app-arm64.tar.gz
+          test "$(find release-assets -type f | wc -l | tr -d ' ')" -eq 2
+
+      - name: Publish CN development preview draft
+        id: publish-preview
+        if: ${{ inputs.cn_arm64_development }}
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Yaaglm CN arm64 ${{ needs.resolve.outputs.tag }}
+          draft: true
+          prerelease: true
+          make_latest: false
+          tag_name: ${{ needs.resolve.outputs.tag }}
+          target_commitish: ${{ needs.resolve.outputs.sha }}
+          fail_on_unmatched_files: true
+          body: |
+            国服合并版 Apple Silicon 开发预览。包含离线抽卡分析，使用独立的应用数据目录。
+            CN multi-game development preview for Apple Silicon. Includes offline pull analysis and uses a separate app data directory.
+          files: |
+            release-assets/arm64/Yaaglm.CN.Development-arm64.dmg
+            release-assets/arm64/Yaaglm.CN.Development.app-arm64.tar.gz
+
       - name: Preserve release assets after an upload failure
-        if: failure() && steps.publish.outcome == 'failure'
+        if: failure() && (steps.publish.outcome == 'failure' || steps.publish-preview.outcome == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: yaaglm-${{ needs.resolve.outputs.tag }}-release-assets
