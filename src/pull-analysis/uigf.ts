@@ -246,7 +246,9 @@ export function summarizePulls(account: Account, game?: PullGame) {
   const pools = new Map<string, Pull[]>();
   const sorted = [...account.list].sort(comparePulls);
   for (const pull of sorted) {
-    const type = pull.uigf_gacha_type ?? pull.gacha_type;
+    const recordedType = pull.uigf_gacha_type ?? pull.gacha_type;
+    const type =
+      game === "hk4e" && recordedType === "400" ? "301" : recordedType;
     const pool = pools.get(type) ?? [];
     pool.push(pull);
     pools.set(type, pool);

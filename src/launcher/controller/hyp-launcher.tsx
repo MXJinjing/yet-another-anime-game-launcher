@@ -134,6 +134,7 @@ import {
 } from "./action-policy";
 import { resolveLaunchFailure } from "./launch-failure-policy";
 import { pullAnalysisGameForChannel } from "@src/pull-analysis/games";
+import { maintainHk4ePortraits } from "@src/pull-analysis/hk4e-portrait-cache";
 import {
   PullAnalysisDialog,
   type PullArchiveStatus,
@@ -578,11 +579,12 @@ export async function createHypLauncher({
 
   return function HypLauncher() {
     const selectedGame = () => games[selectedGameIndex()];
-    const pullGame = () =>
+    const pullGameFor = (game: HypGame) =>
       pullAnalysisGameForChannel(
         import.meta.env.YAAGL_CHANNEL_CLIENT ?? "hk4ecn",
-        selectedGame().clientId
+        game.clientId
       );
+    const pullGame = () => pullGameFor(selectedGame());
     const [pullsOpen, setPullsOpen] = createSignal(false);
     const [pullArchiveStatus, setPullArchiveStatus] =
       createSignal<PullArchiveStatus>("loading");
@@ -661,16 +663,16 @@ export async function createHypLauncher({
             )
           );
       };
+      const hydrateInBackground = () => {
+        hydrate(selectedGame());
+        games.filter(game => game !== selectedGame()).forEach(hydrate);
+        if (games.some(game => pullGameFor(game) === "hk4e"))
+          void maintainHk4ePortraits();
+      };
       const usesIdleCallback = "requestIdleCallback" in window;
       const scheduled = usesIdleCallback
-        ? window.requestIdleCallback(() => {
-            hydrate(selectedGame());
-            games.filter(game => game !== selectedGame()).forEach(hydrate);
-          })
-        : window.setTimeout(() => {
-            hydrate(selectedGame());
-            games.filter(game => game !== selectedGame()).forEach(hydrate);
-          }, 150);
+        ? window.requestIdleCallback(hydrateInBackground, { timeout: 2000 })
+        : window.setTimeout(hydrateInBackground, 150);
       onCleanup(() => {
         if (usesIdleCallback) window.cancelIdleCallback(scheduled as number);
         else window.clearTimeout(scheduled as number);

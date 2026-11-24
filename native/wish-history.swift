@@ -270,23 +270,34 @@ private struct HistoryRequest: Decodable {
     let installCache: String?
     let directories: [String]
     let fetchOnline: Bool?
+    let reportProgress: Bool?
 }
 
 #if !WISH_HISTORY_TEST
 @main
 private enum Main {
+    private static func report(_ progress: Fields, enabled: Bool) {
+        guard enabled, var line = try? JSONSerialization.data(withJSONObject: progress) else { return }
+        line.append(10)
+        FileHandle.standardError.write(line)
+    }
+
     static func main() async throws {
         let requestData = FileHandle.standardInput.readDataToEndOfFile()
         var result: Fields = ["state": "invalid"]
         if let request = try? JSONDecoder().decode(HistoryRequest.self, from: requestData) {
             var accounts: [Fields] = []
             if request.fetchOnline == true, #available(macOS 12, *) {
-                let sync = await syncWishHistory(in: request.directories)
+                let sync = await syncWishHistory(in: request.directories) { pool, pages, records in
+                    report(["phase": "online", "pool": pool, "pages": pages, "records": records],
+                           enabled: request.reportProgress == true)
+                }
                 result["onlineStatus"] = sync.status.rawValue
                 accounts = sync.history.accounts
                 if !accounts.isEmpty { result["source"] = "online" }
             }
             if accounts.isEmpty {
+                report(["phase": "cache"], enabled: request.reportProgress == true)
                 var cache = History()
                 var remaining = 64 * 1024 * 1024
                 let directories = cacheDirectories(installCache: request.installCache, userData: request.directories)
@@ -306,7 +317,17 @@ private enum Main {
                 result["accounts"] = accounts
             }
         }
-        FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject: result))
+        let json = String(decoding: try JSONSerialization.data(withJSONObject: result), as: UTF8.self)
+        // Neutralino sends spawned output as byte chunks that can split UTF-8 characters.
+        var ascii = Data(capacity: json.utf8.count)
+        for unit in json.utf16 {
+            if unit < 128 {
+                ascii.append(UInt8(unit))
+            } else {
+                ascii.append(contentsOf: String(format: "\\u%04X", unit).utf8)
+            }
+        }
+        FileHandle.standardOutput.write(ascii)
     }
 }
 #endif

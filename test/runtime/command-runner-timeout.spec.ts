@@ -64,4 +64,43 @@ describe("spawned command timeout", () => {
     expect(processMocks.updateSpawnedProcess).toHaveBeenCalledWith(7, "exit");
     expect(processMocks.offSpawnedProcess).toHaveBeenCalledOnce();
   });
+
+  it("closes stdin and reports stderr chunks before the result", async () => {
+    const onStdErr = vi.fn();
+    const inputClosed = new Promise<void>(done => {
+      vi.mocked(processMocks.updateSpawnedProcess)
+        .mockResolvedValueOnce(undefined)
+        .mockImplementationOnce(async () => done());
+    });
+    const result = exec2(["helper"], undefined, false, undefined, {
+      stdIn: "{}",
+      onStdErr,
+    });
+    await inputClosed;
+    expect(processMocks.updateSpawnedProcess).toHaveBeenNthCalledWith(
+      2,
+      7,
+      "stdInEnd"
+    );
+    expect(processMocks.updateSpawnedProcess).toHaveBeenNthCalledWith(
+      1,
+      7,
+      "stdIn",
+      "{}"
+    );
+    const handle = vi.mocked(processMocks.onSpawnedProcess).mock.calls[0][0];
+    const emit = (action: "stdErr" | "stdOut" | "exit", data: string) =>
+      handle({
+        detail: { id: 7, pid: 700, action, data },
+      } as CustomEvent<Neutralino.os.SpawnProcessResult>);
+    emit("stdErr", "progress");
+    expect(onStdErr).toHaveBeenCalledWith("progress");
+    emit("stdOut", "{}");
+    emit("exit", "0");
+    await expect(result).resolves.toMatchObject({
+      stdOut: "{}",
+      stdErr: "progress",
+    });
+    expect(processMocks.offSpawnedProcess).toHaveBeenCalledWith(handle);
+  });
 });

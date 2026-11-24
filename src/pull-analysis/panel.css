@@ -76,6 +76,12 @@
   flex: none;
 }
 
+.pull-analysis-sync-progress {
+  color: var(--miyo-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .pull-analysis-refresh-button[aria-busy="true"] .pull-analysis-refresh-icon {
     animation: pull-analysis-refresh-spin 700ms linear infinite;
@@ -751,6 +757,11 @@
   justify-content: center;
   gap: 8px;
   margin-top: 8px;
+}
+
+.pull-analysis-empty-actions .pull-analysis-sync-progress {
+  order: 1;
+  flex-basis: 100%;
 }
 
 .pull-analysis-empty .pull-analysis-empty-actions .app-modal-button {

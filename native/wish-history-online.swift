@@ -15,6 +15,8 @@ struct WishSyncResult {
     let history: History
 }
 
+typealias WishPageProgress = (_ pool: String, _ pages: Int, _ records: Int) -> Void
+
 private let pageSize = 20
 private let maxPagesPerPool = 500
 private let logReadLimit = 4 * 1024 * 1024
@@ -85,14 +87,17 @@ private func recentWishQuery(in directories: [String]) -> [URLQueryItem]? {
 
 func paginateWishHistory(
     request: (_ pool: String, _ page: Int, _ cursor: String) async throws -> [Fields],
-    wait: () async throws -> Void
+    wait: () async throws -> Void,
+    onProgress: WishPageProgress = { _, _, _ in }
 ) async -> WishSyncResult {
     var history = History()
     var account: String?
+    var records = 0
     var firstRequest = true
     do {
         for pool in poolTypes {
             var cursor: UInt64 = 0
+            onProgress(pool, 0, records)
             for page in 1...maxPagesPerPool {
                 if !firstRequest { try await wait() }
                 firstRequest = false
@@ -110,6 +115,8 @@ func paginateWishHistory(
                     previous = id
                 }
                 try history.append(rows)
+                records = account.flatMap { history.byUID[$0]?.count } ?? 0
+                onProgress(pool, page, records)
                 cursor = previous
                 if rows.count < pageSize { break }
                 if page == maxPagesPerPool { throw WishSyncStatus.incomplete }
@@ -181,7 +188,7 @@ private func wishHistoryPage(
 }
 
 @available(macOS 12, *)
-func syncWishHistory(in directories: [String]) async -> WishSyncResult {
+func syncWishHistory(in directories: [String], onProgress: WishPageProgress) async -> WishSyncResult {
     guard let query = recentWishQuery(in: directories) else {
         return WishSyncResult(status: .noLink, history: History())
     }
@@ -201,6 +208,7 @@ func syncWishHistory(in directories: [String]) async -> WishSyncResult {
             try await wishHistoryPage(session: session, endpoint: endpoint, query: query,
                                       pool: pool, page: page, cursor: cursor)
         },
-        wait: { try await Task.sleep(nanoseconds: 1_000_000_000) }
+        wait: { try await Task.sleep(nanoseconds: 1_000_000_000) },
+        onProgress: onProgress
     )
 }

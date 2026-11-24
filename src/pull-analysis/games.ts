@@ -12,3 +12,9 @@ export function pullAnalysisGameForChannel(channel: string, clientId: string) {
     ? gameByClient[clientId]
     : undefined;
 }
+
+export function pullPoolTabs(game: PullGame, observed: readonly string[]) {
+  return game === "hk4e"
+    ? [...new Set(["301", "302", "200", "100", "500", ...observed])]
+    : observed;
+}

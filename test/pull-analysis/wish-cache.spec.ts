@@ -178,6 +178,7 @@ struct PaginationFixture {
         precondition(wishHistoryQuery(from: head + ".example" + query, host: wishHistoryPageHost) == nil)
 
         var calls: [String] = []
+        var progress: [String] = []
         var pauses = 0
         let partial = await paginateWishHistory(request: { pool, page, cursor in
             calls.append("\\(pool):\\(page):\\(cursor)")
@@ -186,8 +187,11 @@ struct PaginationFixture {
             case ("301", 2): return [row(80)]
             default: throw WishSyncStatus.rateLimited
             }
-        }, wait: { pauses += 1 })
+        }, wait: { pauses += 1 }, onProgress: { pool, pages, records in
+            progress.append("\\(pool):\\(pages):\\(records)")
+        })
         precondition(calls == ["301:1:0", "301:2:81", "302:1:0"] && pauses == 2)
+        precondition(progress == ["301:0:0", "301:1:20", "301:2:21", "302:0:21"])
         precondition(partial.status == .rateLimited)
         precondition(partial.history.byUID["100000001"]?.count == 21)
 

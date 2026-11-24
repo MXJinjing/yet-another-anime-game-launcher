@@ -84,7 +84,8 @@ export function PullDashboard(props: {
   accounts: Account[];
   account: Account;
   summary: Summary;
-  pool: Summary["pools"][number] | undefined;
+  poolType: string | undefined;
+  poolTabs: readonly string[];
   catalog?: ReadonlyMap<string, CatalogItem>;
   visiblePulls: number;
   historyControls?: JSX.Element;
@@ -99,7 +100,7 @@ export function PullDashboard(props: {
   const [page, setPage] = createSignal(1);
   createEffect(
     on(
-      () => [props.game, props.account.uid, props.pool?.type] as const,
+      () => [props.game, props.account.uid, props.poolType] as const,
       () => setPage(1),
       { defer: true }
     )
@@ -113,7 +114,7 @@ export function PullDashboard(props: {
     createPullReport(props.account, props.game, props.catalog)
   );
   const pool = createMemo(() =>
-    report().pools.find(entry => entry.type === props.pool?.type)
+    report().pools.find(entry => entry.type === props.poolType)
   );
   const topRank = () =>
     props.game === "nap" ? t("S 级", "S rank") : t("五星", "5-star");
@@ -371,35 +372,37 @@ export function PullDashboard(props: {
         </div>
       </div>
 
+      <Show when={props.poolTabs.length}>
+        <div
+          class="pull-analysis-pool-picker"
+          role="group"
+          aria-label={t("卡池", "Pools")}
+        >
+          <For each={props.poolTabs}>
+            {type => (
+              <button
+                type="button"
+                aria-pressed={props.poolType === type}
+                onClick={() => props.onPoolChange(type)}
+              >
+                {pullPoolLabel(props.game, type, t)}
+              </button>
+            )}
+          </For>
+        </div>
+      </Show>
       <Show
         when={pool()}
         fallback={
-          <p class="pull-analysis-muted">
-            {t("此 UID 尚无抽卡记录。", "This UID has no pull records yet.")}
+          <p class="pull-analysis-card pull-analysis-muted">
+            {props.poolType
+              ? t("此卡池暂无记录", "No records for this pool")
+              : t("此 UID 尚无抽卡记录。", "This UID has no pull records yet.")}
           </p>
         }
       >
         {active => (
           <>
-            <div
-              class="pull-analysis-pool-picker"
-              role="group"
-              aria-label={t("卡池", "Pools")}
-            >
-              <For each={props.summary.pools}>
-                {entry => (
-                  <button
-                    type="button"
-                    aria-pressed={active().type === entry.type}
-                    onClick={() => {
-                      props.onPoolChange(entry.type);
-                    }}
-                  >
-                    {pullPoolLabel(props.game, entry.type, t)}
-                  </button>
-                )}
-              </For>
-            </div>
             <section class="pull-analysis-card pull-analysis-history">
               <div class="pull-analysis-history-heading">
                 <dl class="pull-analysis-pool-metrics">

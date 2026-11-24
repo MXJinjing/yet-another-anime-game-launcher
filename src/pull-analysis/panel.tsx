@@ -10,12 +10,16 @@ import { AppModal, AppModalButton } from "@src/components/app-modal";
 import settingsIcon from "@src/assets/icons/settings.svg";
 import { chooseSavePath } from "@platform/macos/save-dialog";
 import { open, readFile, writeFile } from "@platform/neutralino";
-import type { PullGame } from "./games";
-import { PullDashboard } from "./pull-dashboard";
+import { pullPoolTabs, type PullGame } from "./games";
+import { PullDashboard, pullPoolLabel } from "./pull-dashboard";
 import { PullSettings } from "./pull-settings";
 import { pullAnalysisProgress, notifyPullAnalysis } from "./notifications";
 import { initialCatalog } from "./hk4e-catalog";
-import { readGameHistory, type OnlineHistoryStatus } from "./history-local";
+import {
+  readGameHistory,
+  type HistoryProgress,
+  type OnlineHistoryStatus,
+} from "./history-local";
 import {
   mergeLocalArchive,
   readGachaArchive,
@@ -57,6 +61,9 @@ export function PullAnalysisDialog(props: {
   const [pullSettings, setPullSettings] = createSignal(false);
   const [importBusy, setImportBusy] = createSignal(false);
   const [syncing, setSyncing] = createSignal(false);
+  const [syncProgress, setSyncProgress] = createSignal<
+    HistoryProgress | "saving"
+  >();
   const catalogItems = new Map(
     initialCatalog.items.map(item => [item.id, item])
   );
@@ -77,10 +84,14 @@ export function PullAnalysisDialog(props: {
     const account = active();
     return account && { account, summary: summarizePulls(account, props.game) };
   });
-  const currentPool = createMemo(() => {
-    const pools = activeReport()?.summary.pools ?? [];
-    return pools.find(pool => pool.type === poolType()) ?? pools[0];
-  });
+  const poolTabs = createMemo(() =>
+    pullPoolTabs(
+      props.game,
+      activeReport()?.summary.pools.map(pool => pool.type) ?? []
+    )
+  );
+  const currentPool = () =>
+    poolType() || activeReport()?.summary.pools[0]?.type || poolTabs()[0];
 
   function showArchive(records: GachaArchive) {
     archiveRead++;
@@ -184,12 +195,14 @@ export function PullAnalysisDialog(props: {
     if (importBusy() || !historyAvailable()) return;
     setImportBusy(true);
     setSyncing(true);
+    setSyncProgress(undefined);
     try {
       const reply = await readGameHistory(
         props.installDir,
         props.executable,
         props.winePrefix,
-        true
+        true,
+        setSyncProgress
       );
       const syncDetail = historySyncDetail(reply.onlineStatus);
       if (reply.state !== "ok") {
@@ -230,6 +243,7 @@ export function PullAnalysisDialog(props: {
         ),
         true
       );
+      setSyncProgress("saving");
       await mergeIncoming(incoming);
       if (props.game === "hk4e") {
         setSelectedUid(uid =>
@@ -258,6 +272,7 @@ export function PullAnalysisDialog(props: {
       );
     } finally {
       setSyncing(false);
+      setSyncProgress(undefined);
       setImportBusy(false);
       if (!archiveLoaded()) loadArchive();
     }
@@ -416,6 +431,20 @@ export function PullAnalysisDialog(props: {
     });
   }
 
+  function syncProgressText() {
+    const progress = syncProgress();
+    if (!progress)
+      return t("正在检查游戏授权…", "Checking game authorization…");
+    if (progress === "saving") return t("正在合并记录…", "Merging records…");
+    if (progress.phase === "cache")
+      return t("正在读取游戏缓存…", "Reading the game cache…");
+    const pool = pullPoolLabel("hk4e", progress.pool, t);
+    return t(
+      `${pool} · 已读 ${progress.pages} 页 · 累计 ${progress.records} 条`,
+      `${pool} · ${progress.pages} pages read · ${progress.records} records total`
+    );
+  }
+
   function HistoryRefresh(buttonProps: { primary?: boolean }) {
     return (
       <Show when={historyAvailable()}>
@@ -449,6 +478,11 @@ export function PullAnalysisDialog(props: {
             ? t("读取中…", "Reading…")
             : t("从游戏读取", "Read from game")}
         </button>
+        <Show when={syncing()}>
+          <span class="pull-analysis-sync-progress" role="status">
+            {syncProgressText()}
+          </span>
+        </Show>
       </Show>
     );
   }
@@ -540,7 +574,8 @@ export function PullAnalysisDialog(props: {
                   </>
                 }
                 summary={report().summary}
-                pool={currentPool()}
+                poolType={currentPool()}
+                poolTabs={poolTabs()}
                 visiblePulls={visiblePulls()}
                 onAccountChange={uid => {
                   setSelectedUid(uid);

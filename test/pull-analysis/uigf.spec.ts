@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { pullAnalysisGameForChannel } from "../../src/pull-analysis/games";
+import {
+  pullAnalysisGameForChannel,
+  pullPoolTabs,
+} from "../../src/pull-analysis/games";
 import {
   exportUigf,
   mergeGachaArchives,
@@ -147,6 +150,17 @@ describe("UIGF v4.2", () => {
 });
 
 describe("Miyoushe channels", () => {
+  it("shows all five wish tabs even when some have no records", () => {
+    expect(pullPoolTabs("hk4e", ["301", "302", "200"])).toEqual([
+      "301",
+      "302",
+      "200",
+      "100",
+      "500",
+    ]);
+    expect(pullPoolTabs("nap", ["3"])).toEqual(["3"]);
+  });
+
   it.each([
     ["hk4ecn", "hk4e"],
     ["hkrpgcn", "hkrpg"],
