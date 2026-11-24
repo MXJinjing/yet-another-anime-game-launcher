@@ -372,11 +372,15 @@ export function PullAnalysisDialog(props: {
     });
   }
 
-  function HistoryRefresh() {
+  function HistoryRefresh(buttonProps: { primary?: boolean }) {
     return (
       <Show when={historyAvailable()}>
         <button
-          class="app-modal-button app-modal-button--secondary pull-analysis-refresh-button"
+          class="app-modal-button pull-analysis-refresh-button"
+          classList={{
+            "app-modal-button--primary": buttonProps.primary,
+            "app-modal-button--secondary": !buttonProps.primary,
+          }}
           type="button"
           aria-busy={syncing()}
           disabled={importBusy()}
@@ -405,25 +409,22 @@ export function PullAnalysisDialog(props: {
     );
   }
 
-  function HistoryControls(controlProps: { settingsOnly?: boolean }) {
+  function SettingsButton(buttonProps: { iconOnly?: boolean }) {
     return (
-      <>
-        <Show when={!controlProps.settingsOnly}>
-          <HistoryRefresh />
-        </Show>
-        <button
-          class="app-modal-button app-modal-button--secondary pull-analysis-settings-button"
-          type="button"
-          aria-label={t("抽卡设置", "Pull settings")}
-          aria-haspopup="dialog"
-          onClick={() => {
-            setPullSettings(true);
-          }}
-        >
-          <img src={settingsIcon} alt="" width="14" height="14" />
-          {t("设置", "Settings")}
-        </button>
-      </>
+      <button
+        class="app-modal-button app-modal-button--secondary pull-analysis-settings-button"
+        classList={{ "pull-analysis-empty-settings": buttonProps.iconOnly }}
+        type="button"
+        aria-label={t("抽卡设置", "Pull settings")}
+        title={
+          buttonProps.iconOnly ? t("抽卡设置", "Pull settings") : undefined
+        }
+        aria-haspopup="dialog"
+        onClick={() => setPullSettings(true)}
+      >
+        <img src={settingsIcon} alt="" width="14" height="14" />
+        <Show when={!buttonProps.iconOnly}>{t("设置", "Settings")}</Show>
+      </button>
     );
   }
 
@@ -459,24 +460,25 @@ export function PullAnalysisDialog(props: {
                 <span class="pull-analysis-empty-icon" aria-hidden="true">
                   ✦
                 </span>
-                <h3>{t("导入你的抽卡记录", "Import your pull history")}</h3>
+                <h3>{t("暂无抽卡记录", "No pull records yet")}</h3>
                 <p>
                   {t(
-                    "拖入 UIGF v4.2 文件，或点击下方导入。",
-                    "Drop a UIGF v4.2 file here or import it below."
+                    "也可以将 UIGF v4.2 文件拖到这里。",
+                    "You can also drop a UIGF v4.2 file here."
                   )}
                 </p>
-                <div class="pull-analysis-actions">
-                  <HistoryRefresh />
+                <div class="pull-analysis-empty-actions">
+                  <HistoryRefresh primary />
                   <AppModalButton
-                    variant="primary"
+                    variant={historyAvailable() ? "secondary" : "primary"}
                     disabled={importBusy()}
                     onClick={() => void importFile()}
                   >
+                    <span class="pull-analysis-file-icon" aria-hidden="true" />
                     {t("导入 UIGF", "Import UIGF")}
                   </AppModalButton>
-                  <HistoryControls settingsOnly />
                 </div>
+                <SettingsButton iconOnly />
               </section>
             }
           >
@@ -487,7 +489,12 @@ export function PullAnalysisDialog(props: {
                 catalog={props.game === "hk4e" ? catalogItems : undefined}
                 accounts={accounts()}
                 account={report().account}
-                historyControls={<HistoryControls />}
+                historyControls={
+                  <>
+                    <HistoryRefresh />
+                    <SettingsButton />
+                  </>
+                }
                 summary={report().summary}
                 pool={currentPool()}
                 visiblePulls={visiblePulls()}
