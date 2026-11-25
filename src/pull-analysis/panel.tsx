@@ -24,7 +24,6 @@ import {
   mergeLocalArchive,
   readGachaArchive,
   removeLocalPullAccount,
-  removeRadianceMarks,
 } from "./local";
 import {
   exportLegacyUigf,
@@ -388,26 +387,6 @@ export function PullAnalysisDialog(props: {
           setVisiblePulls(50);
         }
       });
-      if (game === "hk4e") {
-        const marksCleared = await removeRadianceMarks(uid).then(
-          () => true,
-          () => false
-        );
-        if (!marksCleared) {
-          notifyPullAnalysis(
-            "warning",
-            t(
-              "部分明光标记清理失败",
-              "Some Radiance marks could not be removed"
-            ),
-            t(
-              `已清除 UID ${uid} 的抽卡记录。`,
-              `Cleared pull records for UID ${uid}.`
-            )
-          );
-          return true;
-        }
-      }
       notifyPullAnalysis(
         "success",
         t(

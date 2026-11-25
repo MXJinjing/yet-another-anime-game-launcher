@@ -465,21 +465,6 @@
   white-space: nowrap;
 }
 
-.pull-analysis-radiance-mark {
-  border: 1px solid var(--miyo-line);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--miyo-muted);
-  font-size: 10px;
-  padding: 2px 7px;
-}
-
-.pull-analysis-radiance-mark[aria-pressed="true"] {
-  border-color: #8664ad;
-  background: #3a2752;
-  color: #f0d9ff;
-}
-
 .pull-analysis-four-cards {
   grid-column: 2;
   display: flex;

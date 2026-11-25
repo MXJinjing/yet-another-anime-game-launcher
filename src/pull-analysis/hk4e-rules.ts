@@ -45,16 +45,8 @@ export function hk4eFeatured(
   return false;
 }
 
-export function hk4ePoolRule(pool: string, time?: string, timezone = 8) {
-  if (pool === "301")
-    return {
-      hardPity: 90,
-      // Official community notice 32168979.
-      radiance:
-        time !== undefined &&
-        chinaTime(time, timezone) >= "2024-08-28 11:00:00",
-    };
-  if (pool === "302") return { hardPity: 80, radiance: false };
-  if (pool === "200") return { hardPity: 90, radiance: false };
+export function hk4eHardPity(pool?: string) {
+  if (pool === "301" || pool === "200") return 90;
+  if (pool === "302") return 80;
   return undefined;
 }

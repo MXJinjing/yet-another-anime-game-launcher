@@ -14,54 +14,6 @@ import {
 } from "./uigf";
 
 const archivePath = "pull-analysis-uigf-v4.2.json";
-const radiancePath = "pull-analysis-radiance.json";
-let radianceWrite = Promise.resolve();
-
-export async function readRadianceMarks(): Promise<string[]> {
-  try {
-    const keys: unknown = JSON.parse(await readFile(radiancePath));
-    return Array.isArray(keys)
-      ? keys.filter(
-          (key): key is string =>
-            typeof key === "string" && /^\d{1,19}:\d{1,19}$/.test(key)
-        )
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function updateRadianceMarks(update: (marks: Set<string>) => boolean) {
-  const write = radianceWrite.then(async () => {
-    const marks = new Set(await readRadianceMarks());
-    const changed = update(marks);
-    const updated = [...marks];
-    if (changed) await replaceLocalFile(radiancePath, JSON.stringify(updated));
-    return updated;
-  });
-  radianceWrite = write.then(
-    () => undefined,
-    () => undefined
-  );
-  return write;
-}
-
-export function toggleRadianceMark(key: string) {
-  return updateRadianceMarks(marks => {
-    if (!marks.delete(key)) marks.add(key);
-    return true;
-  });
-}
-
-export function removeRadianceMarks(uid: string) {
-  return updateRadianceMarks(marks => {
-    const count = marks.size;
-    for (const mark of marks) {
-      if (mark.startsWith(`${uid}:`)) marks.delete(mark);
-    }
-    return marks.size !== count;
-  });
-}
 
 export async function readGachaArchive(): Promise<GachaArchive> {
   const entries = await Neutralino.filesystem.readDirectory(resolve("."));

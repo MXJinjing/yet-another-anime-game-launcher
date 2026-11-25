@@ -6,7 +6,6 @@ import {
   For,
   Match,
   on,
-  onMount,
   Show,
   Switch,
   type JSX,
@@ -15,7 +14,7 @@ import { AppModalButton } from "@src/components/app-modal";
 import type { PullGame } from "./games";
 import type { CatalogItem } from "./hk4e-catalog";
 import { readCachedHk4ePortrait } from "./hk4e-portrait-cache";
-import { hk4ePoolRule } from "./hk4e-rules";
+import { hk4eHardPity } from "./hk4e-rules";
 import {
   createPullReport,
   groupPullCycles,
@@ -24,8 +23,6 @@ import {
   type PullReportRow,
 } from "./pull-report";
 import type { GachaArchive, summarizePulls } from "./uigf";
-import { readRadianceMarks, toggleRadianceMark } from "./local";
-import { notifyPullAnalysis } from "./notifications";
 
 type Account = NonNullable<GachaArchive[PullGame]>[number];
 type Summary = ReturnType<typeof summarizePulls>;
@@ -106,11 +103,6 @@ export function PullDashboard(props: {
       { defer: true }
     )
   );
-  const [radiance, setRadiance] = createSignal(new Set<string>());
-  const [writingMark, setWritingMark] = createSignal(false);
-  onMount(() => {
-    void readRadianceMarks().then(marks => setRadiance(new Set(marks)));
-  });
   const report = createMemo(() =>
     createPullReport(props.account, props.game, props.catalog)
   );
@@ -139,20 +131,14 @@ export function PullDashboard(props: {
   const listPage = createMemo(() =>
     pagePullHistory(pool()?.rows ?? [], page())
   );
-  const rule = () =>
-    props.game === "hk4e"
-      ? hk4ePoolRule(
-          pool()?.type ?? "",
-          pool()?.pulls.at(-1)?.time,
-          props.account.timezone
-        )
-      : undefined;
+  const hardPity = () =>
+    props.game === "hk4e" ? hk4eHardPity(pool()?.type) : undefined;
   const barMax = createMemo(
     () =>
       pool()?.rows.reduce(
         (max, row) =>
           row.pull.rank_type === "5" ? Math.max(max, row.interval ?? 0) : max,
-        Math.max(rule()?.hardPity ?? 1, timeline().ongoing.count)
+        Math.max(hardPity() ?? 1, timeline().ongoing.count)
       ) ?? 1
   );
   const supportsFeatured = () =>
@@ -176,79 +162,26 @@ export function PullDashboard(props: {
     );
   }
 
-  function canMarkRadiance(row: PullReportRow) {
-    const type = row.pull.uigf_gacha_type ?? row.pull.gacha_type;
+  function Featured(props: { row: PullReportRow }) {
     return (
-      props.game === "hk4e" &&
-      type === "301" &&
-      row.pull.rank_type === "5" &&
-      row.featured !== false &&
-      row.guaranteed !== true &&
-      hk4ePoolRule(type, row.pull.time, props.account.timezone)?.radiance ===
-        true
-    );
-  }
-
-  async function markRadiance(key: string) {
-    if (writingMark()) return;
-    setWritingMark(true);
-    try {
-      setRadiance(new Set(await toggleRadianceMark(key)));
-    } catch {
-      notifyPullAnalysis(
-        "warning",
-        t("无法保存明光标记", "Could not save the Radiance mark")
-      );
-    } finally {
-      setWritingMark(false);
-    }
-  }
-
-  function Featured(props: { row: PullReportRow; uid: string }) {
-    const key = () => props.uid + ":" + props.row.pull.id;
-    const marked = () => canMarkRadiance(props.row) && radiance().has(key());
-    return (
-      <>
-        <Show
-          when={
-            supportsFeatured() && props.row.pull.rank_type === "5" && !marked()
-          }
+      <Show when={supportsFeatured() && props.row.pull.rank_type === "5"}>
+        <span
+          class="pull-analysis-featured-tag"
+          data-featured={String(props.row.featured)}
         >
-          <span
-            class="pull-analysis-featured-tag"
-            data-featured={String(props.row.featured)}
-          >
-            {props.row.featured === false
-              ? props.row.guaranteed === false
-                ? t("小保底歪", "Lost the 50/50")
-                : t("歪池", "Off-banner")
-              : props.row.featured === undefined
-              ? t("UP 未知", "UP unknown")
-              : props.row.guaranteed === undefined
-              ? "UP"
-              : props.row.guaranteed
-              ? t("大保底", "Guaranteed UP")
-              : t("小保底", "Non-guaranteed UP")}
-          </span>
-        </Show>
-        <Show when={canMarkRadiance(props.row)}>
-          <button
-            type="button"
-            class="pull-analysis-radiance-mark"
-            aria-pressed={marked()}
-            disabled={writingMark()}
-            title={t(
-              "仅在游戏中看到捕获明光动画时标记",
-              "Mark only if you saw the Capturing Radiance animation"
-            )}
-            onClick={() => void markRadiance(key())}
-          >
-            {marked()
-              ? t("捕获明光", "Capturing Radiance")
-              : t("标记明光", "Mark Radiance")}
-          </button>
-        </Show>
-      </>
+          {props.row.featured === false
+            ? props.row.guaranteed === false
+              ? t("小保底歪", "Lost the 50/50")
+              : t("歪池", "Off-banner")
+            : props.row.featured === undefined
+            ? t("UP 未知", "UP unknown")
+            : props.row.guaranteed === undefined
+            ? "UP"
+            : props.row.guaranteed
+            ? t("大保底", "Guaranteed UP")
+            : t("小保底", "Non-guaranteed UP")}
+        </span>
+      </Show>
     );
   }
 
@@ -573,16 +506,13 @@ export function PullDashboard(props: {
                         const row = cycle.result;
                         return (
                           <li
-                            data-timing={pullTiming(
-                              row.interval,
-                              rule()?.hardPity
-                            )}
+                            data-timing={pullTiming(row.interval, hardPity())}
                           >
                             <ItemImage row={row} />
                             <div class="pull-analysis-chart-row">
                               <div class="pull-analysis-chart-label">
                                 <strong title={name(row)}>{name(row)}</strong>
-                                <Featured row={row} uid={props.account.uid} />
+                                <Featured row={row} />
                               </div>
                               <div
                                 class="pull-analysis-chart-meter"
