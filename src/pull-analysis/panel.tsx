@@ -27,11 +27,13 @@ import {
   removeRadianceMarks,
 } from "./local";
 import {
+  exportLegacyUigf,
   exportUigf,
   parseUigf,
   selectGamePullArchive,
   summarizePulls,
   type GachaArchive,
+  type UigfVersion,
 } from "./uigf";
 import "./panel.css";
 
@@ -336,18 +338,24 @@ export function PullAnalysisDialog(props: {
     }
   }
 
-  async function exportFile(uid?: string) {
+  async function exportFile(version: UigfVersion, uid?: string) {
     const game = props.game;
     const snapshot = selectGamePullArchive(archive(), game, uid);
     if (importBusy() || !snapshot) return;
+    const legacyAccount =
+      version === "v3.0" && uid !== undefined ? snapshot.hk4e?.[0] : undefined;
+    if (version === "v3.0" && !legacyAccount) return;
     setImportBusy(true);
     try {
       const path = await chooseSavePath(
         t("导出抽卡记录", "Export pull history"),
-        [game, uid, "uigf-v4.2.json"].filter(Boolean).join("-")
+        [game, uid, `uigf-${version}.json`].filter(Boolean).join("-")
       );
       if (path) {
-        await writeFile(path, exportUigf(snapshot));
+        const data = legacyAccount
+          ? exportLegacyUigf(legacyAccount)
+          : exportUigf(snapshot);
+        await writeFile(path, data);
         notifyPullAnalysis("success", t("导出完成", "Export complete"));
       }
     } catch {
@@ -541,8 +549,8 @@ export function PullAnalysisDialog(props: {
                 <h3>{t("暂无抽卡记录", "No pull records yet")}</h3>
                 <p>
                   {t(
-                    "也可以将 UIGF v4.2 文件拖到这里。",
-                    "You can also drop a UIGF v4.2 file here."
+                    "也可以将 UIGF 文件拖到这里。",
+                    "You can also drop a UIGF file here."
                   )}
                 </p>
                 <div class="pull-analysis-empty-actions">
@@ -608,14 +616,21 @@ export function PullAnalysisDialog(props: {
         <div class="pull-analysis-panel" style={panelTheme()}>
           <PullSettings
             t={t}
+            game={props.game}
             gameTitle={props.title}
             accounts={accounts()}
             busy={importBusy()}
             loaded={archiveLoaded()}
             storageError={storageError()}
-            onGuide={() => openLink("https://uigf.org/zh/standards/uigf.html")}
+            onGuide={version =>
+              openLink(
+                version === "v3.0"
+                  ? "https://uigf.org/zh/standards/uigf-legacy-v3.0.html"
+                  : "https://uigf.org/zh/standards/uigf.html"
+              )
+            }
             onImport={() => void importFile()}
-            onExport={uid => void exportFile(uid)}
+            onExport={(version, uid) => void exportFile(version, uid)}
             onClear={clearPulls}
           />
         </div>

@@ -199,6 +199,14 @@
   gap: 6px;
 }
 
+.pull-analysis-export-format {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--miyo-muted);
+  font-size: 13px;
+}
+
 .pull-analysis-uid-pagination {
   display: flex;
   flex-wrap: wrap;
