@@ -164,22 +164,43 @@ export function PullDashboard(props: {
 
   function Featured(props: { row: PullReportRow }) {
     return (
-      <Show when={supportsFeatured() && props.row.pull.rank_type === "5"}>
+      <Show
+        when={
+          supportsFeatured() &&
+          props.row.pull.rank_type === "5" &&
+          props.row.featured !== false
+        }
+      >
         <span
           class="pull-analysis-featured-tag"
           data-featured={String(props.row.featured)}
         >
-          {props.row.featured === false
-            ? props.row.guaranteed === false
-              ? t("小保底歪", "Lost the 50/50")
-              : t("歪池", "Off-banner")
-            : props.row.featured === undefined
+          {props.row.featured === undefined
             ? t("UP 未知", "UP unknown")
             : props.row.guaranteed === undefined
             ? "UP"
             : props.row.guaranteed
             ? t("大保底", "Guaranteed UP")
             : t("小保底", "Non-guaranteed UP")}
+        </span>
+      </Show>
+    );
+  }
+
+  function OffBannerStamp(props: { row: PullReportRow }) {
+    const label = () =>
+      props.row.guaranteed === false
+        ? t("小保底歪", "Lost the 50/50")
+        : t("歪池", "Off-banner");
+    return (
+      <Show when={supportsFeatured() && props.row.featured === false}>
+        <span
+          class="pull-analysis-off-banner-stamp"
+          role="img"
+          aria-label={label()}
+          title={label()}
+        >
+          {t("歪", "OFF")}
         </span>
       </Show>
     );
@@ -439,6 +460,9 @@ export function PullDashboard(props: {
                   <ol
                     id="pull-analysis-pull-cycles"
                     class="pull-analysis-chart"
+                    classList={{
+                      "pull-analysis-chart--featured": supportsFeatured(),
+                    }}
                     aria-label={t(
                       "出货间隔与当前垫抽",
                       "Pull intervals and current pity"
@@ -532,6 +556,7 @@ export function PullDashboard(props: {
                                     ? ""
                                     : t(" 抽", " pulls")}
                                 </span>
+                                <OffBannerStamp row={row} />
                               </div>
                             </div>
                             <FourCards rows={cycle.fourths} />
