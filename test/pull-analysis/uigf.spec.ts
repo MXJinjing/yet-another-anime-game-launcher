@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CURRENT_YAAGL_VERSION } from "../../src/constants/version";
 import {
   pullAnalysisGameForChannel,
   pullPoolTabs,
@@ -41,7 +42,14 @@ describe("UIGF v4.2", () => {
       "123456789",
       "987654321",
     ]);
-    expect(parseUigf(exportUigf(archive))).toEqual(archive);
+    const exported = exportUigf(archive);
+    expect(JSON.parse(exported).info).toMatchObject({
+      version: "v4.2",
+      export_app: "YAAGLM",
+      export_app_version: CURRENT_YAAGL_VERSION,
+      export_timestamp: expect.any(Number),
+    });
+    expect(parseUigf(exported)).toEqual(archive);
   });
 
   it("merges by game, UID and pull ID without overwriting existing history", () => {

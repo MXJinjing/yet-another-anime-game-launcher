@@ -1,3 +1,4 @@
+import { CURRENT_YAAGL_VERSION } from "../constants/version";
 import { pullGames, type PullGame } from "./games";
 
 export type Pull = {
@@ -212,6 +213,7 @@ export function exportUigf(archive: GachaArchive, local = false) {
       info: {
         version: "v4.2",
         export_app: "YAAGLM",
+        export_app_version: CURRENT_YAAGL_VERSION,
         export_timestamp: Math.floor(Date.now() / 1000),
       },
       ...games,
