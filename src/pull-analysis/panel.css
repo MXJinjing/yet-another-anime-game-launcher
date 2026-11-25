@@ -477,10 +477,10 @@
   place-items: center;
   box-sizing: border-box;
   inline-size: 22px;
-  block-size: 20px;
+  block-size: 22px;
   margin-inline-start: 7px;
   border: 1px solid #df8876;
-  border-radius: 3px;
+  border-radius: 50%;
   background: #34242a;
   box-shadow: inset 0 0 0 1px #df88764d;
   color: #ffc1a9;
