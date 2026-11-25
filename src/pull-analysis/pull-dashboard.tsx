@@ -88,6 +88,7 @@ export function PullDashboard(props: {
   poolTabs: readonly string[];
   catalog?: ReadonlyMap<string, CatalogItem>;
   visiblePulls: number;
+  historyProgress?: string;
   historyControls?: JSX.Element;
   onAccountChange: (uid: string) => void;
   onPoolChange: (type: string) => void;
@@ -333,43 +334,54 @@ export function PullDashboard(props: {
   return (
     <>
       <div class="pull-analysis-scope">
-        <label class="pull-analysis-field">
-          UID
-          <select
-            value={props.account.uid}
-            onChange={event => {
-              props.onAccountChange(event.currentTarget.value);
-            }}
+        <div class="pull-analysis-scope-details">
+          <label class="pull-analysis-field">
+            UID
+            <select
+              value={props.account.uid}
+              onChange={event => {
+                props.onAccountChange(event.currentTarget.value);
+              }}
+            >
+              <For each={props.accounts}>
+                {account => <option value={account.uid}>{account.uid}</option>}
+              </For>
+            </select>
+          </label>
+          <Show
+            when={!props.historyProgress}
+            fallback={
+              <span class="pull-analysis-sync-progress" role="status">
+                {props.historyProgress}
+              </span>
+            }
           >
-            <For each={props.accounts}>
-              {account => <option value={account.uid}>{account.uid}</option>}
-            </For>
-          </select>
-        </label>
-        <div class="pull-analysis-report-meta">
-          <Show when={props.summary.first}>
-            <span class="pull-analysis-muted">
-              {props.summary.first?.slice(0, 10)} —{" "}
-              {props.summary.last?.slice(0, 10)} · UTC
-              {props.account.timezone >= 0 ? "+" : ""}
-              {props.account.timezone}
-            </span>
+            <div class="pull-analysis-report-meta">
+              <Show when={props.summary.first}>
+                <span class="pull-analysis-muted">
+                  {props.summary.first?.slice(0, 10)} —{" "}
+                  {props.summary.last?.slice(0, 10)} · UTC
+                  {props.account.timezone >= 0 ? "+" : ""}
+                  {props.account.timezone}
+                </span>
+              </Show>
+              <span class="pull-analysis-muted" aria-live="polite">
+                {t("最近更新", "Last updated")}{" "}
+                <Show when={props.account.updatedAt} fallback="—">
+                  {timestamp => (
+                    <time dateTime={new Date(timestamp()).toISOString()}>
+                      {new Intl.DateTimeFormat(t("zh-CN", "en-GB"), {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }).format(timestamp())}
+                    </time>
+                  )}
+                </Show>
+              </span>
+            </div>
           </Show>
-          <span class="pull-analysis-muted" aria-live="polite">
-            {t("最近更新", "Last updated")}{" "}
-            <Show when={props.account.updatedAt} fallback="—">
-              {timestamp => (
-                <time dateTime={new Date(timestamp()).toISOString()}>
-                  {new Intl.DateTimeFormat(t("zh-CN", "en-GB"), {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  }).format(timestamp())}
-                </time>
-              )}
-            </Show>
-          </span>
-          {props.historyControls}
         </div>
+        <div class="pull-analysis-report-actions">{props.historyControls}</div>
       </div>
 
       <Show when={props.poolTabs.length}>

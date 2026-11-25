@@ -482,15 +482,13 @@ export function PullAnalysisDialog(props: {
             <path d="M20 5v5h-5M4 19v-5h5" />
             <path d="M4.9 9a8 8 0 0 1 13-3l2.1 4M4 14l2.1 4a8 8 0 0 0 13-3" />
           </svg>
-          {syncing()
-            ? t("读取中…", "Reading…")
-            : t("从游戏读取", "Read from game")}
-        </button>
-        <Show when={syncing()}>
-          <span class="pull-analysis-sync-progress" role="status">
-            {syncProgressText()}
+          <span class="pull-analysis-refresh-label">
+            <span aria-hidden={syncing()}>
+              {t("从游戏读取", "Read from game")}
+            </span>
+            <span aria-hidden={!syncing()}>{t("读取中…", "Reading…")}</span>
           </span>
-        </Show>
+        </button>
       </Show>
     );
   }
@@ -564,6 +562,11 @@ export function PullAnalysisDialog(props: {
                     {t("导入 UIGF", "Import UIGF")}
                   </AppModalButton>
                 </div>
+                <Show when={syncing()}>
+                  <span class="pull-analysis-sync-progress" role="status">
+                    {syncProgressText()}
+                  </span>
+                </Show>
                 <SettingsButton iconOnly />
               </section>
             }
@@ -575,6 +578,7 @@ export function PullAnalysisDialog(props: {
                 catalog={props.game === "hk4e" ? catalogItems : undefined}
                 accounts={accounts()}
                 account={report().account}
+                historyProgress={syncing() ? syncProgressText() : undefined}
                 historyControls={
                   <>
                     <HistoryRefresh />
