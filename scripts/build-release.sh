@@ -21,7 +21,7 @@ if [ "$CN_ARM64_APP_ONLY" = 1 ] && [ "$ARCH" != arm64 ]; then
   exit 1
 fi
 
-CHANNELS=(hk4ecn hk4eos mhyos mhycn all hkrpgcn hkrpgos bh3glb cbjq cbjqcn napos napcn)
+CHANNELS=(hk4ecn hk4eos mhyos mhycn all hkrpgcn hkrpgos bh3glb napos napcn)
 BH3_GLOBAL_SUFFIX="$(node -p 'require("./src/constants/yaaglm-config.secret.json").bh3GlobalSuffix')"
 APP_NAMES=(
   "Yaaglm GI CN"
@@ -32,8 +32,6 @@ APP_NAMES=(
   "Yaaglm HSR"
   "Yaaglm HSR OS"
   "Yaaglm $BH3_GLOBAL_SUFFIX"
-  "Yaaglm SCZ OS"
-  "Yaaglm SCZ"
   "Yaaglm ZZZ OS"
   "Yaaglm ZZZ"
 )

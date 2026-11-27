@@ -23,8 +23,6 @@ const apps = {
   hkrpgcn: "Yaaglm HSR",
   hkrpgos: "Yaaglm HSR OS",
   bh3glb: `Yaaglm ${yaaglmConfig.bh3GlobalSuffix}`,
-  cbjq: "Yaaglm SCZ OS",
-  cbjqcn: "Yaaglm SCZ",
   napos: "Yaaglm ZZZ OS",
   napcn: "Yaaglm ZZZ",
 };
