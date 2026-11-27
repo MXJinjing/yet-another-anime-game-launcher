@@ -18,7 +18,6 @@ Release packages cover these clients and regions:
 - HSR: CN and Global
 - ZZZ: CN and Global
 - BH3: Global
-- CBJQ: CN and Global
 
 Some releases also provide combined launcher packages for multiple clients. Package availability, game-version compatibility, and macOS requirements can change; check the [latest release](https://github.com/MXJinjing/yet-another-anime-game-launcher/releases/latest) and its notes before installing or updating.
 

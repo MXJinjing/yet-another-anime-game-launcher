@@ -18,7 +18,6 @@
 - HSR：中国服和国际服
 - ZZZ：中国服和国际服
 - BH3：国际服
-- CBJQ：中国服和国际服
 
 部分发行版还提供整合多个客户端的启动器。发行包可用性、游戏版本兼容性和 macOS 要求可能随版本变化；安装或更新前请查看[最新发行版](https://github.com/MXJinjing/yet-another-anime-game-launcher/releases/latest)及其说明。
 
