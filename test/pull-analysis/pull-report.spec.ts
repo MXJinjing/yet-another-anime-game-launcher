@@ -170,11 +170,11 @@ describe("pull report", () => {
   it("counts only classified featured history and skips uncertain intervals", () => {
     const record = account([
       pull("1", "5", { item_id: "14516" }),
-      pull("2", "5"),
+      pull("2", "5", { item_id: "11501" }),
       pull("3", "5", { item_id: "11503" }),
       pull("4"),
       pull("5", "5", { item_id: "14516" }),
-      pull("6", "5", { time: "2026-11-27 12:00:00" }),
+      pull("6", "5", { item_id: "11501", time: "2026-11-27 12:00:00" }),
     ]);
     const [pool] = createPullReport(record, "hk4e").pools;
     expect(pool.hits).toBe(3);
@@ -209,7 +209,7 @@ describe("pull report", () => {
     ]);
   });
 
-  it("classifies older CN dates and leaves an ambiguous normalized slot unknown", () => {
+  it("recognizes a limited UP in the other slot when an import combines both slots", () => {
     const [pool] = createPullReport(
       account([
         pull("1", "5", {
@@ -222,7 +222,58 @@ describe("pull report", () => {
       "hk4e"
     ).pools;
     expect(pool.rows[0].featured).toBe(true);
-    expect(pool.rows[1].featured).toBeUndefined();
-    expect(pool.nextGuaranteed).toBeUndefined();
+    expect(pool.rows[1].featured).toBe(true);
+    expect(pool.nextGuaranteed).toBe(false);
+  });
+
+  it.each([
+    ["10000069", "2022-09-05", "2022-09-16", "2022-09-29"],
+    ["10000079", "2023-03-02", "2023-03-23", "2023-04-13"],
+    ["10000109", "2025-02-13", "2025-03-05", "2025-03-27"],
+  ])(
+    "considers %s off-banner only after its standard wish debut",
+    (item_id, featured, before, after) => {
+      const [pool] = createPullReport(
+        account([
+          pull("1", "5", {
+            item_id,
+            time: featured + " 12:00:00",
+            gacha_type: "400",
+          }),
+          pull("2", "5", {
+            item_id,
+            time: before + " 12:00:00",
+            gacha_type: "301",
+          }),
+          pull("3", "5", {
+            item_id,
+            time: after + " 12:00:00",
+            gacha_type: "301",
+          }),
+        ]),
+        "hk4e"
+      ).pools;
+      expect(pool.rows.map(row => row.featured)).toEqual([
+        true,
+        undefined,
+        false,
+      ]);
+    }
+  );
+
+  it("distinguishes promoted and off-banner results for the same standard weapon", () => {
+    const [pool] = createPullReport(
+      account([
+        pull("1", "5", { item_id: "13505", time: "2021-02-12 12:00:00" }),
+        pull("2", "5", { item_id: "13505" }),
+        pull("3", "5", { item_id: "100" }),
+      ]),
+      "hk4e"
+    ).pools;
+    expect(pool.rows.map(row => row.featured)).toEqual([
+      true,
+      false,
+      undefined,
+    ]);
   });
 });

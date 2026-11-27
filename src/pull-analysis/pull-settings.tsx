@@ -1,7 +1,7 @@
 import { Button, colorModeClassNames } from "@hope-ui/solid";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import fileIcon from "@src/assets/icons/file.svg";
-import type { GachaArchive } from "./uigf";
+import type { GachaArchive, UigfVersion } from "./uigf";
 import type { PullGame } from "./games";
 
 type Account = NonNullable<GachaArchive[PullGame]>[number];
@@ -9,19 +9,24 @@ const accountsPerPage = 5;
 
 export function PullSettings(props: {
   t: (zh: string, en: string) => string;
+  game: PullGame;
   gameTitle: string;
   accounts: Account[];
   busy: boolean;
   loaded: boolean;
   storageError: boolean;
-  onGuide: () => void;
+  onGuide: (version: UigfVersion) => void;
   onImport: () => void;
-  onExport: (uid?: string) => void;
+  onExport: (version: UigfVersion, uid?: string) => void;
   onClear: (uid: string) => Promise<boolean>;
 }) {
   const t = props.t;
   const [confirmUid, setConfirmUid] = createSignal<string>();
   const [page, setPage] = createSignal(1);
+  const [selectedVersion, setSelectedVersion] =
+    createSignal<UigfVersion>("v4.2");
+  const canExportLegacy = () => props.game === "hk4e";
+  const exportVersion = () => (canExportLegacy() ? selectedVersion() : "v4.2");
   const pageCount = () =>
     Math.max(1, Math.ceil(props.accounts.length / accountsPerPage));
   const currentPage = () => Math.min(page(), pageCount());
@@ -57,9 +62,12 @@ export function PullSettings(props: {
           <button
             class="pull-analysis-link-button"
             type="button"
-            onClick={props.onGuide}
+            onClick={() => props.onGuide(exportVersion())}
           >
-            {t("v4.2 格式说明", "v4.2 format guide")}{" "}
+            {t(
+              `${exportVersion()} 格式说明`,
+              `${exportVersion()} format guide`
+            )}{" "}
             <span aria-hidden="true">↗</span>
           </button>
         </div>
@@ -87,18 +95,39 @@ export function PullSettings(props: {
             </h2>
             <span class="pull-analysis-muted">{props.gameTitle}</span>
           </div>
-          <Show when={props.accounts.length > 1}>
-            <Button
-              type="button"
-              size="xs"
-              variant="subtle"
-              colorScheme="neutral"
-              disabled={unavailable()}
-              onClick={() => props.onExport()}
+          <div class="pull-analysis-uid-actions">
+            <Show when={canExportLegacy() && props.accounts.length > 0}>
+              <label class="pull-analysis-export-format">
+                {t("导出格式", "Export format")}
+                <select
+                  value={exportVersion()}
+                  disabled={unavailable()}
+                  onChange={event =>
+                    setSelectedVersion(
+                      event.currentTarget.value === "v3.0" ? "v3.0" : "v4.2"
+                    )
+                  }
+                >
+                  <option value="v4.2">UIGF v4.2</option>
+                  <option value="v3.0">UIGF v3.0</option>
+                </select>
+              </label>
+            </Show>
+            <Show
+              when={props.accounts.length > 1 && exportVersion() === "v4.2"}
             >
-              {t("导出全部", "Export all")}
-            </Button>
-          </Show>
+              <Button
+                type="button"
+                size="xs"
+                variant="subtle"
+                colorScheme="neutral"
+                disabled={unavailable()}
+                onClick={() => props.onExport("v4.2")}
+              >
+                {t("导出全部", "Export all")}
+              </Button>
+            </Show>
+          </div>
         </div>
         <Show
           when={props.accounts.length}
@@ -139,7 +168,9 @@ export function PullSettings(props: {
                             `Export UID ${account.uid}`
                           )}
                           disabled={unavailable()}
-                          onClick={() => props.onExport(account.uid)}
+                          onClick={() =>
+                            props.onExport(exportVersion(), account.uid)
+                          }
                         >
                           {t("导出", "Export")}
                         </Button>

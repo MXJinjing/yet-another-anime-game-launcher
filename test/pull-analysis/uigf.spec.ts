@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { pullAnalysisGameForChannel } from "../../src/pull-analysis/games";
+import { CURRENT_YAAGL_VERSION } from "../../src/constants/version";
 import {
+  pullAnalysisGameForChannel,
+  pullPoolTabs,
+} from "../../src/pull-analysis/games";
+import {
+  exportLegacyUigf,
   exportUigf,
   mergeGachaArchives,
   parseUigf,
@@ -18,6 +23,72 @@ const pull = {
   uigf_gacha_type: "301",
 };
 const account = { uid: "123456789", timezone: 8, list: [pull] };
+
+describe("UIGF v3.0 imports", () => {
+  const legacyInfo = {
+    uigf_version: "v3.0",
+    uid: account.uid,
+    lang: "zh-cn",
+    region_time_zone: 8,
+  };
+
+  it("imports the single UID and preserves records when re-exporting as v4.2", () => {
+    const document = {
+      info: legacyInfo,
+      list: [{ ...pull, uid: account.uid }],
+    };
+    const archive = parseUigf(JSON.stringify(document));
+    expect(archive).toEqual({ hk4e: [{ ...account, lang: "zh-cn" }] });
+    const exported = exportUigf(archive);
+    expect(JSON.parse(exported).info.version).toBe("v4.2");
+    expect(parseUigf(exported)).toEqual(archive);
+    expect(() => parseUigf(JSON.stringify(document), true)).toThrow();
+  });
+
+  it.each([
+    ["123456789", 8],
+    ["612345678", -5],
+    ["712345678", 1],
+  ])("infers the timezone for %s when absent", (uid, timezone) => {
+    const archive = parseUigf(
+      JSON.stringify({ info: { uigf_version: "v3.0", uid }, list: [pull] })
+    );
+    expect(archive.hk4e?.[0].timezone).toBe(timezone);
+  });
+
+  it("rejects records assigned to a different UID", () => {
+    expect(() =>
+      parseUigf(
+        JSON.stringify({
+          info: legacyInfo,
+          list: [{ ...pull, uid: "987654321" }],
+        })
+      )
+    ).toThrow();
+  });
+
+  it("exports a single legacy account with its original timezone and pull IDs", () => {
+    const parsedAccount = { ...account, timezone: -5, lang: "en-us" };
+    const exported = exportLegacyUigf({
+      ...parsedAccount,
+      sources: ["file"],
+      updatedAt: 1_800_000_000_000,
+    });
+    expect(JSON.parse(exported)).toEqual({
+      info: {
+        uigf_version: "v3.0",
+        uid: account.uid,
+        region_time_zone: -5,
+        lang: "en-us",
+        export_app: "YAAGLM",
+        export_app_version: CURRENT_YAAGL_VERSION,
+        export_timestamp: expect.any(Number),
+      },
+      list: [pull],
+    });
+    expect(parseUigf(exported)).toEqual({ hk4e: [parsedAccount] });
+  });
+});
 
 describe("UIGF v4.2", () => {
   it("round-trips an archive containing three games and multiple accounts", () => {
@@ -38,7 +109,14 @@ describe("UIGF v4.2", () => {
       "123456789",
       "987654321",
     ]);
-    expect(parseUigf(exportUigf(archive))).toEqual(archive);
+    const exported = exportUigf(archive);
+    expect(JSON.parse(exported).info).toMatchObject({
+      version: "v4.2",
+      export_app: "YAAGLM",
+      export_app_version: CURRENT_YAAGL_VERSION,
+      export_timestamp: expect.any(Number),
+    });
+    expect(parseUigf(exported)).toEqual(archive);
   });
 
   it("merges by game, UID and pull ID without overwriting existing history", () => {
@@ -147,6 +225,17 @@ describe("UIGF v4.2", () => {
 });
 
 describe("Miyoushe channels", () => {
+  it("shows all five wish tabs even when some have no records", () => {
+    expect(pullPoolTabs("hk4e", ["301", "302", "200"])).toEqual([
+      "301",
+      "302",
+      "200",
+      "100",
+      "500",
+    ]);
+    expect(pullPoolTabs("nap", ["3"])).toEqual(["3"]);
+  });
+
   it.each([
     ["hk4ecn", "hk4e"],
     ["hkrpgcn", "hkrpg"],

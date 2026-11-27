@@ -1,3 +1,4 @@
+import { CURRENT_YAAGL_VERSION } from "../constants/version";
 import { pullGames, type PullGame } from "./games";
 
 export type Pull = {
@@ -23,6 +24,7 @@ type Account = {
 };
 
 export type GachaArchive = Partial<Record<PullGame, Account[]>>;
+export type UigfVersion = "v3.0" | "v4.2";
 
 const optionalPullFields = [
   "uigf_gacha_type",
@@ -34,7 +36,7 @@ const optionalPullFields = [
 ] as const;
 
 function invalid(): never {
-  throw new Error("Invalid UIGF v4.2 data");
+  throw new Error("Invalid UIGF data");
 }
 
 function object(value: unknown): Record<string, unknown> {
@@ -46,6 +48,12 @@ function object(value: unknown): Record<string, unknown> {
 function digits(value: unknown): string {
   if (typeof value !== "string" || !/^\d{1,19}$/.test(value)) return invalid();
   return value;
+}
+
+function parseUid(uid: unknown): string {
+  return digits(
+    typeof uid === "number" && Number.isSafeInteger(uid) ? String(uid) : uid
+  );
 }
 
 function parseTime(value: unknown): string {
@@ -91,18 +99,37 @@ function parseAccount(value: unknown, game: PullGame): Account {
   )
     return invalid();
   return {
-    uid: digits(
-      typeof uid === "number" && Number.isSafeInteger(uid) ? String(uid) : uid
-    ),
+    uid: parseUid(uid),
     timezone,
     ...(lang === undefined ? {} : { lang }),
     list: list.map(pull => parsePull(pull, game)),
   };
 }
 
+function parseLegacyAccount(info: Record<string, unknown>, list: unknown) {
+  if (!Array.isArray(list)) return invalid();
+  const uid = parseUid(info.uid);
+  for (const entry of list) {
+    const { uid: recordUid } = object(entry);
+    if (recordUid !== undefined && parseUid(recordUid) !== uid)
+      return invalid();
+  }
+  const serverTimezones: Record<string, number> = { "6": -5, "7": 1 };
+  const timezone =
+    info.region_time_zone === undefined
+      ? serverTimezones[uid[0]] ?? 8
+      : info.region_time_zone;
+  return parseAccount({ uid, timezone, lang: info.lang, list }, "hk4e");
+}
+
 export function parseUigf(text: string, local = false): GachaArchive {
   const document = object(JSON.parse(text));
-  if (object(document.info).version !== "v4.2") return invalid();
+  const info = object(document.info);
+  if (info.version !== "v4.2") {
+    if (local || info.version !== undefined || info.uigf_version !== "v3.0")
+      return invalid();
+    return { hk4e: [parseLegacyAccount(info, document.list)] };
+  }
   const archive: GachaArchive = {};
   for (const game of pullGames) {
     const accounts = document[game];
@@ -193,6 +220,31 @@ export function mergeGachaArchives(
   return result;
 }
 
+function exportMetadata() {
+  return {
+    export_app: "YAAGLM",
+    export_app_version: CURRENT_YAAGL_VERSION,
+    export_timestamp: Math.floor(Date.now() / 1000),
+  };
+}
+
+export function exportLegacyUigf({ uid, timezone, lang, list }: Account) {
+  return JSON.stringify(
+    {
+      info: {
+        uigf_version: "v3.0",
+        uid,
+        region_time_zone: timezone,
+        lang,
+        ...exportMetadata(),
+      },
+      list,
+    },
+    null,
+    2
+  );
+}
+
 export function exportUigf(archive: GachaArchive, local = false) {
   const games = local
     ? archive
@@ -211,8 +263,7 @@ export function exportUigf(archive: GachaArchive, local = false) {
     {
       info: {
         version: "v4.2",
-        export_app: "YAAGLM",
-        export_timestamp: Math.floor(Date.now() / 1000),
+        ...exportMetadata(),
       },
       ...games,
     },
@@ -246,7 +297,9 @@ export function summarizePulls(account: Account, game?: PullGame) {
   const pools = new Map<string, Pull[]>();
   const sorted = [...account.list].sort(comparePulls);
   for (const pull of sorted) {
-    const type = pull.uigf_gacha_type ?? pull.gacha_type;
+    const recordedType = pull.uigf_gacha_type ?? pull.gacha_type;
+    const type =
+      game === "hk4e" && recordedType === "400" ? "301" : recordedType;
     const pool = pools.get(type) ?? [];
     pool.push(pull);
     pools.set(type, pool);

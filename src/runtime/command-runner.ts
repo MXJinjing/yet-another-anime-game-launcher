@@ -69,7 +69,11 @@ export async function exec2(
   env?: { [key: string]: string },
   sudoPrompt: string | boolean = false,
   log_redirect: string | undefined = undefined,
-  options: { timeoutMs?: number } = {}
+  options: {
+    timeoutMs?: number;
+    stdIn?: string;
+    onStdErr?: (chunk: string) => void;
+  } = {}
 ): Promise<Neutralino.os.ExecCommandResult> {
   const cmd = build(
     [...segments, ...(log_redirect ? [rawString("&>"), log_redirect] : [])],
@@ -96,10 +100,18 @@ export async function exec2(
   };
 
   const handleDetail = (detail: Neutralino.os.SpawnProcessResult) => {
-    if (detail.id != id) return;
+    if (detail.id != id || settled) return;
     if (detail.action == "exit") finish(Number(detail.data));
     else if (detail.action == "stdOut") stdOut += detail.data;
-    else if (detail.action == "stdErr") stdErr += detail.data;
+    else if (detail.action == "stdErr") {
+      stdErr += detail.data;
+      try {
+        options.onStdErr?.(detail.data);
+      } catch (error) {
+        fail(error);
+        void updateSpawnedProcess(detail.id, "exit").catch(() => undefined);
+      }
+    }
   };
 
   const result = new Promise<Neutralino.os.ExecCommandResult>((res, rej) => {
@@ -131,6 +143,17 @@ export async function exec2(
     id = spawned.id;
     pid = spawned.pid;
     for (const detail of pendingEvents) handleDetail(detail);
+    if (!settled && options.stdIn !== undefined) {
+      void updateSpawnedProcess(spawned.id, "stdIn", options.stdIn)
+        .then(() => {
+          if (!settled) return updateSpawnedProcess(spawned.id, "stdInEnd");
+        })
+        .catch(error => {
+          if (settled) return;
+          fail(error);
+          void updateSpawnedProcess(spawned.id, "exit").catch(() => undefined);
+        });
+    }
     if (!settled && options.timeoutMs != undefined && options.timeoutMs > 0) {
       timeout = setTimeout(() => {
         if (settled || id == undefined) return;

@@ -3,9 +3,7 @@ import { readFile, removeFileIfExists, writeFile } from "@platform/neutralino";
 import {
   mergeLocalArchive,
   readGachaArchive,
-  readRadianceMarks,
   removeLocalPullAccount,
-  removeRadianceMarks,
 } from "../../src/pull-analysis/local";
 import {
   exportUigf,
@@ -21,7 +19,6 @@ vi.mock("@platform/neutralino", () => ({
 }));
 
 const archiveFile = "pull-analysis-uigf-v4.2.json";
-const marksFile = "pull-analysis-radiance.json";
 const disk = new Map<string, string>();
 const first = { uid: "100000001", timezone: 8, list: [] };
 const second = { uid: "100000002", timezone: 8, list: [] };
@@ -90,16 +87,4 @@ it("keeps the last UID on a failed write and can reopen an empty local archive a
   expect(await mergeLocalArchive({ hk4e: [first] })).toEqual({
     hk4e: [{ ...first, updatedAt: expect.any(Number) }],
   });
-});
-
-it("removes only Radiance marks with the exact UID", async () => {
-  disk.set(
-    marksFile,
-    JSON.stringify([`${first.uid}:11`, `${second.uid}:11`, `${first.uid}0:12`])
-  );
-  await removeRadianceMarks(first.uid);
-  expect(await readRadianceMarks()).toEqual([
-    `${second.uid}:11`,
-    `${first.uid}0:12`,
-  ]);
 });

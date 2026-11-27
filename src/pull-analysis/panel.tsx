@@ -10,24 +10,29 @@ import { AppModal, AppModalButton } from "@src/components/app-modal";
 import settingsIcon from "@src/assets/icons/settings.svg";
 import { chooseSavePath } from "@platform/macos/save-dialog";
 import { open, readFile, writeFile } from "@platform/neutralino";
-import type { PullGame } from "./games";
-import { PullDashboard } from "./pull-dashboard";
+import { pullPoolTabs, type PullGame } from "./games";
+import { PullDashboard, pullPoolLabel } from "./pull-dashboard";
 import { PullSettings } from "./pull-settings";
 import { pullAnalysisProgress, notifyPullAnalysis } from "./notifications";
 import { initialCatalog } from "./hk4e-catalog";
-import { readGameHistory } from "./history-local";
+import {
+  readGameHistory,
+  type HistoryProgress,
+  type OnlineHistoryStatus,
+} from "./history-local";
 import {
   mergeLocalArchive,
   readGachaArchive,
   removeLocalPullAccount,
-  removeRadianceMarks,
 } from "./local";
 import {
+  exportLegacyUigf,
   exportUigf,
   parseUigf,
   selectGamePullArchive,
   summarizePulls,
   type GachaArchive,
+  type UigfVersion,
 } from "./uigf";
 import "./panel.css";
 
@@ -57,6 +62,9 @@ export function PullAnalysisDialog(props: {
   const [pullSettings, setPullSettings] = createSignal(false);
   const [importBusy, setImportBusy] = createSignal(false);
   const [syncing, setSyncing] = createSignal(false);
+  const [syncProgress, setSyncProgress] = createSignal<
+    HistoryProgress | "saving"
+  >();
   const catalogItems = new Map(
     initialCatalog.items.map(item => [item.id, item])
   );
@@ -77,10 +85,14 @@ export function PullAnalysisDialog(props: {
     const account = active();
     return account && { account, summary: summarizePulls(account, props.game) };
   });
-  const currentPool = createMemo(() => {
-    const pools = activeReport()?.summary.pools ?? [];
-    return pools.find(pool => pool.type === poolType()) ?? pools[0];
-  });
+  const poolTabs = createMemo(() =>
+    pullPoolTabs(
+      props.game,
+      activeReport()?.summary.pools.map(pool => pool.type) ?? []
+    )
+  );
+  const currentPool = () =>
+    poolType() || activeReport()?.summary.pools[0]?.type || poolTabs()[0];
 
   function showArchive(records: GachaArchive) {
     archiveRead++;
@@ -147,19 +159,57 @@ export function PullAnalysisDialog(props: {
     setVisiblePulls(50);
   }
 
+  function historySyncDetail(status?: OnlineHistoryStatus) {
+    switch (status) {
+      case "no-link":
+      case "expired":
+        return t(
+          "请在游戏内重新打开祈愿历史以更新临时授权。",
+          "Reopen Wish History in the game to renew access."
+        );
+      case "rate-limited":
+        return t(
+          "祈愿服务限制了请求频率。",
+          "The Wish History service rate-limited the request."
+        );
+      case "needs-attention":
+        return t(
+          "请在游戏内处理祈愿服务的验证提示。",
+          "Complete the verification in the game."
+        );
+      case "unavailable":
+        return t(
+          "暂时无法连接祈愿服务。",
+          "The Wish History service is temporarily unavailable."
+        );
+      case "incomplete":
+        return t(
+          "祈愿服务的分页读取未完成。",
+          "The Wish History sync did not finish."
+        );
+      default:
+        return undefined;
+    }
+  }
+
   async function importGame() {
     if (importBusy() || !historyAvailable()) return;
     setImportBusy(true);
     setSyncing(true);
+    setSyncProgress(undefined);
     try {
       const reply = await readGameHistory(
         props.installDir,
         props.executable,
-        props.winePrefix
+        props.winePrefix,
+        true,
+        setSyncProgress
       );
+      const syncDetail = historySyncDetail(reply.onlineStatus);
       if (reply.state !== "ok") {
         const detail =
-          reply.state === "no-history"
+          syncDetail ??
+          (reply.state === "no-history"
             ? t(
                 "请先在游戏内打开并翻阅祈愿历史，或导入 UIGF 文件。",
                 "Open and browse Wish History in the game, or import a UIGF file."
@@ -167,7 +217,7 @@ export function PullAnalysisDialog(props: {
             : t(
                 "无法读取本地游戏缓存。",
                 "Could not read the local game cache."
-              );
+              ));
         notifyPullAnalysis(
           "warning",
           t("未读入祈愿记录", "Wish History was not imported"),
@@ -194,6 +244,7 @@ export function PullAnalysisDialog(props: {
         ),
         true
       );
+      setSyncProgress("saving");
       await mergeIncoming(incoming);
       if (props.game === "hk4e") {
         setSelectedUid(uid =>
@@ -203,7 +254,15 @@ export function PullAnalysisDialog(props: {
         );
         setPoolType("");
       }
-      notifyPullAnalysis("success", t("已合并游戏缓存", "Merged game cache"));
+      notifyPullAnalysis(
+        syncDetail ? "warning" : "success",
+        reply.source === "online"
+          ? syncDetail
+            ? t("已合并部分祈愿记录", "Merged available wish records")
+            : t("已同步祈愿记录", "Synced wish records")
+          : t("已合并游戏缓存", "Merged game cache"),
+        syncDetail
+      );
     } catch {
       notifyPullAnalysis(
         "warning",
@@ -214,6 +273,7 @@ export function PullAnalysisDialog(props: {
       );
     } finally {
       setSyncing(false);
+      setSyncProgress(undefined);
       setImportBusy(false);
       if (!archiveLoaded()) loadArchive();
     }
@@ -277,18 +337,24 @@ export function PullAnalysisDialog(props: {
     }
   }
 
-  async function exportFile(uid?: string) {
+  async function exportFile(version: UigfVersion, uid?: string) {
     const game = props.game;
     const snapshot = selectGamePullArchive(archive(), game, uid);
     if (importBusy() || !snapshot) return;
+    const legacyAccount =
+      version === "v3.0" && uid !== undefined ? snapshot.hk4e?.[0] : undefined;
+    if (version === "v3.0" && !legacyAccount) return;
     setImportBusy(true);
     try {
       const path = await chooseSavePath(
         t("导出抽卡记录", "Export pull history"),
-        [game, uid, "uigf-v4.2.json"].filter(Boolean).join("-")
+        [game, uid, `uigf-${version}.json`].filter(Boolean).join("-")
       );
       if (path) {
-        await writeFile(path, exportUigf(snapshot));
+        const data = legacyAccount
+          ? exportLegacyUigf(legacyAccount)
+          : exportUigf(snapshot);
+        await writeFile(path, data);
         notifyPullAnalysis("success", t("导出完成", "Export complete"));
       }
     } catch {
@@ -321,26 +387,6 @@ export function PullAnalysisDialog(props: {
           setVisiblePulls(50);
         }
       });
-      if (game === "hk4e") {
-        const marksCleared = await removeRadianceMarks(uid).then(
-          () => true,
-          () => false
-        );
-        if (!marksCleared) {
-          notifyPullAnalysis(
-            "warning",
-            t(
-              "部分明光标记清理失败",
-              "Some Radiance marks could not be removed"
-            ),
-            t(
-              `已清除 UID ${uid} 的抽卡记录。`,
-              `Cleared pull records for UID ${uid}.`
-            )
-          );
-          return true;
-        }
-      }
       notifyPullAnalysis(
         "success",
         t(
@@ -372,11 +418,29 @@ export function PullAnalysisDialog(props: {
     });
   }
 
-  function HistoryRefresh() {
+  function syncProgressText() {
+    const progress = syncProgress();
+    if (!progress)
+      return t("正在检查游戏授权…", "Checking game authorization…");
+    if (progress === "saving") return t("正在合并记录…", "Merging records…");
+    if (progress.phase === "cache")
+      return t("正在读取游戏缓存…", "Reading the game cache…");
+    const pool = pullPoolLabel("hk4e", progress.pool, t);
+    return t(
+      `${pool} · 已读 ${progress.pages} 页 · 累计 ${progress.records} 条`,
+      `${pool} · ${progress.pages} pages read · ${progress.records} records total`
+    );
+  }
+
+  function HistoryRefresh(buttonProps: { primary?: boolean }) {
     return (
       <Show when={historyAvailable()}>
         <button
-          class="app-modal-button app-modal-button--secondary pull-analysis-refresh-button"
+          class="app-modal-button pull-analysis-refresh-button"
+          classList={{
+            "app-modal-button--primary": buttonProps.primary,
+            "app-modal-button--secondary": !buttonProps.primary,
+          }}
           type="button"
           aria-busy={syncing()}
           disabled={importBusy()}
@@ -397,33 +461,33 @@ export function PullAnalysisDialog(props: {
             <path d="M20 5v5h-5M4 19v-5h5" />
             <path d="M4.9 9a8 8 0 0 1 13-3l2.1 4M4 14l2.1 4a8 8 0 0 0 13-3" />
           </svg>
-          {syncing()
-            ? t("读取中…", "Reading…")
-            : t("从游戏读取", "Read from game")}
+          <span class="pull-analysis-refresh-label">
+            <span aria-hidden={syncing()}>
+              {t("从游戏读取", "Read from game")}
+            </span>
+            <span aria-hidden={!syncing()}>{t("读取中…", "Reading…")}</span>
+          </span>
         </button>
       </Show>
     );
   }
 
-  function HistoryControls(controlProps: { settingsOnly?: boolean }) {
+  function SettingsButton(buttonProps: { iconOnly?: boolean }) {
     return (
-      <>
-        <Show when={!controlProps.settingsOnly}>
-          <HistoryRefresh />
-        </Show>
-        <button
-          class="app-modal-button app-modal-button--secondary pull-analysis-settings-button"
-          type="button"
-          aria-label={t("抽卡设置", "Pull settings")}
-          aria-haspopup="dialog"
-          onClick={() => {
-            setPullSettings(true);
-          }}
-        >
-          <img src={settingsIcon} alt="" width="14" height="14" />
-          {t("设置", "Settings")}
-        </button>
-      </>
+      <button
+        class="app-modal-button app-modal-button--secondary pull-analysis-settings-button"
+        classList={{ "pull-analysis-empty-settings": buttonProps.iconOnly }}
+        type="button"
+        aria-label={t("抽卡设置", "Pull settings")}
+        title={
+          buttonProps.iconOnly ? t("抽卡设置", "Pull settings") : undefined
+        }
+        aria-haspopup="dialog"
+        onClick={() => setPullSettings(true)}
+      >
+        <img src={settingsIcon} alt="" width="14" height="14" />
+        <Show when={!buttonProps.iconOnly}>{t("设置", "Settings")}</Show>
+      </button>
     );
   }
 
@@ -438,7 +502,9 @@ export function PullAnalysisDialog(props: {
         bodyClass="pull-analysis-modal-body"
         title={
           <strong class="pull-analysis-pull-title">
-            {t("抽卡分析", "Pull analysis")}
+            {historyAvailable()
+              ? t("抽卡分析", "Pull analysis")
+              : t("抽卡记录", "Pull history")}
           </strong>
         }
         maxWidth={1040}
@@ -459,24 +525,30 @@ export function PullAnalysisDialog(props: {
                 <span class="pull-analysis-empty-icon" aria-hidden="true">
                   ✦
                 </span>
-                <h3>{t("导入你的抽卡记录", "Import your pull history")}</h3>
+                <h3>{t("暂无抽卡记录", "No pull records yet")}</h3>
                 <p>
                   {t(
-                    "拖入 UIGF v4.2 文件，或点击下方导入。",
-                    "Drop a UIGF v4.2 file here or import it below."
+                    "也可以将 UIGF 文件拖到这里。",
+                    "You can also drop a UIGF file here."
                   )}
                 </p>
-                <div class="pull-analysis-actions">
-                  <HistoryRefresh />
+                <div class="pull-analysis-empty-actions">
+                  <HistoryRefresh primary />
                   <AppModalButton
-                    variant="primary"
+                    variant={historyAvailable() ? "secondary" : "primary"}
                     disabled={importBusy()}
                     onClick={() => void importFile()}
                   >
+                    <span class="pull-analysis-file-icon" aria-hidden="true" />
                     {t("导入 UIGF", "Import UIGF")}
                   </AppModalButton>
-                  <HistoryControls settingsOnly />
                 </div>
+                <Show when={syncing()}>
+                  <span class="pull-analysis-sync-progress" role="status">
+                    {syncProgressText()}
+                  </span>
+                </Show>
+                <SettingsButton iconOnly />
               </section>
             }
           >
@@ -487,9 +559,16 @@ export function PullAnalysisDialog(props: {
                 catalog={props.game === "hk4e" ? catalogItems : undefined}
                 accounts={accounts()}
                 account={report().account}
-                historyControls={<HistoryControls />}
+                historyProgress={syncing() ? syncProgressText() : undefined}
+                historyControls={
+                  <>
+                    <HistoryRefresh />
+                    <SettingsButton />
+                  </>
+                }
                 summary={report().summary}
-                pool={currentPool()}
+                poolType={currentPool()}
+                poolTabs={poolTabs()}
                 visiblePulls={visiblePulls()}
                 onAccountChange={uid => {
                   setSelectedUid(uid);
@@ -522,14 +601,21 @@ export function PullAnalysisDialog(props: {
         <div class="pull-analysis-panel" style={panelTheme()}>
           <PullSettings
             t={t}
+            game={props.game}
             gameTitle={props.title}
             accounts={accounts()}
             busy={importBusy()}
             loaded={archiveLoaded()}
             storageError={storageError()}
-            onGuide={() => openLink("https://uigf.org/zh/standards/uigf.html")}
+            onGuide={version =>
+              openLink(
+                version === "v3.0"
+                  ? "https://uigf.org/zh/standards/uigf-legacy-v3.0.html"
+                  : "https://uigf.org/zh/standards/uigf.html"
+              )
+            }
             onImport={() => void importFile()}
-            onExport={uid => void exportFile(uid)}
+            onExport={(version, uid) => void exportFile(version, uid)}
             onClear={clearPulls}
           />
         </div>

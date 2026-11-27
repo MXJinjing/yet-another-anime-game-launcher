@@ -6,7 +6,6 @@ import {
   For,
   Match,
   on,
-  onMount,
   Show,
   Switch,
   type JSX,
@@ -15,7 +14,7 @@ import { AppModalButton } from "@src/components/app-modal";
 import type { PullGame } from "./games";
 import type { CatalogItem } from "./hk4e-catalog";
 import { readCachedHk4ePortrait } from "./hk4e-portrait-cache";
-import { hk4ePoolRule } from "./hk4e-rules";
+import { hk4eHardPity } from "./hk4e-rules";
 import {
   createPullReport,
   groupPullCycles,
@@ -24,8 +23,6 @@ import {
   type PullReportRow,
 } from "./pull-report";
 import type { GachaArchive, summarizePulls } from "./uigf";
-import { readRadianceMarks, toggleRadianceMark } from "./local";
-import { notifyPullAnalysis } from "./notifications";
 
 type Account = NonNullable<GachaArchive[PullGame]>[number];
 type Summary = ReturnType<typeof summarizePulls>;
@@ -84,9 +81,11 @@ export function PullDashboard(props: {
   accounts: Account[];
   account: Account;
   summary: Summary;
-  pool: Summary["pools"][number] | undefined;
+  poolType: string | undefined;
+  poolTabs: readonly string[];
   catalog?: ReadonlyMap<string, CatalogItem>;
   visiblePulls: number;
+  historyProgress?: string;
   historyControls?: JSX.Element;
   onAccountChange: (uid: string) => void;
   onPoolChange: (type: string) => void;
@@ -95,28 +94,24 @@ export function PullDashboard(props: {
   const t = props.t;
   const count = new Intl.NumberFormat();
   const [view, setView] = createSignal<View>("bars");
+  const analysisAvailable = () => props.game === "hk4e";
+  const showBars = () => analysisAvailable() && view() === "bars";
   const [showFour, setShowFour] = createSignal(false);
   const [page, setPage] = createSignal(1);
   createEffect(
     on(
-      () => [props.game, props.account.uid, props.pool?.type] as const,
+      () => [props.game, props.account.uid, props.poolType] as const,
       () => setPage(1),
       { defer: true }
     )
   );
-  const [radiance, setRadiance] = createSignal(new Set<string>());
-  const [writingMark, setWritingMark] = createSignal(false);
-  onMount(() => {
-    void readRadianceMarks().then(marks => setRadiance(new Set(marks)));
-  });
   const report = createMemo(() =>
     createPullReport(props.account, props.game, props.catalog)
   );
   const pool = createMemo(() =>
-    report().pools.find(entry => entry.type === props.pool?.type)
+    report().pools.find(entry => entry.type === props.poolType)
   );
-  const topRank = () =>
-    props.game === "nap" ? t("S 级", "S rank") : t("五星", "5-star");
+  const topRank = () => t("五星", "5-star");
   const rankLabel = (rank?: string) => {
     if (!rank) return "—";
     return props.game === "nap"
@@ -124,7 +119,9 @@ export function PullDashboard(props: {
           rank
       : rank + "★";
   };
-  const timeline = createMemo(() => groupPullCycles(pool()?.rows ?? []));
+  const timeline = createMemo(() =>
+    groupPullCycles(analysisAvailable() ? pool()?.rows ?? [] : [])
+  );
   const cycles = createMemo(() => [...timeline().cycles].reverse());
   const fourthCount = createMemo(
     () =>
@@ -137,24 +134,18 @@ export function PullDashboard(props: {
   const listPage = createMemo(() =>
     pagePullHistory(pool()?.rows ?? [], page())
   );
-  const rule = () =>
-    props.game === "hk4e"
-      ? hk4ePoolRule(
-          pool()?.type ?? "",
-          pool()?.pulls.at(-1)?.time,
-          props.account.timezone
-        )
-      : undefined;
+  const hardPity = () =>
+    analysisAvailable() ? hk4eHardPity(pool()?.type) : undefined;
   const barMax = createMemo(
     () =>
       pool()?.rows.reduce(
         (max, row) =>
           row.pull.rank_type === "5" ? Math.max(max, row.interval ?? 0) : max,
-        Math.max(rule()?.hardPity ?? 1, timeline().ongoing.count)
+        Math.max(hardPity() ?? 1, timeline().ongoing.count)
       ) ?? 1
   );
   const supportsFeatured = () =>
-    props.game === "hk4e" && ["301", "302"].includes(pool()?.type ?? "");
+    analysisAvailable() && ["301", "302"].includes(pool()?.type ?? "");
 
   function name(row: PullReportRow) {
     const catalogName = row.item?.name;
@@ -174,79 +165,47 @@ export function PullDashboard(props: {
     );
   }
 
-  function canMarkRadiance(row: PullReportRow) {
-    const type = row.pull.uigf_gacha_type ?? row.pull.gacha_type;
+  function Featured(props: { row: PullReportRow }) {
     return (
-      props.game === "hk4e" &&
-      type === "301" &&
-      row.pull.rank_type === "5" &&
-      row.featured !== false &&
-      row.guaranteed !== true &&
-      hk4ePoolRule(type, row.pull.time, props.account.timezone)?.radiance ===
-        true
+      <Show
+        when={
+          supportsFeatured() &&
+          props.row.pull.rank_type === "5" &&
+          props.row.featured !== false
+        }
+      >
+        <span
+          class="pull-analysis-featured-tag"
+          data-featured={String(props.row.featured)}
+        >
+          {props.row.featured === undefined
+            ? t("UP 未知", "UP unknown")
+            : props.row.guaranteed === undefined
+            ? "UP"
+            : props.row.guaranteed
+            ? t("大保底", "Guaranteed UP")
+            : t("小保底", "Non-guaranteed UP")}
+        </span>
+      </Show>
     );
   }
 
-  async function markRadiance(key: string) {
-    if (writingMark()) return;
-    setWritingMark(true);
-    try {
-      setRadiance(new Set(await toggleRadianceMark(key)));
-    } catch {
-      notifyPullAnalysis(
-        "warning",
-        t("无法保存明光标记", "Could not save the Radiance mark")
-      );
-    } finally {
-      setWritingMark(false);
-    }
-  }
-
-  function Featured(props: { row: PullReportRow; uid: string }) {
-    const key = () => props.uid + ":" + props.row.pull.id;
-    const marked = () => canMarkRadiance(props.row) && radiance().has(key());
+  function OffBannerStamp(props: { row: PullReportRow }) {
+    const label = () =>
+      props.row.guaranteed === false
+        ? t("小保底歪", "Lost the 50/50")
+        : t("歪池", "Off-banner");
     return (
-      <>
-        <Show
-          when={
-            supportsFeatured() && props.row.pull.rank_type === "5" && !marked()
-          }
+      <Show when={supportsFeatured() && props.row.featured === false}>
+        <span
+          class="pull-analysis-off-banner-stamp"
+          role="img"
+          aria-label={label()}
+          title={label()}
         >
-          <span
-            class="pull-analysis-featured-tag"
-            data-featured={String(props.row.featured)}
-          >
-            {props.row.featured === false
-              ? props.row.guaranteed === false
-                ? t("小保底歪", "Lost the 50/50")
-                : t("歪池", "Off-banner")
-              : props.row.featured === undefined
-              ? t("UP 未知", "UP unknown")
-              : props.row.guaranteed === undefined
-              ? "UP"
-              : props.row.guaranteed
-              ? t("大保底", "Guaranteed UP")
-              : t("小保底", "Non-guaranteed UP")}
-          </span>
-        </Show>
-        <Show when={canMarkRadiance(props.row)}>
-          <button
-            type="button"
-            class="pull-analysis-radiance-mark"
-            aria-pressed={marked()}
-            disabled={writingMark()}
-            title={t(
-              "仅在游戏中看到捕获明光动画时标记",
-              "Mark only if you saw the Capturing Radiance animation"
-            )}
-            onClick={() => void markRadiance(key())}
-          >
-            {marked()
-              ? t("捕获明光", "Capturing Radiance")
-              : t("标记明光", "Mark Radiance")}
-          </button>
-        </Show>
-      </>
+          {t("歪", "OFF")}
+        </span>
+      </Show>
     );
   }
 
@@ -332,165 +291,183 @@ export function PullDashboard(props: {
   return (
     <>
       <div class="pull-analysis-scope">
-        <label class="pull-analysis-field">
-          UID
-          <select
-            value={props.account.uid}
-            onChange={event => {
-              props.onAccountChange(event.currentTarget.value);
-            }}
+        <div class="pull-analysis-scope-details">
+          <label class="pull-analysis-field">
+            UID
+            <select
+              value={props.account.uid}
+              onChange={event => {
+                props.onAccountChange(event.currentTarget.value);
+              }}
+            >
+              <For each={props.accounts}>
+                {account => <option value={account.uid}>{account.uid}</option>}
+              </For>
+            </select>
+          </label>
+          <Show
+            when={!props.historyProgress}
+            fallback={
+              <span class="pull-analysis-sync-progress" role="status">
+                {props.historyProgress}
+              </span>
+            }
           >
-            <For each={props.accounts}>
-              {account => <option value={account.uid}>{account.uid}</option>}
-            </For>
-          </select>
-        </label>
-        <div class="pull-analysis-report-meta">
-          <Show when={props.summary.first}>
-            <span class="pull-analysis-muted">
-              {props.summary.first?.slice(0, 10)} —{" "}
-              {props.summary.last?.slice(0, 10)} · UTC
-              {props.account.timezone >= 0 ? "+" : ""}
-              {props.account.timezone}
-            </span>
+            <div class="pull-analysis-report-meta">
+              <Show when={props.summary.first}>
+                <span class="pull-analysis-muted">
+                  {props.summary.first?.slice(0, 10)} —{" "}
+                  {props.summary.last?.slice(0, 10)} · UTC
+                  {props.account.timezone >= 0 ? "+" : ""}
+                  {props.account.timezone}
+                </span>
+              </Show>
+              <span class="pull-analysis-muted" aria-live="polite">
+                {t("最近更新", "Last updated")}{" "}
+                <Show when={props.account.updatedAt} fallback="—">
+                  {timestamp => (
+                    <time dateTime={new Date(timestamp()).toISOString()}>
+                      {new Intl.DateTimeFormat(t("zh-CN", "en-GB"), {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }).format(timestamp())}
+                    </time>
+                  )}
+                </Show>
+              </span>
+            </div>
           </Show>
-          <span class="pull-analysis-muted" aria-live="polite">
-            {t("最近更新", "Last updated")}{" "}
-            <Show when={props.account.updatedAt} fallback="—">
-              {timestamp => (
-                <time dateTime={new Date(timestamp()).toISOString()}>
-                  {new Intl.DateTimeFormat(t("zh-CN", "en-GB"), {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  }).format(timestamp())}
-                </time>
-              )}
-            </Show>
-          </span>
-          {props.historyControls}
         </div>
+        <div class="pull-analysis-report-actions">{props.historyControls}</div>
       </div>
 
+      <Show when={props.poolTabs.length}>
+        <div
+          class="pull-analysis-pool-picker"
+          role="group"
+          aria-label={t("卡池", "Pools")}
+        >
+          <For each={props.poolTabs}>
+            {type => (
+              <button
+                type="button"
+                aria-pressed={props.poolType === type}
+                onClick={() => props.onPoolChange(type)}
+              >
+                {pullPoolLabel(props.game, type, t)}
+              </button>
+            )}
+          </For>
+        </div>
+      </Show>
       <Show
         when={pool()}
         fallback={
-          <p class="pull-analysis-muted">
-            {t("此 UID 尚无抽卡记录。", "This UID has no pull records yet.")}
+          <p class="pull-analysis-card pull-analysis-muted">
+            {props.poolType
+              ? t("此卡池暂无记录", "No records for this pool")
+              : t("此 UID 尚无抽卡记录。", "This UID has no pull records yet.")}
           </p>
         }
       >
         {active => (
           <>
-            <div
-              class="pull-analysis-pool-picker"
-              role="group"
-              aria-label={t("卡池", "Pools")}
-            >
-              <For each={props.summary.pools}>
-                {entry => (
-                  <button
-                    type="button"
-                    aria-pressed={active().type === entry.type}
-                    onClick={() => {
-                      props.onPoolChange(entry.type);
-                    }}
-                  >
-                    {pullPoolLabel(props.game, entry.type, t)}
-                  </button>
-                )}
-              </For>
-            </div>
             <section class="pull-analysis-card pull-analysis-history">
-              <div class="pull-analysis-history-heading">
-                <dl class="pull-analysis-pool-metrics">
-                  <div>
-                    <dt>
-                      {topRank()}
-                      {t("平均", " average")}
-                    </dt>
-                    <dd>{average(active().intervals)}</dd>
-                  </div>
-                  <Show when={supportsFeatured()}>
+              <Show when={analysisAvailable()}>
+                <div class="pull-analysis-history-heading">
+                  <dl class="pull-analysis-pool-metrics">
                     <div>
                       <dt>
-                        UP {topRank()}
+                        {topRank()}
                         {t("平均", " average")}
                       </dt>
-                      <dd>{average(active().featuredIntervals)}</dd>
+                      <dd>{average(active().intervals)}</dd>
                     </div>
-                    <div>
-                      <dt>{t("历史 UP 占比", "Historical UP share")}</dt>
-                      <dd
-                        title={
-                          active().hits +
-                          " UP / " +
-                          active().classified +
-                          " " +
-                          t("次可判定", "classified")
-                        }
-                      >
-                        {active().classified
-                          ? count.format(
-                              Math.round(
-                                (active().hits / active().classified) * 100
-                              )
-                            ) + "%"
-                          : "—"}
-                      </dd>
-                    </div>
-                  </Show>
-                </dl>
-                <div class="pull-analysis-view-actions">
-                  <Show when={view() === "bars" && fourthCount()}>
-                    <label class="pull-analysis-four-toggle">
-                      <input
-                        type="checkbox"
-                        checked={showFour()}
-                        aria-controls="pull-analysis-pull-cycles"
-                        onChange={event =>
-                          setShowFour(event.currentTarget.checked)
-                        }
-                      />
-                      {t("显示四星", "Show four-star pulls")}
-                      <span>{fourthCount()}</span>
-                    </label>
-                  </Show>
-                  <div
-                    class="pull-analysis-pool-picker pull-analysis-view-picker"
-                    role="group"
-                    aria-label={t("显示方式", "View mode")}
-                  >
-                    <For each={views}>
-                      {([id, zh, en, icon]) => (
-                        <button
-                          type="button"
-                          aria-pressed={view() === id}
-                          onClick={() => setView(id)}
+                    <Show when={supportsFeatured()}>
+                      <div>
+                        <dt>
+                          UP {topRank()}
+                          {t("平均", " average")}
+                        </dt>
+                        <dd>{average(active().featuredIntervals)}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("历史 UP 占比", "Historical UP share")}</dt>
+                        <dd
+                          title={
+                            active().hits +
+                            " UP / " +
+                            active().classified +
+                            " " +
+                            t("次可判定", "classified")
+                          }
                         >
-                          <svg
-                            aria-hidden="true"
-                            viewBox="0 0 16 16"
-                            width="14"
-                            height="14"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.5"
-                            stroke-linecap="round"
+                          {active().classified
+                            ? count.format(
+                                Math.round(
+                                  (active().hits / active().classified) * 100
+                                )
+                              ) + "%"
+                            : "—"}
+                        </dd>
+                      </div>
+                    </Show>
+                  </dl>
+                  <div class="pull-analysis-view-actions">
+                    <Show when={showBars() && fourthCount()}>
+                      <label class="pull-analysis-four-toggle">
+                        <input
+                          type="checkbox"
+                          checked={showFour()}
+                          aria-controls="pull-analysis-pull-cycles"
+                          onChange={event =>
+                            setShowFour(event.currentTarget.checked)
+                          }
+                        />
+                        {t("显示四星", "Show four-star pulls")}
+                        <span>{fourthCount()}</span>
+                      </label>
+                    </Show>
+                    <div
+                      class="pull-analysis-pool-picker pull-analysis-view-picker"
+                      role="group"
+                      aria-label={t("显示方式", "View mode")}
+                    >
+                      <For each={views}>
+                        {([id, zh, en, icon]) => (
+                          <button
+                            type="button"
+                            aria-pressed={view() === id}
+                            onClick={() => setView(id)}
                           >
-                            <path d={icon} />
-                          </svg>
-                          {t(zh, en)}
-                        </button>
-                      )}
-                    </For>
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 16 16"
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.5"
+                              stroke-linecap="round"
+                            >
+                              <path d={icon} />
+                            </svg>
+                            {t(zh, en)}
+                          </button>
+                        )}
+                      </For>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Show>
               <Switch>
-                <Match when={view() === "bars"}>
+                <Match when={showBars()}>
                   <ol
                     id="pull-analysis-pull-cycles"
                     class="pull-analysis-chart"
+                    classList={{
+                      "pull-analysis-chart--featured": supportsFeatured(),
+                    }}
                     aria-label={t(
                       "出货间隔与当前垫抽",
                       "Pull intervals and current pity"
@@ -558,16 +535,13 @@ export function PullDashboard(props: {
                         const row = cycle.result;
                         return (
                           <li
-                            data-timing={pullTiming(
-                              row.interval,
-                              rule()?.hardPity
-                            )}
+                            data-timing={pullTiming(row.interval, hardPity())}
                           >
                             <ItemImage row={row} />
                             <div class="pull-analysis-chart-row">
                               <div class="pull-analysis-chart-label">
                                 <strong title={name(row)}>{name(row)}</strong>
-                                <Featured row={row} uid={props.account.uid} />
+                                <Featured row={row} />
                               </div>
                               <div
                                 class="pull-analysis-chart-meter"
@@ -587,6 +561,7 @@ export function PullDashboard(props: {
                                     ? ""
                                     : t(" 抽", " pulls")}
                                 </span>
+                                <OffBannerStamp row={row} />
                               </div>
                             </div>
                             <FourCards rows={cycle.fourths} />
@@ -596,7 +571,7 @@ export function PullDashboard(props: {
                     </For>
                   </ol>
                 </Match>
-                <Match when={view() === "list"}>
+                <Match when={!showBars()}>
                   <div class="pull-analysis-table-wrap">
                     <table
                       aria-label={pullPoolLabel(props.game, active().type, t)}
@@ -652,9 +627,7 @@ export function PullDashboard(props: {
                   </div>
                 </Match>
               </Switch>
-              <Show
-                when={view() === "bars" && cycles().length > props.visiblePulls}
-              >
+              <Show when={showBars() && cycles().length > props.visiblePulls}>
                 <AppModalButton onClick={props.onShowMore}>
                   {t("显示更多记录", "Show more pulls")}
                 </AppModalButton>
