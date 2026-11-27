@@ -666,8 +666,7 @@ export async function createHypLauncher({
       const hydrateInBackground = () => {
         hydrate(selectedGame());
         games.filter(game => game !== selectedGame()).forEach(hydrate);
-        if (games.some(game => pullGameFor(game) === "hk4e"))
-          void maintainHk4ePortraits();
+        if (pullGame() === "hk4e") void maintainHk4ePortraits();
       };
       const usesIdleCallback = "requestIdleCallback" in window;
       const scheduled = usesIdleCallback
@@ -2556,9 +2555,16 @@ export async function createHypLauncher({
               <Show when={pullGame()}>
                 <PullAnalysisButton
                   disabled={libraryMounted() || downloadManagerOpen()}
-                  label={pullText("抽卡分析", "Pull analysis")}
+                  label={
+                    pullGame() === "hk4e"
+                      ? pullText("抽卡分析", "Pull analysis")
+                      : pullText("抽卡记录", "Pull history")
+                  }
                   status={pullStatus()}
-                  onClick={() => setPullsOpen(true)}
+                  onClick={() => {
+                    if (pullGame() === "hk4e") void maintainHk4ePortraits();
+                    setPullsOpen(true);
+                  }}
                 />
               </Show>
               <button

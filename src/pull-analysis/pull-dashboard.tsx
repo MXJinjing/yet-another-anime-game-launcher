@@ -94,6 +94,8 @@ export function PullDashboard(props: {
   const t = props.t;
   const count = new Intl.NumberFormat();
   const [view, setView] = createSignal<View>("bars");
+  const analysisAvailable = () => props.game === "hk4e";
+  const showBars = () => analysisAvailable() && view() === "bars";
   const [showFour, setShowFour] = createSignal(false);
   const [page, setPage] = createSignal(1);
   createEffect(
@@ -109,8 +111,7 @@ export function PullDashboard(props: {
   const pool = createMemo(() =>
     report().pools.find(entry => entry.type === props.poolType)
   );
-  const topRank = () =>
-    props.game === "nap" ? t("S 级", "S rank") : t("五星", "5-star");
+  const topRank = () => t("五星", "5-star");
   const rankLabel = (rank?: string) => {
     if (!rank) return "—";
     return props.game === "nap"
@@ -118,7 +119,9 @@ export function PullDashboard(props: {
           rank
       : rank + "★";
   };
-  const timeline = createMemo(() => groupPullCycles(pool()?.rows ?? []));
+  const timeline = createMemo(() =>
+    groupPullCycles(analysisAvailable() ? pool()?.rows ?? [] : [])
+  );
   const cycles = createMemo(() => [...timeline().cycles].reverse());
   const fourthCount = createMemo(
     () =>
@@ -132,7 +135,7 @@ export function PullDashboard(props: {
     pagePullHistory(pool()?.rows ?? [], page())
   );
   const hardPity = () =>
-    props.game === "hk4e" ? hk4eHardPity(pool()?.type) : undefined;
+    analysisAvailable() ? hk4eHardPity(pool()?.type) : undefined;
   const barMax = createMemo(
     () =>
       pool()?.rows.reduce(
@@ -142,7 +145,7 @@ export function PullDashboard(props: {
       ) ?? 1
   );
   const supportsFeatured = () =>
-    props.game === "hk4e" && ["301", "302"].includes(pool()?.type ?? "");
+    analysisAvailable() && ["301", "302"].includes(pool()?.type ?? "");
 
   function name(row: PullReportRow) {
     const catalogName = row.item?.name;
@@ -370,93 +373,95 @@ export function PullDashboard(props: {
         {active => (
           <>
             <section class="pull-analysis-card pull-analysis-history">
-              <div class="pull-analysis-history-heading">
-                <dl class="pull-analysis-pool-metrics">
-                  <div>
-                    <dt>
-                      {topRank()}
-                      {t("平均", " average")}
-                    </dt>
-                    <dd>{average(active().intervals)}</dd>
-                  </div>
-                  <Show when={supportsFeatured()}>
+              <Show when={analysisAvailable()}>
+                <div class="pull-analysis-history-heading">
+                  <dl class="pull-analysis-pool-metrics">
                     <div>
                       <dt>
-                        UP {topRank()}
+                        {topRank()}
                         {t("平均", " average")}
                       </dt>
-                      <dd>{average(active().featuredIntervals)}</dd>
+                      <dd>{average(active().intervals)}</dd>
                     </div>
-                    <div>
-                      <dt>{t("历史 UP 占比", "Historical UP share")}</dt>
-                      <dd
-                        title={
-                          active().hits +
-                          " UP / " +
-                          active().classified +
-                          " " +
-                          t("次可判定", "classified")
-                        }
-                      >
-                        {active().classified
-                          ? count.format(
-                              Math.round(
-                                (active().hits / active().classified) * 100
-                              )
-                            ) + "%"
-                          : "—"}
-                      </dd>
-                    </div>
-                  </Show>
-                </dl>
-                <div class="pull-analysis-view-actions">
-                  <Show when={view() === "bars" && fourthCount()}>
-                    <label class="pull-analysis-four-toggle">
-                      <input
-                        type="checkbox"
-                        checked={showFour()}
-                        aria-controls="pull-analysis-pull-cycles"
-                        onChange={event =>
-                          setShowFour(event.currentTarget.checked)
-                        }
-                      />
-                      {t("显示四星", "Show four-star pulls")}
-                      <span>{fourthCount()}</span>
-                    </label>
-                  </Show>
-                  <div
-                    class="pull-analysis-pool-picker pull-analysis-view-picker"
-                    role="group"
-                    aria-label={t("显示方式", "View mode")}
-                  >
-                    <For each={views}>
-                      {([id, zh, en, icon]) => (
-                        <button
-                          type="button"
-                          aria-pressed={view() === id}
-                          onClick={() => setView(id)}
+                    <Show when={supportsFeatured()}>
+                      <div>
+                        <dt>
+                          UP {topRank()}
+                          {t("平均", " average")}
+                        </dt>
+                        <dd>{average(active().featuredIntervals)}</dd>
+                      </div>
+                      <div>
+                        <dt>{t("历史 UP 占比", "Historical UP share")}</dt>
+                        <dd
+                          title={
+                            active().hits +
+                            " UP / " +
+                            active().classified +
+                            " " +
+                            t("次可判定", "classified")
+                          }
                         >
-                          <svg
-                            aria-hidden="true"
-                            viewBox="0 0 16 16"
-                            width="14"
-                            height="14"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.5"
-                            stroke-linecap="round"
+                          {active().classified
+                            ? count.format(
+                                Math.round(
+                                  (active().hits / active().classified) * 100
+                                )
+                              ) + "%"
+                            : "—"}
+                        </dd>
+                      </div>
+                    </Show>
+                  </dl>
+                  <div class="pull-analysis-view-actions">
+                    <Show when={showBars() && fourthCount()}>
+                      <label class="pull-analysis-four-toggle">
+                        <input
+                          type="checkbox"
+                          checked={showFour()}
+                          aria-controls="pull-analysis-pull-cycles"
+                          onChange={event =>
+                            setShowFour(event.currentTarget.checked)
+                          }
+                        />
+                        {t("显示四星", "Show four-star pulls")}
+                        <span>{fourthCount()}</span>
+                      </label>
+                    </Show>
+                    <div
+                      class="pull-analysis-pool-picker pull-analysis-view-picker"
+                      role="group"
+                      aria-label={t("显示方式", "View mode")}
+                    >
+                      <For each={views}>
+                        {([id, zh, en, icon]) => (
+                          <button
+                            type="button"
+                            aria-pressed={view() === id}
+                            onClick={() => setView(id)}
                           >
-                            <path d={icon} />
-                          </svg>
-                          {t(zh, en)}
-                        </button>
-                      )}
-                    </For>
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 16 16"
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.5"
+                              stroke-linecap="round"
+                            >
+                              <path d={icon} />
+                            </svg>
+                            {t(zh, en)}
+                          </button>
+                        )}
+                      </For>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Show>
               <Switch>
-                <Match when={view() === "bars"}>
+                <Match when={showBars()}>
                   <ol
                     id="pull-analysis-pull-cycles"
                     class="pull-analysis-chart"
@@ -566,7 +571,7 @@ export function PullDashboard(props: {
                     </For>
                   </ol>
                 </Match>
-                <Match when={view() === "list"}>
+                <Match when={!showBars()}>
                   <div class="pull-analysis-table-wrap">
                     <table
                       aria-label={pullPoolLabel(props.game, active().type, t)}
@@ -622,9 +627,7 @@ export function PullDashboard(props: {
                   </div>
                 </Match>
               </Switch>
-              <Show
-                when={view() === "bars" && cycles().length > props.visiblePulls}
-              >
+              <Show when={showBars() && cycles().length > props.visiblePulls}>
                 <AppModalButton onClick={props.onShowMore}>
                   {t("显示更多记录", "Show more pulls")}
                 </AppModalButton>

@@ -502,7 +502,9 @@ export function PullAnalysisDialog(props: {
         bodyClass="pull-analysis-modal-body"
         title={
           <strong class="pull-analysis-pull-title">
-            {t("抽卡分析", "Pull analysis")}
+            {historyAvailable()
+              ? t("抽卡分析", "Pull analysis")
+              : t("抽卡记录", "Pull history")}
           </strong>
         }
         maxWidth={1040}
