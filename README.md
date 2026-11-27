@@ -6,6 +6,10 @@
 >
 > Yaaglm is an independently maintained fork of [Yaagl](https://github.com/yaagl/yet-another-anime-game-launcher). It combines launcher functionality synchronized from upstream with Yaaglm-specific changes. Its releases, supported clients, and support may differ from the upstream project; it is not an official upstream build.
 
+## Launcher preview
+
+![Sample Yaaglm launcher home screen](docs/launcher-preview.webp)
+
 ## Supported games and channels
 
 Release packages cover these clients and regions:

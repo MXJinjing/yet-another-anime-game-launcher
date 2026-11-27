@@ -6,6 +6,10 @@
 >
 > Yaaglm 是基于 [Yaagl](https://github.com/yaagl/yet-another-anime-game-launcher) 独立维护的 fork，包含与上游同步的启动器功能以及 Yaaglm 自有改动。它的发行包、支持的客户端和支持渠道可能与上游不同，不是上游官方构建版本。
 
+## 启动页示意
+
+![Yaaglm 样例启动页](launcher-preview.webp)
+
 ## 支持的游戏与渠道
 
 发行包覆盖以下客户端和区域：
